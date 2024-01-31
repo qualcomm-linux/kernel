@@ -288,6 +288,18 @@ config QCOM_PBS
 	  This module provides the APIs to the client drivers that wants to send the
 	  PBS trigger event to the PBS RAM.
 
+config QCOM_MINIDUMP
+	tristate "QCOM APSS Minidump driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_SMEM
+	help
+	  This config enables Linux core infrastructure for Application
+	  processor subsystem (APSS) Minidump collection, i.e., it enables
+	  Linux client drivers to register their internal data structures
+	  and debug messages as part of the APSS Minidump table and when
+	  the SoC has crashed, these selective regions will be dumped
+	  instead of the entire RAM dump. This saves a significant amount
+	  of time and/or storage space.
 endif
 
 # Options selected by other drivers from different subsystems must be outside
