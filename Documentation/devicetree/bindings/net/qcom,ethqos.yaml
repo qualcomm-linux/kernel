@@ -78,6 +78,12 @@ properties:
   phy-names:
     const: serdes
 
+  qcom,rx-prog-swap:
+    type: boolean
+    description:
+      Swap the sampling occasion on the RX side. This can be used for
+      tuning when connected to a third-party PHY.
+
 required:
   - compatible
   - clocks
