@@ -119,6 +119,7 @@ struct qcom_ethqos {
 	bool rgmii_config_loopback_en;
 	bool has_emac_ge_3;
 	bool needs_sgmii_loopback;
+	bool needs_rx_prog_swap;
 };
 
 static int rgmii_readl(struct qcom_ethqos *ethqos, unsigned int offset)
@@ -387,6 +388,7 @@ static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos, int speed)
 {
 	struct device *dev = &ethqos->pdev->dev;
+	int rx_prog_swap = 0;
 	int phase_shift = 0;
 	int loopback;
 
@@ -403,6 +405,9 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos, int speed)
 		loopback = RGMII_CONFIG_LOOPBACK_EN;
 	else
 		loopback = 0;
+
+	if (ethqos->needs_rx_prog_swap)
+		rx_prog_swap = RGMII_CONFIG2_RX_PROG_SWAP;
 
 	/* Select RGMII, write 0 to interface select */
 	rgmii_updatel(ethqos, RGMII_CONFIG_INTF_SEL,
@@ -467,14 +472,8 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos, int speed)
 			      BIT(6), RGMII_IO_MACRO_CONFIG);
 		rgmii_updatel(ethqos, RGMII_CONFIG2_RSVD_CONFIG15,
 			      0, RGMII_IO_MACRO_CONFIG2);
-
-		if (ethqos->has_emac_ge_3)
-			rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
-				      RGMII_CONFIG2_RX_PROG_SWAP,
-				      RGMII_IO_MACRO_CONFIG2);
-		else
-			rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
-				      0, RGMII_IO_MACRO_CONFIG2);
+		rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP, rx_prog_swap,
+			      RGMII_IO_MACRO_CONFIG2);
 
 		/* Write 0x5 to PRG_RCLK_DLY_CODE */
 		rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_CODE,
@@ -508,13 +507,9 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos, int speed)
 			      RGMII_IO_MACRO_CONFIG);
 		rgmii_updatel(ethqos, RGMII_CONFIG2_RSVD_CONFIG15,
 			      0, RGMII_IO_MACRO_CONFIG2);
-		if (ethqos->has_emac_ge_3)
-			rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
-				      RGMII_CONFIG2_RX_PROG_SWAP,
-				      RGMII_IO_MACRO_CONFIG2);
-		else
-			rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
-				      0, RGMII_IO_MACRO_CONFIG2);
+		rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP, rx_prog_swap,
+			      RGMII_IO_MACRO_CONFIG2);
+
 		/* Write 0x5 to PRG_RCLK_DLY_CODE */
 		rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_CODE,
 			      (BIT(29) | BIT(27)), SDCC_HC_REG_DDR_CONFIG);
@@ -784,10 +779,20 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ethqos->phy_mode = plat_dat->phy_interface;
 
 	root = of_find_node_by_path("/");
-	if (root && of_device_is_compatible(root, "qcom,qcs404-evb-4000"))
+	if (!root)
+		return dev_err_probe(dev, ret, "Failed to get root node\n");
+
+	if (of_device_is_compatible(root, "qcom,sa8540p-ride"))
+		ethqos->needs_rx_prog_swap = true;
+	else
+		ethqos->needs_rx_prog_swap =
+			of_property_read_bool(np, "qcom,rx-prog-swap");
+
+	if (of_device_is_compatible(root, "qcom,qcs404-evb-4000"))
 		ethqos->phy_mode = PHY_INTERFACE_MODE_RGMII_ID;
 	else if (ethqos->phy_mode == PHY_INTERFACE_MODE_RGMII)
 		return dev_err_probe(dev, -EINVAL, "Invalid phy-mode rgmii\n");
+
 	of_node_put(root);
 
 	if (plat_dat->phy_interface == PHY_INTERFACE_MODE_RGMII_ID)
