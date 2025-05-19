@@ -8,7 +8,9 @@ jobs:
       matrix:
         check: [check-uapi-headers, sparse-check, checkpatch, dt-binding-check, dtb-check]
         
-    runs-on: [self-hosted, kernel-prd-u2404-x64-large-od-ephem]
+    runs-on:
+      group: GHA-Kernel-SelfHosted-RG
+      labels: [ self-hosted, kernel-prd-u2404-x64-large-od-ephem ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
