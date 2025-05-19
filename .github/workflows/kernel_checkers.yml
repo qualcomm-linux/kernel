@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
           
       - name: Clone checker scripts
-        run: cd .. && git clone https://github.com/qualcomm-linux/checker.git
+        run: cd .. && git clone https://github.com/qualcomm-linux/kernel-checkers.git
         
       - name: Run ${{ matrix.check }}
-        run: bash ../checker/${{ matrix.check }}.sh --kernel-src ${{ github.workspace }} --base ${{ github.event.pull_request.base.sha }} --head ${{ github.event.pull_request.head.sha }}
+        run: bash ../kernel-checkers/${{ matrix.check }}.sh --kernel-src ${{ github.workspace }} --base ${{ github.event.pull_request.base.sha }} --head ${{ github.event.pull_request.head.sha }}
