@@ -1,0 +1,22 @@
+name: Kernel Checkers
+on:
+  pull_request:
+
+jobs:
+  checks:
+    strategy:
+      matrix:
+        check: [check-uapi-headers, sparse-check, checkpatch, dt-binding-check, dtb-check]
+        
+    runs-on: [self-hosted, kernel-prd-u2404-x64-large-od-ephem]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Clone checker scripts
+        run: cd .. && git clone https://github.com/qualcomm-linux/checker.git
+        
+      - name: Run ${{ matrix.check }}
+        run: bash ../checker/${{ matrix.check }}.sh --kernel-src ${{ github.workspace }} --base ${{ github.event.pull_request.base.sha }} --head ${{ github.event.pull_request.head.sha }}
