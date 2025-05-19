@@ -1,0 +1,39 @@
+name: Kernel Checkers
+on:
+  pull_request:
+    branches:
+      - main
+      - qcom-next-staging
+
+jobs:
+  checker:
+    strategy:
+      matrix:
+        check: [check-uapi-headers, sparse-check, checkpatch, dt-binding-check, dtb-check]
+
+    runs-on:
+      group: GHA-Kernel-SelfHosted-RG
+      labels: [ self-hosted, kernel-prd-u2404-x64-large-od-ephem ]
+    steps:
+      - name: Login to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull docker image from ghcr
+        run: |
+          docker pull ghcr.io/qualcomm-linux/kmake-image:latest
+          docker tag ghcr.io/qualcomm-linux/kmake-image:latest kmake-image
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone checker scripts
+        run: cd .. && git clone https://github.com/qualcomm-linux/kernel-checkers.git
+
+      - name: Run ${{ matrix.check }}
+        run: bash ../kernel-checkers/${{ matrix.check }}.sh --kernel-src ${{ github.workspace }} --base ${{ github.event.pull_request.base.sha }} --head ${{ github.event.pull_request.head.sha }}
