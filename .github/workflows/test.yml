@@ -1,0 +1,98 @@
+name: _test
+description: Run tests on LAVA
+
+on:
+  workflow_call:
+    inputs:
+      docker_image:
+        description: Docker image
+        type: string
+        required: true
+        default: kmake-image:latest
+
+jobs:
+  test:
+    runs-on:
+      group: GHA-Kernel-SelfHosted-RG
+      labels: [ self-hosted, kernel-prd-u2404-x64-large-od-ephem ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Pull docker image
+        uses: ./.github/actions/pull_docker_image
+        with:
+          image: ${{ inputs.docker_image }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download URLs list
+        uses: actions/download-artifact@v4
+        with:
+          name: presigned_urls.json
+          path: ${{ github.workspace }}
+
+      - name: Clone lava job render scripts
+        run: cd .. && git clone https://github.com/qualcomm-linux/job_render
+
+      - name: Create lava job definition
+        uses: ./.github/actions/lava_job_render
+        id: create_job_definition
+        with:
+          docker_image: ${{ inputs.docker_image }}
+
+      - name: Submit lava job
+        id: submit_job
+        run: |
+          cd ../job_render
+          job_id=$(docker run -i --rm --workdir="$PWD" -v "$(dirname $PWD)":"$(dirname $PWD)" ${{ inputs.docker_image }} sh -c "lavacli identities add --token ${{secrets.LAVA_OSS_TOKEN}} --uri https://lava-oss.qualcomm.com/RPC2 --username ${{secrets.LAVA_OSS_USER}} production && lavacli -i production jobs submit ./renders/lava_job_definition.yaml")
+          job_url="https://lava-oss.qualcomm.com/scheduler/job/$job_id"
+          echo "job_id=$job_id" >> $GITHUB_OUTPUT
+          echo "job_url=$job_url" >> $GITHUB_OUTPUT
+          echo "Lava Job: $job_url"
+          echo "JOB_ID=$job_id" >> $GITHUB_ENV
+
+      - name: Check lava job results
+        id: check_job
+        run: |
+          STATE=""
+          while [ "$STATE" != "Finished" ]; do
+            state=$(docker run -i --rm --workdir="$PWD" -v "$(dirname $PWD)":"$(dirname $PWD)" ${{ inputs.docker_image }} sh -c "lavacli identities add --token ${{secrets.LAVA_OSS_TOKEN}} --uri https://lava-oss.qualcomm.com/RPC2 --username ${{secrets.LAVA_OSS_USER}} production && lavacli -i production jobs show $JOB_ID" | grep state)
+            STATE=$(echo "$state" | cut -d':' -f2 | sed 's/^ *//;s/ *$//')
+            echo "Current status: $STATE"
+            sleep 30
+          done
+          health=$(docker run -i --rm --workdir="$PWD" -v "$(dirname $PWD)":"$(dirname $PWD)" ${{ inputs.docker_image }} sh -c "lavacli identities add --token ${{secrets.LAVA_OSS_TOKEN}} --uri https://lava-oss.qualcomm.com/RPC2 --username ${{secrets.LAVA_OSS_USER}} production && lavacli -i production jobs show $JOB_ID" | grep Health)
+          HEALTH=$(echo "$health" | cut -d':' -f2 | sed 's/^ *//;s/ *$//')
+          if [[ "$HEALTH" == "Complete" ]]; then
+            echo "Lava job passed."
+            summary=":heavy_check_mark: Lava job passed."
+            echo "summary=$summary" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "Lava job failed."
+            summary=":x: Lava job failed."
+            echo "summary=$summary" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Update summary
+        if: success() || failure()
+        shell: bash
+        run: |
+          if [ "${{ steps.create_job_definition.conclusion }}" == 'failure' ]; then
+            status=":x: Test job failed"
+          else
+            status="${{ steps.check_job.outputs.summary }}"
+            job_url="${{ steps.submit_job.outputs.job_url }}"
+            job_id="${{ steps.submit_job.outputs.job_id }}"
+          fi
+          SUMMARY='
+          <details><summary><i>'${status}'</i></summary>
+          <br>
+          JOB ID: <a href="${job_url}">'${job_id}'</a>
+          </details>
+          '
+          echo -e "$SUMMARY" >> $GITHUB_STEP_SUMMARY

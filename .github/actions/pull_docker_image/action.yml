@@ -1,0 +1,24 @@
+name: Pull docker image from ghcr
+description: Pull docker image from ghcr
+
+inputs:
+  image:
+    description: The docker image to pull
+    required: true
+    default: kmake-image:latest
+
+  github_token:
+    description: The GitHub token to use for authentication
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Clone kmake-image
+      run: |
+        git clone https://github.com/qualcomm-linux/kmake-image.git
+
+    - name: Build docker image
+      run: |
+        cd kmake-image
+        docker build . -t kmake-image

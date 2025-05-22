@@ -1,0 +1,75 @@
+name: _build
+on:
+  workflow_call:
+    inputs:
+      docker_image:
+        description: Docker image
+        type: string
+        required: true
+
+jobs:
+  build:
+    runs-on:
+      group: GHA-Kernel-SelfHosted-RG
+      labels: [ self-hosted, kernel-prd-u2404-x64-large-od-ephem ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Pull docker image
+        uses: ./.github/actions/pull_docker_image
+        with:
+          image: ${{ inputs.docker_image }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build workspace
+        id: build_workspace
+        uses: ./.github/actions/build
+        with:
+          docker_image: ${{ inputs.docker_image }}
+
+      - name: Create file list for artifacts upload
+        run: |
+          touch ../artifacts/file_list.txt
+          tar -cJf modules.tar.xz ../kobj/tar-install/lib/modules/
+          echo "modules.tar.xz" >> ../artifacts/file_list.txt
+          echo "../kobj/arch/arm64/boot/Image" >> ../artifacts/file_list.txt
+          echo "../kobj/vmlinux" >> ../artifacts/file_list.txt
+          echo "../kobj/arch/arm64/boot/dts/qcom/qcs6490-rb3gen2.dtb" >> ../artifacts/file_list.txt
+
+      - name: Upload artifacts
+        uses: ./.github/actions/aws_s3_helper
+        with:
+          s3_bucket: qli-prd-kernel-gh-artifacts
+          aws_access_key_id: ${{ secrets.AWSKEYID }}
+          aws_secret_access_key: ${{ secrets.AWSACCESSKEY }}
+          local_file: ../artifacts/file_list.txt
+          mode: multi-upload
+
+      - name: Clean up
+        run: |
+          rm -rf ../artifacts
+          rm -rf ../kobj
+          rm -rf modules.tar.xz
+
+      - name: Update summary
+        if: success() || failure()
+        shell: bash
+        run: |
+          if [ ${{ steps.build_workspace.outcome }} == 'success' ]; then
+            echo "Build was successful"
+            summary=":heavy_check_mark: Build Success"
+          else
+            echo "Build failed"
+            summary=":x: Build Failed"
+          fi
+          SUMMARY='
+          <details><summary><i>Build Summary</i></summary>
+          
+          '${summary}'
+          </details>
+          '
+          echo -e "$SUMMARY" >> $GITHUB_STEP_SUMMARY
