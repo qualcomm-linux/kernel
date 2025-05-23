@@ -1,5 +1,5 @@
-name: Pull docker image from ghcr
-description: Pull docker image from ghcr
+name: Pull docker image
+description: Pull docker image
 
 inputs:
   image:
@@ -15,10 +15,12 @@ runs:
   using: "composite"
   steps:
     - name: Clone kmake-image
+      shell: bash
       run: |
         git clone https://github.com/qualcomm-linux/kmake-image.git
 
     - name: Build docker image
+      shell: bash
       run: |
         cd kmake-image
         docker build . -t kmake-image
