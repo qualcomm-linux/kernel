@@ -1,0 +1,24 @@
+name: Sync workspace
+description: Sync workspace
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout PR branch
+      uses: actions/checkout@v4
+      shell: bash
+      with:
+        fetch-depth: 0
+
+    - name: Configure Git
+      shell: bash
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+
+    - name: Sync with latest changes
+      shell: bash
+      run: |
+        echo "Syncing with latest changes..."
+        git fetch origin ${{ github.base_ref }}
+        git merge origin/${{ github.base_ref }}
