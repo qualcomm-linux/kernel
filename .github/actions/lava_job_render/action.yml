@@ -113,7 +113,7 @@ runs:
           -e modules_url="$modules_url" \
           ${{ inputs.docker_image }} \
           jq '.artifacts.modules = env.modules_url' data/cloudData.json > temp.json && mv temp.json data/cloudData.json
-    
+
     - name: Update firmware and ramdisk
       shell: bash
       run: |
