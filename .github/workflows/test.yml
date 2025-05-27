@@ -35,7 +35,7 @@ jobs:
           path: ${{ github.workspace }}
 
       - name: Clone lava job render scripts
-        run: cd .. && git clone https://github.com/qualcomm-linux/job_render
+        run: cd .. && git clone https://github.com/sgaud-quic/job_render
 
       - name: Create lava job definition
         uses: ./.github/actions/lava_job_render
