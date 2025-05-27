@@ -24,7 +24,7 @@ jobs:
         with:
           image: ${{ inputs.docker_image }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Build workspace
         id: build_workspace
         uses: ./.github/actions/build
@@ -68,7 +68,7 @@ jobs:
           fi
           SUMMARY='
           <details><summary><i>Build Summary</i></summary>
-          
+
           '${summary}'
           </details>
           '
