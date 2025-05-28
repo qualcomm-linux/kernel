@@ -17,10 +17,16 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Clean workspace
+      shell: bash
+      run: |
+        echo "Cleaning up workspace..."
+        rm -rf ${{ github.workspace }}/*
+        echo "Workspace cleaned successfully!"
+
     - name: Checkout PR branch
       if: inputs.base_branch == 'qcom-next-staging'
       uses: actions/checkout@v4
-      shell: bash
       with:
         fetch-depth: 0
 
@@ -82,3 +88,5 @@ runs:
           echo "workspace=${{ github.workspace }}" >> "$GITHUB_OUTPUT"
         else
           echo "workspace=${{ github.workspace }}/kernel" >> "$GITHUB_OUTPUT"
+        fi
+

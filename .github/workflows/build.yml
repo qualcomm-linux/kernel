@@ -13,6 +13,11 @@ jobs:
       group: GHA-Kernel-SelfHosted-RG
       labels: [ self-hosted, kernel-prd-u2404-x64-large-od-ephem ]
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Sync codebase
         id: sync
         uses: ./.github/actions/sync

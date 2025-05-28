@@ -1,8 +1,6 @@
 name: pre_merge
 on:
   pull_request_target:
-    branches:
-      - qcom-next-staging
 
 jobs:
   build:
