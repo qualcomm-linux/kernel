@@ -1,0 +1,14 @@
+Name                 SHA1                                         
+-----------------		-----------------------------
+tech/bsp/clk         8310781737079f87c05e06bade01b6414aa1bbf3     
+tech/bsp/pinctrl     d7e196ce6363aa1c754397c9f7d30ee9ff95e5d6     
+tech/debug/hwtracing 9982cba32d073aa44c973121412593318fed731d     
+tech/mm/audio/all    a0a1b5c635f34b8094f1483b1808dcc33ef5ac53     
+tech/mm/video        2705b45311f5eda1efa7f9db8d0e134c6f04fe07     
+tech/net/ath         5bc89ad719f0a14ee1e2d7b4c3f26774322e097b     
+tech/pm/power        1eeed9b4e31525fcaa3b16365aa32c5d0ecb5010     
+tech/all/dt/qcs6490  f08a96de452c9c16413809118ccb40f2530ee0d5     
+tech/all/dt/qcs9100  de711b007dd9c6bc248eebeb9c581900308e91da     
+tech/all/dt/qcs8300  a7787e12b276ce29a74bececa888a39cfd43039a     
+tech/all/dt/qcs615   020996936f2aaa4d56a186b86c875ccd78e5ed70     
+tech/all/config      a58db88d1b7e50e9aeec53a351800f414420e8f3     
