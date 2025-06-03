@@ -1,0 +1,8 @@
+name: pre_merge
+on:
+  pull_request_target:
+
+jobs:
+  pre-merge:
+    uses: qualcomm-linux/kernel-config/.github/workflows/pre_merge.yml@main
+    secrets: inherit

@@ -1,0 +1,35 @@
+name: Kernel Checkers
+on:
+  pull_request:
+
+jobs:
+  prepare:
+    runs-on:
+      group: GHA-Kernel-SelfHosted-RG
+      labels: [ self-hosted, kernel-prd-u2404-x64-large-od-ephem ]
+    steps:
+      - name: Checkout PR Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+    outputs:
+      kernel_src: ${{ github.workspace }}
+      base_sha: ${{ github.event.pull_request.base.sha }}
+      head_sha: ${{ github.event.pull_request.head.sha }}
+
+  checker:
+    needs: prepare
+    uses: qualcomm-linux/kernel-checkers/.github/workflows/checker.yml@main
+    with:
+      check_name: ${{ matrix.check }}
+      kernel_src: ${{ needs.prepare.outputs.kernel_src }}/kernel
+      base_sha: ${{ needs.prepare.outputs.base_sha }}
+      head_sha: ${{ needs.prepare.outputs.head_sha }}
+      base_branch: ${{ github.base_ref }}
+      pr_number: ${{ github.event.pull_request.number }}
+
+    strategy:
+      matrix:
+        check: [check-uapi-headers, sparse-check, checkpatch,
+          dt-binding-check, dtb-check]
+      fail-fast: false
