@@ -39,6 +39,15 @@
 		};
 	};
 
+	coresight-qmi {
+		compatible = "qcom,coresight-qmi";
+
+		conns-0 {
+			qmi-id = <0x2>;
+			service-id = <0x33>;
+		};
+	};
+
 	cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -446,6 +455,8 @@
 
 	etm {
 		compatible = "qcom,coresight-remote-etm";
+
+		qcom,qmi-id = <0x2>;
 
 		out-ports {
 			port {

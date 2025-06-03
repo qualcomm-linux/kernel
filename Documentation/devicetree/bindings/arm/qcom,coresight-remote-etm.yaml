@@ -20,6 +20,13 @@ properties:
   compatible:
     const: qcom,coresight-remote-etm
 
+  qcom,qmi-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      This id is used by qmi API to communicate with remote processor for
+      enabling and disabling remote etm. Each processor has its unique instance
+      id.
+
   out-ports:
     $ref: /schemas/graph.yaml#/properties/ports
     additionalProperties: false
@@ -32,6 +39,7 @@ properties:
 required:
   - compatible
   - out-ports
+  - qcom,qmi-id
 
 additionalProperties: false
 
@@ -39,6 +47,8 @@ examples:
   - |
     etm {
         compatible = "qcom,coresight-remote-etm";
+
+        qcom,qmi-id = <2>;
 
         out-ports {
             port {
