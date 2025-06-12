@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/qcom,coresight-qmi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm coresight QMI(Qualcomm Messaging Interface) component
+
+description: |
+  Qualcomm Messaging Interface (QMI) is an interface that clients can
+  use to send, and receive, messages from a remote entity. The coresight
+  QMI component is to configure QMI instance ids and service ids for different
+  remote subsystem connections. Coresight QMI driver uses the ids to init
+  the qmi connections. Other coresight drivers call the send qmi request
+  function when connection is established.
+
+maintainers:
+  - Mao Jinlong <quic_jinlmao@quicinc.com>
+
+properties:
+  compatible:
+    enum:
+      - qcom,coresight-qmi
+
+patternProperties:
+  '^conns(-[0-9]+)?$':
+    type: object
+    description:
+      QMI instance id and service id for different remote subsystem connections.
+
+    properties:
+      qmi-id:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Instance id for the remote subsystem connection.
+
+      service-id:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Service id for the remote subsystem connection.
+
+    additionalProperties: false
+
+    required:
+      - qmi-id
+      - service-id
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  # Minimum coresight qmi definition.
+  - |
+    coresight-qmi {
+      compatible = "qcom,coresight-qmi";
+
+      conns-0 {
+          qmi-id = <0xd>;
+          service-id = <0x33>;
+      };
+    };
+
+...
