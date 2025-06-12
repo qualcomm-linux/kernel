@@ -1,0 +1,12 @@
+Name                                  SHA
+--------------------------------------------------------
+tech/bsp/pinctrl          d7e196ce6363aa1c754397c9f7d30ee9ff95e5d6
+tech/bus/pci/all          1103f9c5c9aae402b9619402dbd7dcd1c3d14bc7
+tech/debug/hwtracing      efd272ea9bdccfbd168fe9ecf8f42672c0c197a2
+tech/mm/drm               aa742d7a71c802755ef57575b6083751484c2d21
+tech/mm/video             8e7bd4865e2a6767264326990b942dc8c61bc40d
+tech/pm/power             1eeed9b4e31525fcaa3b16365aa32c5d0ecb5010
+tech/all/dt/qcs6490       e9c1cced62d4d2a64bdc5b56329d3741733d53d1
+tech/all/dt/qcs9100       de711b007dd9c6bc248eebeb9c581900308e91da
+tech/all/dt/qcs615        9121250772bbfcb3ced78826b65f46f0e615e5fc
+tech/all/config           dd11b10685e12626359930e4d606a7fc25824014
