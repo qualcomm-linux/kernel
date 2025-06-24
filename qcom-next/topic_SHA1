@@ -1,0 +1,14 @@
+Name                                  SHA                                  Commits
+------------------------------------------------------------------------------------
+tech/bus/peripherals      ed0f1f841818b59155935b6047ac1f5b3b5a1e57          5
+tech/bus/pci/all          61fc906baa5bb8e9e548388905b5a40d8ef43630          3
+tech/debug/hwtracing      efd272ea9bdccfbd168fe9ecf8f42672c0c197a2         14
+tech/mm/drm               7c42242f76761d3fd7ecbe99a1a8036908906093          1
+tech/mm/fastrpc           5a94c05e12cbc5cecb3a039d67c51bd8aff0ecec          5
+tech/mm/video             8e7bd4865e2a6767264326990b942dc8c61bc40d         26
+tech/mproc/rpmsg          adf3d0ae30d0e39e7db861824b705b7f7a3040bc          1
+tech/pm/power             1eeed9b4e31525fcaa3b16365aa32c5d0ecb5010          1
+tech/all/dt/qcs6490       e9c1cced62d4d2a64bdc5b56329d3741733d53d1         11
+tech/all/dt/qcs9100       31667be7ef83c26a6aad5fa41ac63900c6796db5          7
+tech/all/dt/qcs615        8a37adfec9d39ba8e5cf78b039c60c883838a7c6         12
+tech/all/config           dd11b10685e12626359930e4d606a7fc25824014          1
