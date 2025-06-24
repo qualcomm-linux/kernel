@@ -80,6 +80,14 @@ static u32 psci_cpu_suspend_feature;
 static bool psci_system_reset2_supported;
 static bool psci_system_off2_hibernate_supported;
 
+struct psci_reset_param {
+	const char *mode;
+	u32 reset_type;
+	u32 cookie;
+};
+static struct psci_reset_param *psci_reset_params __ro_after_init;
+static size_t num_psci_reset_params __ro_after_init;
+
 static inline bool psci_has_ext_power_state(void)
 {
 	return psci_cpu_suspend_feature &
@@ -306,9 +314,39 @@ static int get_set_conduit_method(const struct device_node *np)
 	return 0;
 }
 
+static int psci_vendor_system_reset2(const char *cmd)
+{
+	unsigned long ret;
+	size_t i;
+
+	for (i = 0; i < num_psci_reset_params; i++) {
+		if (!strcmp(psci_reset_params[i].mode, cmd)) {
+			ret = invoke_psci_fn(PSCI_FN_NATIVE(1_1, SYSTEM_RESET2),
+					     psci_reset_params[i].reset_type,
+					     psci_reset_params[i].cookie, 0);
+			/*
+			 * if vendor reset fails, log it and fall back to
+			 * architecture reset types
+			 */
+			pr_err("failed to perform reset \"%s\": %ld\n", cmd,
+			       (long)ret);
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
 static int psci_sys_reset(struct notifier_block *nb, unsigned long action,
 			  void *data)
 {
+	/*
+	 * try to do the vendor system_reset2
+	 * If there wasn't a matching command, fall back to architectural resets
+	 */
+	if (data && !psci_vendor_system_reset2(data))
+		return NOTIFY_DONE;
+
 	if ((reboot_mode == REBOOT_WARM || reboot_mode == REBOOT_SOFT) &&
 	    psci_system_reset2_supported) {
 		/*
@@ -794,6 +832,73 @@ static const struct of_device_id psci_of_match[] __initconst = {
 	{ .compatible = "arm,psci-1.0",	.data = psci_1_0_init},
 	{},
 };
+
+#define REBOOT_PREFIX "mode-"
+
+static int __init psci_init_system_reset2_modes(void)
+{
+	const size_t len = strlen(REBOOT_PREFIX);
+	struct psci_reset_param *param;
+	struct device_node *psci_np __free(device_node) = NULL;
+	struct device_node *np __free(device_node) = NULL;
+	struct property *prop;
+	size_t count = 0;
+	u32 magic[2];
+	int num;
+
+	if (!psci_system_reset2_supported)
+		return 0;
+
+	psci_np = of_find_matching_node(NULL, psci_of_match);
+	if (!psci_np)
+		return 0;
+
+	np = of_find_node_by_name(psci_np, "reset-types");
+	if (!np)
+		return 0;
+
+	for_each_property_of_node(np, prop) {
+		if (strncmp(prop->name, REBOOT_PREFIX, len))
+			continue;
+		num = of_property_count_u32_elems(np, prop->name);
+		if (num != 1 && num != 2)
+			continue;
+
+		count++;
+	}
+
+	param = psci_reset_params =
+		kcalloc(count, sizeof(*psci_reset_params), GFP_KERNEL);
+	if (!psci_reset_params)
+		return -ENOMEM;
+
+	for_each_property_of_node(np, prop) {
+		if (strncmp(prop->name, REBOOT_PREFIX, len))
+			continue;
+
+		num = of_property_read_variable_u32_array(np, prop->name, magic,
+							  1, ARRAY_SIZE(magic));
+		if (num < 0) {
+			pr_warn("Failed to parse vendor reboot mode %s\n",
+				param->mode);
+			kfree_const(param->mode);
+			continue;
+		}
+
+		param->mode = kstrdup_const(prop->name + len, GFP_KERNEL);
+		if (!param->mode)
+			continue;
+
+		/* Force reset type to be in vendor space */
+		param->reset_type = PSCI_1_1_RESET_TYPE_VENDOR_START | magic[0];
+		param->cookie = num > 1 ? magic[1] : 0;
+		param++;
+		num_psci_reset_params++;
+	}
+
+	return 0;
+}
+arch_initcall(psci_init_system_reset2_modes);
 
 int __init psci_dt_init(void)
 {
