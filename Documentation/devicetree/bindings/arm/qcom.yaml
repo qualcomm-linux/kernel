@@ -63,6 +63,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,glymur-crd
+          - const: qcom,glymur
+
+      - items:
+          - enum:
               - microsoft,dempsey
               - microsoft,makepeace
               - microsoft,moneypenny
