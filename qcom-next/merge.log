@@ -1,0 +1,232 @@
+Verified existence of local and remote repos: Success
+/local/mnt/workspace/automerge/actions-runner/_work/kernel-automation/kernel-automation/kernel-topics /local/mnt/workspace/automerge/actions-runner/_work/kernel-automation/kernel-automation/kernel-topics
+Reuse-Recorded-Resolution: Enabled
+Downloaded shared rerere cache
+Local tree is clean
+Removing old remotes ...
+The remote origin https://github.com/qualcomm-linux/kernel-topics.git is no longer tracked.
+Delete it [Y/n]? Done, removed 1 old remote(s).
+Adding new remotes...
+Adding remote baseline https://github.com/qualcomm-linux/kernel.git qcom-next-staging
+Updating baseline
+Adding remote tech/bsp/clk https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/clk
+Updating tech/bsp/clk
+Adding remote tech/bsp/interconnect https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/interconnect
+Updating tech/bsp/interconnect
+Adding remote tech/mem/secure-buffer https://github.com/qualcomm-linux/kernel-topics.git tech/mem/secure-buffer
+Updating tech/mem/secure-buffer
+Adding remote tech/security/firmware-smc https://github.com/qualcomm-linux/kernel-topics.git tech/security/firmware-smc
+Updating tech/security/firmware-smc
+Adding remote tech/bsp/soc-infra https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/soc-infra
+Updating tech/bsp/soc-infra
+Adding remote tech/debug/soc https://github.com/qualcomm-linux/kernel-topics.git tech/debug/soc
+Updating tech/debug/soc
+Adding remote tech/bsp/pinctrl https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/pinctrl
+Updating tech/bsp/pinctrl
+Adding remote tech/bsp/remoteproc https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/remoteproc
+Updating tech/bsp/remoteproc
+Adding remote tech/bus/peripherals https://github.com/qualcomm-linux/kernel-topics.git tech/bus/peripherals
+Updating tech/bus/peripherals
+Adding remote tech/bus/pci/all https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/all
+Updating tech/bus/pci/all
+Adding remote tech/bus/pci/mhi https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/mhi
+Updating tech/bus/pci/mhi
+Adding remote tech/bus/pci/phy https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/phy
+Updating tech/bus/pci/phy
+Adding remote tech/bus/pci/pwrctl https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/pwrctl
+Updating tech/bus/pci/pwrctl
+Adding remote tech/bus/usb/dwc https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/dwc
+Updating tech/bus/usb/dwc
+Adding remote tech/bus/usb/gadget https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/gadget
+Updating tech/bus/usb/gadget
+Adding remote tech/bus/usb/phy https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/phy
+Updating tech/bus/usb/phy
+Adding remote tech/debug/eud https://github.com/qualcomm-linux/kernel-topics.git tech/debug/eud
+Updating tech/debug/eud
+Adding remote tech/debug/hwtracing https://github.com/qualcomm-linux/kernel-topics.git tech/debug/hwtracing
+Updating tech/debug/hwtracing
+Adding remote tech/debug/rdbg https://github.com/qualcomm-linux/kernel-topics.git tech/debug/rdbg
+Updating tech/debug/rdbg
+Adding remote tech/pmic/backlight https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/backlight
+Updating tech/pmic/backlight
+Adding remote tech/pmic/mfd https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/mfd
+Updating tech/pmic/mfd
+Adding remote tech/pmic/misc https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/misc
+Updating tech/pmic/misc
+Adding remote tech/pmic/regulator https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/regulator
+Updating tech/pmic/regulator
+Adding remote tech/pmic/supply https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/supply
+Updating tech/pmic/supply
+Adding remote tech/mem/dma-buf https://github.com/qualcomm-linux/kernel-topics.git tech/mem/dma-buf
+Updating tech/mem/dma-buf
+Adding remote tech/mem/iommu https://github.com/qualcomm-linux/kernel-topics.git tech/mem/iommu
+Updating tech/mem/iommu
+Adding remote tech/mm/audio/all https://github.com/qualcomm-linux/kernel-topics.git tech/mm/audio/all
+Updating tech/mm/audio/all
+Adding remote tech/mm/audio/soundwire https://github.com/qualcomm-linux/kernel-topics.git tech/mm/audio/soundwire
+Updating tech/mm/audio/soundwire
+Adding remote tech/mm/camss https://github.com/qualcomm-linux/kernel-topics.git tech/mm/camss
+Updating tech/mm/camss
+Adding remote tech/mm/drm https://github.com/qualcomm-linux/kernel-topics.git tech/mm/drm
+Updating tech/mm/drm
+Adding remote tech/mm/fastrpc https://github.com/qualcomm-linux/kernel-topics.git tech/mm/fastrpc
+Updating tech/mm/fastrpc
+Adding remote tech/mm/phy https://github.com/qualcomm-linux/kernel-topics.git tech/mm/phy
+Updating tech/mm/phy
+Adding remote tech/mm/video https://github.com/qualcomm-linux/kernel-topics.git tech/mm/video
+Updating tech/mm/video
+Adding remote tech/mm/gpu https://github.com/qualcomm-linux/kernel-topics.git tech/mm/gpu
+Updating tech/mm/gpu
+Adding remote tech/mproc/rpmsg https://github.com/qualcomm-linux/kernel-topics.git tech/mproc/rpmsg
+Updating tech/mproc/rpmsg
+Adding remote tech/mproc/qmi https://github.com/qualcomm-linux/kernel-topics.git tech/mproc/qmi
+Updating tech/mproc/qmi
+Adding remote tech/net/ath https://github.com/qualcomm-linux/kernel-topics.git tech/net/ath
+Updating tech/net/ath
+Adding remote tech/net/eth https://github.com/qualcomm-linux/kernel-topics.git tech/net/eth
+Updating tech/net/eth
+Adding remote tech/net/rmnet https://github.com/qualcomm-linux/kernel-topics.git tech/net/rmnet
+Updating tech/net/rmnet
+Adding remote tech/net/qrtr https://github.com/qualcomm-linux/kernel-topics.git tech/net/qrtr
+Updating tech/net/qrtr
+Adding remote tech/net/phy https://github.com/qualcomm-linux/kernel-topics.git tech/net/phy
+Updating tech/net/phy
+Adding remote tech/net/bluetooth https://github.com/qualcomm-linux/kernel-topics.git tech/net/bluetooth
+Updating tech/net/bluetooth
+Adding remote tech/pm/opp https://github.com/qualcomm-linux/kernel-topics.git tech/pm/opp
+Updating tech/pm/opp
+Adding remote tech/pm/pmdomain https://github.com/qualcomm-linux/kernel-topics.git tech/pm/pmdomain
+Updating tech/pm/pmdomain
+Adding remote tech/pm/power https://github.com/qualcomm-linux/kernel-topics.git tech/pm/power
+Updating tech/pm/power
+Adding remote tech/pm/thermal https://github.com/qualcomm-linux/kernel-topics.git tech/pm/thermal
+Updating tech/pm/thermal
+Adding remote tech/security/crypto https://github.com/qualcomm-linux/kernel-topics.git tech/security/crypto
+Updating tech/security/crypto
+Adding remote tech/security/fscrypt https://github.com/qualcomm-linux/kernel-topics.git tech/security/fscrypt
+Updating tech/security/fscrypt
+Adding remote tech/security/ice https://github.com/qualcomm-linux/kernel-topics.git tech/security/ice
+Updating tech/security/ice
+Adding remote tech/storage/nvmem https://github.com/qualcomm-linux/kernel-topics.git tech/storage/nvmem
+Updating tech/storage/nvmem
+Adding remote tech/storage/phy https://github.com/qualcomm-linux/kernel-topics.git tech/storage/phy
+Updating tech/storage/phy
+Adding remote tech/storage/all https://github.com/qualcomm-linux/kernel-topics.git tech/storage/all
+Updating tech/storage/all
+Adding remote tech/virt/gunyah https://github.com/qualcomm-linux/kernel-topics.git tech/virt/gunyah
+Updating tech/virt/gunyah
+Adding remote tech/all/workaround https://github.com/qualcomm-linux/kernel-topics.git tech/all/workaround
+Updating tech/all/workaround
+Adding remote tech/all/dt/qcs6490 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs6490
+Updating tech/all/dt/qcs6490
+Adding remote tech/all/dt/qcs9100 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs9100
+Updating tech/all/dt/qcs9100
+Adding remote tech/all/dt/qcs8300 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs8300
+Updating tech/all/dt/qcs8300
+Adding remote tech/all/dt/qcs615 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs615
+Updating tech/all/dt/qcs615
+Adding remote tech/all/dt/hamoa https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/hamoa
+Updating tech/all/dt/hamoa
+Adding remote tech/all/dt/glymur https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/glymur
+Updating tech/all/dt/glymur
+Adding remote tech/all/config https://github.com/qualcomm-linux/kernel-topics.git tech/all/config
+Updating tech/all/config
+Adding remote tech/overlay/dt https://github.com/qualcomm-linux/kernel-topics.git tech/overlay/dt
+Updating tech/overlay/dt
+Done, added 63 new remote(s).
+Updating the remotes ...
+Updating tech/bsp/clk
+Updating tech/bsp/interconnect
+Updating tech/mem/secure-buffer
+Updating tech/security/firmware-smc
+Updating tech/bsp/soc-infra
+Updating tech/debug/soc
+Updating tech/bsp/pinctrl
+Updating tech/bsp/remoteproc
+Updating tech/bus/peripherals
+Updating tech/bus/pci/all
+Updating tech/bus/pci/mhi
+Updating tech/bus/pci/phy
+Updating tech/bus/pci/pwrctl
+Updating tech/bus/usb/dwc
+Updating tech/bus/usb/gadget
+Updating tech/bus/usb/phy
+Updating tech/debug/eud
+Updating tech/debug/hwtracing
+Updating tech/debug/rdbg
+Updating tech/pmic/backlight
+Updating tech/pmic/mfd
+Updating tech/pmic/misc
+Updating tech/pmic/regulator
+Updating tech/pmic/supply
+Updating tech/mem/dma-buf
+Updating tech/mem/iommu
+Updating tech/mm/audio/all
+Updating tech/mm/audio/soundwire
+Updating tech/mm/camss
+Updating tech/mm/drm
+Updating tech/mm/fastrpc
+Updating tech/mm/phy
+Updating tech/mm/video
+Updating tech/mm/gpu
+Updating tech/mproc/rpmsg
+Updating tech/mproc/qmi
+Updating tech/net/ath
+Updating tech/net/eth
+Updating tech/net/rmnet
+Updating tech/net/qrtr
+Updating tech/net/phy
+Updating tech/net/bluetooth
+Updating tech/pm/opp
+Updating tech/pm/pmdomain
+Updating tech/pm/power
+Updating tech/pm/thermal
+Updating tech/security/crypto
+Updating tech/security/fscrypt
+Updating tech/security/ice
+Updating tech/storage/nvmem
+Updating tech/storage/phy
+Updating tech/storage/all
+Updating tech/virt/gunyah
+Updating tech/all/workaround
+Updating tech/all/dt/qcs6490
+Updating tech/all/dt/qcs9100
+Updating tech/all/dt/qcs8300
+Updating tech/all/dt/qcs615
+Updating tech/all/dt/hamoa
+Updating tech/all/dt/glymur
+Updating tech/all/config
+Updating tech/overlay/dt
+Done, updated 0 remote(s).
+Updating baseline ...
+Fetching baseline
+latest tag/id is 3a8660878839faadb4f1a6dd72c3179c1df56787
+Done, updated baseline.
+Latest tag is 3a8660878839faadb4f1a6dd72c3179c1df56787
+Create a new integration branch based on 3a8660878839faadb4f1a6dd72c3179c1df56787
+Merging topic branches...
+------------------------------------------
+ ** Merging topic branch: tech/bsp/clk/tech/bsp/clk
+Merge successful : tech/bsp/clk : fe2e403d60ce6f0ce161a9f5f1e1b9642c27b8dd : 1
+------------------------------------------
+ ** Merging topic branch: tech/bsp/interconnect/tech/bsp/interconnect
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/mem/secure-buffer/tech/mem/secure-buffer
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/security/firmware-smc/tech/security/firmware-smc
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bsp/soc-infra/tech/bsp/soc-infra
+Merge successful : tech/bsp/soc-infra : fb9893554a5c226bb918e2f83339d801ca0ea3dc : 2
+------------------------------------------
+ ** Merging topic branch: tech/debug/soc/tech/debug/soc
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bsp/pinctrl/tech/bsp/pinctrl
+Merge successful : tech/bsp/pinctrl : 31abea7a984df4610a317583f037b5d32479a33a : 1
+------------------------------------------
+ ** Merging topic branch: tech/bsp/remoteproc/tech/bsp/remoteproc
+U	drivers/remoteproc/qcom_q6v5_pas.c
+Merge failed, tech/bsp/remoteproc https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/remoteproc

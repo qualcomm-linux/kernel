@@ -1,0 +1,5 @@
+Name                                  SHA                                  Commits
+------------------------------------------------------------------------------------
+tech/bsp/clk              fe2e403d60ce6f0ce161a9f5f1e1b9642c27b8dd          1
+tech/bsp/soc-infra        fb9893554a5c226bb918e2f83339d801ca0ea3dc          2
+tech/bsp/pinctrl          31abea7a984df4610a317583f037b5d32479a33a          1
