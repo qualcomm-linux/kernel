@@ -528,6 +528,11 @@ lemans-evk-camx-dtbs	:= lemans-evk.dtb lemans-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtb
 
+qcs6490-rb3gen2-vision-mezzanine-camx-dtbs := qcs6490-rb3gen2-vision-mezzanine.dtb \
+						      qcs6490-rb3gen2-vision-mezzanine-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += qcs6490-rb3gen2-vision-mezzanine-camx.dtb
+
 qcs9100-ride-camx-dtbs:= qcs9100-ride.dtb sa8775p-ride-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-camx.dtb
