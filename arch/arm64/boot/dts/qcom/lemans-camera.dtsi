@@ -743,7 +743,6 @@
 			       "ife5", "ife6", "ipe0", "sfe0", "sfe1",
 			       "cam-cdm-intf0", "rt-cdm0", "rt-cdm1", "rt-cdm2",
 			       "rt-cdm3", "icp0", "tpg17", "tpg18", "tpg19";
-
 		enable-secure-qos-update;
 		cell-index = <0>;
 		status = "ok";
@@ -816,7 +815,6 @@
 					                     CAM_CPAS_PATH_DATA_IFE_PIXEL_RAW>;
 					parent-node = <&level1_rt_wr0>;
 				};
-
 
 				ife_1_wr_1: ife-1-wr-1 {
 					cell-index = <4>;
@@ -958,8 +956,7 @@
 					node-name = "rt-cdm2-all-rd-2";
 					client-name = "rt-cdm2";
 					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
-					traffic-transaction-type =
-					<CAM_CPAS_TRANSACTION_READ>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_READ>;
 					parent-node = <&level1_nrt_rd2>;
 				};
 
@@ -1086,8 +1083,7 @@
 				level3_nrt0_rd_wr_sum: level3-nrt0-rd-wr-sum {
 					cell-index = <30>;
 					node-name = "level3-nrt0-rd-wr-sum";
-					traffic-merge-type =
-					<CAM_CPAS_TRAFFIC_MERGE_SUM>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
 
 					qcom,axi-port-mnoc {
 						cam-icc-path-names = "cam_sf_0";
@@ -1097,8 +1093,7 @@
 				level3_nrt1_rd_wr_sum: level3-nrt1-rd-wr-sum {
 					cell-index = <31>;
 					node-name = "level3-nrt1-rd-wr-sum";
-					traffic-merge-type =
-					<CAM_CPAS_TRAFFIC_MERGE_SUM>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
 
 					qcom,axi-port-mnoc {
 						cam-icc-path-names = "cam_sf_icp";
@@ -1108,8 +1103,7 @@
 				level3_rt_rd_wr_sum: level3-rt-rd-wr-sum {
 					cell-index = <32>;
 					node-name = "level3-rt-rd-wr-sum";
-					traffic-merge-type =
-					<CAM_CPAS_TRAFFIC_MERGE_SUM>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
 					ib-bw-voting-needed;
 
 					qcom,axi-port-mnoc {
@@ -1148,8 +1142,8 @@
 		status = "ok";
 	};
 
-	qcom,cam-sync {
-		compatible = "qcom,cam-sync";
+	qcom,camera-main {
+		compatible = "qcom,camera";
 		status = "ok";
 	};
 
@@ -1274,8 +1268,8 @@
 		};
 	};
 
-	qcom,camera-main {
-		compatible = "qcom,camera";
+	qcom,cam-sync {
+		compatible = "qcom,cam-sync";
 		status = "ok";
 	};
 
@@ -1544,13 +1538,6 @@
 		interrupts = <GIC_SPI 604 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "csid-lite4";
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
-		clock-names = "cam_cc_cpas_ife_lite_clk",
-			      "cam_cc_ife_lite_ahb_clk",
-			      "cam_cc_ife_lite_csid_clk_src",
-			      "cam_cc_ife_lite_csid_clk",
-			      "cam_cc_ife_lite_cphy_rx_clk",
-			      "cam_cc_ife_lite_clk_src",
-			      "cam_cc_ife_lite_clk";
 		clocks = <&camcc CAM_CC_CPAS_IFE_LITE_CLK>,
 			 <&camcc CAM_CC_IFE_LITE_AHB_CLK>,
 			 <&camcc CAM_CC_IFE_LITE_CSID_CLK_SRC>,
@@ -1558,6 +1545,13 @@
 			 <&camcc CAM_CC_IFE_LITE_CPHY_RX_CLK>,
 			 <&camcc CAM_CC_IFE_LITE_CLK_SRC>,
 			 <&camcc CAM_CC_IFE_LITE_CLK>;
+		clock-names = "cam_cc_cpas_ife_lite_clk",
+			      "cam_cc_ife_lite_ahb_clk",
+			      "cam_cc_ife_lite_csid_clk_src",
+			      "cam_cc_ife_lite_csid_clk",
+			      "cam_cc_ife_lite_cphy_rx_clk",
+			      "cam_cc_ife_lite_clk_src",
+			      "cam_cc_ife_lite_clk";
 		clock-rates = <0 0 400000000 0 0 400000000 0>,
 			      <0 0 400000000 0 0 480000000 0>;
 		clock-cntl-level = "svs_l1", "nominal";
@@ -2000,7 +1994,6 @@
 				required-opps = <&rpmhpd_opp_nom>;
 			};
 		};
-
 	};
 
 	qcom,rt-cdm0 {
@@ -2140,12 +2133,12 @@
 		interrupts = <GIC_SPI 563 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "sfe-lite0";
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
-		clock-names = "cam_cc_sfe_lite_0_fast_ahb_clk",
-			      "cam_cc_sfe_lite_0_clk",
-			      "cam_cc_cpas_sfe_lite_0_clk";
 		clocks = <&camcc CAM_CC_SFE_LITE_0_FAST_AHB_CLK>,
 			 <&camcc CAM_CC_SFE_LITE_0_CLK>,
 			 <&camcc CAM_CC_CPAS_SFE_LITE_0_CLK>;
+		clock-names = "cam_cc_sfe_lite_0_fast_ahb_clk",
+			      "cam_cc_sfe_lite_0_clk",
+			      "cam_cc_cpas_sfe_lite_0_clk";
 		clock-rates = <0 480000000 300000000>,
 			      <0 600000000 400000000>;
 		clock-cntl-level = "svs_l1", "nominal";
