@@ -374,7 +374,7 @@
 &soc {
 	qcom,cam-res-mgr {
 		compatible = "qcom,cam-res-mgr";
-		gpios-shared = <518 519 520 521>;
+		gpios-shared = <609 610 611>;
 		status = "ok";
 	};
 };
