@@ -620,8 +620,8 @@
 	qcom,cam-icp {
 		compatible = "qcom,cam-icp";
 		compat-hw-name = "qcom,a5",
-			"qcom,ipe0",
-			"qcom,bps";
+				 "qcom,ipe0",
+				 "qcom,bps";
 		num-a5 = <1>;
 		num-ipe = <1>;
 		num-bps = <1>;
@@ -643,7 +643,7 @@
 	qcom,cam-jpeg {
 		compatible = "qcom,cam-jpeg";
 		compat-hw-name = "qcom,jpegenc",
-			"qcom,jpegdma";
+				 "qcom,jpegdma";
 		num-jpeg-enc = <1>;
 		num-jpeg-dma = <1>;
 		status = "ok";
