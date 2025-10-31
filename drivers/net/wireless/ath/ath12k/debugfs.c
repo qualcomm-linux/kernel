@@ -1283,6 +1283,7 @@ static int ath12k_open_vdev_stats(struct inode *inode, struct file *file)
 
 	ath12k_wmi_fw_stats_dump(ar, &ar->fw_stats, param.stats_id,
 				 buf);
+	ath12k_fw_stats_reset(ar);
 
 	file->private_data = no_free_ptr(buf);
 
@@ -1349,12 +1350,7 @@ static int ath12k_open_bcn_stats(struct inode *inode, struct file *file)
 
 	ath12k_wmi_fw_stats_dump(ar, &ar->fw_stats, param.stats_id,
 				 buf);
-	/* since beacon stats request is looped for all active VDEVs, saved fw
-	 * stats is not freed for each request until done for all active VDEVs
-	 */
-	spin_lock_bh(&ar->data_lock);
-	ath12k_fw_stats_bcn_free(&ar->fw_stats.bcn);
-	spin_unlock_bh(&ar->data_lock);
+	ath12k_fw_stats_reset(ar);
 
 	file->private_data = no_free_ptr(buf);
 
@@ -1415,6 +1411,7 @@ static int ath12k_open_pdev_stats(struct inode *inode, struct file *file)
 
 	ath12k_wmi_fw_stats_dump(ar, &ar->fw_stats, param.stats_id,
 				 buf);
+	ath12k_fw_stats_reset(ar);
 
 	file->private_data = no_free_ptr(buf);
 
