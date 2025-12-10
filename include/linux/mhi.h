@@ -360,6 +360,9 @@ struct mhi_controller_config {
  * @bounce_buf: Use of bounce buffer
  * @fbc_download: MHI host needs to do complete image transfer (optional)
  * @wake_set: Device wakeup set flag
+ * @standard_elf_image: Flag to determine whether the first 512 KB of the FBC
+ *                      image need to be skipped when loading AMSS image over
+ *                      BHIe interface (optional)
  * @irq_flags: irq flags passed to request_irq (optional)
  * @mru: the default MRU for the MHI device
  *
@@ -445,6 +448,7 @@ struct mhi_controller {
 	bool bounce_buf;
 	bool fbc_download;
 	bool wake_set;
+	bool standard_elf_image;
 	unsigned long irq_flags;
 	u32 mru;
 };
