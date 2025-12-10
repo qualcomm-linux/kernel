@@ -19,45 +19,41 @@
 struct fwnode_handle;
 
 /*
- * Device registers
- * 0x000 - 0x144: CTI programming and status
- * 0xEDC - 0xEF8: CTI integration test.
- * 0xF00 - 0xFFC: Coresight management registers.
- */
-/* CTI programming registers */
-#define CTICONTROL		0x000
-#define CTIINTACK		0x010
-#define CTIAPPSET		0x014
-#define CTIAPPCLEAR		0x018
-#define CTIAPPPULSE		0x01C
-#define CTIINEN(n)		(0x020 + (4 * n))
-#define CTIOUTEN(n)		(0x0A0 + (4 * n))
-#define CTITRIGINSTATUS		0x130
-#define CTITRIGOUTSTATUS	0x134
-#define CTICHINSTATUS		0x138
-#define CTICHOUTSTATUS		0x13C
-#define CTIGATE			0x140
-#define ASICCTL			0x144
-/* Integration test registers */
-#define ITCHINACK		0xEDC /* WO CTI CSSoc 400 only*/
-#define ITTRIGINACK		0xEE0 /* WO CTI CSSoc 400 only*/
-#define ITCHOUT			0xEE4 /* WO RW-600 */
-#define ITTRIGOUT		0xEE8 /* WO RW-600 */
-#define ITCHOUTACK		0xEEC /* RO CTI CSSoc 400 only*/
-#define ITTRIGOUTACK		0xEF0 /* RO CTI CSSoc 400 only*/
-#define ITCHIN			0xEF4 /* RO */
-#define ITTRIGIN		0xEF8 /* RO */
-/* management registers */
-#define CTIDEVAFF0		0xFA8
-#define CTIDEVAFF1		0xFAC
-
-/*
  * CTI CSSoc 600 has a max of 32 trigger signals per direction.
  * CTI CSSoc 400 has 8 IO triggers - other CTIs can be impl def.
  * Max of in and out defined in the DEVID register.
  * - pick up actual number used from .dts parameters if present.
  */
-#define CTIINOUTEN_MAX		32
+#define CTIINOUTEN_MAX         128
+
+#define CTICONTROL             0x000
+
+/* management registers */
+#define CTIDEVAFF0             0xFA8
+#define CTIDEVAFF1             0xFAC
+
+enum cti_offset_index {
+	CTIINTACK,
+	CTIAPPSET,
+	CTIAPPCLEAR,
+	CTIAPPPULSE,
+	CTIINEN,
+	CTIOUTEN,
+	CTITRIGINSTATUS,
+	CTITRIGOUTSTATUS,
+	CTICHINSTATUS,
+	CTICHOUTSTATUS,
+	CTIGATE,
+	ASICCTL,
+	ITCHINACK,
+	ITTRIGINACK,
+	ITCHOUT,
+	ITTRIGOUT,
+	ITCHOUTACK,
+	ITTRIGOUTACK,
+	ITCHIN,
+	ITTRIGIN,
+};
 
 /**
  * Group of related trigger signals
@@ -68,7 +64,7 @@ struct fwnode_handle;
  */
 struct cti_trig_grp {
 	int nr_sigs;
-	u32 used_mask;
+	DECLARE_BITMAP(used_mask, CTIINOUTEN_MAX);
 	int sig_types[];
 };
 
@@ -147,9 +143,10 @@ struct cti_config {
 	bool hw_powered;
 
 	/* registered triggers and filtering */
-	u32 trig_in_use;
-	u32 trig_out_use;
-	u32 trig_out_filter;
+	DECLARE_BITMAP(trig_in_use, CTIINOUTEN_MAX);
+	DECLARE_BITMAP(trig_out_use, CTIINOUTEN_MAX);
+	DECLARE_BITMAP(trig_out_filter, CTIINOUTEN_MAX);
+
 	bool trig_filter_enable;
 	u8 xtrig_rchan_sel;
 
@@ -180,6 +177,7 @@ struct cti_drvdata {
 	struct cti_config config;
 	struct list_head node;
 	void (*csdev_release)(struct device *dev);
+	bool is_extended_cti;
 };
 
 /*
@@ -232,6 +230,7 @@ int cti_create_cons_sysfs(struct device *dev, struct cti_drvdata *drvdata);
 struct coresight_platform_data *
 coresight_cti_get_platform_data(struct device *dev);
 const char *cti_plat_get_node_name(struct fwnode_handle *fwnode);
+u32 cti_offset(struct cti_drvdata *drvdata, int index, int num);
 
 /* cti powered and enabled */
 static inline bool cti_active(struct cti_config *cfg)

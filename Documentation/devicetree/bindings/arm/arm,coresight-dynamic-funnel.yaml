@@ -28,19 +28,32 @@ select:
   properties:
     compatible:
       contains:
-        const: arm,coresight-dynamic-funnel
+        enum:
+          - arm,coresight-dynamic-funnel
+          - arm,coresight-cpu-funnel
   required:
     - compatible
 
 allOf:
   - $ref: /schemas/arm/primecell.yaml#
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: arm,coresight-cpu-funnel
+    then:
+      required:
+        - power-domains
+
 properties:
   compatible:
-    items:
-      - const: arm,coresight-dynamic-funnel
-      - const: arm,primecell
-
+    oneOf:
+      - items:
+          - const: arm,coresight-dynamic-funnel
+          - const: arm,primecell
+      - items:
+          - const: arm,coresight-cpu-funnel
   reg:
     maxItems: 1
 

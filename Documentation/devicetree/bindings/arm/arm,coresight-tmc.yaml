@@ -29,18 +29,32 @@ select:
   properties:
     compatible:
       contains:
-        const: arm,coresight-tmc
+        enum:
+          - arm,coresight-tmc
+          - arm,coresight-cpu-tmc
   required:
     - compatible
 
 allOf:
   - $ref: /schemas/arm/primecell.yaml#
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: arm,coresight-cpu-tmc
+    then:
+      required:
+        - power-domains
+
 properties:
   compatible:
-    items:
-      - const: arm,coresight-tmc
-      - const: arm,primecell
+    oneOf:
+      - items:
+          - const: arm,coresight-tmc
+          - const: arm,primecell
+      - items:
+          - const: arm,coresight-cpu-tmc
 
   reg:
     maxItems: 1

@@ -28,18 +28,32 @@ select:
   properties:
     compatible:
       contains:
-        const: arm,coresight-dynamic-replicator
+        enum:
+          - arm,coresight-dynamic-replicator
+          - arm,coresight-cpu-replicator
   required:
     - compatible
 
 allOf:
   - $ref: /schemas/arm/primecell.yaml#
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: arm,coresight-cpu-replicator
+    then:
+      required:
+        - power-domains
+
 properties:
   compatible:
-    items:
-      - const: arm,coresight-dynamic-replicator
-      - const: arm,primecell
+    oneOf:
+      - items:
+          - const: arm,coresight-dynamic-replicator
+          - const: arm,primecell
+      - items:
+          - const: arm,coresight-cpu-replicator
 
   reg:
     maxItems: 1
