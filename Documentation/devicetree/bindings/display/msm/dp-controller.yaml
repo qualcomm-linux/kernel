@@ -33,6 +33,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcs8300-dp
+          - const: qcom,sa8775p-dp
+
+      - items:
+          - enum:
               - qcom,sm6350-dp
           - const: qcom,sc7180-dp
 
@@ -51,6 +56,12 @@ properties:
               - qcom,sm8250-dp
               - qcom,sm8450-dp
               - qcom,sm8550-dp
+          - const: qcom,sm8350-dp
+
+      - items:
+          - enum:
+              - qcom,sm6150-dp
+          - const: qcom,sm8150-dp
           - const: qcom,sm8350-dp
 
       - items:

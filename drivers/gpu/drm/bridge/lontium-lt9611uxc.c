@@ -89,7 +89,9 @@ static const struct regmap_config lt9611uxc_regmap_config = {
 
 struct lt9611uxc_mode {
 	u16 hdisplay;
+	u16 htotal;
 	u16 vdisplay;
+	u16 vtotal;
 	u8 vrefresh;
 };
 
@@ -98,22 +100,23 @@ struct lt9611uxc_mode {
  * Enumerate them here to check whether the mode is supported.
  */
 static struct lt9611uxc_mode lt9611uxc_modes[] = {
-	{ 1920, 1080, 60 },
-	{ 1920, 1080, 30 },
-	{ 1920, 1080, 25 },
-	{ 1366, 768, 60 },
-	{ 1360, 768, 60 },
-	{ 1280, 1024, 60 },
-	{ 1280, 800, 60 },
-	{ 1280, 720, 60 },
-	{ 1280, 720, 50 },
-	{ 1280, 720, 30 },
-	{ 1152, 864, 60 },
-	{ 1024, 768, 60 },
-	{ 800, 600, 60 },
-	{ 720, 576, 50 },
-	{ 720, 480, 60 },
-	{ 640, 480, 60 },
+	{ 3840, 4400, 2160, 2250, 30 },
+	{ 1920, 2200, 1080, 1125, 60 },
+	{ 1920, 2200, 1080, 1125, 30 },
+	{ 1920, 2640, 1080, 1125, 25 },
+	{ 1366, 1792, 768, 798, 60 },
+	{ 1360, 1792, 768, 795, 60 },
+	{ 1280, 1688, 1024, 1066, 60 },
+	{ 1280, 1680, 800, 831, 60 },
+	{ 1280, 1650, 720, 750, 60 },
+	{ 1280, 1980, 720, 750, 50 },
+	{ 1280, 3300, 720, 750, 30 },
+	{ 1152, 1600, 864, 900, 60 },
+	{ 1024, 1344, 768, 806, 60 },
+	{ 800, 1056, 600, 628, 60 },
+	{ 720, 864, 576, 625, 50 },
+	{ 720, 858, 480, 525, 60 },
+	{ 640, 800, 480, 525, 60 },
 };
 
 static struct lt9611uxc *bridge_to_lt9611uxc(struct drm_bridge *bridge)
@@ -237,7 +240,9 @@ static struct lt9611uxc_mode *lt9611uxc_find_mode(const struct drm_display_mode 
 
 	for (i = 0; i < ARRAY_SIZE(lt9611uxc_modes); i++) {
 		if (lt9611uxc_modes[i].hdisplay == mode->hdisplay &&
+		    lt9611uxc_modes[i].htotal == mode->htotal &&
 		    lt9611uxc_modes[i].vdisplay == mode->vdisplay &&
+		    lt9611uxc_modes[i].vtotal == mode->vtotal &&
 		    lt9611uxc_modes[i].vrefresh == drm_mode_vrefresh(mode)) {
 			return &lt9611uxc_modes[i];
 		}
@@ -382,7 +387,7 @@ lt9611uxc_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connect
 static int lt9611uxc_wait_for_edid(struct lt9611uxc *lt9611uxc)
 {
 	return wait_event_interruptible_timeout(lt9611uxc->wq, lt9611uxc->edid_read,
-			msecs_to_jiffies(500));
+			msecs_to_jiffies(1000));
 }
 
 static int lt9611uxc_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
