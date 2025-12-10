@@ -630,6 +630,15 @@ DMA_CTRL_REUSE
   - This flag is only supported if the channel reports the DMA_LOAD_EOT
     capability.
 
+- DMA_PREP_LOCK
+
+  - If set, the DMA controller will be locked for the duration of the current
+    transaction.
+
+- DMA_PREP_UNLOCK
+
+  - If set, DMA will release he controller lock.
+
 General Design Notes
 ====================
 

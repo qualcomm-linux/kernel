@@ -60,6 +60,10 @@ static void qce_ahash_done(void *data)
 	rctx->byte_count[0] = cpu_to_be32(result->auth_byte_count[0]);
 	rctx->byte_count[1] = cpu_to_be32(result->auth_byte_count[1]);
 
+	error = qce_bam_unlock(qce);
+	if (error)
+		dev_err(qce->dev, "ahash: failed to unlock the BAM\n");
+
 	error = qce_check_status(qce, &status);
 	if (error < 0)
 		dev_dbg(qce->dev, "ahash operation error (%x)\n", status);
@@ -89,6 +93,10 @@ static int qce_ahash_async_req_handle(struct crypto_async_request *async_req)
 		rctx->authkey = ctx->authkey;
 		rctx->authklen = AES_KEYSIZE_128;
 	}
+
+	ret = qce_bam_lock(qce);
+	if (ret)
+		return ret;
 
 	rctx->src_nents = sg_nents_for_len(req->src, req->nbytes);
 	if (rctx->src_nents < 0) {
