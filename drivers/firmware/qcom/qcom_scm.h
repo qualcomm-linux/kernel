@@ -174,6 +174,9 @@ int qcom_scm_shm_bridge_enable(struct device *scm_dev);
 #define QCOM_SCM_INTERRUPTED	1
 #define QCOM_SCM_WAITQ_SLEEP	2
 
+#define QCOM_SCM_SVC_CAMERA                     0x18
+#define QCOM_SCM_CAMERA_UPDATE_CAMNOC_QOS       0xA
+
 static inline int qcom_scm_remap_error(int err)
 {
 	switch (err) {
