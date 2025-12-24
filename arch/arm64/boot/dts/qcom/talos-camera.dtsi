@@ -1,0 +1,1984 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#include <dt-bindings/camera/msm-camera.h>
+#include <dt-bindings/interconnect/qcom,icc.h>
+
+&soc {
+	cam_icp: qcom,icp@ac00000 {
+		compatible = "qcom,cam-icp_v1";
+		icp-version = <0x0100>;
+		reg = <0x0 0xac00000 0x0 0x6000>,
+		      <0x0 0xac10000 0x0 0x8000>,
+		      <0x0 0xac18000 0x0 0x3000>;
+		reg-names = "icp_qgic", "icp_sierra", "icp_csr";
+		reg-cam-base = <0x00000 0x10000 0x18000>;
+		interrupts = <GIC_SPI 463 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "a5";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_FAST_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_ICP_CLK>,
+			 <&camcc CAM_CC_ICP_CLK_SRC>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_fast_ahb_clk_src",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_icp_clk",
+			      "cam_cc_icp_clk_src";
+		clock-rates = <0 0 100000000 0 0 0 0 240000000>,
+			      <0 0 200000000 0 0 0 0 360000000>,
+			      <0 0 300000000 0 0 0 0 432000000>,
+			      <0 0 404000000 0 0 0 0 480000000>,
+			      <0 0 404000000 0 0 0 0 540000000>,
+			      <0 0 404000000 0 0 0 0 600000000>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "nominal_l1", "turbo";
+		src-clock-name = "cam_cc_icp_clk_src";
+		operating-points-v2 = <&a5_opp_table>;
+		fw_name = "CAMERA_ICP.elf";
+		ubwc-cfg = <0x73 0x1CF>;
+		cam_hw_pid = <15>;
+		cell-index = <0>;
+		status = "okay";
+
+		a5_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-240000000 {
+				opp-hz = /bits/ 64 <240000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-360000000 {
+				opp-hz = /bits/ 64 <360000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-432000000 {
+				opp-hz = /bits/ 64 <432000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-480000000 {
+				opp-hz = /bits/ 64 <480000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_nom_l1>;
+			};
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	qcom,cam-cpas@ac40000 {
+		compatible = "qcom,cam-cpas";
+		label = "cpas";
+		arch-compat = "cpas_top";
+		reg = <0x0 0xac40000 0x0 0x1000>,
+		      <0x0 0xac42000 0x0 0x5000>;
+		reg-names = "cam_cpas_top", "cam_camnoc";
+		reg-cam-base = <0x40000 0x42000>;
+		interrupts = <GIC_SPI 459 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "cpas_camnoc";
+		camnoc-axi-min-ib-bw = <3000000000>;
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_slow_ahb_clk_src",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_camnoc_axi_clk";
+		clock-rates = <0 0 0 0 0 0>,
+			      <0 0 0 80000000 0 150000000>,
+			      <0 0 0 80000000 0 240000000>,
+			      <0 0 0 80000000 0 265000000>,
+			      <0 0 0 80000000 0 355000000>,
+			      <0 0 0 80000000 0 426000000>;
+		clock-cntl-level = "suspend", "lowsvs", "svs",
+				   "svs_l1", "nominal", "turbo";
+		src-clock-name = "cam_cc_camnoc_axi_clk";
+		operating-points-v2 = <&cpas_opp_table>;
+		control-camnoc-axi-clk;
+		camnoc-bus-width = <32>;
+		camnoc-axi-clk-bw-margin-perc = <20>;
+		cam-icc-path-names = "cam_ahb";
+		interconnects = <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &config_noc SLAVE_CAMERA_CFG QCOM_ICC_TAG_ACTIVE_ONLY>,
+				<&mmss_noc MASTER_CAMNOC_HF0 QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+				<&mmss_noc MASTER_CAMNOC_HF1 QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+				<&mmss_noc MASTER_CAMNOC_SF QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+		interconnect-names = "cam_ahb",
+				     "cam_hf_0_mnoc",
+				     "cam_hf_1_mnoc",
+				     "cam_sf_0_mnoc";
+		cam-ahb-num-cases = <7>;
+		cam-ahb-bw-KBps = <0 0>, <0 76800>, <0 150000>, <0 150000>,
+				  <0 300000>, <0 300000>, <0 300000>;
+		vdd-corners = <RPMH_REGULATOR_LEVEL_RETENTION
+			       RPMH_REGULATOR_LEVEL_MIN_SVS
+			       RPMH_REGULATOR_LEVEL_LOW_SVS
+			       RPMH_REGULATOR_LEVEL_SVS
+			       RPMH_REGULATOR_LEVEL_SVS_L1
+			       RPMH_REGULATOR_LEVEL_NOM
+			       RPMH_REGULATOR_LEVEL_NOM_L1
+			       RPMH_REGULATOR_LEVEL_NOM_L2
+			       RPMH_REGULATOR_LEVEL_TURBO
+			       RPMH_REGULATOR_LEVEL_TURBO_L1>;
+		vdd-corner-ahb-mapping = "suspend", "lowsvs", "lowsvs", "svs",
+					 "svs_l1", "nominal", "nominal",
+					 "nominal", "turbo", "turbo";
+		client-id-based;
+		client-names = "csiphy0", "csiphy1", "csiphy2", "cci0",
+			       "csid0", "csid1", "csid2","ife0",
+			       "ife1", "ife2", "ipe0", "cam-cdm-intf0",
+			       "cpas-cdm0", "bps0", "icp0", "jpeg-dma0",
+			       "jpeg-enc0", "lrmecpas0";
+		cell-index = <0>;
+		status = "okay";
+
+		cpas_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-150000000 {
+				opp-hz = /bits/ 64 <150000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-240000000 {
+				opp-hz = /bits/ 64 <240000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-265000000 {
+				opp-hz = /bits/ 64 <265000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-355000000 {
+				opp-hz = /bits/ 64 <355000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-426000000 {
+				opp-hz = /bits/ 64 <426000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+
+		camera-bus-nodes {
+			level0-nodes {
+				level-index = <0>;
+
+				bps0_all_rd: bps0-all-rd {
+					cell-index = <0>;
+					node-name = "bps0-all-rd";
+					client-name = "bps0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_READ>;
+					parent-node = <&level1_nrt0_read0>;
+				};
+
+				bps0_all_wr: bps0-all-wr {
+					cell-index = <1>;
+					node-name = "bps0-all-wr";
+					client-name = "bps0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					parent-node = <&level1_nrt0_write0>;
+				};
+
+				cpas_cdm0_all_rd: cpas-cdm0-all-rd {
+					cell-index = <2>;
+					node-name = "cpas-cdm0-all-rd";
+					client-name = "cpas-cdm0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_READ>;
+					parent-node = <&level1_nrt0_read2>;
+				};
+
+				icp0_all_rd: icp0-all-rd {
+					cell-index = <3>;
+					node-name = "icp0-all-rd";
+					client-name = "icp0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_READ>;
+					parent-node = <&level1_nrt0_read3>;
+				};
+
+				ife0_linear_pdaf_wr: ife0-linear-pdaf-wr {
+					cell-index = <4>;
+					node-name = "ife0-linear-pdaf-wr";
+					client-name = "ife0";
+					traffic-data = <CAM_CPAS_PATH_DATA_IFE_LINEAR_PDAF>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IFE_LINEAR
+							     CAM_CPAS_PATH_DATA_IFE_PDAF>;
+					parent-node = <&level1_rt0_write0>;
+				};
+
+				ife0_rdi_pixel_raw_wr: ife0-rdi-pixel-raw-wr {
+					cell-index = <5>;
+					node-name = "ife0-rdi-pixel-raw-wr";
+					client-name = "ife0";
+					traffic-data = <CAM_CPAS_PATH_DATA_IFE_RDI_PIXEL_RAW>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IFE_RDI0
+							     CAM_CPAS_PATH_DATA_IFE_RDI1
+							     CAM_CPAS_PATH_DATA_IFE_RDI2
+							     CAM_CPAS_PATH_DATA_IFE_PIXEL_RAW>;
+					parent-node = <&level1_rt0_write0>;
+				};
+
+				ife0_ubwc_stats_wr: ife0-ubwc-stats-wr {
+					cell-index = <6>;
+					node-name = "ife0-ubwc-stats-wr";
+					client-name = "ife0";
+					traffic-data = <CAM_CPAS_PATH_DATA_IFE_UBWC_STATS>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IFE_VID
+							     CAM_CPAS_PATH_DATA_IFE_DISP
+							     CAM_CPAS_PATH_DATA_IFE_STATS>;
+					parent-node = <&level1_rt0_write0>;
+				};
+
+				ife1_linear_pdaf_wr: ife1-linear-pdaf-wr {
+					cell-index = <7>;
+					node-name = "ife1-linear-pdaf-wr";
+					client-name = "ife1";
+					traffic-data = <CAM_CPAS_PATH_DATA_IFE_LINEAR_PDAF>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IFE_LINEAR
+							     CAM_CPAS_PATH_DATA_IFE_PDAF>;
+					parent-node = <&level1_rt1_write0>;
+				};
+
+				ife1_rdi_pixel_raw_wr: ife1-rdi-pixel-raw-wr {
+					cell-index = <8>;
+					node-name = "ife1-rdi-pixel-raw-wr";
+					client-name = "ife1";
+					traffic-data = <CAM_CPAS_PATH_DATA_IFE_RDI_PIXEL_RAW>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IFE_RDI0
+							     CAM_CPAS_PATH_DATA_IFE_RDI1
+							     CAM_CPAS_PATH_DATA_IFE_RDI2
+							     CAM_CPAS_PATH_DATA_IFE_PIXEL_RAW>;
+					parent-node = <&level1_rt1_write0>;
+				};
+
+				ife1_ubwc_stats_wr: ife1-ubwc-stats-wr {
+					cell-index = <9>;
+					node-name = "ife1-ubwc-stats-wr";
+					client-name = "ife1";
+					traffic-data = <CAM_CPAS_PATH_DATA_IFE_UBWC_STATS>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IFE_VID
+							     CAM_CPAS_PATH_DATA_IFE_DISP
+							     CAM_CPAS_PATH_DATA_IFE_STATS>;
+					parent-node = <&level1_rt1_write0>;
+				};
+
+				ife2_rdi_wr: ife2-rdi-wr {
+					cell-index = <10>;
+					node-name = "ife2-rdi-wr";
+					client-name = "ife2";
+					traffic-data = <CAM_CPAS_PATH_DATA_IFE_RDI_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IFE_RDI0
+							     CAM_CPAS_PATH_DATA_IFE_RDI1
+							     CAM_CPAS_PATH_DATA_IFE_RDI2
+							     CAM_CPAS_PATH_DATA_IFE_RDI3>;
+					parent-node = <&level1_rt0_write0>;
+				};
+
+				ipe0_all_rd: ipe0-all-rd {
+					cell-index = <11>;
+					node-name = "ipe0-all-rd";
+					client-name = "ipe0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_READ>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IPE_RD_IN
+							     CAM_CPAS_PATH_DATA_IPE_RD_REF>;
+					parent-node = <&level1_nrt0_read0>;
+				};
+
+				ipe0_ref_wr: ipe0-ref-wr {
+					cell-index = <12>;
+					node-name = "ipe0-ref-wr";
+					client-name = "ipe0";
+					traffic-data = <CAM_CPAS_PATH_DATA_IPE_WR_REF>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					parent-node = <&level1_nrt0_write0>;
+				};
+
+				ipe0_viddisp_wr: ipe0-viddisp-wr {
+					cell-index = <13>;
+					node-name = "ipe0-viddisp-wr";
+					client-name = "ipe0";
+					traffic-data = <CAM_CPAS_PATH_DATA_IPE_WR_VID_DISP>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					constituent-paths = <CAM_CPAS_PATH_DATA_IPE_WR_VID
+							     CAM_CPAS_PATH_DATA_IPE_WR_DISP>;
+					parent-node = <&level1_nrt0_write0>;
+				};
+
+				jpeg_dma0_all_rd: jpeg-dma0-all-rd {
+					cell-index = <14>;
+					node-name = "jpeg-dma0-all-rd";
+					client-name = "jpeg-dma0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type =
+					<CAM_CPAS_TRANSACTION_READ>;
+					parent-node = <&level1_nrt0_read1>;
+				};
+
+				jpeg_dma0_all_wr: jpeg-dma0-all-wr {
+					cell-index = <15>;
+					node-name = "jpeg-dma0-all-wr";
+					client-name = "jpeg-dma0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					parent-node = <&level1_nrt0_write1>;
+				};
+
+				jpeg_enc0_all_rd: jpeg-enc0-all-rd {
+					cell-index = <16>;
+					node-name = "jpeg-enc0-all-rd";
+					client-name = "jpeg-enc0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_READ>;
+					parent-node = <&level1_nrt0_read1>;
+				};
+
+				jpeg_enc0_all_wr: jpeg-enc0-all-wr {
+					cell-index = <17>;
+					node-name = "jpeg-enc0-all-wr";
+					client-name = "jpeg-enc0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					parent-node = <&level1_nrt0_write1>;
+				};
+
+				lrme0_all_rd: lrme0-all-rd {
+					cell-index = <18>;
+					node-name = "lrme0-all-rd";
+					client-name = "lrmecpas0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_READ>;
+					parent-node = <&level1_nrt0_read0>;
+				};
+
+				lrme0_all_wr: lrme0-all-wr {
+					cell-index = <19>;
+					node-name = "lrme0-all-wr";
+					client-name = "lrmecpas0";
+					traffic-data = <CAM_CPAS_PATH_DATA_ALL>;
+					traffic-transaction-type = <CAM_CPAS_TRANSACTION_WRITE>;
+					parent-node = <&level1_nrt0_write0>;
+				};
+			};
+
+			level1-nodes {
+				level-index = <1>;
+				camnoc-max-needed;
+
+				level1_nrt0_read0: level1-nrt0-read0 {
+					cell-index = <20>;
+					node-name = "level1-nrt0-read0";
+					parent-node = <&level2_nrt0_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+
+				level1_nrt0_read1: level1-nrt0-read1 {
+					cell-index = <21>;
+					node-name = "level1-nrt0-read1";
+					parent-node = <&level2_nrt0_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+
+				level1_nrt0_read2: level1-nrt0-read2 {
+					cell-index = <22>;
+					node-name = "level1-nrt0-read2";
+					parent-node = <&level2_nrt0_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+
+				level1_nrt0_read3: level1-nrt0-read3 {
+					cell-index = <23>;
+					node-name = "level1-nrt0-read3";
+					parent-node = <&level2_nrt0_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+
+				level1_nrt0_write0: level1-nrt0-write0 {
+					cell-index = <24>;
+					node-name = "level1-nrt0-write0";
+					parent-node = <&level2_nrt0_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+
+				level1_nrt0_write1: level1-nrt0-write1 {
+					cell-index = <25>;
+					node-name = "level1-nrt0-write1";
+					parent-node = <&level2_nrt0_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+
+				level1_rt0_write0: level1-rt0-write0 {
+					cell-index = <26>;
+					node-name = "level1-rt0-write0";
+					parent-node = <&level2_rt0_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+
+				level1_rt1_write0: level1-rt1-write0 {
+					cell-index = <27>;
+					node-name = "level1-rt1-write0";
+					parent-node = <&level2_rt1_rd_wr_sum>;
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+				};
+			};
+
+			level2-nodes {
+				level-index = <2>;
+
+				level2_nrt0_rd_wr_sum: level2-nrt0-rd-wr-sum {
+					cell-index = <28>;
+					node-name = "level2-nrt0-rd-wr-sum";
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+
+					qcom,axi-port-mnoc {
+						cam-icc-path-names = "cam_sf_0_mnoc";
+					};
+				};
+
+				level2_rt0_rd_wr_sum: level2-rt0-rd-wr-sum {
+					cell-index = <29>;
+					node-name = "level2-rt0-rd-wr-sum";
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+					ib-bw-voting-needed;
+
+					qcom,axi-port-mnoc {
+						cam-icc-path-names = "cam_hf_0_mnoc";
+					};
+				};
+
+				level2_rt1_rd_wr_sum: level2-rt1-rd-wr-sum {
+					cell-index = <30>;
+					node-name = "level3-rt1-rd-wr-sum";
+					traffic-merge-type = <CAM_CPAS_TRAFFIC_MERGE_SUM>;
+
+					qcom,axi-port-mnoc {
+						cam-icc-path-names = "cam_hf_1_mnoc";
+					};
+				};
+			};
+		};
+	};
+
+	qcom,cpas-cdm0@ac48000 {
+		compatible = "qcom,cam170-cpas-cdm0";
+		label = "cpas-cdm";
+		reg = <0x0 0xac48000 0x0 0x1000>;
+		reg-names = "cpas-cdm";
+		reg-cam-base = <0x48000>;
+		interrupts = <GIC_SPI 461 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "cpas-cdm";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_slow_ahb_clk_src";
+		clock-rates = <0 0 0 0 0 80000000>;
+		src-clock-name = "cam_cc_slow_ahb_clk_src";
+		operating-points-v2 = <&cpas_cdm_opp_table>;
+		clock-cntl-level = "svs";
+		cdm-client-names = "ife0", "ife1", "ife2",
+				   "ife3", "dualife";
+		single-context-cdm;
+		cell-index = <0>;
+		status = "okay";
+
+		cpas_cdm_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-80000000 {
+				opp-hz = /bits/ 64 <80000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+		};
+	};
+
+	cam_cci: qcom,cci@ac4a000 {
+		compatible = "qcom,cci", "simple-bus";
+		reg = <0x0 0xac4a000 0x0 0x4000>;
+		reg-names = "cci";
+		reg-cam-base = <0x4a000>;
+		interrupts = <GIC_SPI 460 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "CCI";
+		operating-points-v2 = <&cci_opp_table>;
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&camcc CAM_CC_CCI_CLK_SRC>,
+			 <&camcc CAM_CC_CCI_CLK>;
+		clock-names = "cci_clk_src",
+			      "cci_clk";
+		clock-rates = <37500000 0>;
+		clock-cntl-level = "lowsvs";
+		src-clock-name = "cci_clk_src";
+		pctrl-idx-mapping = <CCI_MASTER_0 CCI_MASTER_1>;
+		pctrl-map-names = "m0", "m1";
+		pinctrl-0 = <&cci_i2c_scl0_active &cci_i2c_sda0_active>;
+		pinctrl-1 = <&cci_i2c_scl0_suspend &cci_i2c_sda0_suspend>;
+		pinctrl-2 = <&cci_i2c_scl1_active &cci_i2c_sda1_active>;
+		pinctrl-3 = <&cci_i2c_scl1_suspend &cci_i2c_sda1_suspend>;
+		pinctrl-names = "m0_active", "m0_suspend",
+				"m1_active", "m1_suspend";
+		cell-index = <0>;
+		status = "okay";
+
+		cci_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-37500000 {
+				opp-hz = /bits/ 64 <37500000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+		};
+
+		i2c_freq_custom_cci: qcom,i2c-custom-mode {
+			hw-thigh = <38>;
+			hw-tlow = <56>;
+			hw-tsu-sto = <40>;
+			hw-tsu-sta = <40>;
+			hw-thd-dat = <22>;
+			hw-thd-sta = <35>;
+			hw-tbuf = <62>;
+			hw-scl-stretch-en = <1>;
+			hw-trdhld = <6>;
+			hw-tsp = <3>;
+			cci-clk-src = <37500000>;
+			status = "okay";
+		};
+
+		i2c_freq_400Khz_cci: qcom,i2c-fast-mode {
+			hw-thigh = <38>;
+			hw-tlow = <56>;
+			hw-tsu-sto = <40>;
+			hw-tsu-sta = <40>;
+			hw-thd-dat = <22>;
+			hw-thd-sta = <35>;
+			hw-tbuf = <62>;
+			hw-scl-stretch-en = <0>;
+			hw-trdhld = <6>;
+			hw-tsp = <3>;
+			cci-clk-src = <37500000>;
+			status = "okay";
+		};
+
+		i2c_freq_1Mhz_cci: qcom,i2c-fast-plus-mode {
+			hw-thigh = <16>;
+			hw-tlow = <22>;
+			hw-tsu-sto = <17>;
+			hw-tsu-sta = <18>;
+			hw-thd-dat = <16>;
+			hw-thd-sta = <15>;
+			hw-tbuf = <24>;
+			hw-scl-stretch-en = <0>;
+			hw-trdhld = <3>;
+			hw-tsp = <3>;
+			cci-clk-src = <37500000>;
+			status = "okay";
+		};
+
+		i2c_freq_100Khz_cci: qcom,i2c-standard-mode {
+			hw-thigh = <201>;
+			hw-tlow = <174>;
+			hw-tsu-sto = <204>;
+			hw-tsu-sta = <231>;
+			hw-thd-dat = <22>;
+			hw-thd-sta = <162>;
+			hw-tbuf = <227>;
+			hw-scl-stretch-en = <0>;
+			hw-trdhld = <6>;
+			hw-tsp = <3>;
+			cci-clk-src = <37500000>;
+			status = "okay";
+		};
+	};
+
+	cam_jpeg_enc: qcom,jpegenc@ac4e000 {
+		compatible = "qcom,cam_jpeg_enc_170";
+		reg = <0x0 0xac4e000 0x0 0x4000>;
+		reg-names = "jpege_hw";
+		reg-cam-base = <0x4e000>;
+		interrupts = <GIC_SPI 474 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "jpeg";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_JPEG_CLK_SRC>,
+			 <&camcc CAM_CC_JPEG_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_jpeg_clk_src",
+			      "cam_cc_jpeg_clk";
+		clock-rates = <0 0 0 0 0 600000000 0>;
+		src-clock-name = "cam_cc_jpeg_clk_src";
+		operating-points-v2 = <&jpeg_enc_opp_table>;
+		clock-cntl-level = "turbo";
+		cell-index = <0>;
+		status = "okay";
+
+		jpeg_enc_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_jpeg_dma: qcom,jpegdma@ac52000{
+		compatible = "qcom,cam_jpeg_dma_170";
+		reg = <0x0 0xac52000 0x0 0x4000>;
+		reg-names = "jpegdma_hw";
+		reg-cam-base = <0x52000>;
+		interrupts = <GIC_SPI 475 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "jpegdma";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_JPEG_CLK_SRC>,
+			 <&camcc CAM_CC_JPEG_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_jpeg_clk_src",
+			      "cam_cc_jpeg_clk";
+		clock-rates = <0 0 0 0 0 600000000 0>;
+		src-clock-name = "cam_cc_jpeg_clk_src";
+		operating-points-v2 = <&jpeg_dma_opp_table>;
+		clock-cntl-level = "turbo";
+		cell-index = <0>;
+		status = "okay";
+
+		jpeg_dma_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_csiphy0: qcom,csiphy@ac65000 {
+		compatible = "qcom,csiphy-v2.0.0", "qcom,csiphy";
+		reg = <0x0 0x0ac65000 0x0 0x1000>;
+		reg-names = "csiphy";
+		operating-points-v2 = <&csiphy0_opp_table>;
+		reg-cam-base = <0x65000>;
+		interrupts = <GIC_SPI 477 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "CSIPHY0";
+		csi-vdd-voltage = <1200000>;
+		mipi-csi-vdd-supply = <&vreg_l11a>;
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
+			 <&camcc CAM_CC_CSIPHY0_CLK>,
+			 <&camcc CAM_CC_CSI0PHYTIMER_CLK_SRC>,
+			 <&camcc CAM_CC_CSI0PHYTIMER_CLK>;
+		clock-names = "camnoc_axi_clk",
+			      "soc_ahb_clk",
+			      "slow_ahb_src_clk",
+			      "cpas_ahb_clk",
+			      "cphy_rx_clk_src",
+			      "csiphy0_clk",
+			      "csi0phytimer_clk_src",
+			      "csi0phytimer_clk";
+		src-clock-name = "csi0phytimer_clk_src";
+		clock-cntl-level = "svs_l1", "turbo";
+		clock-rates = <0 0 0 0 269333333 0 269333333 0>,
+			      <0 0 0 0 384000000 0 269333333 0>;
+		cell-index = <0>;
+		status = "okay";
+
+		csiphy0_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-269333333 {
+				opp-hz = /bits/ 64 <269333333>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-384000000 {
+				opp-hz = /bits/ 64 <384000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_csiphy1: qcom,csiphy@ac66000 {
+		compatible = "qcom,csiphy-v2.0.0", "qcom,csiphy";
+		reg = <0x0 0xac66000 0x0 0x1000>;
+		reg-names = "csiphy";
+		operating-points-v2 = <&csiphy1_opp_table>;
+		reg-cam-base = <0x66000>;
+		interrupts = <GIC_SPI 478 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "CSIPHY1";
+		csi-vdd-voltage = <1200000>;
+		mipi-csi-vdd-supply = <&vreg_l11a>;
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
+			 <&camcc CAM_CC_CSIPHY1_CLK>,
+			 <&camcc CAM_CC_CSI1PHYTIMER_CLK_SRC>,
+			 <&camcc CAM_CC_CSI1PHYTIMER_CLK>;
+		clock-names = "camnoc_axi_clk",
+			      "soc_ahb_clk",
+			      "slow_ahb_src_clk",
+			      "cpas_ahb_clk",
+			      "cphy_rx_clk_src",
+			      "csiphy1_clk",
+			      "csi1phytimer_clk_src",
+			      "csi1phytimer_clk";
+		src-clock-name = "csi1phytimer_clk_src";
+		clock-cntl-level = "svs_l1", "turbo";
+		clock-rates = <0 0 0 0 269333333 0 269333333 0>,
+			      <0 0 0 0 384000000 0 269333333 0>;
+		cell-index = <1>;
+		status = "okay";
+
+		csiphy1_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-269333333 {
+				opp-hz = /bits/ 64 <269333333>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-384000000 {
+				opp-hz = /bits/ 64 <384000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_csiphy2: qcom,csiphy@ac67000 {
+		compatible = "qcom,csiphy-v2.0.0", "qcom,csiphy";
+		reg = <0x0 0xac67000 0x0 0x1000>;
+		reg-names = "csiphy";
+		operating-points-v2 = <&csiphy2_opp_table>;
+		reg-cam-base = <0x67000>;
+		interrupts = <GIC_SPI 479 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "CSIPHY2";
+		csi-vdd-voltage = <1200000>;
+		mipi-csi-vdd-supply = <&vreg_l11a>;
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
+			 <&camcc CAM_CC_CSIPHY2_CLK>,
+			 <&camcc CAM_CC_CSI2PHYTIMER_CLK_SRC>,
+			 <&camcc CAM_CC_CSI2PHYTIMER_CLK>;
+		clock-names = "camnoc_axi_clk",
+			      "soc_ahb_clk",
+			      "slow_ahb_src_clk",
+			      "cpas_ahb_clk",
+			      "cphy_rx_clk_src",
+			      "csiphy2_clk",
+			      "csi2phytimer_clk_src",
+			      "csi2phytimer_clk";
+		src-clock-name = "csi2phytimer_clk_src";
+		clock-cntl-level = "svs_l1", "turbo";
+		clock-rates = <0 0 0 0 269333333 0 269333333 0>,
+			      <0 0 0 0 384000000 0 269333333 0>;
+		cell-index = <2>;
+		status = "okay";
+
+		csiphy2_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-269333333 {
+				opp-hz = /bits/ 64 <269333333>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-384000000 {
+				opp-hz = /bits/ 64 <384000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_lrme: qcom,lrme@ac6b000 {
+		compatible = "qcom,lrme";
+		reg = <0x0 0xac6b000 0x0 0xa00>;
+		reg-names = "lrme";
+		reg-cam-base = <0x6b000>;
+		interrupts = <GIC_SPI 476 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "lrme";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_LRME_CLK_SRC>,
+			 <&camcc CAM_CC_LRME_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_lrme_clk_src",
+			      "cam_cc_lrme_clk";
+		clock-rates = <0 0 0 0 0 200000000 0>,
+			      <0 0 0 0 0 216000000 0>,
+			      <0 0 0 0 0 300000000 0>,
+			      <0 0 0 0 0 404000000 0>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal";
+		src-clock-name = "cam_cc_lrme_clk_src";
+		operating-points-v2 = <&lrme_opp_table>;
+		cam_hw_pid = <6 10>;
+		cell-index = <0>;
+		status = "okay";
+
+		lrme_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-200000000 {
+				opp-hz = /bits/ 64 <200000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-216000000 {
+				opp-hz = /bits/ 64 <216000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-300000000 {
+				opp-hz = /bits/ 64 <300000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-404000000 {
+				opp-hz = /bits/ 64 <404000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+		};
+	};
+
+	cam_bps: qcom,bps@0x0ac6f000 {
+		compatible = "qcom,cam-bps";
+		reg = <0x0 0xac6f000 0x0 0x3000>;
+		reg-names = "bps_top";
+		reg-cam-base = <0x6f000>;
+		power-domains = <&camcc BPS_GDSC>;
+		clocks = <&camcc CAM_CC_BPS_AHB_CLK>,
+			 <&camcc CAM_CC_BPS_AREG_CLK>,
+			 <&camcc CAM_CC_BPS_AXI_CLK>,
+			 <&camcc CAM_CC_BPS_CLK>,
+			 <&camcc CAM_CC_BPS_CLK_SRC>;
+		clock-names = "cam_cc_bps_ahb_clk",
+			      "cam_cc_bps_areg_clk",
+			      "cam_cc_bps_axi_clk",
+			      "cam_cc_bps_clk",
+			      "cam_cc_bps_clk_src";
+		clock-rates = <0 0 0 0 200000000>,
+			      <0 0 0 0 360000000>,
+			      <0 0 0 0 432000000>,
+			      <0 0 0 0 480000000>,
+			      <0 0 0 0 540000000>,
+			      <0 0 0 0 600000000>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1",
+				   "nominal", "nominal_l1", "turbo";
+		src-clock-name = "cam_cc_bps_clk_src";
+		operating-points-v2 = <&bps_opp_table>;
+		cam_hw_pid = <5 9>;
+		cell-index = <0>;
+		status = "okay";
+
+		bps_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-200000000 {
+				opp-hz = /bits/ 64 <200000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-360000000 {
+				opp-hz = /bits/ 64 <360000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-432000000 {
+				opp-hz = /bits/ 64 <432000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-480000000 {
+				opp-hz = /bits/ 64 <480000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_nom_l1>;
+			};
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_ipe0: qcom,ipe0@0x0ac87000 {
+		compatible = "qcom,cam-ipe";
+		reg = <0x0 0xac87000 0x0 0x3000>;
+		reg-names = "ipe0_top";
+		reg-cam-base = <0x87000>;
+		power-domains = <&camcc IPE_0_GDSC>;
+		clock-names = "cam_cc_ipe_0_ahb_clk",
+			      "cam_cc_ipe_0_areg_clk",
+			      "cam_cc_ipe_0_axi_clk",
+			      "cam_cc_ipe_0_clk",
+			      "cam_cc_ipe_0_clk_src";
+		clocks = <&camcc CAM_CC_IPE_0_AHB_CLK>,
+			 <&camcc CAM_CC_IPE_0_AREG_CLK>,
+			 <&camcc CAM_CC_IPE_0_AXI_CLK>,
+			<&camcc CAM_CC_IPE_0_CLK>,
+			<&camcc CAM_CC_IPE_0_CLK_SRC>;
+		clock-rates = <0 0 0 0 240000000>,
+			      <0 0 0 0 360000000>,
+			      <0 0 0 0 432000000>,
+			      <0 0 0 0 480000000>,
+			      <0 0 0 0 540000000>,
+			      <0 0 0 0 600000000>;
+		clock-cntl-level = "lowsvs","svs", "svs_l1",
+				   "nominal", "nominal_l1", "turbo";
+		src-clock-name = "cam_cc_ipe_0_clk_src";
+		operating-points-v2 = <&ipe0_opp_table>;
+		cam_hw_pid = <4 8>;
+		cell-index = <0>;
+		status = "okay";
+
+		ipe0_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-240000000 {
+				opp-hz = /bits/ 64 <240000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-360000000 {
+				opp-hz = /bits/ 64 <360000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-432000000 {
+				opp-hz = /bits/ 64 <432000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-480000000 {
+				opp-hz = /bits/ 64 <480000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_nom_l1>;
+			};
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_vfe0: qcom,vfe0@acaf000 {
+		compatible = "qcom,vfe170";
+		reg = <0x0 0xacaf000 0x0 0x4000>,
+		      <0x0 0xac42000 0x0 0x5000>;
+		reg-names = "ife0", "cam_camnoc";
+		reg-cam-base = <0xaf000 0x42000>;
+		interrupts = <GIC_SPI 465 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ife0";
+		power-domains = <&camcc IFE_0_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_0_CLK>,
+			 <&camcc CAM_CC_IFE_0_CLK_SRC>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_IFE_0_AXI_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_slow_ahb_clk_src",
+			      "cam_cc_ife_0_clk",
+			      "cam_cc_ife_0_clk_src",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_ife_0_axi_clk";
+		clock-rates = <0 0 0 0 0 0 240000000 0 0>,
+			      <0 0 0 0 0 0 360000000 0 0>,
+			      <0 0 0 0 0 0 432000000 0 0>,
+			      <0 0 0 0 0 0 540000000 0 0>,
+			      <0 0 0 0 0 0 600000000 0 0>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "turbo";
+		src-clock-name = "cam_cc_ife_0_clk_src";
+		operating-points-v2 = <&vfe0_opp_table>;
+		clock-names-option = "cam_cc_ife_0_dsp_clk";
+		clocks-option = <&camcc CAM_CC_IFE_0_DSP_CLK>;
+		clock-rates-option = <600000000>;
+		cam_hw_pid = <1>;
+		clock-control-debugfs = "true";
+		cell-index = <0>;
+		status = "okay";
+
+		vfe0_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-240000000 {
+				opp-hz = /bits/ 64 <240000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-360000000 {
+				opp-hz = /bits/ 64 <360000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-432000000 {
+				opp-hz = /bits/ 64 <432000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_csid0: qcom,csid0@acb3000 {
+		compatible = "qcom,csid170";
+		reg = <0x0 0xacb3000 0x0 0x1000>;
+		reg-names = "csid0";
+		reg-cam-base = <0xb3000>;
+		interrupts = <GIC_SPI 464 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "csid0";
+		power-domains = <&camcc IFE_0_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_0_CSID_CLK>,
+			 <&camcc CAM_CC_IFE_0_CSID_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_0_CPHY_RX_CLK>,
+			 <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_0_CLK>,
+			 <&camcc CAM_CC_IFE_0_CLK_SRC>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_IFE_0_AXI_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_slow_ahb_clk_src",
+			      "cam_cc_ife_0_csid_clk",
+			      "cam_cc_ife_0_csid_clk_src",
+			      "cam_cc_ife_0_cphy_rx_clk",
+			      "cam_cc_cphy_rx_clk_src",
+			      "cam_cc_ife_0_clk",
+			      "cam_cc_ife_0_clk_src",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_ife_0_axi_clk";
+		clock-rates = <0 0 0 0 0 0 100000000 0 0 0 240000000 0 0>,
+			      <0 0 0 0 0 0 200000000 0 0 0 360000000 0 0>,
+			      <0 0 0 0 0 0 320000000 0 0 0 432000000 0 0>,
+			      <0 0 0 0 0 0 404000000 0 0 0 540000000 0 0>,
+			      <0 0 0 0 0 0 480000000 0 0 0 540000000 0 0>,
+			      <0 0 0 0 0 0 540000000 0 0 0 600000000 0 0>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "nominal_l1", "turbo";
+		operating-points-v2 = <&csid0_opp_table>;
+		src-clock-name = "cam_cc_ife_0_csid_clk_src";
+		clock-control-debugfs = "true";
+		cell-index = <0>;
+		status = "okay";
+
+		csid0_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-100000000 {
+				opp-hz = /bits/ 64 <100000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-200000000 {
+				opp-hz = /bits/ 64 <200000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-320000000 {
+				opp-hz = /bits/ 64 <320000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-404000000 {
+				opp-hz = /bits/ 64 <404000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-480000000 {
+				opp-hz = /bits/ 64 <480000000>;
+				required-opps = <&rpmhpd_opp_nom_l1>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_vfe1: qcom,vfe1@acb6000 {
+		compatible = "qcom,vfe170";
+		reg = <0x0 0xacb6000 0x0 0x4000>,
+		      <0x0 0xac42000 0x0 0x5000>;
+		reg-names = "ife1", "cam_camnoc";
+		reg-cam-base = <0xb6000 0x42000>;
+		interrupts = <GIC_SPI 467 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ife1";
+		power-domains = <&camcc IFE_1_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_1_CLK>,
+			 <&camcc CAM_CC_IFE_1_CLK_SRC>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_IFE_1_AXI_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_slow_ahb_clk_src",
+			      "cam_cc_ife_1_clk",
+			      "cam_cc_ife_1_clk_src",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_ife_1_axi_clk";
+		clock-rates = <0 0 0 0 0 0 240000000 0 0>,
+			      <0 0 0 0 0 0 360000000 0 0>,
+			      <0 0 0 0 0 0 432000000 0 0>,
+			      <0 0 0 0 0 0 540000000 0 0>,
+			      <0 0 0 0 0 0 600000000 0 0>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "turbo";
+		src-clock-name = "cam_cc_ife_1_clk_src";
+		operating-points-v2 = <&vfe1_opp_table>;
+		clock-names-option = "cam_cc_ife_1_dsp_clk";
+		clocks-option = <&camcc CAM_CC_IFE_1_DSP_CLK>;
+		clock-rates-option = <600000000>;
+		cam_hw_pid = <2>;
+		clock-control-debugfs = "true";
+		cell-index = <1>;
+		status = "okay";
+
+		vfe1_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-240000000 {
+				opp-hz = /bits/ 64 <240000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-360000000 {
+				opp-hz = /bits/ 64 <360000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-432000000 {
+				opp-hz = /bits/ 64 <432000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_csid1: qcom,csid1@acba000 {
+		compatible = "qcom,csid170";
+		reg = <0x0 0xacba000 0x0 0x1000>;
+		reg-names = "csid1";
+		reg-cam-base = <0xba000>;
+		interrupts = <GIC_SPI 466 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "csid1";
+		power-domains = <&camcc IFE_1_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_1_CSID_CLK>,
+			 <&camcc CAM_CC_IFE_1_CSID_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_1_CPHY_RX_CLK>,
+			 <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_1_CLK>,
+			 <&camcc CAM_CC_IFE_1_CLK_SRC>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>,
+			 <&camcc CAM_CC_IFE_1_AXI_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_slow_ahb_clk_src",
+			      "cam_cc_ife_1_csid_clk",
+			      "cam_cc_ife_1_csid_clk_src",
+			      "cam_cc_ife_1_cphy_rx_clk",
+			      "cam_cc_cphy_rx_clk_src",
+			      "cam_cc_ife_1_clk",
+			      "cam_cc_ife_1_clk_src",
+			      "cam_cc_camnoc_axi_clk",
+			      "cam_cc_ife_1_axi_clk";
+		clock-rates = <0 0 0 0 0 0 100000000 0 0 0 240000000 0 0>,
+			      <0 0 0 0 0 0 200000000 0 0 0 360000000 0 0>,
+			      <0 0 0 0 0 0 320000000 0 0 0 432000000 0 0>,
+			      <0 0 0 0 0 0 404000000 0 0 0 540000000 0 0>,
+			      <0 0 0 0 0 0 480000000 0 0 0 540000000 0 0>,
+			      <0 0 0 0 0 0 540000000 0 0 0 600000000 0 0>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "nominal_l1", "turbo";
+		src-clock-name = "cam_cc_ife_1_csid_clk_src";
+		operating-points-v2 = <&csid1_opp_table>;
+		clock-control-debugfs = "true";
+		cell-index = <1>;
+		status = "okay";
+
+		csid1_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-100000000 {
+				opp-hz = /bits/ 64 <100000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-200000000 {
+				opp-hz = /bits/ 64 <200000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-320000000 {
+				opp-hz = /bits/ 64 <320000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-404000000 {
+				opp-hz = /bits/ 64 <404000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-480000000 {
+				opp-hz = /bits/ 64 <480000000>;
+				required-opps = <&rpmhpd_opp_nom_l1>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_vfe_lite: qcom,vfe-lite@acc4000 {
+		compatible = "qcom,vfe-lite170";
+		reg = <0x0 0xacc4000 0x0 0x4000>;
+		reg-names = "ife-lite0";
+		reg-cam-base = <0xc4000>;
+		interrupts = <GIC_SPI 469 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ife-lite0";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_LITE_CLK>,
+			 <&camcc CAM_CC_IFE_LITE_CLK_SRC>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_slow_ahb_clk_src",
+			      "cam_cc_ife_lite_clk",
+			      "cam_cc_ife_lite_clk_src",
+			      "cam_cc_camnoc_axi_clk";
+		clock-rates = <0 0 0 0 0 0 240000000 0>,
+			      <0 0 0 0 0 0 360000000 0>,
+			      <0 0 0 0 0 0 432000000 0>,
+			      <0 0 0 0 0 0 540000000 0>,
+			      <0 0 0 0 0 0 600000000 0>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "turbo";
+		src-clock-name = "cam_cc_ife_lite_clk_src";
+		operating-points-v2 = <&vfe_lite0_opp_table>;
+		cam_hw_pid = <3>;
+		clock-control-debugfs = "true";
+		cell-index = <2>;
+		status = "okay";
+
+		vfe_lite0_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-240000000 {
+				opp-hz = /bits/ 64 <240000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-360000000 {
+				opp-hz = /bits/ 64 <360000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-432000000 {
+				opp-hz = /bits/ 64 <432000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	cam_csid_lite: qcom,csid-lite@acc8000 {
+		compatible = "qcom,csid-lite170";
+		reg = <0x0 0xacc8000 0x0 0x1000>;
+		reg-names = "csid-lite0";
+		reg-cam-base = <0xc8000>;
+		interrupts = <GIC_SPI 468 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "csid-lite0";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		clocks = <&gcc GCC_CAMERA_AHB_CLK>,
+			 <&gcc GCC_CAMERA_HF_AXI_CLK>,
+			 <&camcc CAM_CC_SOC_AHB_CLK>,
+			 <&camcc CAM_CC_CPAS_AHB_CLK>,
+			 <&camcc CAM_CC_SLOW_AHB_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_LITE_CSID_CLK>,
+			 <&camcc CAM_CC_IFE_LITE_CSID_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_LITE_CPHY_RX_CLK>,
+			 <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
+			 <&camcc CAM_CC_IFE_LITE_CLK>,
+			 <&camcc CAM_CC_IFE_LITE_CLK_SRC>,
+			 <&camcc CAM_CC_CAMNOC_AXI_CLK>;
+		clock-names = "gcc_camera_ahb_clk",
+			      "gcc_camera_hf_axi_clk",
+			      "cam_cc_soc_ahb_clk",
+			      "cam_cc_cpas_ahb_clk",
+			      "cam_cc_slow_ahb_clk_src",
+			      "cam_cc_ife_lite_csid_clk",
+			      "cam_cc_ife_lite_csid_clk_src",
+			      "cam_cc_ife_lite_cphy_rx_clk",
+			      "cam_cc_cphy_rx_clk_src",
+			      "cam_cc_ife_lite_clk",
+			      "cam_cc_ife_lite_clk_src",
+			      "cam_cc_camnoc_axi_clk";
+		clock-rates = <0 0 0 0 0 0 100000000 0 0 0 240000000 0>,
+			      <0 0 0 0 0 0 200000000 0 0 0 360000000 0>,
+			      <0 0 0 0 0 0 320000000 0 0 0 432000000 0>,
+			      <0 0 0 0 0 0 404000000 0 0 0 540000000 0>,
+			      <0 0 0 0 0 0 480000000 0 0 0 540000000 0>,
+			      <0 0 0 0 0 0 540000000 0 0 0 600000000 0>;
+		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "nominal_l1", "turbo";
+		src-clock-name = "cam_cc_ife_lite_csid_clk_src";
+		operating-points-v2 = <&csid_lite0_opp_table>;
+		clock-control-debugfs = "true";
+		cell-index = <2>;
+		status = "okay";
+
+		csid_lite0_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-100000000 {
+				opp-hz = /bits/ 64 <100000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+			};
+
+			opp-200000000 {
+				opp-hz = /bits/ 64 <200000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-320000000 {
+				opp-hz = /bits/ 64 <320000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-404000000 {
+				opp-hz = /bits/ 64 <404000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+
+			opp-480000000 {
+				opp-hz = /bits/ 64 <480000000>;
+				required-opps = <&rpmhpd_opp_nom_l1>;
+			};
+
+			opp-540000000 {
+				opp-hz = /bits/ 64 <540000000>;
+				required-opps = <&rpmhpd_opp_turbo>;
+			};
+		};
+	};
+
+	qcom,cam-cdm-intf {
+		compatible = "qcom,cam-cdm-intf";
+		cell-index = <0>;
+		label = "cam-cdm-intf";
+		num-hw-cdm = <1>;
+		cdm-client-names = "vfe", "jpegdma",
+				   "jpegenc", "lrmecdm";
+		status = "okay";
+	};
+
+	qcom,cam-icp {
+		compatible = "qcom,cam-icp";
+		compat-hw-name = "qcom,icp",
+				 "qcom,ipe0",
+				 "qcom,bps";
+		num-icp = <1>;
+		num-ipe = <1>;
+		num-bps = <1>;
+		ipe0-mask = <0x1000>;
+		icp_pc_en;
+		status = "okay";
+	};
+
+	cam_isp_mgr: qcom,cam-isp {
+		compatible = "qcom,cam-isp";
+		arch-compat = "ife";
+		status = "okay";
+	};
+
+	cam_jpeg_mgr: qcom,cam-jpeg {
+		compatible = "qcom,cam-jpeg";
+		compat-hw-name = "qcom,jpegenc",
+				 "qcom,jpegdma";
+		num-jpeg-enc = <1>;
+		num-jpeg-dma = <1>;
+		status = "okay";
+	};
+
+	cam_lrme_mgr: qcom,cam-lrme {
+		compatible = "qcom,cam-lrme";
+		arch-compat = "lrme";
+		status = "okay";
+	};
+
+	qcom,camera-main {
+		compatible = "qcom,camera_qcs615";
+		status = "okay";
+	};
+
+	qcom,cam-req-mgr {
+		compatible = "qcom,cam-req-mgr";
+		status = "okay";
+	};
+
+	cam_smmu: qcom,cam-smmu {
+		compatible = "qcom,msm-cam-smmu", "simple-bus";
+		status = "okay";
+
+		msm-cam-icp-fw {
+			compatible = "qcom,msm-cam-smmu-fw-dev";
+			label="icp";
+			memory-region = <&pil_camera_mem>;
+		};
+
+		msm-cam-smmu-cpas-cdm {
+			compatible = "qcom,msm-cam-smmu-cb";
+			iommus = <&apps_smmu 0x0c00 0x0>;
+			cam-smmu-label = "cpas-cdm";
+
+			cpas_cdm_iova_mem_map: iova-mem-map {
+				iova-mem-region-io {
+					/* IO region is approximately 3.4 GB */
+					iova-region-name = "io";
+					iova-region-start = <0x7400000>;
+					iova-region-len = <0xd8c00000>;
+					iova-region-id = <0x3>;
+					status = "okay";
+				};
+			};
+		};
+
+		msm-cam-smmu-icp {
+			compatible = "qcom,msm-cam-smmu-cb";
+			iommus = <&apps_smmu 0x0de2 0x0>,
+				 <&apps_smmu 0x0c80 0x0>,
+				 <&apps_smmu 0x0ca0 0x0>,
+				 <&apps_smmu 0x0d00 0x0>,
+				 <&apps_smmu 0x0d20 0x0>;
+			cam-smmu-label = "icp";
+
+			icp_iova_mem_map: iova-mem-map {
+				iova-mem-region-firmware {
+					/* Firmware region is 8MB */
+					iova-region-name = "firmware";
+					iova-region-start = <0x0>;
+					iova-region-len = <0x800000>;
+					iova-region-id = <0x0>;
+					status = "okay";
+				};
+
+				iova-mem-region-io {
+					/* IO region is approximately 3.3 GB */
+					iova-region-name = "io";
+					iova-region-start = <0x10C00000>;
+					iova-region-len = <0xCF300000>;
+					iova-region-id = <0x3>;
+					status = "okay";
+				};
+
+				iova-mem-qdss-region {
+					/* qdss region is approximately 1MB */
+					iova-region-name = "qdss";
+					iova-region-start = <0x10B00000>;
+					iova-region-len = <0x100000>;
+					iova-region-id = <0x5>;
+					qdss-phy-addr = <0x16790000>;
+					status = "okay";
+				};
+
+				iova-mem-region-secondary-heap {
+					/* Secondary heap region is 1MB long */
+					iova-region-name = "secheap";
+					iova-region-start = <0x10A00000>;
+					iova-region-len = <0x100000>;
+					iova-region-id = <0x4>;
+					status = "okay";
+				};
+
+				iova-mem-region-shared {
+					/* Shared region is 150MB long */
+					iova-region-name = "shared";
+					iova-region-start = <0x7400000>;
+					iova-region-len = <0x9600000>;
+					iova-region-id = <0x1>;
+					iova-granularity = <0x15>;
+					status = "okay";
+				};
+			};
+		};
+
+		msm-cam-smmu-ife {
+			compatible = "qcom,msm-cam-smmu-cb";
+			iommus = <&apps_smmu 0x0820 0x40>,
+			         <&apps_smmu 0x0840 0x00>,
+			         <&apps_smmu 0x0860 0x40>;
+			cam-smmu-label = "ife";
+			multiple-client-devices;
+			com,iommu-faults = "stall-disable", "non-fatal";
+
+			ife_iova_mem_map: iova-mem-map {
+				/* IO region is approximately 3.4 GB */
+				iova-mem-region-io {
+					iova-region-name = "io";
+					iova-region-start = <0x7400000>;
+					iova-region-len = <0xd8c00000>;
+					iova-region-id = <0x3>;
+					status = "okay";
+				};
+			};
+		};
+
+		msm-cam-smmu-jpeg {
+			compatible = "qcom,msm-cam-smmu-cb";
+			iommus = <&apps_smmu 0xd80 0x20>,
+				 <&apps_smmu  0xda0 0x20>;
+			cam-smmu-label = "jpeg";
+
+			jpeg_iova_mem_map: iova-mem-map {
+				/* IO region is approximately 3.4 GB */
+				iova-mem-region-io {
+					iova-region-name = "io";
+					iova-region-start = <0x7400000>;
+					iova-region-len = <0xd8c00000>;
+					iova-region-id = <0x3>;
+					status = "okay";
+				};
+			};
+		};
+
+		msm-cam-smmu-lrme {
+			compatible = "qcom,msm-cam-smmu-cb";
+			iommus = <&apps_smmu 0x0cc0 0x0>,
+				 <&apps_smmu 0x0d40 0x0>;
+			cam-smmu-label = "lrme";
+
+			lrme_iova_mem_map: iova-mem-map {
+				iova-mem-region-shared {
+					/* Shared region is 100MB long */
+					iova-region-name = "shared";
+					iova-region-start = <0x7400000>;
+					iova-region-len = <0x6400000>;
+					iova-region-id = <0x1>;
+					status = "okay";
+				};
+
+				/* IO region is approximately 3.3 GB */
+				iova-mem-region-io {
+					iova-region-name = "io";
+					iova-region-start = <0xd800000>;
+					iova-region-len = <0xd2800000>;
+					iova-region-id = <0x3>;
+					status = "okay";
+				};
+			};
+		};
+
+		msm-cam-smmu-secure {
+			compatible = "qcom,msm-cam-smmu-cb";
+			cam-smmu-label = "cam-secure";
+			qcom,secure-cb;
+		};
+	};
+
+	qcom,cam-sync {
+		compatible = "qcom,cam-sync";
+		status = "okay";
+	};
+};
+
+&tlmm {
+	cam_sensor_active_rst0: cam-sensor-active-rst0 {
+		/* RESET */
+		mux {
+			pins = "gpio75";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio75";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_active_rst1: cam-sensor-active-rst1 {
+		/* RESET */
+		mux {
+			pins = "gpio29";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio29";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_active_rst2: cam-sensor-active-rst2 {
+		/* RESET  */
+		mux {
+			pins = "gpio37";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio37";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_mclk2_active: cam-sensor-mclk2-active {
+		/* MCLK2 */
+		mux {
+			pins = "gpio30";
+			function = "cam_mclk";
+		};
+
+		config {
+			pins = "gpio30";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_mclk2_suspend: cam-sensor-mclk2-suspend {
+		/* MCLK2 */
+		mux {
+			pins = "gpio30";
+			function = "cam_mclk";
+		};
+
+		config {
+			pins = "gpio30";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_mclk3_active: cam-sensor-mclk3-active {
+		/* MCLK3 */
+		mux {
+			pins = "gpio28";
+			function = "cam_mclk";
+		};
+
+		config {
+			pins = "gpio28";
+			bias-disable; /* No PULL */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_mclk3_suspend: cam-sensor-mclk3-suspend {
+		/* MCLK3 */
+		mux {
+			pins = "gpio28";
+			function = "cam_mclk";
+		};
+
+		config {
+			pins = "gpio28";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cam_sensor_suspend_rst0: cam-sensor-suspend-rst0 {
+		/* RESET */
+		mux {
+			pins = "gpio75";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio75";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+			output-low;
+		};
+	};
+
+	cam_sensor_suspend_rst1: cam-sensor-suspend-rst1 {
+		/* RESET */
+		mux {
+			pins = "gpio29";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio29";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+			output-low;
+		};
+	};
+
+	cam_sensor_suspend_rst2: cam-sensor-suspend-rst2 {
+		/* RESET */
+		mux {
+			pins = "gpio37";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio37";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+			output-low;
+		};
+	};
+
+	cci_i2c_scl0_active: cci-i2c-scl0-active {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio33";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio33";
+			bias-pull-up; /* PULL UP*/
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cci_i2c_scl0_suspend: cci-i2c-scl0-suspend {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio33";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio33";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cci_i2c_scl1_active: cci-i2c-scl1-active {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio35";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio35";
+			bias-pull-up; /* PULL UP*/
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cci_i2c_scl1_suspend: cci-i2c-scl1-suspend {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio35";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio35";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+
+	cci_i2c_sda0_active: cci-i2c-sda0-active {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio32";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio32";
+			bias-pull-up; /* PULL UP*/
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cci_i2c_sda0_suspend: cci-i2c-sda0-suspend {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio32";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio32";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cci_i2c_sda1_active: cci-i2c-sda1-active {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio34";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio34";
+			bias-pull-up; /* PULL UP*/
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	cci_i2c_sda1_suspend: cci-i2c-sda1-suspend {
+		mux {
+			/* CLK, DATA */
+			pins = "gpio34";
+			function = "cci_i2c";
+		};
+
+		config {
+			pins = "gpio34";
+			bias-pull-down; /* PULL DOWN */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+};
