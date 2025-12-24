@@ -686,6 +686,11 @@
 			alignment = <0x0 0x400000>;
 			size = <0x0 0x800000>;
 		};
+
+		pil_camera_mem: pil-camera-region@97717000 {
+			reg = <0x0 0x97717000 0x0 0x800000>;
+			no-map;
+		};
 	};
 
 	soc: soc@0 {
