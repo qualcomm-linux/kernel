@@ -43,7 +43,7 @@
 		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal", "nominal_l1", "turbo";
 		src-clock-name = "cam_cc_icp_clk_src";
 		operating-points-v2 = <&a5_opp_table>;
-		fw_name = "CAMERA_ICP.elf";
+		fw_name = "qcom/qcs615/CAMERA_ICP.elf";
 		ubwc-cfg = <0x73 0x1CF>;
 		cam_hw_pid = <15>;
 		cell-index = <0>;
