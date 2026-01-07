@@ -32,7 +32,7 @@
 		clock-cntl-level = "lowsvs", "svs", "svs_l1", "nominal";
 		src-clock-name = "soc_fast_ahb";
 		operating-points-v2 = <&a5_opp_table>;
-		fw_name = "CAMERA_ICP_170.elf";
+		fw_name = "qcom/qcm6490/CAMERA_ICP_170.elf";
 		ubwc-ipe-fetch-cfg = <0x7073 0x707b>;
 		ubwc-ipe-write-cfg = <0x161cf 0x161ef>;
 		ubwc-bps-fetch-cfg = <0x7073 0x707b>;
