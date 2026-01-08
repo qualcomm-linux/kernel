@@ -134,9 +134,10 @@
 				     "cam_hf_0_mnoc",
 				     "cam_hf_1_mnoc",
 				     "cam_sf_0_mnoc";
-		cam-ahb-num-cases = <7>;
+		cam-ahb-num-cases = <9>;
 		cam-ahb-bw-KBps = <0 0>, <0 76800>, <0 150000>, <0 150000>,
-				  <0 300000>, <0 300000>, <0 300000>;
+				  <0 300000>, <0 300000>, <0 300000>,
+				  <0 300000>, <0 300000>;
 		vdd-corners = <RPMH_REGULATOR_LEVEL_RETENTION
 			       RPMH_REGULATOR_LEVEL_MIN_SVS
 			       RPMH_REGULATOR_LEVEL_LOW_SVS
