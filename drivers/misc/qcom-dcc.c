@@ -135,6 +135,8 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
+#include "qcom-dcc.h"
+
 #define STATUS_READY_TIMEOUT		5000  /* microseconds */
 
 /* DCC registers */
@@ -1423,57 +1425,6 @@ static ssize_t dcc_sram_read(struct file *file, char __user *data,
 	return len;
 }
 
-static void dcc_configure_list(struct dcc_drvdata *drvdata, struct device_node *np)
-{
-	const char *prop;
-	int ret, curr_list, index = 0;
-	char *token, *bufp;
-	char *delim = " ";
-	u32 len, processed_len = 0;
-
-	ret = of_property_read_u32(np, "qcom,curr-link-list",
-                               &curr_list);
-	if (ret)
-		return;
-
-	if(!of_get_property(np, "qcom,link-list", &len))
-		return;
-
-	bufp = kzalloc(len+1, GFP_KERNEL);
-	if (!bufp)
-		return;
-
-	while (!of_property_read_string_index(np, "qcom,link-list", index, &prop)) {
-		strncpy(bufp, prop, strlen(prop));
-		bufp[strlen(prop)] = '\0';
-
-		processed_len += strlen(bufp) + 1;
-
-		token = strsep(&bufp, delim);
-
-		if (!strcmp("R", token)) {
-			ret = dcc_config_add_read(drvdata, bufp, curr_list);
-		} else if (!strcmp("W", token)) {
-			ret = dcc_config_add_write(drvdata, bufp, curr_list);
-		} else if (!strcmp("RW", token)) {
-			ret = dcc_config_add_read_write(drvdata, bufp, curr_list);
-		} else if (!strcmp("L", token)) {
-			ret = dcc_config_add_loop(drvdata, bufp, curr_list);
-		} else {
-			dev_err(drvdata->dev, "%s is not a correct input\n", token);
-			ret = -EINVAL;
-		}
-
-		if (ret < 0)
-			dev_err(drvdata->dev, "Configure line %s failed\n", prop);
-
-		index++;
-	}
-
-	dcc_enable(drvdata, curr_list);
-	kfree(bufp);
-}
-
 static const struct file_operations dcc_sram_fops = {
 	.owner		= THIS_MODULE,
 	.read		= dcc_sram_read,
@@ -1499,7 +1450,7 @@ static int dcc_probe(struct platform_device *pdev)
 	int ret = 0, i;
 	struct device *dev = &pdev->dev;
 	struct dcc_drvdata *drvdata;
-	struct resource *res;
+	const struct dcc_pdata *pdata = dev_get_platdata(dev);
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
@@ -1508,21 +1459,17 @@ static int dcc_probe(struct platform_device *pdev)
 	drvdata->dev = &pdev->dev;
 	platform_set_drvdata(pdev, drvdata);
 
-	drvdata->base = devm_platform_ioremap_resource(pdev, 0);
+	drvdata->base = devm_ioremap(dev, pdata->base, pdata->size);
 	if (IS_ERR(drvdata->base))
 		return PTR_ERR(drvdata->base);
 
-	drvdata->ram_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
+	drvdata->ram_base = devm_ioremap(dev, pdata->ram_base, pdata->ram_size);
 	if (IS_ERR(drvdata->ram_base))
 		return PTR_ERR(drvdata->ram_base);
 
-	drvdata->ram_size = resource_size(res);
-	ret = of_property_read_u32(pdev->dev.of_node, "qcom,dcc-offset",
-				   &drvdata->ram_offset);
-	if (ret)
-		return -EINVAL;
-
-	drvdata->mem_map_ver = (u64)of_device_get_match_data(&pdev->dev);
+	drvdata->ram_size = pdata->ram_size;
+	drvdata->ram_offset = pdata->dcc_offset;
+	drvdata->mem_map_ver = pdata->map_ver;
 
 	switch (drvdata->mem_map_ver) {
 	case MEM_MAP_VER3:
@@ -1573,7 +1520,6 @@ static int dcc_probe(struct platform_device *pdev)
 	}
 
 	dcc_create_debug_dir(drvdata);
-	dcc_configure_list(drvdata, pdev->dev.of_node);
 
 	return 0;
 }
@@ -1587,20 +1533,11 @@ static void dcc_remove(struct platform_device *pdev)
 	dcc_config_reset(drvdata);
 }
 
-static const struct of_device_id dcc_match_table[] = {
-	{ .compatible = "qcom,dcc-v1", .data = (void *)MEM_MAP_VER1 },
-	{ .compatible = "qcom,dcc-v2", .data = (void *)MEM_MAP_VER2 },
-	{ .compatible = "qcom,dcc-v3", .data = (void *)MEM_MAP_VER3 },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, dcc_match_table);
-
 static struct platform_driver dcc_driver = {
 	.probe = dcc_probe,
 	.remove	= dcc_remove,
 	.driver	= {
 		.name = "qcom-dcc",
-		.of_match_table	= dcc_match_table,
 	},
 };
 
