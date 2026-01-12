@@ -83,4 +83,10 @@ config QCOM_MEMORY_DUMP_V2
 	  of deadlocks or cpu hangs these dump regions are captured to
 	  give a snapshot of the system at the time of the crash.
 
+config QCOM_MEMORY_DUMP_DEV
+	tristate "QCOM Memory Dump V2 device stub"
+	depends on QCOM_MEMORY_DUMP_V2
+	help
+	  Device stub for memory dump V2 driver.
+
 endmenu

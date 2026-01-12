@@ -865,19 +865,11 @@ int msm_dump_data_register_nominidump(enum msm_dump_table_ids id,
 EXPORT_SYMBOL_GPL(msm_dump_data_register_nominidump);
 
 #define MSM_DUMP_TOTAL_SIZE_OFFSET	0x724
-static int init_memdump_imem_area(size_t size)
+static int init_memdump_imem_area(const struct dump_table *table, size_t size)
 {
-	struct device_node *np;
 	void __iomem *imem_base;
 
-	np = of_find_compatible_node(NULL, NULL,
-				     "qcom,msm-imem-mem-dump-table");
-	if (!np) {
-		pr_err("mem dump base table DT node does not exist\n");
-		return -ENODEV;
-	}
-
-	imem_base = of_iomap(np, 0);
+	imem_base = ioremap(table->imem_base, table->imem_size);
 	if (!imem_base) {
 		pr_err("mem dump base table imem offset mapping failed\n");
 		return -ENOMEM;
@@ -924,13 +916,17 @@ static int init_memory_dump(void *dump_vaddr, phys_addr_t phys_addr)
 static int mem_dump_reserve_mem(struct device *dev)
 {
 	struct device_node *mem_node;
+	struct reserved_mem *rmem;
 	int ret;
 
-	mem_node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	mem_node = of_find_node_by_path("/reserved-memory/mem-dump-region");
 	if (mem_node) {
-		ret = of_reserved_mem_device_init_by_idx(dev,
-				dev->of_node, 0);
-		of_node_put(dev->of_node);
+		rmem = of_reserved_mem_lookup(mem_node);
+		of_node_put(mem_node);
+		if (!rmem || !rmem->ops || !rmem->ops->device_init)
+			return -EINVAL;
+
+		ret = rmem->ops->device_init(rmem, dev);
 		if (ret) {
 			dev_err(dev,
 				"Failed to initialize reserved mem, ret %d\n",
@@ -1005,34 +1001,26 @@ static int cpuss_dump_init(struct platform_device *pdev,
 #define MSM_DUMP_DATA_SIZE sizeof(struct msm_dump_data)
 static int mem_dump_alloc(struct platform_device *pdev)
 {
-	struct device_node *child_node;
-	const struct device_node *node = pdev->dev.of_node;
 	struct msm_dump_data *dump_data;
 	struct msm_dump_entry dump_entry;
 	size_t total_size;
 	u32 size, id;
-	int ret, no_of_nodes;
+	int i, ret, no_of_nodes;
 	dma_addr_t dma_handle;
 	phys_addr_t phys_addr;
 	struct sg_table mem_dump_sgt;
 	void *dump_vaddr;
 	u64 shm_bridge_handle;
 	int initialized = 0;
+	const struct dump_table *table = dev_get_platdata(&pdev->dev);
 
 	if (mem_dump_reserve_mem(&pdev->dev) != 0)
 		return -ENOMEM;
 	total_size = size = ret = no_of_nodes = 0;
 	/* For dump table registration with IMEM */
 	total_size = sizeof(struct msm_dump_table) * 2;
-	for_each_available_child_of_node(node, child_node) {
-		ret = of_property_read_u32(child_node, "qcom,dump-size", &size);
-		if (ret) {
-			dev_err(&pdev->dev, "Unable to find size for %s\n",
-					child_node->name);
-			continue;
-		}
-
-		total_size += size;
+	for (i = 0; i < table->num_of_items; i++) {
+		total_size += table->items[i].size;
 		no_of_nodes++;
 	}
 
@@ -1062,7 +1050,7 @@ static int mem_dump_alloc(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = init_memdump_imem_area(total_size);
+	ret = init_memdump_imem_area(table, total_size);
 	if (ret) {
 		qcom_tzmem_shm_bridge_delete(shm_bridge_handle);
 		return ret;
@@ -1070,24 +1058,15 @@ static int mem_dump_alloc(struct platform_device *pdev)
 
 	dump_vaddr += (sizeof(struct msm_dump_table) * 2);
 	phys_addr += (sizeof(struct msm_dump_table) * 2);
-	for_each_available_child_of_node(node, child_node) {
-		ret = of_property_read_u32(child_node, "qcom,dump-size", &size);
-		if (ret)
-			continue;
-
-		ret = of_property_read_u32(child_node, "qcom,dump-id", &id);
-		if (ret) {
-			dev_err(&pdev->dev, "Unable to find id for %s\n",
-					child_node->name);
-			continue;
-		}
-
+	for (i = 0; i < table->num_of_items; i++) {
+		size = table->items[i].size;
+		id = table->items[i].dump_id;
 		dump_data = dump_vaddr;
 		dump_data->addr = phys_addr + MSM_DUMP_DATA_SIZE;
 		dump_data->len = size;
 		dump_entry.id = id;
-		strscpy(dump_data->name, child_node->name,
-					sizeof(dump_data->name));
+		strscpy(dump_data->name, table->items[i].name,
+					sizeof(table->items[i].name));
 		dump_entry.addr = phys_addr;
 		ret = msm_dump_data_register_nominidump(MSM_DUMP_TABLE_APPS,
 					&dump_entry);
@@ -1124,16 +1103,10 @@ static int mem_dump_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static const struct of_device_id mem_dump_match_table[] = {
-	{.compatible = "qcom,mem-dump",},
-	{}
-};
-
 static struct platform_driver mem_dump_driver = {
 	.probe = mem_dump_probe,
 	.driver = {
 		.name = "msm_mem_dump",
-		.of_match_table = mem_dump_match_table,
 	},
 };
 
