@@ -115,6 +115,19 @@ struct msm_dump_entry {
 	uint64_t addr;
 };
 
+struct dump_item {
+	u32		dump_id;
+	size_t		size;
+	const char	*name;
+};
+
+struct dump_table {
+	const struct dump_item	*items;
+	u32			num_of_items;
+	phys_addr_t		imem_base;
+	resource_size_t		imem_size;
+};
+
 #if IS_ENABLED(CONFIG_QCOM_MEMORY_DUMP_V2)
 extern int msm_dump_data_register(enum msm_dump_table_ids id,
 				  struct msm_dump_entry *entry);
