@@ -1514,6 +1514,8 @@ int irq_chip_redirect_set_affinity(struct irq_data *data, const struct cpumask *
 	struct irq_redirect *redir = &irq_data_to_desc(data)->redirect;
 
 	WRITE_ONCE(redir->target_cpu, cpumask_first(dest));
+	irq_data_update_effective_affinity(data, dest);
+
 	return IRQ_SET_MASK_OK;
 }
 EXPORT_SYMBOL_GPL(irq_chip_redirect_set_affinity);
