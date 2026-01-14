@@ -370,58 +370,6 @@
 		status = "ok";
 	};
 
-	/* GMSL 1 */
-	qcom,cam-sensor4 {
-		compatible = "qcom,cam-sensor";
-		cell-index = <4>;
-		csiphy-sd-index = <4>;
-		sensor-position-roll = <0>;
-		sensor-position-pitch = <0>;
-		sensor-position-yaw = <180>;
-		cam_vio-supply = <&vreg_l18b_1p8>;
-		regulator-names = "cam_vio";
-		rgltr-cntrl-support;
-		pwm-switch;
-		rgltr-min-voltage = <1800000>;
-		rgltr-max-voltage = <1800000>;
-		rgltr-load-current = <120000>;
-		gpio-no-mux = <0>;
-		gpios = <&tlmm 93 0>;
-		gpio-reset = <0>;
-		gpio-req-tbl-num = <0>;
-		gpio-req-tbl-flags = <0>;
-		gpio-req-tbl-label = "CAM_4";
-		sensor-mode = <0>;
-		cci-master = <1>;
-		status = "ok";
-	};
-
-	/* GMSL 2 */
-	qcom,cam-sensor5 {
-		compatible = "qcom,cam-sensor";
-		cell-index = <5>;
-		csiphy-sd-index = <3>;
-		sensor-position-roll = <0>;
-		sensor-position-pitch = <0>;
-		sensor-position-yaw = <180>;
-		cam_vio-supply = <&vreg_l18b_1p8>;
-		regulator-names = "cam_vio";
-		rgltr-cntrl-support;
-		pwm-switch;
-		rgltr-min-voltage = <1800000>;
-		rgltr-max-voltage = <1800000>;
-		rgltr-load-current = <120000>;
-		gpio-no-mux = <0>;
-		gpios = <&tlmm 93 0>;
-		gpio-reset = <0>;
-		gpio-req-tbl-num = <0>;
-		gpio-req-tbl-flags = <0>;
-		gpio-req-tbl-label = "CAM_5";
-		sensor-mode = <0>;
-		cci-master = <1>;
-		status = "ok";
-	};
-
 	/*cam0b-ov9282*/
 	qcom,cam-sensor7 {
 		compatible = "qcom,cam-sensor";
@@ -502,58 +450,6 @@
 		status = "ok";
 	};
 
-	/* GMSL 3 */
-	qcom,cam-sensor9 {
-		compatible = "qcom,cam-sensor";
-		cell-index = <9>;
-		csiphy-sd-index = <4>;
-		sensor-position-roll = <0>;
-		sensor-position-pitch = <0>;
-		sensor-position-yaw = <180>;
-		cam_vio-supply = <&vreg_l18b_1p8>;
-		regulator-names = "cam_vio";
-		rgltr-cntrl-support;
-		pwm-switch;
-		rgltr-min-voltage = <1800000>;
-		rgltr-max-voltage = <1800000>;
-		rgltr-load-current = <120000>;
-		gpio-no-mux = <0>;
-		gpios = <&tlmm 93 0>;
-		gpio-reset = <0>;
-		gpio-req-tbl-num = <0>;
-		gpio-req-tbl-flags = <0>;
-		gpio-req-tbl-label = "CAM_9";
-		sensor-mode = <0>;
-		cci-master = <1>;
-		status = "ok";
-	};
-
-	/* GMSL 4 */
-	qcom,cam-sensor10 {
-		compatible = "qcom,cam-sensor";
-		cell-index = <10>;
-		csiphy-sd-index = <4>;
-		sensor-position-roll = <0>;
-		sensor-position-pitch = <0>;
-		sensor-position-yaw = <180>;
-		cam_vio-supply = <&vreg_l18b_1p8>;
-		regulator-names = "cam_vio";
-		rgltr-cntrl-support;
-		pwm-switch;
-		rgltr-min-voltage = <1800000>;
-		rgltr-max-voltage = <1800000>;
-		rgltr-load-current = <120000>;
-		gpio-no-mux = <0>;
-		gpios = <&tlmm 93 0>;
-		gpio-reset = <0>;
-		gpio-req-tbl-num = <0>;
-		gpio-req-tbl-flags = <0>;
-		gpio-req-tbl-label = "CAM_10";
-		sensor-mode = <0>;
-		cci-master = <1>;
-		status = "ok";
-	};
-
 	/* cam3-connector - ov2778 */
 	qcom,cam-sensor14 {
 		compatible = "qcom,cam-sensor";
@@ -592,6 +488,113 @@
 		status = "okay";
 	};
 
+	/* GMSL deserializer 0 */
+	qcom,cam-gmsl-deserializer0 {
+		cell-index = <15>;
+		csiphy-sd-index = <4>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&vreg_l18b_1p8>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_active_gmsl>;
+		pinctrl-1 = <&cam_sensor_suspend_gmsl>;
+		gpios = <&tlmm 93 0>;
+		gpio-reset = <0>;
+		gpio-req-tbl-num = <0>;
+		gpio-req-tbl-flags = <0>;
+		gpio-req-tbl-label = "CAM_RESET0";
+		cci-master = <1>;
+		status = "ok";
+
+		port@0 {
+			reg = <0>;
+			deser0_port0: endpoint {
+				remote-endpoint = <&gmsl_sensor0_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			deser0_port1: endpoint {
+				remote-endpoint = <&gmsl_sensor1_ep>;
+			};
+		};
+
+		port@2 {
+			reg = <0>;
+			deser0_port2: endpoint {
+				remote-endpoint = <&gmsl_sensor2_ep>;
+			};
+		};
+
+		port@3 {
+			reg = <1>;
+			deser0_port3: endpoint {
+				remote-endpoint = <&gmsl_sensor3_ep>;
+			};
+		};
+	};
+
+	/* GMSL deserializer 0 sensor 0 */
+	qcom,cam-gmsl-sensor4 {
+		cell-index = <4>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <4>;
+		status = "ok";
+		port {
+			gmsl_sensor0_ep: endpoint {
+				remote-endpoint = <&deser0_port0>;
+			};
+		};
+	};
+
+	/* GMSL deserializer 0 sensor 1 */
+	qcom,cam-gmsl-sensor5 {
+		cell-index = <5>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <3>;
+		status = "ok";
+		port {
+			gmsl_sensor1_ep: endpoint {
+				remote-endpoint = <&deser0_port1>;
+			};
+		};
+	};
+
+	/* GMSL deserializer 0 sensor 2 */
+	qcom,cam-gmsl-sensor9 {
+		cell-index = <9>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <4>;
+		status = "ok";
+		port {
+			gmsl_sensor2_ep: endpoint {
+				remote-endpoint = <&deser0_port2>;
+			};
+		};
+	};
+
+	/* GMSL deserializer 0 sensor 3 */
+	qcom,cam-gmsl-sensor10 {
+		cell-index = <10>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <4>;
+		status = "ok";
+		port {
+			gmsl_sensor3_ep: endpoint {
+				remote-endpoint = <&deser0_port3>;
+			};
+		};
+	};
 };
 
 &soc {
