@@ -85,6 +85,9 @@ static int pci_pwrctrl_slot_probe(struct platform_device *pdev)
 
 	pci_pwrctrl_slot_power_on(&slot->pwrctrl);
 
+	slot->pwrctrl.power_on = pci_pwrctrl_slot_power_on;
+	slot->pwrctrl.power_off = pci_pwrctrl_slot_power_off;
+
 	pci_pwrctrl_init(&slot->pwrctrl, dev);
 
 	ret = devm_pci_pwrctrl_device_set_ready(dev, &slot->pwrctrl);

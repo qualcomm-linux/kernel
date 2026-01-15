@@ -111,6 +111,9 @@ static int pci_pwrctrl_pwrseq_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	pwrseq->pwrctrl.power_on = pci_pwrctrl_pwrseq_power_on;
+	pwrseq->pwrctrl.power_off = pci_pwrctrl_pwrseq_power_off;
+
 	pci_pwrctrl_init(&pwrseq->pwrctrl, dev);
 
 	ret = devm_pci_pwrctrl_device_set_ready(dev, &pwrseq->pwrctrl);
