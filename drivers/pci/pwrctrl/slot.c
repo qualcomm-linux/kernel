@@ -13,15 +13,15 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-struct pci_pwrctrl_slot_data {
-	struct pci_pwrctrl ctx;
+struct pci_pwrctrl_slot {
+	struct pci_pwrctrl pwrctrl;
 	struct regulator_bulk_data *supplies;
 	int num_supplies;
 };
 
 static void devm_pci_pwrctrl_slot_power_off(void *data)
 {
-	struct pci_pwrctrl_slot_data *slot = data;
+	struct pci_pwrctrl_slot *slot = data;
 
 	regulator_bulk_disable(slot->num_supplies, slot->supplies);
 	regulator_bulk_free(slot->num_supplies, slot->supplies);
@@ -29,7 +29,7 @@ static void devm_pci_pwrctrl_slot_power_off(void *data)
 
 static int pci_pwrctrl_slot_probe(struct platform_device *pdev)
 {
-	struct pci_pwrctrl_slot_data *slot;
+	struct pci_pwrctrl_slot *slot;
 	struct device *dev = &pdev->dev;
 	struct clk *clk;
 	int ret;
@@ -64,9 +64,9 @@ static int pci_pwrctrl_slot_probe(struct platform_device *pdev)
 				     "Failed to enable slot clock\n");
 	}
 
-	pci_pwrctrl_init(&slot->ctx, dev);
+	pci_pwrctrl_init(&slot->pwrctrl, dev);
 
-	ret = devm_pci_pwrctrl_device_set_ready(dev, &slot->ctx);
+	ret = devm_pci_pwrctrl_device_set_ready(dev, &slot->pwrctrl);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to register pwrctrl driver\n");
 
