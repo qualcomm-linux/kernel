@@ -399,20 +399,6 @@
 	firmware-name = "qcom/qcs8300/a623_zap.mbn";
 };
 
-&i2c0 {
-	pinctrl-0 = <&qup_i2c0_default>;
-	pinctrl-names = "default";
-
-	status = "okay";
-
-	lt8713sx: lt8713sx@4f {
-		/*Display bridge chip, DP1.4/HDMI2.0/DP++ hub*/
-		compatible = "lontium,lt8713sx";
-		reg = <0x4f>;
-		reset-gpios = <&expander5 6 GPIO_ACTIVE_HIGH>;
-	};
-};
-
 &i2c1 {
 	pinctrl-0 = <&qup_i2c1_default>;
 	pinctrl-names = "default";
@@ -500,23 +486,6 @@
 		#gpio-cells = <2>;
 		gpio-controller;
 	};
-};
-
-&mdss {
-	status = "okay";
-};
-
-&mdss_dp0 {
-	status = "okay";
-};
-
-&mdss_dp0_out {
-	data-lanes = <0 1 2 3>;
-	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
-};
-
-&mdss_dp0_phy {
-	status = "okay";
 };
 
 &iris {
@@ -614,12 +583,6 @@
 };
 
 &tlmm {
-	dp_hot_plug_det: dp-hot-plug-det-state {
-		pins = "gpio94";
-		function = "edp0_hot";
-		bias-disable;
-	};
-
 	ethernet0_default: ethernet0-default-state {
 		ethernet0_mdc: ethernet0-mdc-pins {
 			pins = "gpio5";
@@ -680,13 +643,6 @@
 			drive-strength = <2>;
 			bias-pull-down;
 		};
-	};
-
-	qup_i2c0_default: qup-i2c0-state {
-		pins = "gpio17", "gpio18";
-		function = "qup0_se0";
-		drive-strength = <2>;
-		bias-pull-up;
 	};
 
 	qup_i2c1_default: qup-i2c1-state {
