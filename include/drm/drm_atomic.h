@@ -208,6 +208,19 @@ struct drm_private_state;
  */
 struct drm_private_state_funcs {
 	/**
+	 * @atomic_create_state:
+	 *
+	 * Allocates a pristine, initialized, state for the private
+	 * object and returns it.
+	 *
+	 * RETURNS:
+	 *
+	 * A new, pristine, private state instance or an error pointer
+	 * on failure.
+	 */
+	struct drm_private_state *(*atomic_create_state)(struct drm_private_obj *obj);
+
+	/**
 	 * @atomic_duplicate_state:
 	 *
 	 * Duplicate the current state of the private object and return it. It
