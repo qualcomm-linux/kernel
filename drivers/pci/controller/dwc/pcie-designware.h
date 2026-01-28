@@ -26,6 +26,7 @@
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
 
+#include "../pci-host-common.h"
 #include "../../pci.h"
 
 /* DWC PCIe IP-core versions (native support since v4.70a) */
