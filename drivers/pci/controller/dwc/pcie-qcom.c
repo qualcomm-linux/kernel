@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/pci-ecam.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/phy/pcie.h>
@@ -2056,6 +2057,11 @@ static int qcom_pcie_suspend_noirq(struct device *dev)
 		qcom_pcie_host_deinit(&pcie->pci->pp);
 		pcie->suspended = true;
 	}
+
+	if (pcie->suspended)
+		dev_pm_genpd_rpm_always_on(dev, false);
+	else
+		dev_pm_genpd_rpm_always_on(dev, true);
 
 	/*
 	 * Only disable CPU-PCIe interconnect path if the suspend is non-S2RAM.
