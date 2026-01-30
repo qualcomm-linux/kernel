@@ -174,6 +174,10 @@
 #define GCC_UFS_PHY_ICE_CORE_HW_CTL_CLK				164
 #define GCC_UFS_PHY_PHY_AUX_HW_CTL_CLK				165
 #define GCC_UFS_PHY_UNIPRO_CORE_HW_CTL_CLK			166
+#define GCC_LPASS_Q6_AXI_CLK					167
+#define GCC_LPASS_CORE_AXIM_CLK					168
+#define GCC_LPASS_SWAY_CLK					169
+
 
 /* GCC Resets */
 #define GCC_EMAC_BCR                                            0
