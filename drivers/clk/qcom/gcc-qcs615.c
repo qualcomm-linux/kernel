@@ -2630,6 +2630,45 @@ static struct clk_branch gcc_video_axi0_clk = {
 	},
 };
 
+static struct clk_branch gcc_lpass_q6_axi_clk = {
+	.halt_reg = 0x47004,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x47004,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data) {
+			.name = "gcc_lpass_q6_axi_clk",
+			.ops = &clk_branch2_aon_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_lpass_core_axim_clk = {
+	.halt_reg = 0x47008,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x47008,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data) {
+			.name = "gcc_lpass_core_axim_clk",
+			.ops = &clk_branch2_aon_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_lpass_sway_clk = {
+	.halt_reg = 0x47010,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x47010,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data) {
+			.name = "gcc_lpass_sway_clk",
+			.ops = &clk_branch2_aon_ops,
+		},
+	},
+};
+
 static struct clk_hw *gcc_qcs615_hws[] = {
 	[GPLL0_OUT_AUX2_DIV] = &gpll0_out_aux2_div.hw,
 	[GPLL3_OUT_AUX2_DIV] = &gpll3_out_aux2_div.hw,
@@ -2899,6 +2938,9 @@ static struct clk_regmap *gcc_qcs615_clocks[] = {
 	[GPLL7] = &gpll7.clkr,
 	[GPLL8] = &gpll8.clkr,
 	[GPLL8_OUT_MAIN] = &gpll8_out_main.clkr,
+	[GCC_LPASS_Q6_AXI_CLK] = &gcc_lpass_q6_axi_clk.clkr,
+	[GCC_LPASS_CORE_AXIM_CLK] = &gcc_lpass_core_axim_clk.clkr,
+	[GCC_LPASS_SWAY_CLK] = &gcc_lpass_sway_clk.clkr,
 };
 
 static struct gdsc *gcc_qcs615_gdscs[] = {
