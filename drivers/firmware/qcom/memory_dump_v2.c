@@ -18,6 +18,10 @@
 #include <linux/platform_device.h>
 #include <linux/firmware/qcom/qcom_tzmem.h>
 #include <linux/firmware/qcom/memory_dump.h>
+#include <linux/cma.h>
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
+#include <linux/dma-map-ops.h>
 
 #define MSM_DUMP_TABLE_VERSION		MSM_DUMP_MAKE_VERSION(2, 0)
 
@@ -913,30 +917,6 @@ static int init_memory_dump(void *dump_vaddr, phys_addr_t phys_addr)
 	return 0;
 }
 
-static int mem_dump_reserve_mem(struct device *dev)
-{
-	struct device_node *mem_node;
-	struct reserved_mem *rmem;
-	int ret;
-
-	mem_node = of_find_node_by_path("/reserved-memory/mem-dump-region");
-	if (mem_node) {
-		rmem = of_reserved_mem_lookup(mem_node);
-		of_node_put(mem_node);
-		if (!rmem || !rmem->ops || !rmem->ops->device_init)
-			return -EINVAL;
-
-		ret = rmem->ops->device_init(rmem, dev);
-		if (ret) {
-			dev_err(dev,
-				"Failed to initialize reserved mem, ret %d\n",
-				ret);
-			return ret;
-		}
-	}
-	return 0;
-}
-
 static int cpuss_regdump_init(struct device *dev,
 		void *dump_vaddr, u32 size)
 {
@@ -998,6 +978,18 @@ static int cpuss_dump_init(struct platform_device *pdev,
 	return initialized;
 }
 
+struct cma *memdump_cma;
+void __init reserve_memdump_cma(void)
+{
+	unsigned long long cma_size = 0x3000000;
+	unsigned long long request_size = roundup(cma_size, PAGE_SIZE);
+
+	if (cma_declare_contiguous(0, request_size, 0, 0, 0, false,
+				   "memdump", &memdump_cma)) {
+		pr_warn("memdump CMA reservation failed\n");
+	}
+}
+
 #define MSM_DUMP_DATA_SIZE sizeof(struct msm_dump_data)
 static int mem_dump_alloc(struct platform_device *pdev)
 {
@@ -1006,16 +998,13 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	size_t total_size;
 	u32 size, id;
 	int i, ret, no_of_nodes;
-	dma_addr_t dma_handle;
 	phys_addr_t phys_addr;
-	struct sg_table mem_dump_sgt;
 	void *dump_vaddr;
 	u64 shm_bridge_handle;
 	int initialized = 0;
 	const struct dump_table *table = dev_get_platdata(&pdev->dev);
+	struct page *reserved_page;
 
-	if (mem_dump_reserve_mem(&pdev->dev) != 0)
-		return -ENOMEM;
 	total_size = size = ret = no_of_nodes = 0;
 	/* For dump table registration with IMEM */
 	total_size = sizeof(struct msm_dump_table) * 2;
@@ -1026,15 +1015,12 @@ static int mem_dump_alloc(struct platform_device *pdev)
 
 	total_size += (MSM_DUMP_DATA_SIZE * no_of_nodes);
 	total_size = ALIGN(total_size, SZ_4K);
-	dump_vaddr = dmam_alloc_coherent(&pdev->dev, total_size,
-						&dma_handle, GFP_KERNEL);
-	if (!dump_vaddr)
+	reserved_page = cma_alloc(memdump_cma, total_size >> PAGE_SHIFT,
+				  0, false);
+	if (!reserved_page)
 		return -ENOMEM;
-
-	dma_get_sgtable(&pdev->dev, &mem_dump_sgt, dump_vaddr,
-						dma_handle, total_size);
-	phys_addr = page_to_phys(sg_page(mem_dump_sgt.sgl));
-	sg_free_table(&mem_dump_sgt);
+	phys_addr = page_to_phys(reserved_page);
+	dump_vaddr = page_to_virt(reserved_page);
 
 	memset(dump_vaddr, 0x0, total_size);
 	ret = qcom_tzmem_shm_bridge_create(phys_addr, total_size, &shm_bridge_handle);

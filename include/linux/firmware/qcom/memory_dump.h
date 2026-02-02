@@ -33,6 +33,9 @@ struct msm_client_dump {
 	unsigned long end_addr;
 };
 
+void __init reserve_memdump_cma(void);
+extern struct cma *memdump_cma;
+
 #ifdef CONFIG_QCOM_MEMORY_DUMP
 extern int msm_dump_tbl_register(struct msm_client_dump *client_entry);
 #else
@@ -41,7 +44,6 @@ static inline int msm_dump_tbl_register(struct msm_client_dump *entry)
 	return -EIO;
 }
 #endif
-
 
 #if IS_ENABLED(CONFIG_QCOM_MEMORY_DUMP_V2)
 extern uint32_t msm_dump_table_version(void);
