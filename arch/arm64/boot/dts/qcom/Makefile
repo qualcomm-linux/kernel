@@ -560,3 +560,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-camx.dtb
 sa8775p-ride-r3-camx-dtbs:= sa8775p-ride-r3.dtb sa8775p-ride-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-r3-camx.dtb
+
+talos-evk-camx-dtbs	:= talos-evk.dtb talos-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtb
