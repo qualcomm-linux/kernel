@@ -48,6 +48,7 @@
 #include <asm/tlb.h>
 #include <asm/alternative.h>
 #include <asm/xen/swiotlb-xen.h>
+#include <linux/firmware/qcom/memory_dump.h>
 
 /*
  * We need to be able to catch inadvertent references to memstart_addr
@@ -331,6 +332,9 @@ void __init bootmem_init(void)
 	 * reserved, so do it here.
 	 */
 	arch_reserve_crashkernel();
+#if defined(CONFIG_QCOM_MEMORY_DUMP_V2)
+	reserve_memdump_cma();
+#endif
 
 	memblock_dump_all();
 }
