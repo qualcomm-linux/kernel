@@ -667,7 +667,7 @@
 		status = "ok";
 	};
 
-	qcom,cam-cpas {
+	cam_cpas: qcom,cam-cpas {
 		compatible = "qcom,cam-cpas";
 		label = "cpas";
 		arch-compat = "cpas_top";
@@ -743,7 +743,7 @@
 			       "ife5", "ife6", "ipe0", "sfe0", "sfe1",
 			       "cam-cdm-intf0", "rt-cdm0", "rt-cdm1", "rt-cdm2",
 			       "rt-cdm3", "icp0", "tpg17", "tpg18", "tpg19";
-		enable-secure-qos-update;
+		enable-secure-qos-update = <1>;
 		cell-index = <0>;
 		status = "ok";
 
@@ -1114,7 +1114,7 @@
 		};
 	};
 
-	qcom,cam-icp {
+	cam_icp_firmware: qcom,cam-icp {
 		compatible = "qcom,cam-icp";
 		compat-hw-name = "qcom,icp", "qcom,ipe0";
 		num-icp = <1>;
