@@ -10,6 +10,10 @@
 /dts-v1/;
 /plugin/;
 
+&gpu_zap_shader {
+	status = "disabled";
+};
+
 &iris {
 	/* More driver work is needed */
 	status = "disabled";
