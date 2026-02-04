@@ -99,7 +99,7 @@ struct iris_core {
 	struct video_device			*vdev_enc;
 	struct video_firmware {
 		struct device *dev;
-		struct qcom_scm_pas_context *ctx;
+		struct qcom_pas_context *ctx;
 		struct iommu_domain *iommu_domain;
 	} fw;
 	const struct v4l2_file_operations	*iris_v4l2_file_ops;
