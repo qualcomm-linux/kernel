@@ -202,6 +202,16 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		sensor@1d00 {
+			compatible = "qcom,pm7250b-bcl", "qcom,bcl-v1";
+			reg = <0x1d00>;
+			interrupts = <PM7250B_SID 0x1d 0x0 IRQ_TYPE_EDGE_RISING>,
+				     <PM7250B_SID 0x1d 0x1 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "bcl-max-min",
+					  "bcl-critical";
+			overcurrent-thresholds-milliamp = <5500 6000>;
+		};
 	};
 
 	pmic@PM7250B_SID1 {
