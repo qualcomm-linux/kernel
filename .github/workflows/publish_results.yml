@@ -1,0 +1,59 @@
+name: kaanapali-qrd-01 summary
+on:
+  workflow_call:
+    inputs:
+      job_name:
+        required: true
+        type: string
+      device_type:
+        required: true
+        type: string
+      priority:
+        required: true
+        type: string
+      config_file:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  summarize-lava-job:
+    name: "Generate Job Summary"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load job config
+        id: load
+        run: |
+          echo "Reading job config: ${{ inputs.config_file }}"
+          cat "${{ inputs.config_file }}"
+
+      - name: Generate Summary Table
+        id: summary
+        run: |
+          echo "## Job Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Job Name | ${{ inputs.job_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Device Type | ${{ inputs.device_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Priority | ${{ inputs.priority }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Config File | ${{ inputs.config_file }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Parse Actions
+        id: parse
+        run: |
+          echo "Parsed Actions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`yaml" >> $GITHUB_STEP_SUMMARY
+          cat "${{ inputs.config_file }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Complete
+        run: echo "Job summary generated successfully!"

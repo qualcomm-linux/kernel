@@ -1,0 +1,172 @@
+name: Run LAVA job from YAML
+description: "Submit a LAVA job YAML to a LAVA server, optionally wait, and download logs/results."
+
+inputs:
+  lava_url:
+    description: "LAVA server base URL"
+    required: true
+  lava_username:
+    description: "LAVA username"
+    required: true
+  lava_token:
+    description: "LAVA token (use GitHub secret)"
+    required: true
+  job_yaml:
+    description: "Path to LAVA job definition YAML in the repository"
+    required: true
+  project:
+    description: "Optional label/group name for logs and artifacts"
+    required: false
+    default: "lava-job"
+  wait:
+    description: "Wait for job completion (1 = yes, 0 = no)"
+    required: false
+    default: "1"
+  poll_seconds:
+    description: "Polling interval while waiting"
+    required: false
+    default: "30"
+  timeout_minutes:
+    description: "Max minutes to wait for completion (only if wait=1)"
+    required: false
+    default: "60"
+
+outputs:
+  job_id:
+    description: "Submitted LAVA job id"
+    value: ${{ steps.submit.outputs.job_id }}
+  job_url:
+    description: "Web URL to the LAVA job"
+    value: ${{ steps.submit.outputs.job_url }}
+  final_status:
+    description: "Final status if wait=1 (Complete/Incomplete/Canceled etc.)"
+    value: ${{ steps.wait.outputs.final_status }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install lavacli + jq
+    # ubuntu-latest already has python3; we install lavacli via pip
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 -m pip install --upgrade pip >/dev/null
+        python3 -m pip install lavacli >/dev/null
+        sudo apt-get update -y >/dev/null
+        sudo apt-get install -y jq >/dev/null
+
+    - name: Validate job YAML exists
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ ! -f "${{ inputs.job_yaml }}" ]; then
+          echo "ERROR: job_yaml not found: ${{ inputs.job_yaml }}"
+          exit 1
+        fi
+
+    - name: Configure lavacli
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p ~/.config/lavacli
+        cat > ~/.config/lavacli/lavacli.yaml <<EOF
+        default:
+          uri: "${{ inputs.lava_url }}"
+          username: "${{ inputs.lava_username }}"
+          token: "${{ inputs.lava_token }}"
+        EOF
+        chmod 600 ~/.config/lavacli/lavacli.yaml
+
+    - name: Submit LAVA job
+      id: submit
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # Submit job and capture job id
+        # lavacli returns e.g. "Submitted job 123456"
+        OUT="$(lavacli jobs submit "${{ inputs.job_yaml }}")"
+        echo "$OUT"
+
+        JOB_ID="$(echo "$OUT" | grep -Eo '[0-9]+' | head -n1)"
+        if [ -z "$JOB_ID" ]; then
+          echo "ERROR: Could not extract JOB_ID from: $OUT"
+          exit 1
+        fi
+
+        JOB_URL="${{ inputs.lava_url }}/scheduler/job/${JOB_ID}"
+
+        echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+        echo "job_url=$JOB_URL" >> "$GITHUB_OUTPUT"
+
+        echo "✅ Submitted Job: $JOB_ID"
+        echo "🔗 Job URL: $JOB_URL"
+
+    - name: Wait for completion
+      id: wait
+      if: ${{ inputs.wait == '1' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        JOB_ID="${{ steps.submit.outputs.job_id }}"
+        POLL="${{ inputs.poll_seconds }}"
+        MAX_MIN="${{ inputs.timeout_minutes }}"
+        MAX_SEC=$((MAX_MIN * 60))
+
+        echo "⏳ Waiting for job ${JOB_ID} (timeout: ${MAX_MIN}m, poll: ${POLL}s)"
+
+        ELAPSED=0
+        FINAL=""
+        while [ "$ELAPSED" -lt "$MAX_SEC" ]; do
+          # Get job JSON and extract status fields
+          JSON="$(lavacli jobs show "$JOB_ID" --output-format json)"
+          STATE="$(echo "$JSON" | jq -r '.state // empty')"
+          HEALTH="$(echo "$JSON" | jq -r '.health // empty')"
+
+          echo "State=$STATE Health=$HEALTH (elapsed ${ELAPSED}s)"
+
+          # Common terminal conditions in LAVA:
+          # state: Finished / Complete (varies by LAVA version)
+          # health: Complete / Incomplete / Canceled / etc.
+          if [ "$STATE" = "Finished" ] || [ "$STATE" = "Complete" ]; then
+            FINAL="${HEALTH:-$STATE}"
+            break
+          fi
+
+          sleep "$POLL"
+          ELAPSED=$((ELAPSED + POLL))
+        done
+
+        if [ -z "$FINAL" ]; then
+          echo "ERROR: Timeout waiting for job $JOB_ID after ${MAX_MIN} minutes."
+          echo "final_status=TIMEOUT" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        echo "final_status=$FINAL" >> "$GITHUB_OUTPUT"
+        echo "✅ Job finished with status: $FINAL"
+
+    - name: Download logs (bundle)
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        JOB_ID="${{ steps.submit.outputs.job_id }}"
+        mkdir -p "lava-artifacts/${{ inputs.project }}/job-${JOB_ID}"
+
+        # Try download bundle; if not supported by server, fallback to logs
+        if lavacli jobs logs "$JOB_ID" --help >/dev/null 2>&1; then
+          # Save full log stream (text)
+          lavacli jobs logs "$JOB_ID" > "lava-artifacts/${{ inputs.project }}/job-${JOB_ID}/job.log" || true
+        fi
+
+        # Job definition echo (useful for debugging)
+        cp "${{ inputs.job_yaml }}" "lava-artifacts/${{ inputs.project }}/job-${JOB_ID}/submitted-job.yml"
+
+    - name: Upload LAVA artifacts
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: lava-${{ inputs.project }}-job-${{ steps.submit.outputs.job_id }}
+        path: lava-artifacts/${{ inputs.project }}/job-${{ steps.submit.outputs.job_id }}
+        if-no-files-found: warn
