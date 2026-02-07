@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	/* cam_cpas label -> /soc@0/qcom,cam-cpas *
+	fragment@0 {
+		target-path = "/soc@0/qcom,cam-cpas";
+		__overlay__ {
+			enable-secure-qos-update = <0>;
+		};
+	};
+
+	/* cam_icp_firmware label -> /soc@0/qcom,cam-icp */
+	fragment@1 {
+		target-path = "/soc@0/qcom,cam-icp";
+		__overlay__ {
+			camera-firmware {
+				iommus = <&apps_smmu 0x08c1 0x0400>;
+			};
+		};
+	};
+};
