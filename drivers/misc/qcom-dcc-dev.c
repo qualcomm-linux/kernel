@@ -57,6 +57,15 @@ static const struct dcc_pdata kaanapali_pdata = {
 	.map_ver	= 0x3,
 };
 
+static const struct dcc_pdata hamoa_pdata = {
+	.base		= 0x100ff000,
+	.size		= 0x1000,
+	.ram_base	= 0x10080000,
+	.ram_size	= 0x18000,
+	.dcc_offset	= 0x0,
+	.map_ver	= 0x3,
+};
+
 static int __init dcc_dev_init(void)
 {
 	int ret;
@@ -119,6 +128,16 @@ static int __init dcc_dev_init(void)
 	case 730:
 	case 743:
 		ret = platform_device_add_data(dcc_pdev, &kaanapali_pdata, sizeof(kaanapali_pdata));
+		if (ret)
+			goto fail;
+
+		break;
+	case 555:
+	case 615:
+	case 616:
+	case 709:
+	case 710:
+		ret = platform_device_add_data(dcc_pdev, &hamoa_pdata, sizeof(hamoa_pdata));
 		if (ret)
 			goto fail;
 
