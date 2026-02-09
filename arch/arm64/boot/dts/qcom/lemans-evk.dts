@@ -672,6 +672,12 @@
 		reg = <0x3b>;
 		#gpio-cells = <2>;
 		gpio-controller;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		interrupt-parent = <&tlmm>;
+		interrupts = <39 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&expander3_int>;
 	};
 
 	eeprom@50 {
@@ -918,6 +924,13 @@
 			drive-strength = <16>;
 			bias-pull-up;
 		};
+	};
+
+	expander3_int: expander3-int-state {
+		pins = "gpio39";
+		function = "gpio";
+		input-enable;
+		bias-pull-up;
 	};
 
 	pcie0_default_state: pcie0-default-state {
