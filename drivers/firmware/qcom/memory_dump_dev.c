@@ -339,6 +339,22 @@ static const struct dump_item kaanapali_items[] = {
 	{ C0_SCANDUMP, 0x380000, "apps-scandump" },
 };
 
+static const struct dump_item hamoa_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c100-context" },
+	{ C200_CONTEXT, 0x800, "c200-context" },
+	{ C300_CONTEXT, 0x800, "c300-context" },
+	{ C400_CONTEXT, 0x800, "c400-context" },
+	{ C500_CONTEXT, 0x800, "c500-context" },
+	{ C600_CONTEXT, 0x800, "c600-context" },
+	{ C700_CONTEXT, 0x800, "c700-context" },
+	{ RPMH, 0xc10000, "rpmh" },
+	{ PMIC, 0x200000, "pmic" },
+	{ ETF_SWAO, 0x10000, "etf-swao" },
+	{ ETR_REG, 0x1000, "etr-reg" },
+	{ ETFSWAO_REG, 0x1000, "etfswao-reg" },
+};
+
 static const struct dump_table lemans_dump_table = {
 	.items		= lemans_items,
 	.num_of_items	= ARRAY_SIZE(lemans_items),
@@ -371,6 +387,13 @@ static const struct dump_table kaanapali_dump_table = {
 	.items		= kaanapali_items,
 	.num_of_items	= ARRAY_SIZE(kaanapali_items),
 	.imem_base	= 0x14680010,
+	.imem_size	= 0x8,
+};
+
+static const struct dump_table hamoa_dump_table = {
+	.items		= hamoa_items,
+	.num_of_items	= ARRAY_SIZE(hamoa_items),
+	.imem_base	= 0x146aa010,
 	.imem_size	= 0x8,
 };
 
@@ -441,6 +464,17 @@ static int __init mem_dump_dev_init(void)
 	case 743:
 		ret = platform_device_add_data(mem_dump_pdev,
 				&kaanapali_dump_table, sizeof(kaanapali_dump_table));
+		if (ret)
+			goto fail;
+
+		break;
+	case 555:
+	case 615:
+	case 616:
+	case 709:
+	case 710:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&hamoa_dump_table, sizeof(hamoa_dump_table));
 		if (ret)
 			goto fail;
 
