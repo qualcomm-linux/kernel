@@ -39,6 +39,15 @@ static const struct dcc_pdata kodiak_pdata = {
 	.map_ver	= 0x2,
 };
 
+static const struct dcc_pdata pakala_pdata = {
+	.base		= 0x100ff000,
+	.size		= 0x00001000,
+	.ram_base	= 0x10084000,
+	.ram_size	= 0x4000,
+	.dcc_offset	= 0x4000,
+	.map_ver	= 0x3,
+};
+
 static int __init dcc_dev_init(void)
 {
 	int ret;
@@ -80,6 +89,15 @@ static int __init dcc_dev_init(void)
 	case 406:
 	case 680:
 		ret = platform_device_add_data(dcc_pdev, &talos_pdata, sizeof(talos_pdata));
+		if (ret)
+			goto fail;
+
+		break;
+	case 618:
+	case 639:
+	case 705:
+	case 706:
+		ret = platform_device_add_data(dcc_pdev, &pakala_pdata, sizeof(pakala_pdata));
 		if (ret)
 			goto fail;
 
