@@ -48,6 +48,15 @@ static const struct dcc_pdata pakala_pdata = {
 	.map_ver	= 0x3,
 };
 
+static const struct dcc_pdata kaanapali_pdata = {
+	.base		= 0x100ff000,
+	.size		= 0x1000,
+	.ram_base	= 0x10080000,
+	.ram_size	= 0x8000,
+	.dcc_offset	= 0x0,
+	.map_ver	= 0x3,
+};
+
 static int __init dcc_dev_init(void)
 {
 	int ret;
@@ -98,6 +107,18 @@ static int __init dcc_dev_init(void)
 	case 705:
 	case 706:
 		ret = platform_device_add_data(dcc_pdev, &pakala_pdata, sizeof(pakala_pdata));
+		if (ret)
+			goto fail;
+
+		break;
+	case 660:
+	case 661:
+	case 704:
+	case 722:
+	case 723:
+	case 730:
+	case 743:
+		ret = platform_device_add_data(dcc_pdev, &kaanapali_pdata, sizeof(kaanapali_pdata));
 		if (ret)
 			goto fail;
 
