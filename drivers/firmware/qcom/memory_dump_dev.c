@@ -310,6 +310,35 @@ static const struct dump_item pakala_items[] = {
 	{ C0_SCANDUMP, 0x380000, "apps-scandump" },
 };
 
+static const struct dump_item kaanapali_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c100-context" },
+	{ C200_CONTEXT, 0x800, "c200-context" },
+	{ C300_CONTEXT, 0x800, "c300-context" },
+	{ C400_CONTEXT, 0x800, "c400-context" },
+	{ C500_CONTEXT, 0x800, "c500-context" },
+	{ C600_CONTEXT, 0x800, "c600-context" },
+	{ C700_CONTEXT, 0x800, "c700-context" },
+	{ RPMH, 0x400000, "rpmh" },
+	{ RPM_SW, 0x28000, "rpm-sw" },
+	{ PMIC, 0x200000, "pmic" },
+	{ FCM, 0x8400, "fcm" },
+	{ MISC_DATA, 0x1000, "misc-data" },
+	{ ETF_SWAO, 0x10000, "etf-swao" },
+	{ ETR_REG, 0x1000, "etr-reg" },
+	{ ETFSWAO_REG, 0x1000, "etfswao-reg" },
+	{ ETR1_REG, 0x1000, "etr1-reg" },
+	{ ETF_SLPI, 0x4000, "etf-slpi" },
+	{ ETFSLPI_REG, 0x1000, "etfslpi-reg" },
+	{ ETF_LPASS, 0x4000, "etf-lpass" },
+	{ ETFLPASS_REG, 0x1000, "etflpass-reg" },
+	{ OSM_REG, 0x400, "osm-reg" },
+	{ PCU_REG, 0x400, "pcu-reg" },
+	{ FSM_DATA, 0x400, "fsm-data" },
+	{ SCANDUMP_SMMU, 0x40000, "scandump-smmu" },
+	{ C0_SCANDUMP, 0x380000, "apps-scandump" },
+};
+
 static const struct dump_table lemans_dump_table = {
 	.items		= lemans_items,
 	.num_of_items	= ARRAY_SIZE(lemans_items),
@@ -334,6 +363,13 @@ static const struct dump_table kodiak_dump_table = {
 static const struct dump_table pakala_dump_table = {
 	.items		= pakala_items,
 	.num_of_items	= ARRAY_SIZE(pakala_items),
+	.imem_base	= 0x14680010,
+	.imem_size	= 0x8,
+};
+
+static const struct dump_table kaanapali_dump_table = {
+	.items		= kaanapali_items,
+	.num_of_items	= ARRAY_SIZE(kaanapali_items),
 	.imem_base	= 0x14680010,
 	.imem_size	= 0x8,
 };
@@ -392,6 +428,19 @@ static int __init mem_dump_dev_init(void)
 	case 706:
 		ret = platform_device_add_data(mem_dump_pdev,
 				&pakala_dump_table, sizeof(pakala_dump_table));
+		if (ret)
+			goto fail;
+
+		break;
+	case 660:
+	case 661:
+	case 704:
+	case 722:
+	case 723:
+	case 730:
+	case 743:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&kaanapali_dump_table, sizeof(kaanapali_dump_table));
 		if (ret)
 			goto fail;
 
