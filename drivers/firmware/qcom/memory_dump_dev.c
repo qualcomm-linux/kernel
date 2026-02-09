@@ -57,12 +57,15 @@ enum dump_ids {
 	CPUSS_REG	= 0xef,
 	TMC_ETF		= 0xf0,
 	ETF_SWAO	= 0xf1,
+	ETF_SLPI	= 0xf3,
 	ETF_LPASS	= 0xf4,
 	FCM		= 0xee,
 	ETR_REG		= 0x100,
 	ETF_REG		= 0x101,
 	ETFSWAO_REG	= 0x102,
+	ETFSLPI_REG	= 0x103,
 	ETFLPASS_REG	= 0x104,
+	ETR1_REG	= 0x105,
 	L2_TLB0		= 0x120,
 	L2_TLB100	= 0x121,
 	L2_TLB200	= 0x122,
@@ -86,6 +89,7 @@ enum dump_ids {
 	OSM_REG		= 0x163,
 	PCU_REG		= 0x164,
 	FSM_DATA	= 0x165,
+	SCANDUMP_SMMU	= 0x220,
 };
 
 static const struct dump_item lemans_items[] = {
@@ -277,6 +281,35 @@ static const struct dump_item kodiak_items[] = {
 	{ RPMH, 0x2000000, "rpmh" },
 };
 
+static const struct dump_item pakala_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c100-context" },
+	{ C200_CONTEXT, 0x800, "c200-context" },
+	{ C300_CONTEXT, 0x800, "c300-context" },
+	{ C400_CONTEXT, 0x800, "c400-context" },
+	{ C500_CONTEXT, 0x800, "c500-context" },
+	{ C600_CONTEXT, 0x800, "c600-context" },
+	{ C700_CONTEXT, 0x800, "c700-context" },
+	{ RPMH, 0x400000, "rpmh" },
+	{ RPM_SW, 0x28000, "rpm-sw" },
+	{ PMIC, 0x200000, "pmic" },
+	{ FCM, 0x8400, "fcm" },
+	{ MISC_DATA, 0x1000, "misc-data" },
+	{ ETF_SWAO, 0x10000, "etf-swao" },
+	{ ETR_REG, 0x1000, "etr-reg" },
+	{ ETFSWAO_REG, 0x1000, "etfswao-reg" },
+	{ ETR1_REG, 0x1000, "etr1-reg" },
+	{ ETF_SLPI, 0x4000, "etf-slpi" },
+	{ ETFSLPI_REG, 0x1000, "etfslpi-reg" },
+	{ ETF_LPASS, 0x4000, "etf-lpass" },
+	{ ETFLPASS_REG, 0x1000, "etflpass-reg" },
+	{ OSM_REG, 0x400, "osm-reg" },
+	{ PCU_REG, 0x400, "pcu-reg" },
+	{ FSM_DATA, 0x400, "fsm-data" },
+	{ SCANDUMP_SMMU, 0x40000, "scandump-smmu" },
+	{ C0_SCANDUMP, 0x380000, "apps-scandump" },
+};
+
 static const struct dump_table lemans_dump_table = {
 	.items		= lemans_items,
 	.num_of_items	= ARRAY_SIZE(lemans_items),
@@ -295,6 +328,13 @@ static const struct dump_table kodiak_dump_table = {
 	.items		= kodiak_items,
 	.num_of_items	= ARRAY_SIZE(kodiak_items),
 	.imem_base	= 0x146aa010,
+	.imem_size	= 0x8,
+};
+
+static const struct dump_table pakala_dump_table = {
+	.items		= pakala_items,
+	.num_of_items	= ARRAY_SIZE(pakala_items),
+	.imem_base	= 0x14680010,
 	.imem_size	= 0x8,
 };
 
@@ -342,6 +382,16 @@ static int __init mem_dump_dev_init(void)
 	case 515:
 		ret = platform_device_add_data(mem_dump_pdev,
 				&kodiak_dump_table, sizeof(kodiak_dump_table));
+		if (ret)
+			goto fail;
+
+		break;
+	case 618:
+	case 639:
+	case 705:
+	case 706:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&pakala_dump_table, sizeof(pakala_dump_table));
 		if (ret)
 			goto fail;
 
