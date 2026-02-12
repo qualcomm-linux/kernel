@@ -15,8 +15,9 @@
 };
 
 &iris {
-	/* More driver work is needed */
-	status = "disabled";
+	video-firmware {
+		iommus = <&apps_smmu 0x0882 0x0400>;
+	};
 };
 
 /*
