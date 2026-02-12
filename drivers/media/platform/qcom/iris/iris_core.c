@@ -18,6 +18,7 @@ void iris_core_deinit(struct iris_core *core)
 	if (core->state != IRIS_CORE_DEINIT) {
 		iris_fw_unload(core);
 		iris_vpu_power_off(core);
+		iris_fw_deinit(core);
 		iris_hfi_queues_deinit(core);
 		core->state = IRIS_CORE_DEINIT;
 	}
@@ -67,9 +68,13 @@ int iris_core_init(struct iris_core *core)
 	if (ret)
 		goto error_queue_deinit;
 
-	ret = iris_fw_load(core);
+	ret = iris_fw_init(core);
 	if (ret)
 		goto error_power_off;
+
+	ret = iris_fw_load(core);
+	if (ret)
+		goto error_firmware_deinit;
 
 	ret = iris_vpu_boot_firmware(core);
 	if (ret)
@@ -85,6 +90,8 @@ int iris_core_init(struct iris_core *core)
 
 error_unload_fw:
 	iris_fw_unload(core);
+error_firmware_deinit:
+	iris_fw_deinit(core);
 error_power_off:
 	iris_vpu_power_off(core);
 error_queue_deinit:

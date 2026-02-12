@@ -82,6 +82,11 @@ struct iris_core {
 	struct v4l2_device			v4l2_dev;
 	struct video_device			*vdev_dec;
 	struct video_device			*vdev_enc;
+	struct video_firmware {
+		struct device *dev;
+		struct qcom_scm_pas_context *ctx;
+		struct iommu_domain *iommu_domain;
+	} fw;
 	const struct v4l2_file_operations	*iris_v4l2_file_ops;
 	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops_dec;
 	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops_enc;
