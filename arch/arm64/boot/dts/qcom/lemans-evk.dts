@@ -641,6 +641,8 @@
 		pinctrl-0 = <&usb_id>, <&usb0_intr_state>;
 		pinctrl-names = "default";
 
+		wakeup-source;
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
