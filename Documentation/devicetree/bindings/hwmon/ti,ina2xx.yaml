@@ -30,6 +30,7 @@ properties:
       - ti,ina231
       - ti,ina232
       - ti,ina233
+      - ti,ina234
       - ti,ina237
       - ti,ina238
       - ti,ina260
@@ -115,6 +116,7 @@ allOf:
               - ti,ina230
               - ti,ina231
               - ti,ina232
+              - ti,ina234
               - ti,ina237
               - ti,ina238
               - ti,ina260
@@ -137,6 +139,7 @@ allOf:
               - ti,ina230
               - ti,ina231
               - ti,ina232
+              - ti,ina234
               - ti,ina260
               - ti,ina700
               - ti,ina780
