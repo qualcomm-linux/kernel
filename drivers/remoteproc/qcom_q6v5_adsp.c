@@ -797,6 +797,25 @@ static const struct adsp_pil_data adsp_sc7280_resource_init = {
 	.num_clks = 1,
 };
 
+static const struct adsp_pil_data adsp_qcs615_resource_init = {
+	.crash_reason_smem = 423,
+	.firmware_name = "adsp.mbn",
+	.load_state = "adsp",
+	.ssr_name = "lpass",
+	.sysmon_name = "adsp",
+	.ssctl_id = 0x14,
+	.is_wpss = false,
+	.has_iommu = true,
+	.auto_boot = true,
+	.clk_ids = (const char*[]) {
+		"gcc_lpass_q6_axi_clk", "gcc_lpass_core_axim_clk",
+		"gcc_lpass_sway_clk", NULL
+	},
+	.num_clks = 3,
+	.pd_names = (const char*[]) { "cx" },
+	.num_pds = 1,
+};
+
 static const struct adsp_pil_data cdsp_resource_init = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mdt",
@@ -836,6 +855,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,sc7280-adsp-pil", .data = &adsp_sc7280_resource_init },
 	{ .compatible = "qcom,sc7280-wpss-pil", .data = &wpss_resource_init },
 	{ .compatible = "qcom,sdm845-adsp-pil", .data = &adsp_resource_init },
+	{ .compatible = "qcom,qcs615-adsp-pil", .data = &adsp_qcs615_resource_init },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
