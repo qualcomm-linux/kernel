@@ -13,8 +13,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-struct pci_pwrctrl_pwrseq_data {
-	struct pci_pwrctrl ctx;
+struct pci_pwrctrl_pwrseq {
+	struct pci_pwrctrl pwrctrl;
 	struct pwrseq_desc *pwrseq;
 };
 
@@ -52,17 +52,33 @@ static const struct pci_pwrctrl_pwrseq_pdata pci_pwrctrl_pwrseq_qcom_wcn_pdata =
 	.validate_device = pci_pwrctrl_pwrseq_qcm_wcn_validate_device,
 };
 
+static int pci_pwrctrl_pwrseq_power_on(struct pci_pwrctrl *pwrctrl)
+{
+	struct pci_pwrctrl_pwrseq *pwrseq = container_of(pwrctrl,
+					    struct pci_pwrctrl_pwrseq, pwrctrl);
+
+	return pwrseq_power_on(pwrseq->pwrseq);
+}
+
+static int pci_pwrctrl_pwrseq_power_off(struct pci_pwrctrl *pwrctrl)
+{
+	struct pci_pwrctrl_pwrseq *pwrseq = container_of(pwrctrl,
+					    struct pci_pwrctrl_pwrseq, pwrctrl);
+
+	return pwrseq_power_off(pwrseq->pwrseq);
+}
+
 static void devm_pci_pwrctrl_pwrseq_power_off(void *data)
 {
-	struct pwrseq_desc *pwrseq = data;
+	struct pci_pwrctrl_pwrseq *pwrseq = data;
 
-	pwrseq_power_off(pwrseq);
+	pci_pwrctrl_pwrseq_power_off(&pwrseq->pwrctrl);
 }
 
 static int pci_pwrctrl_pwrseq_probe(struct platform_device *pdev)
 {
 	const struct pci_pwrctrl_pwrseq_pdata *pdata;
-	struct pci_pwrctrl_pwrseq_data *data;
+	struct pci_pwrctrl_pwrseq *pwrseq;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -76,28 +92,26 @@ static int pci_pwrctrl_pwrseq_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
+	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
+	if (!pwrseq)
 		return -ENOMEM;
 
-	data->pwrseq = devm_pwrseq_get(dev, pdata->target);
-	if (IS_ERR(data->pwrseq))
-		return dev_err_probe(dev, PTR_ERR(data->pwrseq),
+	pwrseq->pwrseq = devm_pwrseq_get(dev, pdata->target);
+	if (IS_ERR(pwrseq->pwrseq))
+		return dev_err_probe(dev, PTR_ERR(pwrseq->pwrseq),
 				     "Failed to get the power sequencer\n");
 
-	ret = pwrseq_power_on(data->pwrseq);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to power-on the device\n");
-
 	ret = devm_add_action_or_reset(dev, devm_pci_pwrctrl_pwrseq_power_off,
-				       data->pwrseq);
+				       pwrseq);
 	if (ret)
 		return ret;
 
-	pci_pwrctrl_init(&data->ctx, dev);
+	pwrseq->pwrctrl.power_on = pci_pwrctrl_pwrseq_power_on;
+	pwrseq->pwrctrl.power_off = pci_pwrctrl_pwrseq_power_off;
 
-	ret = devm_pci_pwrctrl_device_set_ready(dev, &data->ctx);
+	pci_pwrctrl_init(&pwrseq->pwrctrl, dev);
+
+	ret = devm_pci_pwrctrl_device_set_ready(dev, &pwrseq->pwrctrl);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to register the pwrctrl wrapper\n");

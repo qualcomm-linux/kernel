@@ -887,9 +887,9 @@
 
 		i2c-parent = <&i2c0 0x77>;
 
-		reset-gpios = <&pm8350c_gpios 1 GPIO_ACTIVE_LOW>;
+		resx-gpios = <&pm8350c_gpios 1 GPIO_ACTIVE_LOW>;
 
-		pinctrl-0 = <&tc9563_rsex_n>;
+		pinctrl-0 = <&tc9563_resx_n>;
 		pinctrl-names = "default";
 
 		pcie@1,0 {
@@ -946,38 +946,6 @@
 		power-source = <1>;
 		bias-pull-up;
 		input-enable;
-	};
-};
-
-&pm8350c_gpios {
-	ntn_0p9_en: ntn-0p9-en-state {
-		pins = "gpio2";
-		function = "normal";
-
-		bias-disable;
-		input-disable;
-		output-enable;
-		power-source = <0>;
-	};
-
-	ntn_1p8_en: ntn-1p8-en-state {
-		pins = "gpio3";
-		function = "normal";
-
-		bias-disable;
-		input-disable;
-		output-enable;
-		power-source = <0>;
-	};
-
-	tc9563_rsex_n: tc9563-resx-state {
-		pins = "gpio1";
-		function = "normal";
-
-		bias-disable;
-		input-disable;
-		output-enable;
-		power-source = <0>;
 	};
 };
 
@@ -1587,6 +1555,38 @@
 				temperature = <115000>;
 			};
 		};
+	};
+};
+
+&pm8350c_gpios {
+	ntn_0p9_en: ntn-0p9-en-state {
+		pins = "gpio2";
+		function = "normal";
+
+		bias-disable;
+		input-disable;
+		output-enable;
+		power-source = <0>;
+	};
+
+	ntn_1p8_en: ntn-1p8-en-state {
+		pins = "gpio3";
+		function = "normal";
+
+		bias-disable;
+		input-disable;
+		output-enable;
+		power-source = <0>;
+	};
+
+	tc9563_resx_n: tc9563-resx-state {
+		pins = "gpio1";
+		function = "normal";
+
+		bias-disable;
+		input-disable;
+		output-enable;
+		power-source = <0>;
 	};
 };
 
