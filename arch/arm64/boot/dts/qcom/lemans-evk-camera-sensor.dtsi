@@ -125,7 +125,7 @@
 	};
 
 	/*cam0a-ov9282*/
-	qcom,cam-sensor1 {
+	rb8_slot0: qcom,cam-sensor1 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <0>;
 		sensor-position-roll = <0>;
@@ -439,7 +439,7 @@
 	};
 
 	/*cam1-ov9282*/
-	qcom,cam-sensor21 {
+	rb8_slot1: qcom,cam-sensor21 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <1>;
 		sensor-position-roll = <0>;
@@ -755,7 +755,7 @@
 	};
 
 	/*cam2-ov9282*/
-	qcom,cam-sensor22 {
+	rb8_slot2: qcom,cam-sensor22 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <2>;
 		sensor-position-roll = <0>;
@@ -994,7 +994,7 @@
 	};
 
 	/*cam3-ov9282*/
-	qcom,cam-sensor23 {
+	rb8_slot3: qcom,cam-sensor23 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <3>;
 		sensor-position-roll = <0>;
