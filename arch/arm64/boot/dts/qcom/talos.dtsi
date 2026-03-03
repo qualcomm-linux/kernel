@@ -1610,6 +1610,11 @@
 			#hwlock-cells = <1>;
 		};
 
+		tcsr_1: syscon@1f60000 {
+			compatible = "qcom,qcs615-tcsr", "syscon";
+			reg = <0 0x01f60000 0 0x20000>;
+		};
+
 		tcsr: syscon@1fc0000 {
 			compatible = "qcom,qcs615-tcsr", "syscon";
 			reg = <0x0 0x01fc0000 0x0 0x30000>;
@@ -5226,6 +5231,7 @@
 			#thermal-sensor-cells = <1>;
 		};
 
+#if 0
 		remoteproc_adsp: remoteproc@62400000 {
 			compatible = "qcom,qcs615-adsp-pas", "qcom,sm8150-adsp-pas";
 			reg = <0x0 0x62400000 0x0 0x4040>;
@@ -5330,6 +5336,94 @@
 						reg = <GPR_PRM_MODULE_IID>;
 						qcom,protection-domain = "avs/audio",
 									 "msm/adsp/audio_pd";
+
+						q6prmcc: clock-controller {
+							compatible = "qcom,q6prm-lpass-clocks";
+							#clock-cells = <2>;
+						};
+					};
+				};
+			};
+		};
+#endif
+
+		remoteproc_adsp: remoteproc@62400000 {
+			compatible = "qcom,qcs615-adsp-pil";
+			reg = <0x0 0x62400000 0x0 0x4040>,  <0x0 0x62B0B000 0x0 0x10>;
+			reg-names = "qdsp6ss_base", "lpass_efuse";
+
+			interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING 0>,
+					      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog",
+					  "fatal",
+					  "ready",
+					  "handover",
+					  "stop-ack";
+
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_LPASS_Q6_AXI_CLK>,
+				 <&gcc GCC_LPASS_CORE_AXIM_CLK>,
+				 <&gcc GCC_LPASS_SWAY_CLK>;
+			clock-names = "xo",
+				      "gcc_lpass_q6_axi_clk",
+				      "gcc_lpass_core_axim_clk",
+				      "gcc_lpass_sway_clk";
+
+			power-domains = <&rpmhpd RPMHPD_CX>;
+			power-domain-names = "cx";
+
+			memory-region = <&rproc_adsp_mem>;
+			required-opps = <&rpmhpd_opp_nom>;
+
+			resets = <&pdc_reset PDC_AUDIO_SENSORS_SYNC_RESET>,
+				 <&aoss_reset AOSS_CC_LPASS_RESTART>;
+			reset-names =  "pdc_sync", "cc_lpass";
+
+			qcom,halt-regs = <&tcsr_1 0x3000 0x6000 0xf000 0x10000>;
+
+			qcom,qmp = <&aoss_qmp>;
+
+			qcom,smem-states = <&adsp_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			status = "disabled";
+
+			glink_edge: glink-edge {
+				interrupts = <GIC_SPI 170 IRQ_TYPE_EDGE_RISING 0>;
+				mboxes = <&apss_shared 24>;
+				label = "lpass";
+				qcom,remote-pid = <2>;
+
+				gpr: gpr {
+					compatible = "qcom,gpr";
+					qcom,glink-channels = "adsp_apps";
+					qcom,domain = <GPR_DOMAIN_ID_ADSP>;
+					qcom,intents = <512 20>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					q6apm: service@1 {
+						compatible = "qcom,q6apm";
+						reg = <GPR_APM_MODULE_IID>;
+						#sound-dai-cells = <0>;
+
+						q6apmbedai: bedais {
+							compatible = "qcom,q6apm-lpass-dais";
+							#sound-dai-cells = <1>;
+						};
+
+						q6apmdai: dais {
+							compatible = "qcom,q6apm-dais";
+							iommus = <&apps_smmu 0x1721 0x0>;
+						};
+					};
+
+					q6prm: service@2 {
+						compatible = "qcom,q6prm";
+						reg = <GPR_PRM_MODULE_IID>;
 
 						q6prmcc: clock-controller {
 							compatible = "qcom,q6prm-lpass-clocks";
