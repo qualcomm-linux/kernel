@@ -364,7 +364,7 @@ static const struct dump_table lemans_dump_table = {
 
 static const struct dump_table talos_dump_table = {
 	.items		= talos_items,
-	.num_of_items	= ARRAY_SIZE(lemans_items),
+	.num_of_items	= ARRAY_SIZE(talos_items),
 	.imem_base	= 0x146aa010,
 	.imem_size	= 0x8,
 };
