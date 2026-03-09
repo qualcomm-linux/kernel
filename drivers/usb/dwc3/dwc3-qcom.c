@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/of_clk.h>
+#include <linux/of_graph.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interconnect.h>
@@ -19,6 +20,7 @@
 #include <linux/iopoll.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb.h>
+#include <linux/usb/qcom_eud.h>
 #include "core.h"
 #include "glue.h"
 
@@ -561,6 +563,7 @@ static int dwc3_qcom_setup_irq(struct dwc3_qcom *qcom, struct platform_device *p
 static void dwc3_qcom_set_role_notifier(struct dwc3 *dwc, enum usb_role next_role)
 {
 	struct dwc3_qcom *qcom = to_dwc3_qcom(dwc);
+	struct device_node *eud_node;
 
 	if (qcom->current_role == next_role)
 		return;
@@ -568,6 +571,13 @@ static void dwc3_qcom_set_role_notifier(struct dwc3 *dwc, enum usb_role next_rol
 	if (pm_runtime_resume_and_get(qcom->dev)) {
 		dev_dbg(qcom->dev, "Failed to resume device\n");
 		return;
+	}
+
+	/* Notify EUD of role change */
+	eud_node = of_graph_get_remote_node(qcom->dev->of_node, 0, -1);
+	if (eud_node) {
+		qcom_eud_usb_role_notify(eud_node, dwc->usb2_generic_phy[0], next_role);
+		of_node_put(eud_node);
 	}
 
 	if (qcom->current_role == USB_ROLE_DEVICE)
