@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
@@ -37,22 +39,74 @@
 struct eud_chip {
 	struct device			*dev;
 	struct usb_role_switch		*role_sw;
+	struct phy			*phy[EUD_MAX_PORTS];
 	void __iomem			*base;
 	phys_addr_t			mode_mgr;
 	unsigned int			int_status;
 	int				irq;
 	bool				enabled;
 	bool				usb_attached;
+	bool				phy_enabled;
 	u8				port_idx;
 };
+
+static int eud_phy_enable(struct eud_chip *chip)
+{
+	struct phy *phy;
+	int ret;
+
+	if (chip->phy_enabled)
+		return 0;
+
+	phy = chip->phy[chip->port_idx];
+
+	ret = phy_init(phy);
+	if (ret) {
+		dev_err(chip->dev, "Failed to initialize USB2 PHY for port %u: %d\n",
+			chip->port_idx, ret);
+		return ret;
+	}
+
+	ret = phy_power_on(phy);
+	if (ret) {
+		dev_err(chip->dev, "Failed to power on USB2 PHY for port %u: %d\n",
+			chip->port_idx, ret);
+		phy_exit(phy);
+		return ret;
+	}
+
+	chip->phy_enabled = true;
+
+	return 0;
+}
+
+static void eud_phy_disable(struct eud_chip *chip)
+{
+	struct phy *phy;
+
+	if (!chip->phy_enabled)
+		return;
+
+	phy = chip->phy[chip->port_idx];
+
+	phy_power_off(phy);
+	phy_exit(phy);
+	chip->phy_enabled = false;
+}
 
 static int enable_eud(struct eud_chip *priv)
 {
 	int ret;
 
-	ret = qcom_scm_io_writel(priv->mode_mgr + EUD_REG_EUD_EN2, 1);
+	ret = eud_phy_enable(priv);
 	if (ret)
 		return ret;
+
+	ret = qcom_scm_io_writel(priv->mode_mgr + EUD_REG_EUD_EN2, 1);
+	if (ret) {
+		eud_phy_disable(priv);
+		return ret;
+	}
 
 	writel(EUD_ENABLE, priv->base + EUD_REG_CSR_EUD_EN);
 	writel(EUD_INT_VBUS | EUD_INT_SAFE_MODE,
@@ -70,6 +124,8 @@ static int disable_eud(struct eud_chip *priv)
 		return ret;
 
 	writel(0, priv->base + EUD_REG_CSR_EUD_EN);
+	eud_phy_disable(priv);
+
 	return 0;
 }
 
@@ -131,6 +187,11 @@ static ssize_t port_store(struct device *dev,
 	/* Only port 0 and port 1 are valid */
 	if (port >= EUD_MAX_PORTS)
 		return -EINVAL;
+
+	if (!chip->phy[port]) {
+		dev_err(chip->dev, "EUD not supported on selected port\n");
+		return -EOPNOTSUPP;
+	}
 
 	/* Port selection must be done before enabling EUD */
 	if (chip->enabled) {
@@ -224,6 +285,35 @@ static irqreturn_t handle_eud_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int eud_parse_dt_port(struct eud_chip *chip, u8 port_id)
+{
+	struct device_node *controller_node;
+	struct phy *phy;
+
+	/*
+	 * Multiply port_id by 2 to get controller port number:
+	 * port_id 0 -> port@0 (primary USB controller)
+	 * port_id 1 -> port@2 (secondary USB controller)
+	 */
+	controller_node = of_graph_get_remote_node(chip->dev->of_node,
+						   port_id * 2, -1);
+	if (!controller_node)
+		return dev_err_probe(chip->dev, -ENODEV,
+				     "failed to get controller node for port %u\n", port_id);
+
+	phy = devm_of_phy_get_by_index(chip->dev, controller_node, 0);
+	if (IS_ERR(phy)) {
+		of_node_put(controller_node);
+		return dev_err_probe(chip->dev, PTR_ERR(phy),
+				     "failed to get HS PHY for port %u\n", port_id);
+	}
+	chip->phy[port_id] = phy;
+
+	of_node_put(controller_node);
+
+	return 0;
+}
+
 static void eud_role_switch_release(void *data)
 {
 	struct eud_chip *chip = data;
@@ -242,6 +332,17 @@ static int eud_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	chip->dev = &pdev->dev;
+
+	/*
+	 * Parse the DT resources for primary port.
+	 * This is the default EUD port and is mandatory.
+	 */
+	ret = eud_parse_dt_port(chip, 0);
+	if (ret)
+		return ret;
+
+	/* Secondary port is optional */
+	eud_parse_dt_port(chip, 1);
 
 	chip->role_sw = usb_role_switch_get(&pdev->dev);
 	if (IS_ERR(chip->role_sw))
