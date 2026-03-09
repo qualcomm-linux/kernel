@@ -22,7 +22,23 @@
 		i2c1 = &i2c1;
 		serial0 = &uart7;
 		serial1 = &uart2;
+		i2c8 = &i2c8;
 	};
+
+	display_bl: backlight {
+		compatible = "pwm-backlight";
+		power-supply = <&reg_dsi_touch>;
+		pwms = <&reg_backlight 0 50000 0>;
+	};
+
+	reg_dsi_touch: regulator-touch {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <5500000>;
+		regulator-max-microvolt = <5500000>;
+		regulator-name = "rpi-touch";
+		gpio = <&expander3 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+ 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -426,6 +442,22 @@
 	};
 };
 
+ 
+&i2c8 {
+	qcom,load-firmware;
+	qcom,xfer-mode = <1>;
+
+	status = "okay";
+
+	reg_backlight: reg_backlight@45 {
+		compatible = "raspberrypi,touchscreen-panel-regulator-v2";
+		reg = <0x45>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		#pwm-cells = <3>;
+	};
+};
+
 &gpi_dma0 {
 	status = "okay";
 };
@@ -667,6 +699,37 @@
 	vdda-phy-supply = <&vreg_l5a>;
 	vdda-pll-supply = <&vreg_l4a>;
 
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l1c>;
+	status = "okay";
+
+	panel:panel@0 {
+		compatible = "raspberrypi,dsi-7inch";
+		reg = <0>;
+
+		reset-gpios = <&reg_backlight 0 GPIO_ACTIVE_LOW>;
+		power-supply = <&reg_dsi_touch>;
+		backlight = <&display_bl>;
+
+
+		port {
+			panel0_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel0_in>;
+	data-lanes = <0 1>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l4a>;
 	status = "okay";
 };
 
