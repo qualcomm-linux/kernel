@@ -38,7 +38,7 @@
 
 struct eud_chip {
 	struct device			*dev;
-	struct usb_role_switch		*role_sw;
+	struct usb_role_switch		*role_sw[EUD_MAX_PORTS];
 	struct phy			*phy[EUD_MAX_PORTS];
 	void __iomem			*base;
 	phys_addr_t			mode_mgr;
@@ -112,7 +112,7 @@ static int enable_eud(struct eud_chip *priv)
 	writel(EUD_INT_VBUS | EUD_INT_SAFE_MODE,
 			priv->base + EUD_REG_INT1_EN_MASK);
 
-	return usb_role_switch_set_role(priv->role_sw, USB_ROLE_DEVICE);
+	return 0;
 }
 
 static int disable_eud(struct eud_chip *priv)
@@ -272,9 +272,9 @@ static irqreturn_t handle_eud_irq_thread(int irq, void *data)
 	int ret;
 
 	if (chip->usb_attached)
-		ret = usb_role_switch_set_role(chip->role_sw, USB_ROLE_DEVICE);
+		ret = usb_role_switch_set_role(chip->role_sw[chip->port_idx], USB_ROLE_DEVICE);
 	else
-		ret = usb_role_switch_set_role(chip->role_sw, USB_ROLE_HOST);
+		ret = usb_role_switch_set_role(chip->role_sw[chip->port_idx], USB_ROLE_HOST);
 	if (ret)
 		dev_err(chip->dev, "failed to set role switch\n");
 
@@ -289,6 +289,7 @@ static int eud_parse_dt_port(struct eud_chip *chip, u8 port_id)
 {
 	struct device_node *controller_node;
 	struct phy *phy;
+	struct usb_role_switch *role_sw;
 
 	/*
 	 * Multiply port_id by 2 to get controller port number:
@@ -309,7 +310,20 @@ static int eud_parse_dt_port(struct eud_chip *chip, u8 port_id)
 	}
 	chip->phy[port_id] = phy;
 
+	/* Only fetch role switch if usb-role-switch property exists */
+	if (!of_property_read_bool(controller_node, "usb-role-switch")) {
+		of_node_put(controller_node);
+		return 0;
+	}
+
+	role_sw = usb_role_switch_find_by_fwnode(of_fwnode_handle(controller_node));
 	of_node_put(controller_node);
+
+	if (IS_ERR(role_sw))
+		return dev_err_probe(chip->dev, PTR_ERR(role_sw),
+				     "failed to get role switch for port %u\n", port_id);
+
+	chip->role_sw[port_id] = role_sw;
 
 	return 0;
 }
@@ -317,8 +331,10 @@ static int eud_parse_dt_port(struct eud_chip *chip, u8 port_id)
 static void eud_role_switch_release(void *data)
 {
 	struct eud_chip *chip = data;
+	int i;
 
-	usb_role_switch_put(chip->role_sw);
+	for (i = 0; i < EUD_MAX_PORTS; i++)
+		usb_role_switch_put(chip->role_sw[i]);
 }
 
 static int eud_probe(struct platform_device *pdev)
@@ -343,11 +359,6 @@ static int eud_probe(struct platform_device *pdev)
 
 	/* Secondary port is optional */
 	eud_parse_dt_port(chip, 1);
-
-	chip->role_sw = usb_role_switch_get(&pdev->dev);
-	if (IS_ERR(chip->role_sw))
-		return dev_err_probe(chip->dev, PTR_ERR(chip->role_sw),
-					"failed to get role switch\n");
 
 	ret = devm_add_action_or_reset(chip->dev, eud_role_switch_release, chip);
 	if (ret)
