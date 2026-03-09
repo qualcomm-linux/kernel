@@ -12,11 +12,13 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/usb/role.h>
+#include <linux/usb/qcom_eud.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 
 #define EUD_REG_INT1_EN_MASK	0x0024
@@ -42,11 +44,14 @@ struct eud_chip {
 	struct phy			*phy[EUD_MAX_PORTS];
 	void __iomem			*base;
 	phys_addr_t			mode_mgr;
+	/* serializes EUD control operations */
+	struct mutex			state_lock;
 	unsigned int			int_status;
 	int				irq;
 	bool				enabled;
 	bool				usb_attached;
 	bool				phy_enabled;
+	bool				eud_disabled_for_host;
 	u8				port_idx;
 };
 
@@ -142,17 +147,43 @@ static ssize_t enable_store(struct device *dev,
 		const char *buf, size_t count)
 {
 	struct eud_chip *chip = dev_get_drvdata(dev);
+	enum usb_role role;
 	bool enable;
 	int ret;
 
 	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
+	guard(mutex)(&chip->state_lock);
+
 	/* Skip operation if already in desired state */
 	if (chip->enabled == enable)
 		return count;
 
+	/*
+	 * Handle double-disable scenario: User is disabling EUD that was already
+	 * disabled due to host mode. Since the hardware is already disabled, we
+	 * only need to clear the host-disabled flag to prevent unwanted re-enabling
+	 * when exiting host mode. This respects the user's explicit disable request.
+	 */
+	if (!enable && chip->eud_disabled_for_host) {
+		chip->eud_disabled_for_host = false;
+		chip->enabled = false;
+		return count;
+	}
+
 	if (enable) {
+		/*
+		 * EUD functions by presenting itself as a USB device to the host PC for
+		 * debugging, making it incompatible with USB host mode configuration.
+		 * Prevent enabling EUD in this configuration to avoid hardware conflicts.
+		 */
+		role = usb_role_switch_get_role(chip->role_sw[chip->port_idx]);
+		if (role == USB_ROLE_HOST) {
+			dev_err(chip->dev, "Cannot enable EUD: USB port is in host mode\n");
+			return -EBUSY;
+		}
+
 		ret = enable_eud(chip);
 		if (ret) {
 			dev_err(chip->dev, "failed to enable eud\n");
@@ -353,6 +384,75 @@ static int eud_parse_dt_port(struct eud_chip *chip, u8 port_id)
 	return 0;
 }
 
+/**
+ * qcom_eud_usb_role_notify - Notify EUD of USB role change
+ * @eud_node: Device node of the EUD device
+ * @phy: HSUSB PHY of the port changing role
+ * @role: New role being set
+ *
+ * Notifies EUD that a USB port is changing roles. EUD will disable itself
+ * if the port is switching to HOST mode, as EUD is incompatible with host
+ * mode operation. This API should be called by the USB controller driver
+ * when it switches the USB role.
+ *
+ * The PHY parameter is used to identify which physical USB port is changing
+ * roles. This is important in multi-port systems where EUD may be active on
+ * one port while another port changes roles.
+ *
+ * This is a best-effort notification - failures are logged but do not affect
+ * the role change operation.
+ */
+void qcom_eud_usb_role_notify(struct device_node *eud_node, struct phy *phy,
+			      enum usb_role role)
+{
+	struct platform_device *pdev;
+	struct eud_chip *chip;
+	int ret;
+
+	if (!of_device_is_compatible(eud_node, "qcom,eud"))
+		return;
+
+	pdev = of_find_device_by_node(eud_node);
+	if (!pdev)
+		return;
+
+	chip = platform_get_drvdata(pdev);
+	if (!chip)
+		goto put_dev;
+
+	mutex_lock(&chip->state_lock);
+
+	/* Only act if this notification is for the currently active EUD port */
+	if (!chip->enabled || chip->phy[chip->port_idx] != phy) {
+		mutex_unlock(&chip->state_lock);
+		goto put_dev;
+	}
+
+	/*
+	 * chip->enabled preserves user's sysfs configuration and is not modified
+	 * during host mode transitions to preserve user intent.
+	 */
+	if (role == USB_ROLE_HOST && !chip->eud_disabled_for_host) {
+		ret = disable_eud(chip);
+		if (ret)
+			dev_err(chip->dev, "Failed to disable EUD for host mode: %d\n", ret);
+		else
+			chip->eud_disabled_for_host = true;
+	} else if (role != USB_ROLE_HOST && chip->eud_disabled_for_host) {
+		ret = enable_eud(chip);
+		if (ret)
+			dev_err(chip->dev, "Failed to re-enable EUD after host mode: %d\n", ret);
+		else
+			chip->eud_disabled_for_host = false;
+	}
+
+	mutex_unlock(&chip->state_lock);
+
+put_dev:
+	platform_device_put(pdev);
+}
+EXPORT_SYMBOL_GPL(qcom_eud_usb_role_notify);
+
 static void eud_role_switch_release(void *data)
 {
 	struct eud_chip *chip = data;
@@ -373,6 +473,8 @@ static int eud_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	chip->dev = &pdev->dev;
+
+	mutex_init(&chip->state_lock);
 
 	/*
 	 * Parse the DT resources for primary port.
@@ -418,8 +520,14 @@ static void eud_remove(struct platform_device *pdev)
 {
 	struct eud_chip *chip = platform_get_drvdata(pdev);
 
-	if (chip->enabled)
+	platform_set_drvdata(pdev, NULL);
+
+	mutex_lock(&chip->state_lock);
+	if (chip->enabled) {
 		disable_eud(chip);
+		chip->enabled = false;
+	}
+	mutex_unlock(&chip->state_lock);
 
 	device_init_wakeup(&pdev->dev, false);
 	disable_irq_wake(chip->irq);
