@@ -536,6 +536,10 @@ monaco-evk-camx-dtbs   := monaco-evk.dtb monaco-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += monaco-evk-camx.dtb
 
+monaco-camx-el2-dtbs	:= monaco-evk-el2.dtb monaco-evk-camx.dtbo monaco-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-camx-el2.dtb
+
 qcs615-ride-camx-dtbs	:= qcs615-ride.dtb qcs615-ride-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-camx.dtb
