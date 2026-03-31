@@ -4465,6 +4465,7 @@
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <5>;
 						iommus = <&apps_smmu 0x1805 0x0>;
+						qcom,nsessions = <5>;
 						dma-coherent;
 					};
 				};
