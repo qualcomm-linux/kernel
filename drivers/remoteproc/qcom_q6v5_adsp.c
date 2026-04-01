@@ -54,6 +54,8 @@
 #define QDSP6SS_XO_CBCR		0x38
 #define QDSP6SS_CORE_CBCR	0x20
 #define QDSP6SS_SLEEP_CBCR	0x3c
+#define QDSP6SS_AHBM_CBCR	0x901C
+#define QDSP6SS_AHBS_CBCR       0x9020
 
 #define LPASS_BOOT_CORE_START	BIT(0)
 #define LPASS_BOOT_CMD_START	BIT(0)
@@ -103,6 +105,7 @@ struct qcom_adsp {
 
 	void __iomem *qdsp6ss_base;
 	void __iomem *lpass_efuse;
+	void __iomem *ssc_mcc_reg;
 
 	struct reset_control *pdc_sync_reset;
 	struct reset_control *restart;
@@ -450,6 +453,10 @@ static int adsp_start(struct rproc *rproc)
 	/* Enable the QDSP6 core clock */
 	writel(1, adsp->qdsp6ss_base + QDSP6SS_CORE_CBCR);
 
+	/* Enable the QDSP6 AHBM clock */
+	writel(1, adsp->ssc_mcc_reg + QDSP6SS_AHBM_CBCR);
+	/* Enable the QDSP6 AHBS clock */
+	writel(1, adsp->ssc_mcc_reg + QDSP6SS_AHBS_CBCR);
 	/* Program boot address */
 	writel(adsp->mem_phys >> 4, adsp->qdsp6ss_base + RST_EVB_REG);
 
@@ -629,6 +636,7 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 {
 	struct resource *efuse_region;
 	struct device_node *syscon;
+	struct resource *ssc_mcc_region;
 	int ret;
 
 	adsp->qdsp6ss_base = devm_platform_ioremap_resource(pdev, 0);
@@ -648,6 +656,19 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 			return PTR_ERR(adsp->lpass_efuse);
 		}
 	}
+
+	ssc_mcc_region = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+        if (!ssc_mcc_region) {
+                adsp->ssc_mcc_reg = NULL;
+                dev_dbg(adsp->dev, "failed to get ssc mcc memory region\n");
+        } else {
+                adsp->ssc_mcc_reg = devm_ioremap_resource(&pdev->dev, ssc_mcc_region);
+                if (IS_ERR(adsp->ssc_mcc_reg)) {
+                        dev_err(adsp->dev, "failed to map ssc mcc registers\n");
+                        return PTR_ERR(adsp->ssc_mcc_reg);
+                }
+        }
+
 	syscon = of_parse_phandle(pdev->dev.of_node, "qcom,halt-regs", 0);
 	if (!syscon) {
 		dev_err(&pdev->dev, "failed to parse qcom,halt-regs\n");
@@ -858,7 +879,7 @@ static int adsp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rproc = devm_rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
+	rproc = devm_rproc_alloc(&pdev->dev, desc->sysmon_name, &adsp_ops,
 				 firmware_name, sizeof(*adsp));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
