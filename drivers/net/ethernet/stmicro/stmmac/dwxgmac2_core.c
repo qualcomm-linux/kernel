@@ -13,6 +13,7 @@
 #include "stmmac_vlan.h"
 #include "dwxlgmac2.h"
 #include "dwxgmac2.h"
+#include "dw25gmac.h"
 
 static void dwxgmac2_core_init(struct mac_device_info *hw,
 			       struct net_device *dev)
@@ -1505,11 +1506,11 @@ const struct stmmac_ops dwxlgmac2_ops = {
 	.fpe_map_preemption_class = dwxgmac3_fpe_map_preemption_class,
 };
 
-int dwxgmac2_setup(struct stmmac_priv *priv)
+static void dwxgmac2_common_setup(struct stmmac_priv *priv, char *mac_name)
 {
 	struct mac_device_info *mac = priv->hw;
 
-	dev_info(priv->device, "\tXGMAC2\n");
+	dev_info(priv->device, "\t%s\n", mac_name);
 
 	priv->dev->priv_flags |= IFF_UNICAST_FLT;
 	mac->pcsr = priv->ioaddr;
@@ -1519,6 +1520,19 @@ int dwxgmac2_setup(struct stmmac_priv *priv)
 
 	if (mac->multicast_filter_bins)
 		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
+
+	mac->mii.addr = XGMAC_MDIO_ADDR;
+	mac->mii.data = XGMAC_MDIO_DATA;
+	mac->mii.addr_mask = GENMASK_U32(20, 16);
+	mac->mii.reg_mask = GENMASK_U32(15, 0);
+	mac->mii.clk_csr_mask = GENMASK_U32(21, 19);
+}
+
+int dwxgmac2_setup(struct stmmac_priv *priv)
+{
+	struct mac_device_info *mac = priv->hw;
+
+	dwxgmac2_common_setup(priv, "XGMAC2");
 
 	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 			 MAC_10 | MAC_100 | MAC_1000FD |
@@ -1533,12 +1547,28 @@ int dwxgmac2_setup(struct stmmac_priv *priv)
 	mac->link.xgmii.speed10000 = XGMAC_CONFIG_SS_10000;
 	mac->link.speed_mask = XGMAC_CONFIG_SS_MASK;
 
-	mac->mii.addr = XGMAC_MDIO_ADDR;
-	mac->mii.data = XGMAC_MDIO_DATA;
-	mac->mii.addr_mask = GENMASK_U32(20, 16);
-	mac->mii.reg_mask = GENMASK_U32(15, 0);
-	mac->mii.clk_csr_mask = GENMASK_U32(21, 19);
 	mac->num_vlan = stmmac_get_num_vlan(priv->ioaddr);
+
+	return 0;
+}
+
+int dw25gmac_setup(struct stmmac_priv *priv)
+{
+	struct mac_device_info *mac = priv->hw;
+
+	dwxgmac2_common_setup(priv, "DW25GMAC");
+
+	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+			 MAC_1000FD | MAC_2500FD | MAC_5000FD |
+			 MAC_10000FD | MAC_25000FD;
+	mac->link.duplex = 0;
+	mac->link.speed1000 = XGMAC_CONFIG_SS_1000_GMII;
+	mac->link.speed2500 = XGMAC_CONFIG_SS_2500_GMII;
+	mac->link.xgmii.speed2500 = XGMAC_CONFIG_SS_2500;
+	mac->link.xgmii.speed5000 = XGMAC_CONFIG_SS_5000;
+	mac->link.xgmii.speed10000 = XGMAC_CONFIG_SS_10000;
+	mac->link.xgmii.speed25000 = XGMAC_CONFIG_SS_25000;
+	mac->link.speed_mask = XGMAC_CONFIG_SS_MASK;
 
 	return 0;
 }
@@ -1547,16 +1577,7 @@ int dwxlgmac2_setup(struct stmmac_priv *priv)
 {
 	struct mac_device_info *mac = priv->hw;
 
-	dev_info(priv->device, "\tXLGMAC\n");
-
-	priv->dev->priv_flags |= IFF_UNICAST_FLT;
-	mac->pcsr = priv->ioaddr;
-	mac->multicast_filter_bins = priv->plat->multicast_filter_bins;
-	mac->unicast_filter_entries = priv->plat->unicast_filter_entries;
-	mac->mcast_bits_log2 = 0;
-
-	if (mac->multicast_filter_bins)
-		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
+	dwxgmac2_common_setup(priv, "XLGMAC");
 
 	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 			 MAC_1000FD | MAC_2500FD | MAC_5000FD |
@@ -1572,12 +1593,6 @@ int dwxlgmac2_setup(struct stmmac_priv *priv)
 	mac->link.xlgmii.speed50000 = XLGMAC_CONFIG_SS_50G;
 	mac->link.xlgmii.speed100000 = XLGMAC_CONFIG_SS_100G;
 	mac->link.speed_mask = XLGMAC_CONFIG_SS;
-
-	mac->mii.addr = XGMAC_MDIO_ADDR;
-	mac->mii.data = XGMAC_MDIO_DATA;
-	mac->mii.addr_mask = GENMASK_U32(20, 16);
-	mac->mii.reg_mask = GENMASK_U32(15, 0);
-	mac->mii.clk_csr_mask = GENMASK_U32(21, 19);
 
 	return 0;
 }
