@@ -524,6 +524,10 @@ dtb-$(CONFIG_ARCH_QCOM)	+= x1p64100-microsoft-denali.dtb x1p64100-microsoft-dena
 x1p42100-microsoft-sp12in-el2-dtbs	:= x1p42100-microsoft-sp12in.dtb x1-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= x1p42100-microsoft-sp12in.dtb x1p42100-microsoft-sp12in-el2.dtb
 
+hamoa-camera-dtbs       := hamoa-iot-evk.dtb hamoa-camera-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camera-camx.dtb
+
 lemans-evk-camx-dtbs	:= lemans-evk.dtb lemans-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtb
