@@ -106,3 +106,10 @@
 &usb_qmpphy_out {
 	remote-endpoint = <&pm4125_ss_in>;
 };
+
+&usb_qmpphy {
+	vdda-phy-supply = <&pm4125_l8>;
+	vdda-pll-supply = <&pm4125_l13>;
+
+	status = "okay";
+};
