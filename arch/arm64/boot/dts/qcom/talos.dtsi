@@ -5351,10 +5351,12 @@
 			compatible = "qcom,qcs615-adsp-pil";
 			reg = <0x0 0x62400000 0x0 0x4040>,
 			      <0x0 0x62B0B000 0x0 0x10>,
-			      <0x0 0x62B10000 0x0 0x30000>;
+			      <0x0 0x62B10000 0x0 0x30000>,
+			      <0x0 0xC240000 0x0 0xC>;
 			reg-names = "qdsp6ss_base",
 				    "lpass_efuse",
-				    "ssc_mcc_reg";
+				    "ssc_mcc_reg",
+				    "mpm_sscaon";
 
 			interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING 0>,
 					      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
