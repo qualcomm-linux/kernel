@@ -4963,6 +4963,8 @@
 
 			memory-region = <&pil_video_mem>;
 
+			firmware-name = "qcom/vpu/vpu30_p4_s6_16mb.mbn";
+
 			resets = <&gcc GCC_VIDEO_AXI0_CLK_ARES>;
 			reset-names = "bus";
 
