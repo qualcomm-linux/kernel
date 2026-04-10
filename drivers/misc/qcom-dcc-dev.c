@@ -959,7 +959,6 @@ static void __exit dcc_dev_exit(void)
 	platform_device_unregister(dcc_pdev);
 }
 
-module_init(dcc_dev_init);
-module_exit(dcc_dev_exit);
+late_initcall(dcc_dev_init);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Qualcomm Technologies Inc. DCC driver, device stub");
