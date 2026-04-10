@@ -1425,6 +1425,72 @@ static ssize_t dcc_sram_read(struct file *file, char __user *data,
 	return len;
 }
 
+static void dcc_configure_list(struct dcc_drvdata *drvdata,
+			       const struct dcc_config *config)
+{
+	const struct dcc_link_config *link;
+	const struct dcc_register_entry *entry;
+	char *token, *bufp, *buf_orig;
+	char *delim = " ";
+	int ret, i, j, configured;
+	size_t len;
+
+	if (!config || !config->num_lists)
+		return;
+
+	for (i = 0; i < config->num_lists; i++) {
+		link = &config->lists[i];
+
+		if (link->link_list >= drvdata->max_link_list) {
+			dev_err(drvdata->dev, "Invalid link list index %d\n", link->link_list);
+			continue;
+		}
+
+		configured = 0;
+
+		for (j = 0; j < link->num_entries; j++) {
+			entry = &link->entries[j];
+
+			len = strlen(entry->config);
+			buf_orig = kzalloc(len + 1, GFP_KERNEL);
+			if (!buf_orig)
+				return;
+
+			strscpy(buf_orig, entry->config, len + 1);
+			bufp = buf_orig;
+
+			token = strsep(&bufp, delim);
+			if (!bufp) {
+				dev_err(drvdata->dev, "Malformed entry: \"%s\"\n",
+					entry->config);
+				kfree(buf_orig);
+				continue;
+			}
+
+			if (!strcmp("R", token)) {
+				ret = dcc_config_add_read(drvdata, bufp, link->link_list);
+			} else if (!strcmp("W", token)) {
+				ret = dcc_config_add_write(drvdata, bufp, link->link_list);
+			} else if (!strcmp("RW", token)) {
+				ret = dcc_config_add_read_write(drvdata, bufp, link->link_list);
+			} else if (!strcmp("L", token)) {
+				ret = dcc_config_add_loop(drvdata, bufp, link->link_list);
+			} else {
+				dev_err(drvdata->dev, "%s is not a correct input\n", token);
+				ret = -EINVAL;
+			}
+
+			if (ret >= 0)
+				configured++;
+
+			kfree(buf_orig);
+		}
+
+		if (configured)
+			dcc_enable(drvdata, link->link_list);
+	}
+}
+
 static const struct file_operations dcc_sram_fops = {
 	.owner		= THIS_MODULE,
 	.read		= dcc_sram_read,
@@ -1520,6 +1586,7 @@ static int dcc_probe(struct platform_device *pdev)
 	}
 
 	dcc_create_debug_dir(drvdata);
+	dcc_configure_list(drvdata, pdata->config);
 
 	return 0;
 }
