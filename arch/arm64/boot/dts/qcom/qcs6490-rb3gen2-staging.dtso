@@ -9,7 +9,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
-/ {
+&{/} {
 	qep_vreg: qep_vreg {
 		compatible = "regulator-fixed";
 		regulator-name = "qep_vreg";
