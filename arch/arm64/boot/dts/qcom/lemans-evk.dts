@@ -214,6 +214,22 @@
 				sound-dai = <&q6apm>;
 			};
 		};
+
+		dp0-dai-link {
+			link-name = "DisplayPort0 Playback";
+
+			cpu {
+				sound-dai = <&q6apmbedai DISPLAY_PORT_RX_0>;
+			};
+
+			codec {
+				sound-dai = <&mdss0_dp0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
 	};
 
 	usb0_vbus: regulator-usb0-vbus {
