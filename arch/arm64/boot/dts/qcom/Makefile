@@ -538,6 +538,8 @@ dtb-$(CONFIG_ARCH_QCOM)	+= lemans-camx-el2.dtb
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-staging.dtbo
 
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-staging.dtbo
+
 monaco-evk-camx-dtbs   := monaco-evk.dtb monaco-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += monaco-evk-camx.dtb
