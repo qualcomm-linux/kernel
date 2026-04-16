@@ -137,3 +137,25 @@
 		};
 	};
 };
+
+&swr0 {
+	pinctrl-0 = <&swr_tx_clk>, <&swr_tx_data0>;
+	pinctrl-names = "default";
+
+	pm4125_tx: codec@0,3 {
+		compatible = "sdw20217010c00";
+		reg = <0 3>;
+		qcom,tx-port-mapping = <1 1 2 3>;
+	};
+};
+
+&swr1 {
+	pinctrl-0 = <&swr_rx_clk>, <&swr_rx_data0>, <&swr_rx_data1>;
+	pinctrl-names = "default";
+
+	pm4125_rx: codec@0,4 {
+		compatible = "sdw20217010c00";
+		reg = <0 4>;
+		qcom,rx-port-mapping = <1 2 3 4 5>;
+	};
+};
