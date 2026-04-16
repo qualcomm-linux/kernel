@@ -636,6 +636,7 @@ xhci_pci_renesas_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (retval)
 		return retval;
 
+	dev->pme_support = dev->pme_support | (1 << PCI_D3cold);
 	return xhci_pci_common_probe(dev, id);
 }
 
