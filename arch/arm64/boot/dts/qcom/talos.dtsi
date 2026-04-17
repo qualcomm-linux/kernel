@@ -3788,7 +3788,7 @@
 		};
 
 		remoteproc_cdsp: remoteproc@8300000 {
-			compatible = "qcom,qcs615-cdsp-pas", "qcom,sm8150-cdsp-pas";
+			compatible = "qcom,qcs404-cdsp-pil";
 			reg = <0x0 0x08300000 0x0 0x4040>;
 
 			interrupts-extended = <&intc GIC_SPI 578 IRQ_TYPE_EDGE_RISING 0>,
@@ -5213,7 +5213,7 @@
 		};
 
 		remoteproc_adsp: remoteproc@62400000 {
-			compatible = "qcom,qcs615-adsp-pas", "qcom,sm8150-adsp-pas";
+			compatible = "qcom,sdm845-adsp-pil";
 			reg = <0x0 0x62400000 0x0 0x4040>;
 
 			interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING 0>,
