@@ -58,6 +58,7 @@
 #define LPASS_BOOT_CORE_START	BIT(0)
 #define LPASS_BOOT_CMD_START	BIT(0)
 #define LPASS_EFUSE_Q6SS_EVB_SEL 0x0
+#define DEVMEM_ENTRY_SIZE 4
 
 struct adsp_pil_data {
 	int crash_reason_smem;
@@ -75,6 +76,18 @@ struct adsp_pil_data {
 	const char **pd_names;
 	unsigned int num_pds;
 	const char *load_state;
+};
+
+struct qcom_devmem_info {
+	u64 da;
+	u64 pa;
+	u32 len;
+	u32 flags;
+};
+
+struct qcom_devmem_table {
+	int num_entries;
+	struct qcom_devmem_info entries[];
 };
 
 struct qcom_adsp {
@@ -108,6 +121,8 @@ struct qcom_adsp {
 	void *mem_region;
 	size_t mem_size;
 	bool has_iommu;
+	unsigned long sid;
+	struct qcom_devmem_table *devmem;
 
 	struct dev_pm_domain_list *pd_list;
 
@@ -118,6 +133,12 @@ struct qcom_adsp {
 
 	int (*shutdown)(struct qcom_adsp *adsp);
 };
+
+static int adsp_map_devmem(struct rproc *rproc);
+static void adsp_unmap_devmem(struct rproc *rproc);
+static int qcom_map_unmap_carveout_local(struct rproc *rproc,
+					 phys_addr_t mem_phys, size_t mem_size,
+					 bool map, bool use_sid, unsigned long sid);
 
 static int qcom_rproc_pds_attach(struct qcom_adsp *adsp, const char **pd_names,
 				 unsigned int num_pds)
@@ -332,42 +353,56 @@ static void adsp_unmap_carveout(struct rproc *rproc)
 {
 	struct qcom_adsp *adsp = rproc->priv;
 
-	if (adsp->has_iommu)
-		iommu_unmap(rproc->domain, adsp->mem_phys, adsp->mem_size);
+	(void)qcom_map_unmap_carveout_local(rproc, adsp->mem_phys, adsp->mem_size,
+					    false, true, adsp->sid);
 }
 
 static int adsp_map_carveout(struct rproc *rproc)
 {
 	struct qcom_adsp *adsp = rproc->priv;
-	struct of_phandle_args args;
-	long long sid;
-	unsigned long iova;
+
+	return qcom_map_unmap_carveout_local(rproc, adsp->mem_phys, adsp->mem_size,
+					     true, true, adsp->sid);
+}
+
+static int qcom_map_unmap_carveout_local(struct rproc *rproc,
+					 phys_addr_t mem_phys, size_t mem_size,
+					 bool map, bool use_sid, unsigned long sid)
+{
+	u64 iova = mem_phys;
+	u64 sid_def_val;
 	int ret;
 
-	if (!adsp->has_iommu)
+	if (!rproc->has_iommu)
 		return 0;
 
 	if (!rproc->domain)
 		return -EINVAL;
 
-	ret = of_parse_phandle_with_args(adsp->dev->of_node, "iommus", "#iommu-cells", 0, &args);
-	if (ret < 0)
-		return ret;
-
-	sid = args.args[0] & SID_MASK_DEFAULT;
-
-	/* Add SID configuration for ADSP Firmware to SMMU */
-	iova =  adsp->mem_phys | (sid << 32);
-
-	ret = iommu_map(rproc->domain, iova, adsp->mem_phys,
-			adsp->mem_size,	IOMMU_READ | IOMMU_WRITE,
-			GFP_KERNEL);
-	if (ret) {
-		dev_err(adsp->dev, "Unable to map ADSP Physical Memory\n");
-		return ret;
+	/*
+	 * Remote processor like ADSP supports upto 36 bit device
+	 * address space and some of its clients like fastrpc uses
+	 * upper 32-35 bits to keep lower 4 bits of its SID to use
+	 * larger address space. To keep this consistent across other
+	 * use cases add remoteproc SID configuration for firmware
+	 * to IOMMU for carveouts.
+	 */
+	if (use_sid && sid) {
+		sid_def_val = sid & SID_MASK_DEFAULT;
+		iova |= (sid_def_val << 32);
 	}
 
-	return 0;
+	if (map)
+		ret = iommu_map(rproc->domain, (unsigned long)iova, mem_phys, mem_size,
+				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+	else
+		ret = iommu_unmap(rproc->domain, (unsigned long)iova, mem_size);
+
+	if (ret)
+		dev_err(&rproc->dev, "Unable to %s IOVA Memory, ret: %d\n",
+			map ? "map" : "unmap", ret);
+
+	return ret;
 }
 
 static int adsp_start(struct rproc *rproc)
@@ -384,6 +419,12 @@ static int adsp_start(struct rproc *rproc)
 	if (ret) {
 		dev_err(adsp->dev, "ADSP smmu mapping failed\n");
 		goto disable_irqs;
+	}
+
+	ret = adsp_map_devmem(rproc);
+	if (ret) {
+		dev_err(adsp->dev, "ADSP devmem smmu mapping failed\n");
+		goto adsp_devmem_unmap;
 	}
 
 	ret = clk_prepare_enable(adsp->xo);
@@ -443,6 +484,8 @@ disable_power_domain:
 	qcom_rproc_pds_disable(adsp);
 disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
+adsp_devmem_unmap:
+	adsp_unmap_devmem(rproc);
 adsp_smmu_unmap:
 	adsp_unmap_carveout(rproc);
 disable_irqs:
@@ -473,6 +516,7 @@ static int adsp_stop(struct rproc *rproc)
 	if (ret)
 		dev_err(adsp->dev, "failed to shutdown: %d\n", ret);
 
+	adsp_unmap_devmem(rproc);
 	adsp_unmap_carveout(rproc);
 
 	handover = qcom_q6v5_unprepare(&adsp->q6v5);
@@ -651,6 +695,149 @@ static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 	return 0;
 }
 
+static int adsp_devmem_init(struct qcom_adsp *adsp)
+{
+	unsigned int entry_size = DEVMEM_ENTRY_SIZE;
+	struct qcom_devmem_table *devmem_table;
+	struct rproc *rproc = adsp->rproc;
+	struct device *dev = adsp->dev;
+	struct qcom_devmem_info *info;
+	char *pname = "qcom,devmem";
+	size_t table_size;
+	int num_entries;
+	u32 i;
+
+	if (!rproc->has_iommu)
+		return 0;
+
+	/* devmem property is a set of n-tuple */
+	num_entries = of_property_count_u32_elems(dev->of_node, pname);
+	if (num_entries < 0) {
+		dev_err(adsp->dev, "No '%s' property present\n", pname);
+		return num_entries;
+	}
+
+	if (!num_entries || (num_entries % entry_size)) {
+		dev_err(adsp->dev, "All '%s' list entries need %d vals\n", pname,
+			entry_size);
+		return -EINVAL;
+	}
+
+	num_entries /= entry_size;
+	table_size = sizeof(*devmem_table) + sizeof(*info) * num_entries;
+	devmem_table = devm_kzalloc(dev, table_size, GFP_KERNEL);
+	if (!devmem_table)
+		return -ENOMEM;
+
+	devmem_table->num_entries = num_entries;
+	info = &devmem_table->entries[0];
+	for (i = 0; i < num_entries; i++, info++) {
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * entry_size, (u32 *)&info->da);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * entry_size + 1, (u32 *)&info->pa);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * entry_size + 2, &info->len);
+		of_property_read_u32_index(dev->of_node, pname,
+					   i * entry_size + 3, &info->flags);
+	}
+
+	adsp->devmem = devmem_table;
+
+	return 0;
+}
+
+static int qcom_map_devmem_local(struct rproc *rproc,
+				 struct qcom_devmem_table *devmem_table,
+				 bool use_sid, unsigned long sid)
+{
+	u64 sid_def_val = 0;
+	int ret = 0;
+	int i;
+
+	if (!rproc->has_iommu)
+		return 0;
+
+	if (!rproc->domain)
+		return -EINVAL;
+
+	/* remoteproc may not have devmem data */
+	if (!devmem_table)
+		return 0;
+
+	if (use_sid && sid)
+		sid_def_val = (u64)(sid & SID_MASK_DEFAULT);
+
+	for (i = 0; i < devmem_table->num_entries; i++) {
+		struct qcom_devmem_info *info = &devmem_table->entries[i];
+		u64 iova = info->da;
+
+		if (use_sid && sid_def_val)
+			iova |= (sid_def_val << 32);
+
+		ret = iommu_map(rproc->domain, (unsigned long)iova,
+				(phys_addr_t)info->pa, info->len,
+				info->flags, GFP_KERNEL);
+		if (ret) {
+			dev_err(&rproc->dev, "Unable to map devmem, ret: %d\n", ret);
+			goto undo_mapping;
+		}
+	}
+
+	return 0;
+
+undo_mapping:
+	/* undo already-mapped entries */
+	for (i = i - 1; i >= 0; i--) {
+		struct qcom_devmem_info *info = &devmem_table->entries[i];
+		u64 iova = info->da;
+
+		if (use_sid && sid_def_val)
+			iova |= (sid_def_val << 32);
+
+		iommu_unmap(rproc->domain, (unsigned long)iova, info->len);
+	}
+	return ret;
+}
+
+static void qcom_unmap_devmem_local(struct rproc *rproc,
+				    struct qcom_devmem_table *devmem_table,
+				    bool use_sid, unsigned long sid)
+{
+	u64 sid_def_val = 0;
+	int i;
+
+	if (!rproc->has_iommu || !rproc->domain || !devmem_table)
+		return;
+
+	if (use_sid && sid)
+		sid_def_val = (u64)(sid & SID_MASK_DEFAULT);
+
+	for (i = 0; i < devmem_table->num_entries; i++) {
+		struct qcom_devmem_info *info = &devmem_table->entries[i];
+		u64 iova = info->da;
+
+		if (use_sid && sid_def_val)
+			iova |= (sid_def_val << 32);
+
+		iommu_unmap(rproc->domain, (unsigned long)iova, info->len);
+	}
+}
+
+static int adsp_map_devmem(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = rproc->priv;
+
+	return qcom_map_devmem_local(rproc, adsp->devmem, true, adsp->sid);
+}
+
+static void adsp_unmap_devmem(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = rproc->priv;
+
+	qcom_unmap_devmem_local(rproc, adsp->devmem, true, adsp->sid);
+}
+
 static int adsp_probe(struct platform_device *pdev)
 {
 	const struct adsp_pil_data *desc;
@@ -687,6 +874,28 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->rproc = rproc;
 	adsp->info_name = desc->sysmon_name;
 	adsp->has_iommu = desc->has_iommu;
+
+	/* If DT provides iommus, enable IOMMU path and parse SID */
+	if (of_property_present(pdev->dev.of_node, "iommus")) {
+		struct of_phandle_args args;
+
+		ret = of_parse_phandle_with_args(pdev->dev.of_node, "iommus",
+						 "#iommu-cells", 0, &args);
+		if (ret < 0)
+			goto disable_pm;
+
+		adsp->sid = args.args[0] & SID_MASK_DEFAULT;
+		of_node_put(args.np);
+		rproc->has_iommu = true;
+		adsp->has_iommu = true;
+
+		ret = adsp_devmem_init(adsp);
+		if (ret)
+			goto disable_pm;
+	} else {
+		rproc->has_iommu = false;
+		adsp->has_iommu = false;
+	}
 
 	platform_set_drvdata(pdev, adsp);
 
