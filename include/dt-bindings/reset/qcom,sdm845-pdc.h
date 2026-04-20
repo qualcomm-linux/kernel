@@ -19,4 +19,7 @@
 #define PDC_WLAN_RF_SYNC_RESET	10
 #define PDC_WPSS_SYNC_RESET	11
 
+
+#define PDC_AUDIO_SENSORS_SYNC_RESET 1
+
 #endif

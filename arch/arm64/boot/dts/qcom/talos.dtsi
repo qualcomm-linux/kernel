@@ -21,6 +21,8 @@
 #include <dt-bindings/soc/qcom,gpr.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/reset/qcom,sdm845-pdc.h>
+#include <dt-bindings/reset/qcom,sdm845-aoss.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -4681,6 +4683,18 @@
 			interrupt-parent = <&intc>;
 			#interrupt-cells = <2>;
 			interrupt-controller;
+		};
+
+		pdc_reset: reset-controller@b2e0000 {
+			compatible = "qcom,qcs615-pdc-global";
+			reg = <0 0x0b2e0000 0 0x20000>;
+			#reset-cells = <1>;
+		};
+
+		aoss_reset: reset-controller@c2a0000 {
+			compatible = "qcom,qcs615-aoss-cc", "qcom,sdm845-aoss-cc";
+			reg = <0 0x0c2a0000 0 0x31000>;
+			#reset-cells = <1>;
 		};
 
 		aoss_qmp: power-management@c300000 {
