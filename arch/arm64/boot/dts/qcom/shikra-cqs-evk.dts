@@ -24,22 +24,16 @@
 	};
 };
 
+&pm4125_hs_in {
+	remote-endpoint = <&usb_1_dwc3_hs>;
+};
+
+&pm4125_ss_in {
+	remote-endpoint = <&usb_qmpphy_out>;
+};
+
 &remoteproc_cdsp {
 	firmware-name = "qcom/shikra/cdsp.mbn";
-
-	status = "okay";
-};
-
-&remoteproc_lpaicp {
-	firmware-name = "qcom/shikra/lpaicp.mbn",
-			"qcom/shikra/lpaicp_dtb.mbn";
-
-	status = "okay";
-};
-
-&remoteproc_mpss {
-	firmware-name = "qcom/shikra/cqs/qdsp6sw.mbn";
-
 	status = "okay";
 };
 
@@ -55,7 +49,33 @@
 	supports-cqe;
 	no-sdio;
 	no-sd;
+	status = "okay";
+};
+&remoteproc_lpaicp {
+	firmware-name = "qcom/shikra/lpaicp.mbn",
+			"qcom/shikra/lpaicp_dtb.mbn";
 
+	status = "okay";
+};
+
+&remoteproc_mpss {
+	firmware-name = "qcom/shikra/cqs/qdsp6sw.mbn";
+	status = "okay";
+};
+
+&usb_1 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb_1_dwc3_hs {
+	remote-endpoint = <&pm4125_hs_in>;
+};
+
+&usb_1_hsphy {
+	vdd-supply = <&pm4125_l12>;
+	vdda-pll-supply = <&pm4125_l13>;
+	vdda-phy-dpdm-supply = <&pm4125_l21>;
 	status = "okay";
 };
 
@@ -79,4 +99,8 @@
 	firmware-name = "cq2390";
 
 	status = "okay";
+};
+
+&usb_qmpphy_out {
+	remote-endpoint = <&pm4125_ss_in>;
 };
