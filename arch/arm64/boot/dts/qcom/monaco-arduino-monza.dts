@@ -245,6 +245,46 @@
 
 	status = "okay";
 
+	typec@8 {
+		compatible = "cypress,cypd4226";
+		reg = <0x08>;
+		pinctrl-0 = <&typec_default_state>;
+		pinctrl-names = "default";
+		interrupts-extended = <&tlmm 3 IRQ_TYPE_LEVEL_LOW>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		connector@0 {
+			compatible = "usb-c-connector";
+			reg = <0>;
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					ucsi_hs_ccg_p0: endpoint {
+						remote-endpoint = <&usb_1_dwc3_hs>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					ucsi_ss_ccg_p0: endpoint {
+						remote-endpoint = <&usb_1_dwc3_ss>;
+					};
+				};
+			};
+		};
+	};
+
 	max98091: audio-codec@10 {
 		compatible = "maxim,max98091";
 		reg = <0x10>;
@@ -392,6 +432,12 @@
 		};
 	};
 
+	typec_default_state: typec-default-state {
+		pins = "gpio3";
+		function = "gpio";
+		bias-disable;
+	};
+
 	ethernet0_default: ethernet0-default-state {
 		ethernet0_mdc: ethernet0-mdc-pins {
 			pins = "gpio5";
@@ -456,6 +502,14 @@
 
 &usb_1 {
 	status = "okay";
+};
+
+&usb_1_dwc3_hs {
+	remote-endpoint = <&ucsi_hs_ccg_p0>;
+};
+
+&usb_1_dwc3_ss {
+	remote-endpoint = <&ucsi_ss_ccg_p0>;
 };
 
 /* Internally connected to the MCU (e.g. for DFU). */
