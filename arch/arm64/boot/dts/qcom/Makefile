@@ -581,6 +581,10 @@ dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk-staging.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-staging.dtbo
 
+purwa-evk-camx-dtbs     := purwa-iot-evk.dtb purwa-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-evk-camx.dtb
+
 qcs5430-fps-camx-dtbs   := qcs6490-rb3gen2.dtb qcs5430-fps-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += qcs5430-fps-camx.dtb
