@@ -592,3 +592,5 @@ dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM) += talos-staging.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += kodiak-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += glymur-staging.dtbo
