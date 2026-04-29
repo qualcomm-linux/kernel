@@ -9,19 +9,11 @@
 #include "qcom-dcc.h"
 #include "qcom-dcc-talos-config.h"
 #include "qcom-dcc-lemans-config.h"
+#include "qcom-dcc-kodiak-config.h"
 
 #define DEV_NAME "qcom-dcc"
 
 static struct platform_device *dcc_pdev;
-
-static const struct dcc_pdata kodiak_pdata = {
-	.base		= 0x0117f000,
-	.size		= 0x00001000,
-	.ram_base	= 0x01112000,
-	.ram_size	= 0x00006000,
-	.dcc_offset	= 0x12000,
-	.map_ver	= 0x2,
-};
 
 static const struct dcc_pdata pakala_pdata = {
 	.base		= 0x100ff000,
