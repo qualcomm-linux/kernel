@@ -73,12 +73,14 @@ static int __init dcc_dev_init(void)
 			goto fail;
 
 		break;
+	/* lemans IDs */
 	case 534:
-	case 606:
 	case 667:
+	case 676:
+	/* monaco IDs */
+	case 606:
 	case 674:
 	case 675:
-	case 676:
 		ret = platform_device_add_data(dcc_pdev, &lemans_pdata, sizeof(lemans_pdata));
 		if (ret)
 			goto fail;
