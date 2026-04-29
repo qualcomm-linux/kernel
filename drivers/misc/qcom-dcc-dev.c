@@ -7,6 +7,7 @@
 #include <linux/platform_device.h>
 #include <linux/soc/qcom/smem.h>
 #include "qcom-dcc.h"
+#include "qcom-dcc-lemans-config.h"
 
 #define DEV_NAME "qcom-dcc"
 
@@ -791,34 +792,6 @@ static const struct dcc_pdata talos_pdata = {
 	.dcc_offset	= 0x6000,
 	.map_ver	= 0x1,
 	.config		= &talos_config,
-};
-
-static const struct dcc_register_entry lemans_dcc_entries[] = {
-	{ "R 0x610110 1" },
-	{ "R 0x9050008 1" },
-};
-
-static const struct dcc_link_config lemans_link_configs[] = {
-	{
-		.link_list	= 6,
-		.entries	= lemans_dcc_entries,
-		.num_entries	= ARRAY_SIZE(lemans_dcc_entries),
-	},
-};
-
-static const struct dcc_config lemans_config = {
-	.lists		= lemans_link_configs,
-	.num_lists	= ARRAY_SIZE(lemans_link_configs),
-};
-
-static const struct dcc_pdata lemans_pdata = {
-	.base		= 0x040ff000,
-	.size		= 0x00001000,
-	.ram_base	= 0x040b8800,
-	.ram_size	= 0x00006000,
-	.dcc_offset	= 0x38800,
-	.map_ver	= 0x3,
-	.config		= &lemans_config,
 };
 
 static const struct dcc_pdata kodiak_pdata = {
