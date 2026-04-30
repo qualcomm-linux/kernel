@@ -217,6 +217,8 @@ struct venus_core {
 		size_t mapped_mem_size;
 		phys_addr_t mem_phys;
 		size_t mem_size;
+		struct qcom_scm_pas_context *ctx;
+		bool iommu_domain_owned;
 	} fw;
 	struct mutex lock;
 	struct list_head instances;
