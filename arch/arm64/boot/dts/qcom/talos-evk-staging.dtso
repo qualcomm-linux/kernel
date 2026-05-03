@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&pcie {
+	iommu-map = <0x0 &apps_smmu 0x400 0x1>,
+		    <0x100 &apps_smmu 0x401 0x1>,
+		    <0x208 &apps_smmu 0x402 0x1>,
+		    <0x210 &apps_smmu 0x403 0x1>,
+		    <0x218 &apps_smmu 0x404 0x1>,
+		    <0x300 &apps_smmu 0x405 0x1>,
+		    <0x400 &apps_smmu 0x406 0x1>,
+		    <0x500 &apps_smmu 0x407 0x1>,
+		    <0x501 &apps_smmu 0x408 0x1>;
+
+	status = "okay";
+};
+
+/*
+ * With QPS615 installed, the m.2 E-key slot is occupied by the QPS615
+ * PCIe switch (pci1179,0623) rather than the direct WCN7850 WLAN chip.
+ *
+ * QPS615 downstream port layout:
+ *   pcie@1,0 (bus 3) — WCN7850 WLAN, moved here from the direct connection
+ *   pcie@2,0 (bus 4) — free downstream port
+ *   pci@3,0  (bus 5) — TC956X dual Ethernet (QPS615 GPIO-reset PHYs)
+ */
+&pcie_port0 {
+	wifi@0 {
+		status = "disabled";
+
+		pcie@1,0 {
+			reg = <0x20800 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x3 0x3>;
+
+			wifi@0,0 {
+				compatible = "pci17cb,1103";
+				reg = <0x30000 0x0 0x0 0x0 0x0>;
+
+				qcom,calibration-variant = "QC_QCS615_Ride";
+
+				vddrfacmn-supply = <&vreg_pmu_rfa_cmn>;
+				vddaon-supply = <&vreg_pmu_aon_0p59>;
+				vddwlcx-supply = <&vreg_pmu_wlcx_0p8>;
+				vddwlmx-supply = <&vreg_pmu_wlmx_0p85>;
+				vddrfa0p8-supply = <&vreg_pmu_rfa_0p8>;
+				vddrfa1p2-supply = <&vreg_pmu_rfa_1p2>;
+				vddrfa1p8-supply = <&vreg_pmu_rfa_1p7>;
+				vddpcie0p9-supply = <&vreg_pmu_pcie_0p9>;
+				vddpcie1p8-supply = <&vreg_pmu_pcie_1p8>;
+			};
+		};
+
+		pci@3,0 {
+			reg = <0x21800 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x5 0xff>;
+			compatible = "pci1179,0623";
+
+			qps615: pci@0,0 {
+				reg = <0x50000 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				phy-reset-gpios = <&qps615 0 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <221000>;
+			};
+
+			pci@0,1 {
+				reg = <0x50100 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+
+				phy-reset-gpios = <&qps615 1 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <20000>;
+			};
+		};
+	};
+};
