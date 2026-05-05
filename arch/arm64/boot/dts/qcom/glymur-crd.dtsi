@@ -976,6 +976,13 @@
 			"qcom/glymur/soccp_dtb.mbn";
 };
 
+&psci {
+	reboot-mode {
+		mode-edl = <0x80000000 0x1>;
+		mode-bootloader = <0x80010001 0x2>;
+	};
+};
+
 &tlmm {
 	gpio-reserved-ranges = <4 4>, /* EC TZ Secure I3C */
 			       <10 2>, /* OOB UART */
