@@ -586,6 +586,10 @@ qcs615-ride-camx-dtbs	:= qcs615-ride.dtb qcs615-ride-camx.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-camx.dtbo
 
+qcs5430-fps-camx-dtbs := qcs6490-rb3gen2.dtb qcs5430-fps-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += qcs5430-fps-camx.dtb
+
 qcs6490-rb3gen2-vision-mezzanine-camx-dtbs := qcs6490-rb3gen2-vision-mezzanine.dtb \
 						      qcs6490-rb3gen2-vision-mezzanine-camx.dtbo
 
