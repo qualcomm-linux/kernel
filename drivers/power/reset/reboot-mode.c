@@ -119,7 +119,15 @@ static int reboot_mode_create_device(struct reboot_mode_driver *reboot)
 	struct reboot_mode_sysfs_data *priv;
 	struct mode_info *sysfs_info;
 	struct mode_info *info;
+	const char *dev_name;
 	int ret;
+
+	dev_name = reboot->name;
+	if (!dev_name) {
+		if (!reboot->dev || !reboot->dev->driver)
+			return -EINVAL;
+		dev_name = reboot->dev->driver->name;
+	}
 
 	priv = kzalloc_obj(*priv);
 	if (!priv)
@@ -146,7 +154,7 @@ static int reboot_mode_create_device(struct reboot_mode_driver *reboot)
 
 	priv->reboot_mode_device = device_create(&reboot_mode_class, NULL, 0,
 						 (void *)priv, "%s",
-						 reboot->dev->driver->name);
+						 dev_name);
 	if (IS_ERR(priv->reboot_mode_device)) {
 		ret = PTR_ERR(priv->reboot_mode_device);
 		goto error;
@@ -253,8 +261,16 @@ static inline void reboot_mode_unregister_device(struct reboot_mode_driver *rebo
 {
 	struct reboot_mode_sysfs_data *priv;
 	struct device *reboot_mode_device;
+	const char *dev_name;
 
-	reboot_mode_device = class_find_device(&reboot_mode_class, NULL, reboot->dev->driver->name,
+	dev_name = reboot->name;
+	if (!dev_name) {
+		if (!reboot->dev || !reboot->dev->driver)
+			return;
+		dev_name = reboot->dev->driver->name;
+	}
+
+	reboot_mode_device = class_find_device(&reboot_mode_class, NULL, dev_name,
 					       reboot_mode_match_by_name);
 
 	if (!reboot_mode_device)

@@ -626,6 +626,7 @@ static int __init psci_init_vendor_reset(void)
 	}
 
 	reboot->write = psci_set_vendor_sys_reset2;
+	reboot->name = "psci";
 
 	ret = reboot_mode_register(reboot, of_fwnode_handle(np));
 	if (ret)
