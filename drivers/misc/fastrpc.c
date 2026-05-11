@@ -329,8 +329,6 @@ struct fastrpc_user {
 	spinlock_t lock;
 	/* lock for allocations */
 	struct mutex mutex;
-	/* Reference count */
-	struct kref refcount;
 };
 
 static void fastrpc_free_map(struct kref *ref)
@@ -502,36 +500,15 @@ static void fastrpc_channel_ctx_put(struct fastrpc_channel_ctx *cctx)
 	kref_put(&cctx->refcount, fastrpc_channel_ctx_free);
 }
 
-static void fastrpc_user_free(struct kref *ref)
-{
-	struct fastrpc_user *fl = container_of(ref, struct fastrpc_user, refcount);
-
-	fastrpc_channel_ctx_put(fl->cctx);
-	mutex_destroy(&fl->mutex);
-	kfree(fl);
-}
-
-static void fastrpc_user_get(struct fastrpc_user *fl)
-{
-	kref_get(&fl->refcount);
-}
-
-static void fastrpc_user_put(struct fastrpc_user *fl)
-{
-	kref_put(&fl->refcount, fastrpc_user_free);
-}
-
 static void fastrpc_context_free(struct kref *ref)
 {
 	struct fastrpc_invoke_ctx *ctx;
 	struct fastrpc_channel_ctx *cctx;
-	struct fastrpc_user *fl;
 	unsigned long flags;
 	int i;
 
 	ctx = container_of(ref, struct fastrpc_invoke_ctx, refcount);
 	cctx = ctx->cctx;
-	fl = ctx->fl;
 
 	for (i = 0; i < ctx->nbufs; i++)
 		fastrpc_map_put(ctx->maps[i]);
@@ -546,8 +523,6 @@ static void fastrpc_context_free(struct kref *ref)
 	kfree(ctx->olaps);
 	kfree(ctx);
 
-	/* Release the reference taken in fastrpc_context_alloc() */
-	fastrpc_user_put(fl);
 	fastrpc_channel_ctx_put(cctx);
 }
 
@@ -657,8 +632,6 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 
 	/* Released in fastrpc_context_put() */
 	fastrpc_channel_ctx_get(cctx);
-	/* Take a reference to user, released in fastrpc_context_free() */
-	fastrpc_user_get(user);
 
 	ctx->sc = sc;
 	ctx->retval = -1;
@@ -689,7 +662,6 @@ err_idr:
 	spin_lock(&user->lock);
 	list_del(&ctx->node);
 	spin_unlock(&user->lock);
-	fastrpc_user_put(user);
 	fastrpc_channel_ctx_put(cctx);
 	kfree(ctx->maps);
 	kfree(ctx->olaps);
@@ -1682,9 +1654,11 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 	}
 
 	fastrpc_session_free(cctx, fl->sctx);
+	fastrpc_channel_ctx_put(cctx);
+
+	mutex_destroy(&fl->mutex);
+	kfree(fl);
 	file->private_data = NULL;
-	/* Release the reference taken in fastrpc_device_open */
-	fastrpc_user_put(fl);
 
 	return 0;
 }
@@ -1728,7 +1702,6 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 	spin_lock_irqsave(&cctx->lock, flags);
 	list_add_tail(&fl->user, &cctx->users);
 	spin_unlock_irqrestore(&cctx->lock, flags);
-	kref_init(&fl->refcount);
 
 	return 0;
 }
