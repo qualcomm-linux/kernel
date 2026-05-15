@@ -553,6 +553,10 @@ hamoa-evk-camx-dtbs  := hamoa-iot-evk.dtb hamoa-evk-camx.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-evk-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-evk-camx.dtbo
 
+hamoa-camx-el2-dtbs  := hamoa-iot-evk-el2.dtb hamoa-evk-camx.dtbo hamoa-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camx-el2.dtb
+
 lemans-evk-camx-dtbs	:= lemans-evk.dtb lemans-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtb
