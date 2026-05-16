@@ -757,7 +757,7 @@
 };
 
 &gpi_dma0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &gpi_dma1 {
