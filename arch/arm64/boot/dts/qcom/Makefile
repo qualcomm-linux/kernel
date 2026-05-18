@@ -640,3 +640,5 @@ dtb-$(CONFIG_ARCH_QCOM) += glymur-staging.dtbo
 dtb-$(CONFIG_ARCH_QCOM) += hamoa-staging.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += sm8750-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += kaanapali-staging.dtbo
