@@ -8,6 +8,8 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/thermal/thermal.h>
+
 &soc {
 	tgu@10b0e000 {
 		compatible = "qcom,tgu", "arm,primecell";
@@ -33,3 +35,83 @@
 		clock-names = "apb_pclk";
 	};
 };
+
+&remoteproc_cdsp {
+	cooling {
+		compatible = "qcom,qmi-cooling-cdsp";
+
+		cdsp_tmd0: cdsp-tmd0 {
+			label = "cdsp_sw";
+			#cooling-cells = <2>;
+		};
+	};
+};
+
+&thermal_nsp0 {
+	trips {
+		nsp0_alert0: trip-point1 {
+			temperature = <105000>;
+			hysteresis = <5000>;
+			type = "passive";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&nsp0_alert0>;
+			cooling-device = <&cdsp_tmd0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&thermal_nsp1 {
+	trips {
+		nsp1_alert0: trip-point1 {
+			temperature = <105000>;
+			hysteresis = <5000>;
+			type = "passive";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&nsp1_alert0>;
+			cooling-device = <&cdsp_tmd0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&thermal_nsp2 {
+	trips {
+		nsp2_alert0: trip-point1 {
+			temperature = <105000>;
+			hysteresis = <5000>;
+			type = "passive";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&nsp2_alert0>;
+			cooling-device = <&cdsp_tmd0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&thermal_nsp3 {
+	trips {
+		nsp3_alert0: trip-point1 {
+			temperature = <105000>;
+			hysteresis = <5000>;
+			type = "passive";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&nsp3_alert0>;
+			cooling-device = <&cdsp_tmd0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
