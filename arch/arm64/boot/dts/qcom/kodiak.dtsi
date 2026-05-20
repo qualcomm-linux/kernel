@@ -6688,6 +6688,11 @@
 				function = "mi2s1_ws";
 			};
 
+			mi2s1_mclk: mi2s1-mclk-state {
+				pins = "gpio105";
+				function = "sec_mi2s";
+			};
+
 			sdc1_clk: sdc1-clk-state {
 				pins = "sdc1_clk";
 			};
