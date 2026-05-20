@@ -286,10 +286,6 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qru1000-idp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8155p-adp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8295p-adp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8540p-ride.dtb
-dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride.dtb
-
-dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-r3.dtb
-
 sc7180-acer-aspire1-el2-dtbs	:= sc7180-acer-aspire1.dtb sc7180-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-acer-aspire1.dtb sc7180-acer-aspire1-el2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-idp.dtb
@@ -667,14 +663,7 @@ qcs9100-ride-r3-camx-dtbs:= qcs9100-ride-r3.dtb sa8775p-ride-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3-camx.dtb
 
-sa8775p-ride-camx-dtbs:= sa8775p-ride.dtb sa8775p-ride-camx.dtbo
-
-dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-camx.dtbo
-
-sa8775p-ride-r3-camx-dtbs:= sa8775p-ride-r3.dtb sa8775p-ride-camx.dtbo
-
-dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-r3-camx.dtb
 
 talos-evk-camx-dtbs	:= talos-evk.dtb talos-evk-camx.dtbo
 
