@@ -125,7 +125,7 @@
 	};
 
 	/*cam0a-ov9282*/
-	rb8_slot0: qcom,cam-sensor1 {
+	qcom,cam-sensor1 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <0>;
 		sensor-position-roll = <0>;
@@ -439,7 +439,7 @@
 	};
 
 	/*cam1-ov9282*/
-	rb8_slot1: qcom,cam-sensor21 {
+	qcom,cam-sensor21 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <1>;
 		sensor-position-roll = <0>;
@@ -454,10 +454,8 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk1_active
-			     &cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_mclk1_suspend
-			     &cam_sensor_suspend_rst1>;
+		pinctrl-0 = <&cam_sensor_active_rst1>;
+		pinctrl-1 = <&cam_sensor_suspend_rst1>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 73 0>,
 			<&tlmm 133 0>,
@@ -475,47 +473,6 @@
 		clock-cntl-level = "nominal";
 		clock-rates = <24000000>;
 		cell-index = <21>;
-		status = "ok";
-	};
-
-	/*cam1-imx577*/
-	qcom,cam-sensor26 {
-		compatible = "qcom,cam-sensor";
-		csiphy-sd-index = <1>;
-		sensor-position-roll = <0>;
-		sensor-position-pitch = <0>;
-		sensor-position-yaw = <180>;
-		eeprom-src = <&eeprom_cam26>;
-		cam_vio-supply = <&vreg_s4a>;
-		regulator-names = "cam_vio";
-		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
-		rgltr-cntrl-support;
-		pwm-switch;
-		rgltr-min-voltage = <1800000>;
-		rgltr-max-voltage = <1800000>;
-		rgltr-load-current = <120000>;
-		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk1_active
-		             &cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_mclk1_suspend
-		             &cam_sensor_suspend_rst1>;
-		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 73 0>,
-		        <&tlmm 133 0>,
-		        <&pmm8654au_0_gpios 8 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK1",
-		                     "CAMIF_RESET1",
-		                     "CAM_CUSTOM1";
-		cci-master = <0>;
-		clocks = <&camcc CAM_CC_MCLK1_CLK>;
-		clock-names = "cam_clk";
-		clock-cntl-level = "nominal";
-		clock-rates = <24000000>;
-		cell-index = <26>;
 		status = "ok";
 	};
 
@@ -560,8 +517,13 @@
 		status = "ok";
 	};
 
-	eeprom_cam26: qcom,eeprom26 {
-		compatible = "qcom,eeprom";
+	/*cam1-ov9282*/
+	qcom,cam-sensor31 {
+		compatible = "qcom,cam-sensor";
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
 		cam_vio-supply = <&vreg_s4a>;
 		regulator-names = "cam_vio";
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
@@ -571,28 +533,22 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk1_active
-		             &cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_mclk1_suspend
-		             &cam_sensor_suspend_rst1>;
-		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 73 0>,
-		        <&tlmm 133 0>,
+			<&expander2 2 0>,
 		        <&pmm8654au_0_gpios 8 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
 		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAMIF_MCLK1",
-		                     "CAM_RESET1",
+		gpio-req-tbl-label = "CAM_MCLK1",
+		                     "CAMIF_RESET1",
 		                     "CAM_CUSTOM1";
-		sensor-mode = <0>;
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK1_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "nominal";
 		clock-rates = <24000000>;
-		cell-index = <26>;
+		cell-index = <31>;
 		status = "ok";
 	};
 
@@ -755,7 +711,7 @@
 	};
 
 	/*cam2-ov9282*/
-	rb8_slot2: qcom,cam-sensor22 {
+	qcom,cam-sensor22 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <2>;
 		sensor-position-roll = <0>;
@@ -994,7 +950,7 @@
 	};
 
 	/*cam3-ov9282*/
-	rb8_slot3: qcom,cam-sensor23 {
+	qcom,cam-sensor23 {
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <3>;
 		sensor-position-roll = <0>;
@@ -1115,6 +1071,11 @@
 	qcom,cam-res-mgr {
 		compatible = "qcom,cam-res-mgr";
 		gpios-shared = <518 519 520 521>;
+		gpios-shared-pinctrl = <633>;
+		shared-pctrl-gpio-names = "mclk1";
+		pinctrl-0 = <&cam_sensor_mclk1_active>;
+		pinctrl-1 = <&cam_sensor_mclk1_suspend>;
+		pinctrl-names = "mclk1_active", "mclk1_suspend";
 		status = "ok";
 	};
 };
