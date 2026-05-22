@@ -612,6 +612,63 @@ static int qca_download_firmware(struct hci_dev *hdev,
 	memcpy(data, fw->data, size);
 	release_firmware(fw);
 
+	/* For QCA_QCC2072, combine the default NVM (type 2) with the
+	 * calibration file clnbcscal10.bin into a single TLV of outer type 4.
+	 */
+	if (soc_type == QCA_QCC2072 && config->type == TLV_TYPE_NVM) {
+		const struct firmware *calib_fw = NULL;
+		int ret_calib;
+		u8 *combined_data = NULL;
+		size_t combined_size;
+		struct tlv_type_hdr *outer_hdr;
+		size_t inner_len;
+
+		/* Load calibration firmware */
+		ret_calib = request_firmware(&calib_fw, "qca/clnbcscal10.bin",
+					     &hdev->dev);
+		if (ret_calib) {
+			bt_dev_err(hdev,
+				   "Failed to load calibration file clnbcscal10.bin (%d)",
+				   ret_calib);
+			/* Proceed with original NVM if calibration not found */
+			goto skip_combination;
+		}
+
+		bt_dev_info(hdev, "QCA Downloading clnbcscal10.bin");
+
+		/* Total length of inner payload (original NVM + calibration) */
+		inner_len = size + calib_fw->size;
+
+		/* Allocate combined buffer with outer TLV header */
+		combined_size = sizeof(*outer_hdr) + inner_len;
+		combined_data = vmalloc(combined_size);
+		if (!combined_data) {
+			bt_dev_err(hdev,
+				   "Failed to allocate memory for combined NVM");
+			release_firmware(calib_fw);
+			goto skip_combination;
+		}
+
+		outer_hdr = (struct tlv_type_hdr *)combined_data;
+		/* Set type_len: high 24 bits = length, low 8 bits = type 4 */
+		outer_hdr->type_len = cpu_to_le32((inner_len << 8) | 4);
+
+		/* Copy original NVM (including its own TLV header) */
+		memcpy(combined_data + sizeof(*outer_hdr), data, size);
+		/* Append calibration TLV (already a TLV) */
+		memcpy(combined_data + sizeof(*outer_hdr) + size,
+		       calib_fw->data, calib_fw->size);
+
+		/* Replace original data with combined data */
+		vfree(data);
+		data = combined_data;
+		size = combined_size;
+
+		release_firmware(calib_fw);
+skip_combination:
+		;
+	}
+
 	ret = qca_tlv_check_data(hdev, config, data, size, soc_type);
 	if (ret)
 		goto out;
