@@ -589,6 +589,10 @@ purwa-evk-camx-dtbs     := purwa-iot-evk.dtb purwa-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= purwa-evk-camx.dtb
 
+purwa-camx-el2-dtbs  := purwa-iot-evk-el2.dtb purwa-evk-camx.dtbo purwa-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-camx-el2.dtb
+
 qcs5430-fps-camx-dtbs   := qcs6490-rb3gen2.dtb qcs5430-fps-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += qcs5430-fps-camx.dtb
