@@ -6,6 +6,13 @@
 
 /* AEST resource name */
 #define AEST_NODE_NAME "AEST:NODE"
+#define AEST_FHI_NAME "AEST:FHI"
+#define AEST_ERI_NAME "AEST:ERI"
+
+/* AEST interrupt */
+#define AEST_INTERRUPT_MODE BIT(0)
+
+#define AEST_MAX_INTERRUPT_PER_NODE 2
 
 /* AEST interface */
 #define AEST_XFACE_FLAG_SHARED		BIT(0)
