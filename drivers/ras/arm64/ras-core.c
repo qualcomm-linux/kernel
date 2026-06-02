@@ -284,6 +284,7 @@ static void ras_node_foreach_poll_record(void (*func)(struct ras_record *, void 
 					 struct ras_node *node, void *data)
 {
 	int i;
+
 	/*
 	 * Per AEST spec:
 	 *  - record_implemented: bitmap of records that are actually
@@ -310,7 +311,7 @@ static void ras_node_foreach_poll_record(void (*func)(struct ras_record *, void 
 
 static int ras_proc(struct ras_node *node)
 {
-	int count = 0, i, j, size = node->record_count;
+	int count = 0, i, j, size = node->record_count, record_idx;
 	u64 err_group = 0;
 
 	ras_node_foreach_poll_record(ras_proc_record, node, &count);
@@ -321,24 +322,27 @@ static int ras_proc(struct ras_node *node)
 	ras_node_dbg(node, "Report bitmap %*pb\n", size, node->status_reporting);
 	for (i = 0; i < BITS_TO_U64(size); i++) {
 		err_group = readq_relaxed((void *)node->errgsr + i * 8);
-		ras_node_dbg(node, "errgsr[%d]: 0x%llx\n", i, err_group);
 
 		for_each_set_bit(j, (unsigned long *)&err_group, BITS_PER_LONG) {
+			record_idx = node->errgsr_mapping(i * BITS_PER_LONG + j);
+			ras_node_dbg(node, "errgsr[%d]: bit %d occur error\n",
+				      i, record_idx);
 			/*
 			 * Error group base is only valid in Memory Map node,
 			 * so driver do not need to write select register and
 			 * sync.
 			 */
-			if (test_bit(i * BITS_PER_LONG + j, node->status_reporting))
+			if (test_bit(record_idx, node->status_reporting))
 				continue;
-			ras_proc_record(&node->records[j], &count, false);
+			ras_proc_record(&node->records[record_idx],
+					&count, false);
 		}
 	}
 
 	return count;
 }
 
-static irqreturn_t ras_irq_func(int irq, void *input)
+irqreturn_t ras_irq_func(int irq, void *input)
 {
 	struct ras_node *node = input;
 
@@ -529,7 +533,7 @@ static void ras_online_record(struct ras_record *record, void *data, bool __unus
 	ras_enable_irq(record);
 }
 
-static void ras_online_node(struct ras_node *node)
+void ras_online_node(struct ras_node *node)
 {
 	int count = 0;
 
@@ -808,6 +812,7 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 		return ERR_PTR(-EINVAL);
 	}
 
+	node->errgsr_mapping = default_errgsr_mapping;
 	node->name = alloc_ras_node_name(node);
 	if (!node->name)
 		return ERR_PTR(-ENOMEM);
@@ -877,10 +882,41 @@ static int ras_setup_irq(struct platform_device *pdev, struct ras_node *node)
 	return 0;
 }
 
+static struct ras_vendor_match vendor_match[] = {
+	{ "ARMHC701", &ras_cmn700_probe },
+	{  },
+};
+
+static int
+ras_vendor_probe(struct platform_device *pdev)
+{
+	int i;
+	struct acpi_aest_vendor_v2 vendor;
+
+	device_property_read_u8_array(&pdev->dev, "arm,node-specific-data",
+				      (u8 *)&vendor, sizeof(vendor));
+
+	dev_dbg(&pdev->dev, "Try to probe vendor node %s\n", vendor.acpi_hid);
+	for (i = 0; i < ARRAY_SIZE(vendor_match); i++) {
+		if (!strncmp(vendor_match[i].hid, vendor.acpi_hid, 8))
+			return vendor_match[i].probe(pdev);
+	}
+
+	return -ENODEV;
+}
+
 static int arm64_ras_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct ras_node *node;
+	u8 type;
+
+	ret = device_property_read_u8(&pdev->dev, "arm,node-type", &type);
+	if (ret)
+		return ret;
+
+	if (type == ACPI_AEST_VENDOR_ERROR_NODE)
+		return ras_vendor_probe(pdev);
 
 	node = ras_init_node(pdev);
 	if (IS_ERR(node))
