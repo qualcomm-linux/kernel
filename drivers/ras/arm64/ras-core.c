@@ -5,6 +5,7 @@
  * Copyright (c) 2025, Alibaba Group.
  */
 
+#include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -45,11 +46,43 @@ const struct ras_group ras_group_config[] = {
 	},
 };
 
+static void ras_node_foreach_record(void (*func)(struct ras_record *, void *),
+				    struct ras_node *node, void *data,
+				    unsigned long *bitmap)
+{
+	int i;
+
+	for_each_clear_bit(i, bitmap, node->record_count) {
+		ras_select_record(node, i);
+
+		func(&node->records[i], data);
+
+		ras_sync(node);
+	}
+	}
+
 static irqreturn_t ras_irq_func(int irq, void *input)
 {
 	struct ras_node *node = input;
 
 	return IRQ_HANDLED;
+}
+
+static void ras_config_irq(struct ras_node *node)
+{
+	u32 fhi_gsi, eri_gsi;
+
+	if (!node->irq_config)
+		return;
+
+	if (!device_property_read_u32(node->dev, "arm,fhi-gsiv", &fhi_gsi))
+		writeq_relaxed(fhi_gsi, node->irq_config + ERRFHICR0_OFFSET);
+
+	if (!device_property_read_u32(node->dev, "arm,eri-gsiv", &eri_gsi))
+		writeq_relaxed(eri_gsi, node->irq_config + ERRERICR0_OFFSET);
+
+	ras_node_dbg(node, "config irq fhi_gsi %u eri_gsi %u at %pK",
+		     fhi_gsi, eri_gsi, node->irq_config);
 }
 
 static int ras_register_irq(struct ras_node *node)
@@ -94,6 +127,21 @@ free:
 	return ret;
 }
 
+static void ras_enable_irq(struct ras_record *record)
+{
+	struct ras_node *node = record->node;
+	u64 err_ctlr;
+
+	err_ctlr = record_read(record, ERXCTLR);
+
+	if (node->irq[0])
+		err_ctlr |= (ERR_CTLR_FI | ERR_CTLR_CFI);
+	if (node->irq[1])
+		err_ctlr |= ERR_CTLR_UI;
+
+	record_write(record, ERXCTLR, err_ctlr);
+}
+
 static int ras_init_record(struct ras_record *record, int i, struct ras_node *node)
 {
 	record->name = devm_kasprintf(node->dev, GFP_KERNEL, "record%d", i);
@@ -108,6 +156,85 @@ static int ras_init_record(struct ras_record *record, int i, struct ras_node *no
 	record->node = node;
 
 	return 0;
+}
+
+static void ras_online_record(struct ras_record *record, void *data)
+{
+	ras_enable_irq(record);
+}
+
+static void ras_online_node(struct ras_node *node)
+{
+	if (!node->name)
+		return;
+
+	ras_config_irq(node);
+
+	ras_node_foreach_record(ras_online_record, node, NULL,
+				node->record_implemented);
+}
+
+static void ras_online_oncore_dev(void *data)
+{
+	int fhi_irq, eri_irq;
+	struct ras_node *node = this_cpu_ptr(data);
+
+	ras_online_node(node);
+
+	fhi_irq = node->irq[ACPI_AEST_NODE_FAULT_HANDLING];
+	if (fhi_irq > 0)
+		enable_percpu_irq(fhi_irq, IRQ_TYPE_NONE);
+	eri_irq = node->irq[ACPI_AEST_NODE_ERROR_RECOVERY];
+	if (eri_irq > 0)
+		enable_percpu_irq(eri_irq, IRQ_TYPE_NONE);
+}
+
+static void ras_offline_oncore_dev(void *data)
+{
+	int fhi_irq, eri_irq;
+	struct ras_node *node = this_cpu_ptr(data);
+
+	fhi_irq = node->irq[ACPI_AEST_NODE_FAULT_HANDLING];
+	if (fhi_irq > 0)
+		disable_percpu_irq(fhi_irq);
+	eri_irq = node->irq[ACPI_AEST_NODE_ERROR_RECOVERY];
+	if (eri_irq > 0)
+		disable_percpu_irq(eri_irq);
+}
+
+static int ras_starting_cpu(unsigned int cpu)
+{
+	pr_debug("CPU%d starting\n", cpu);
+	ras_online_oncore_dev(&percpu_ras_node);
+
+	return 0;
+}
+
+static int ras_dying_cpu(unsigned int cpu)
+{
+	pr_debug("CPU%d dying\n", cpu);
+	ras_offline_oncore_dev(&percpu_ras_node);
+
+	return 0;
+}
+
+static void arm64_ras_remove(struct platform_device *pdev)
+{
+	struct ras_node *node = platform_get_drvdata(pdev);
+	int i;
+
+	platform_set_drvdata(pdev, NULL);
+
+	if (node->type != ACPI_AEST_PROCESSOR_ERROR_NODE)
+		return;
+
+	cpuhp_remove_state(CPUHP_AP_ARM_RAS_STARTING);
+	on_each_cpu(ras_offline_oncore_dev, node->oncore_node, 1);
+
+	for (i = 0; i < AEST_MAX_INTERRUPT_PER_NODE; i++) {
+		if (node->irq[i])
+			free_percpu_irq(node->irq[i], node->oncore_node);
+	}
 }
 
 static char *alloc_ras_node_name(struct ras_node *node)
@@ -208,6 +335,23 @@ static int ras_node_set_inj_base(struct ras_node *node, phys_addr_t base)
 	return 0;
 }
 
+static int ras_node_set_irq_base(struct ras_node *node, phys_addr_t base)
+{
+	phys_addr_t irq_base;
+	int ret;
+
+	if (!(node->flags & AEST_XFACE_FLAG_INT_CONFIG))
+		return 0;
+
+	ret = device_property_read_u64(node->dev, "arm,interrupt-config-base",
+				       &irq_base);
+	if (ret || !irq_base)
+		return 0;
+
+	node->irq_config = irq_base - base + node->base;
+	return 0;
+}
+
 static struct ras_node *ras_init_node(struct platform_device *pdev)
 {
 	int i, ret = 0;
@@ -274,6 +418,9 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 		if (ret)
 			return ERR_PTR(ret);
 		ret = ras_node_set_inj_base(node, mem->start);
+		if (ret)
+			return ERR_PTR(ret);
+		ret = ras_node_set_irq_base(node, mem->start);
 		if (ret)
 			return ERR_PTR(ret);
 	} else if (node->access_type == ACPI_AEST_NODE_MEMORY_MAPPED) {
@@ -372,6 +519,15 @@ static int arm64_ras_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (ras_node_is_oncore(node))
+		ret = cpuhp_setup_state(CPUHP_AP_ARM_RAS_STARTING,
+					"drivers/ras/arm64/ras:starting",
+					ras_starting_cpu, ras_dying_cpu);
+	else
+		ras_online_node(node);
+	if (ret)
+		return ret;
+
 	platform_set_drvdata(pdev, node);
 
 	return 0;
@@ -381,7 +537,8 @@ static struct platform_driver arm64_ras_driver = {
 	.driver	= {
 		.name	= "arm64_ras",
 	},
-	.probe	= arm64_ras_probe,
+	.probe		= arm64_ras_probe,
+	.remove		= arm64_ras_remove,
 };
 
 static int __init arm64_ras_init(void)
