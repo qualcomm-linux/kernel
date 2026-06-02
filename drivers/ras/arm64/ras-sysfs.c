@@ -151,6 +151,7 @@ static void ras_record_init_debugfs(struct ras_record *record)
 			    record, &ras_record_err_count_fops);
 	debugfs_create_file("ce_threshold", 0600, record->debugfs,
 			    record, &record_ce_threshold_ops);
+	ras_inject_init_debugfs(record);
 }
 
 static void ras_init_records_debugfs(struct ras_node *node)
