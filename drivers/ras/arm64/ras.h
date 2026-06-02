@@ -10,6 +10,7 @@
 
 #include <linux/acpi_aest.h>
 #include <asm/ras.h>
+#include <linux/debugfs.h>
 
 #define DEFAULT_CE_THRESHOLD 1
 
@@ -62,6 +63,8 @@
 
 #define GIC_ERRDEVARCH		0xFFBC
 
+extern struct dentry *arm64_ras_debugfs;
+
 struct ras_access {
 	u64 (*read)(void __iomem *base, u32 offset);
 	void (*write)(void __iomem *base, u32 offset, u64 val);
@@ -80,14 +83,25 @@ struct ce_threshold {
 	u64 reg_val;
 };
 
+struct record_count {
+	u64 ce;
+	u64 de;
+	u64 uc;
+	u64 uer;
+	u64 ueo;
+	u64 ueu;
+};
+
 struct ras_record {
 	char *name;
 	void __iomem *regs_base;
 	struct ras_node *node;
 	const struct ras_access *access;
+	struct dentry *debugfs;
 
 	struct ce_threshold ce;
 	enum ras_ce_threshold threshold_type;
+	struct record_count count;
 
 	int index;
 	/*
@@ -116,6 +130,7 @@ struct ras_node {
 	struct device *dev;
 	const struct ras_group *group;
 	struct ras_node __percpu *oncore_node;
+	struct dentry *debugfs;
 
 	void __iomem *base;
 	void __iomem *errgsr;
@@ -285,5 +300,7 @@ static inline void ras_sync(struct ras_node *node)
 	if (node->type == ACPI_AEST_PROCESSOR_ERROR_NODE)
 		isb();
 }
+
+void ras_node_init_debugfs(struct ras_node *node);
 
 #endif /* _DRIVERS_RAS_ARM64_RAS_H_ */
