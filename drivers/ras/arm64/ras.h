@@ -85,6 +85,7 @@ struct ras_node {
 
 	struct device *dev;
 	const struct ras_group *group;
+	struct ras_node __percpu *oncore_node;
 
 	void __iomem *base;
 	void __iomem *errgsr;
@@ -124,6 +125,7 @@ struct ras_node {
 	u8 type;
 	u8 access_type;
 	u8 group_format;
+	u32 irq[AEST_MAX_INTERRUPT_PER_NODE];
 };
 
 #define CASE_READ(res, x)                           \
