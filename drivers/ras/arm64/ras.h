@@ -54,6 +54,9 @@
 #define ERXMISC1		0x28
 #define ERXMISC2		0x30
 #define ERXMISC3		0x38
+#define ERXPFGF			0x800
+#define ERXPFGCTL		0x808
+#define ERXPFGCDN		0x810
 
 struct ras_access {
 	u64 (*read)(void __iomem *base, u32 offset);
@@ -85,6 +88,7 @@ struct ras_node {
 
 	void __iomem *base;
 	void __iomem *errgsr;
+	void __iomem *inj;
 	phys_addr_t addr;
 
 	u8 *specific_data;
@@ -147,6 +151,9 @@ static inline u64 ras_sysreg_read(void __iomem *base __always_unused, u32 offset
 	CASE_READ(res, ERXMISC1)
 	CASE_READ(res, ERXMISC2)
 	CASE_READ(res, ERXMISC3)
+	CASE_READ(res, ERXPFGF)
+	CASE_READ(res, ERXPFGCTL)
+	CASE_READ(res, ERXPFGCDN)
 	default:
 		res = 0;
 	}
@@ -164,6 +171,9 @@ static inline void ras_sysreg_write(void __iomem *base __always_unused, u32 offs
 	CASE_WRITE(val, ERXMISC1)
 	CASE_WRITE(val, ERXMISC2)
 	CASE_WRITE(val, ERXMISC3)
+	CASE_WRITE(val, ERXPFGF)
+	CASE_WRITE(val, ERXPFGCTL)
+	CASE_WRITE(val, ERXPFGCDN)
 	default:
 		return;
 	}

@@ -139,6 +139,23 @@ static int ras_node_set_errgsr(struct ras_node *node, phys_addr_t base)
 	return 0;
 }
 
+static int ras_node_set_inj_base(struct ras_node *node, phys_addr_t base)
+{
+	phys_addr_t inj_base = 0;
+	int ret = 0;
+
+	if (!(node->flags & AEST_XFACE_FLAG_FAULT_INJECT))
+		return 0;
+
+	ret = device_property_read_u64(node->dev, "arm,fault-inject-base",
+				       &inj_base);
+	if (ret || !inj_base)
+		return -EINVAL;
+
+	node->inj = inj_base - base + node->base;
+	return 0;
+}
+
 static struct ras_node *ras_init_node(struct platform_device *pdev)
 {
 	int i, ret = 0;
@@ -204,6 +221,11 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 		ret = ras_node_set_errgsr(node, mem->start);
 		if (ret)
 			return ERR_PTR(ret);
+		ret = ras_node_set_inj_base(node, mem->start);
+		if (ret)
+			return ERR_PTR(ret);
+	} else if (node->access_type == ACPI_AEST_NODE_MEMORY_MAPPED) {
+		return ERR_PTR(-EINVAL);
 	}
 
 	node->name = alloc_ras_node_name(node);
@@ -221,8 +243,9 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 		if (ret)
 			return ERR_PTR(ret);
 	}
-	ras_node_dbg(node, "base: %llx, access_type: %s\n",
-		     node->addr, node->access_type ? "MMIO" : "Register");
+	ras_node_dbg(node, "base: %llx, access_type: %s, %s inject\n",
+		     node->addr, node->access_type ? "MMIO" : "Register",
+		     node->flags & AEST_XFACE_FLAG_FAULT_INJECT ? "with" : "without");
 	return node;
 }
 
