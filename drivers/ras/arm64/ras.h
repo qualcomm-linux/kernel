@@ -90,6 +90,7 @@ struct ras_node {
 	void __iomem *base;
 	void __iomem *errgsr;
 	void __iomem *inj;
+	void __iomem *irq_config;
 	phys_addr_t addr;
 
 	u8 *specific_data;
@@ -126,6 +127,7 @@ struct ras_node {
 	u8 access_type;
 	u8 group_format;
 	u32 irq[AEST_MAX_INTERRUPT_PER_NODE];
+	u32 gsi[AEST_MAX_INTERRUPT_PER_NODE];
 };
 
 #define CASE_READ(res, x)                           \
@@ -206,5 +208,35 @@ static const struct ras_access ras_access[] = {
 		.write = ras_iomem_write,
 	},
 };
+
+static inline bool ras_node_is_oncore(struct ras_node *node)
+{
+	/*
+	 * A processor node is "on-core" (uses PPI + cpuhp) only when its
+	 * interrupt is a per-CPU PPI.  A shared processor node (e.g. cluster
+	 * L3 cache, DSU) uses an SPI and must follow the non-oncore path
+	 * (aest_online_dev) so that aest_config_irq and aest_online_dev are
+	 * called instead of cpuhp_setup_state.
+	 */
+	if (node->type != ACPI_AEST_PROCESSOR_ERROR_NODE)
+		return false;
+	return irq_is_percpu(node->irq[ACPI_AEST_NODE_FAULT_HANDLING]) ||
+	       irq_is_percpu(node->irq[ACPI_AEST_NODE_ERROR_RECOVERY]);
+}
+
+static inline void ras_select_record(struct ras_node *node, int index)
+{
+	if (node->type == ACPI_AEST_PROCESSOR_ERROR_NODE) {
+		write_sysreg_s(index, SYS_ERRSELR_EL1);
+		isb();
+	}
+}
+
+/* Ensure all writes has taken effect. */
+static inline void ras_sync(struct ras_node *node)
+{
+	if (node->type == ACPI_AEST_PROCESSOR_ERROR_NODE)
+		isb();
+}
 
 #endif /* _DRIVERS_RAS_ARM64_RAS_H_ */
