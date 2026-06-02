@@ -11,6 +11,7 @@
 #include <linux/panic.h>
 #include <linux/platform_device.h>
 #include <linux/ras.h>
+#include <ras/ras_event.h>
 
 #include "ras.h"
 
@@ -180,6 +181,10 @@ static void ras_do_proc(struct ras_record *record, struct ras_ext_regs *regs)
 			break;
 		}
 	}
+
+	trace_arm_ras_ext_event(record->node->type, record->index, regs,
+				record->node->specific_data, record->node->specific_data_size,
+				record->vendor_data, record->vendor_data_size);
 
 	atomic_notifier_call_chain(&ras_decoder_chain, 0, record);
 
