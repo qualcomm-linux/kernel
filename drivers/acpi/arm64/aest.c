@@ -93,6 +93,7 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 	}
 
 	props[(*p)++] = PROPERTY_ENTRY_U8("arm,node-type", hdr->type);
+	props[(*p)++] = PROPERTY_ENTRY_U8("arm,interface-type", interface->type);
 	props[(*p)++] = PROPERTY_ENTRY_U8("arm,group-format",
 					  interface->group_format);
 	props[(*p)++] = PROPERTY_ENTRY_U32("arm,error-records-count",
@@ -121,7 +122,7 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 static int __init
 aest_create_node_fwnode(struct acpi_aest_hdr *hdr, struct platform_device *pdev)
 {
-	struct property_entry props[10] = { };
+	struct property_entry props[11] = { };
 	int p = 0;
 	int ret;
 
