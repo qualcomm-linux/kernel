@@ -127,7 +127,17 @@ static void ras_print(struct ras_record *record, struct ras_ext_regs *regs)
 
 static void ras_do_proc(struct ras_record *record, struct ras_ext_regs *regs)
 {
+	u64 status = regs->err_status, addr = regs->err_addr;
+
 	ras_print(record, regs);
+
+	if (status & ERR_STATUS_CE)
+		return;
+
+	if (record->addressing_mode == AEST_ADDRESS_LA || (addr & ERR_ADDR_AI))
+		return;
+
+	memory_failure_queue(addr & PHYS_MASK, 0);
 }
 
 static void ras_panic(struct ras_record *record, struct ras_ext_regs *regs,
@@ -360,7 +370,10 @@ static int ras_init_record(struct ras_record *record, int i, struct ras_node *no
 	record->access = &ras_access[node->access_type];
 	record->index = i;
 	record->node = node;
+	record->addressing_mode = test_bit(i, node->addressing_mode);
 
+	ras_record_dbg(record, "record initialized, addressing mode: %s\n",
+		       record->addressing_mode ? "LA" : "SPA");
 	return 0;
 }
 
@@ -598,12 +611,20 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 					GFP_KERNEL);
 	if (!node->status_reporting)
 		return ERR_PTR(-ENOMEM);
+	node->addressing_mode = devm_bitmap_zalloc(dev,
+					node->group->errgsr_num * BITS_PER_TYPE(u64),
+					GFP_KERNEL);
+	if (!node->addressing_mode)
+		return ERR_PTR(-ENOMEM);
 
 	ret = device_property_read_u64_array(dev, "arm,record-implemented",
 					     (u64 *)node->record_implemented,
 					     node->group->errgsr_num);
 	ret = ret ?: device_property_read_u64_array(dev, "arm,status-reporting",
 						    (u64 *)node->status_reporting,
+						    node->group->errgsr_num);
+	ret = ret ?: device_property_read_u64_array(dev, "arm,addressing-mode",
+						    (u64 *)node->addressing_mode,
 						    node->group->errgsr_num);
 	if (ret)
 		return ERR_PTR(ret);

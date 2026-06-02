@@ -13,6 +13,9 @@
 #define ACPI_AEST_PROC_FLAG_GLOBAL	BIT(0)
 #define ACPI_AEST_PROC_FLAG_SHARED	BIT(1)
 
+#define AEST_ADDRESS_SPA	0
+#define AEST_ADDRESS_LA		1
+
 /* AEST interrupt */
 #define AEST_INTERRUPT_MODE BIT(0)
 
