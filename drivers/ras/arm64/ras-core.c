@@ -169,9 +169,18 @@ static void ras_proc_record(struct ras_record *record, void *data)
 	if (regs.err_status & ERR_STATUS_MV) {
 		regs.err_misc[0] = record_read(record, ERXMISC0);
 		regs.err_misc[1] = record_read(record, ERXMISC1);
+		if (record->node->version >= ID_AA64PFR0_EL1_RAS_V1P1) {
+			regs.err_misc[2] = record_read(record, ERXMISC2);
+			regs.err_misc[3] = record_read(record, ERXMISC3);
+		}
+
 		if (record->node->flags & AEST_XFACE_FLAG_CLEAR_MISC) {
 			record_write(record, ERXMISC0, 0);
 			record_write(record, ERXMISC1, 0);
+			if (record->node->version >= ID_AA64PFR0_EL1_RAS_V1P1) {
+				record_write(record, ERXMISC2, 0);
+				record_write(record, ERXMISC3, 0);
+			}
 		}
 	}
 
@@ -356,6 +365,21 @@ static void ras_enable_irq(struct ras_record *record)
 		err_ctlr |= ERR_CTLR_UI;
 
 	record_write(record, ERXCTLR, err_ctlr);
+}
+
+static int get_ras_node_ver(struct ras_node *node)
+{
+	u32 reg;
+
+	if (node->type == ACPI_AEST_GIC_ERROR_NODE) {
+		if (!node->base)
+			return 0;
+
+		reg = readl_relaxed(node->base + GIC_ERRDEVARCH);
+		return FIELD_GET(ERRDEVARCH_REV, reg);
+	}
+
+	return FIELD_GET(ID_AA64PFR0_EL1_RAS_MASK, read_cpuid(ID_AA64PFR0_EL1));
 }
 
 static int ras_init_record(struct ras_record *record, int i, struct ras_node *node)
@@ -665,6 +689,7 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 	if (!node->name)
 		return ERR_PTR(-ENOMEM);
 
+	node->version = get_ras_node_ver(node);
 	node->records = devm_kcalloc(node->dev, node->record_count,
 				     sizeof(struct ras_record), GFP_KERNEL);
 	if (!node->records)
