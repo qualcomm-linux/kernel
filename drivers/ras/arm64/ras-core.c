@@ -139,11 +139,26 @@ static void ras_print(struct ras_record *record, struct ras_ext_regs *regs)
 	}
 }
 
+static ATOMIC_NOTIFIER_HEAD(ras_decoder_chain);
+
+void ras_register_decode_chain(struct notifier_block *nb)
+{
+	atomic_notifier_chain_register(&ras_decoder_chain, nb);
+}
+EXPORT_SYMBOL_GPL(ras_register_decode_chain);
+
+void ras_unregister_decode_chain(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&ras_decoder_chain, nb);
+}
+EXPORT_SYMBOL_GPL(ras_unregister_decode_chain);
+
 static void ras_do_proc(struct ras_record *record, struct ras_ext_regs *regs)
 {
 	u64 status = regs->err_status, addr = regs->err_addr;
 
 	ras_print(record, regs);
+	atomic_notifier_call_chain(&ras_decoder_chain, 0, record);
 
 	if (status & ERR_STATUS_CE)
 		return;
