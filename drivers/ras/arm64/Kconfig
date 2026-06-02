@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# ARM Error Source Table Support
+#
+# Copyright (c) 2025, Alibaba Group.
+#
+
+config ARM64_RAS_DRIVER
+	tristate "ARM64 RAS Driver"
+	depends on ARM64 && ACPI_AEST && RAS
+	help
+	  This is the RAS driver for the arm64 architecture. It depends on
+	  the Arm Error Source Table (AEST) to provide basic register and
+	  interrupt information.
+
+	  If set, the kernel will report and process hardware errors.
