@@ -6,3 +6,4 @@ arm64_ras-y		:= ras-core.o
 arm64_ras-y		+= ras-sysfs.o
 arm64_ras-y		+= ras-inject.o
 arm64_ras-y		+= ras-cmn.o
+arm64_ras-y		+= ras-storm.o

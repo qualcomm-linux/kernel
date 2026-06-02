@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <asm/ras.h>
 #include <linux/debugfs.h>
+#include <linux/timer.h>
 
 #define DEFAULT_CE_THRESHOLD 1
 
@@ -93,6 +94,19 @@ struct record_count {
 	u64 ueu;
 };
 
+/*
+ * history:		Bitmask tracking errors occurrence. Each set bit
+ *			represents an error seen.
+ *
+ * timestamp:		Last time (in jiffies) that the bank was polled.
+ * in_storm_mode:	Is this bank in storm mode?
+ */
+struct ras_storm_unit {
+	u64 history;
+	u64 timestamp;
+	bool in_storm_mode;
+};
+
 struct ras_record {
 	char *name;
 	void __iomem *regs_base;
@@ -105,6 +119,7 @@ struct ras_record {
 	struct ce_threshold ce;
 	enum ras_ce_threshold threshold_type;
 	struct record_count count;
+	struct ras_storm_unit storm;
 
 	int index;
 	/*
@@ -193,6 +208,9 @@ struct ras_node {
 	 */
 	int (*errgsr_mapping)(int errgsr_bit);
 	struct ras_record *records;
+	unsigned long			*storm_bitmap;
+
+	struct timer_list storm_timer;
 
 	u32 specific_data_size;
 	u32 record_count;
@@ -206,6 +224,15 @@ struct ras_node {
 	u8 group_format;
 	u32 irq[AEST_MAX_INTERRUPT_PER_NODE];
 	u32 gsi[AEST_MAX_INTERRUPT_PER_NODE];
+
+	/*
+	 * @stormy_count: Updated concurrently from hardirq and
+	 * timer softirqs.
+	 */
+	atomic_t			stormy_count;
+	unsigned int			begin_threshold;
+	unsigned int			end_poll_threshold;
+	unsigned int			timer_interval;
 };
 
 #define CASE_READ(res, x)                           \
@@ -333,5 +360,15 @@ void ras_proc_record(struct ras_record *record, void *data, bool fake);
 irqreturn_t ras_irq_func(int irq, void *input);
 void ras_online_node(struct ras_node *node);
 int ras_cmn700_probe(struct platform_device *pdev);
+
+void ras_disable_irq(struct ras_record *record);
+void ras_enable_irq(struct ras_record *record);
+void ras_node_foreach_record(void (*func)(struct ras_record *, void *, bool),
+			     struct ras_node *node, void *data, unsigned long *bitmap);
+
+/* ras-storm.c */
+int  arm64_ras_storm_init(struct ras_node *node);
+void arm64_ras_storm_track_record(struct ras_record *record, u64 err_status);
+void arm64_ras_storm_reset_node(void *data);
 
 #endif /* _DRIVERS_RAS_ARM64_RAS_H_ */

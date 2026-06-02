@@ -122,6 +122,109 @@ static int node_ce_threshold_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(node_ce_threshold_ops, NULL,
 			 node_ce_threshold_set, "%llu\n");
 
+/* Storm debugfs entries */
+
+static int storm_stormy_count_get(void *data, u64 *val)
+{
+	struct ras_node *node = data;
+
+	*val = atomic_read(&node->stormy_count);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(storm_stormy_count_ops, storm_stormy_count_get,
+			 NULL, "%llu\n");
+
+static int storm_begin_threshold_get(void *data, u64 *val)
+{
+	struct ras_node *node = data;
+
+	*val = node->begin_threshold;
+	return 0;
+}
+
+static int storm_begin_threshold_set(void *data, u64 val)
+{
+	struct ras_node *node = data;
+
+	if (val < 1 || val > BITS_PER_LONG)
+		return -EINVAL;
+
+	node->begin_threshold = val;
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(storm_begin_threshold_ops, storm_begin_threshold_get,
+			 storm_begin_threshold_set, "%llu\n");
+
+static int storm_end_poll_threshold_get(void *data, u64 *val)
+{
+	struct ras_node *node = data;
+
+	*val = node->end_poll_threshold;
+	return 0;
+}
+
+static int storm_end_poll_threshold_set(void *data, u64 val)
+{
+	struct ras_node *node = data;
+
+	if (val >= BITS_PER_LONG)
+		return -EINVAL;
+
+	node->end_poll_threshold = val;
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(storm_end_poll_threshold_ops,
+			 storm_end_poll_threshold_get,
+			 storm_end_poll_threshold_set, "%llu\n");
+
+static int storm_interval_ms_get(void *data, u64 *val)
+{
+	struct ras_node *node = data;
+
+	*val = node->timer_interval;
+	return 0;
+}
+
+static int storm_interval_ms_set(void *data, u64 val)
+{
+	struct ras_node *node = data;
+
+	node->timer_interval = val;
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(storm_interval_ms_ops,
+			 storm_interval_ms_get,
+			 storm_interval_ms_set, "%llu\n");
+
+static int record_in_storm_get(void *data, u64 *val)
+{
+	struct ras_record *record = data;
+
+	*val = atomic_read(&record->node->stormy_count);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(record_in_storm_ops, record_in_storm_get,
+			 NULL, "%llu\n");
+
+static void ras_storm_init_debugfs(struct ras_node *node)
+{
+	struct dentry *storm_dir;
+
+	if (!node->record_count)
+		return;
+
+	storm_dir = debugfs_create_dir("storm", node->debugfs);
+
+	debugfs_create_file("stormy_count", 0400, storm_dir,
+			    node, &storm_stormy_count_ops);
+	debugfs_create_file("begin_threshold", 0600, storm_dir,
+			    node, &storm_begin_threshold_ops);
+	debugfs_create_file("end_poll_threshold", 0600, storm_dir,
+			    node, &storm_end_poll_threshold_ops);
+	debugfs_create_file("check_interval_ms", 0600, storm_dir,
+			    node, &storm_interval_ms_ops);
+}
+
 static int ras_record_err_count_show(struct seq_file *m, void *data)
 {
 	struct ras_record *record = m->private;
@@ -151,6 +254,8 @@ static void ras_record_init_debugfs(struct ras_record *record)
 			    record, &ras_record_err_count_fops);
 	debugfs_create_file("ce_threshold", 0600, record->debugfs,
 			    record, &record_ce_threshold_ops);
+	debugfs_create_file("in_storm", 0400, record->debugfs,
+			    record, &record_in_storm_ops);
 	ras_inject_init_debugfs(record);
 }
 
@@ -186,6 +291,7 @@ static void ras_oncore_node_init_debugfs(struct ras_node *node)
 				    percpu_node, &ras_node_err_count_fops);
 		debugfs_create_file("ce_threshold", 0200, percpu_node->debugfs,
 				    percpu_node, &node_ce_threshold_ops);
+		ras_storm_init_debugfs(percpu_node);
 		ras_init_records_debugfs(percpu_node);
 	}
 }
@@ -208,5 +314,6 @@ void ras_node_init_debugfs(struct ras_node *node)
 			    node, &ras_node_err_count_fops);
 	debugfs_create_file("ce_threshold", 0200, node->debugfs,
 			    node, &node_ce_threshold_ops);
+	ras_storm_init_debugfs(node);
 	ras_init_records_debugfs(node);
 }

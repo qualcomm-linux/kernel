@@ -207,6 +207,9 @@ void ras_proc_record(struct ras_record *record, void *data, bool fake)
 	u64 ue;
 
 	regs.err_status = record_read(record, ERXSTATUS);
+
+	arm64_ras_storm_track_record(record, regs.err_status);
+
 	if (!(regs.err_status & ERR_STATUS_V))
 		return;
 
@@ -265,9 +268,8 @@ void ras_proc_record(struct ras_record *record, void *data, bool fake)
 	record_write(record, ERXSTATUS, regs.err_status);
 }
 
-static void ras_node_foreach_record(void (*func)(struct ras_record *, void *, bool),
-				    struct ras_node *node, void *data,
-				    unsigned long *bitmap)
+void ras_node_foreach_record(void (*func)(struct ras_record *, void *, bool),
+			     struct ras_node *node, void *data, unsigned long *bitmap)
 {
 	int i;
 
@@ -410,7 +412,7 @@ free:
 	return ret;
 }
 
-static void ras_enable_irq(struct ras_record *record)
+void ras_enable_irq(struct ras_record *record)
 {
 	struct ras_node *node = record->node;
 	u64 err_ctlr;
@@ -422,6 +424,15 @@ static void ras_enable_irq(struct ras_record *record)
 	if (node->irq[1])
 		err_ctlr |= ERR_CTLR_UI;
 
+	record_write(record, ERXCTLR, err_ctlr);
+}
+
+void ras_disable_irq(struct ras_record *record)
+{
+	u64 err_ctlr;
+
+	err_ctlr = record_read(record, ERXCTLR);
+	err_ctlr &= ~(ERR_CTLR_FI | ERR_CTLR_CFI);
 	record_write(record, ERXCTLR, err_ctlr);
 }
 
@@ -533,6 +544,11 @@ static void ras_online_record(struct ras_record *record, void *data, bool __unus
 	ras_enable_irq(record);
 }
 
+static void ras_offline_record(struct ras_record *record, void *data, bool __unused)
+{
+	ras_disable_irq(record);
+}
+
 void ras_online_node(struct ras_node *node)
 {
 	int count = 0;
@@ -547,7 +563,20 @@ void ras_online_node(struct ras_node *node)
 
 	ras_config_irq(node);
 
+	arm64_ras_storm_init(node);
+
 	ras_node_foreach_record(ras_online_record, node, NULL,
+				node->record_implemented);
+}
+
+static void ras_offline_node(struct ras_node *node)
+{
+	if (!node->name)
+		return;
+
+	arm64_ras_storm_reset_node(node);
+
+	ras_node_foreach_record(ras_offline_record, node, NULL,
 				node->record_implemented);
 }
 
@@ -570,6 +599,8 @@ static void ras_offline_oncore_dev(void *data)
 {
 	int fhi_irq, eri_irq;
 	struct ras_node *node = this_cpu_ptr(data);
+
+	ras_offline_node(node);
 
 	fhi_irq = node->irq[ACPI_AEST_NODE_FAULT_HANDLING];
 	if (fhi_irq > 0)
@@ -934,6 +965,12 @@ static int arm64_ras_probe(struct platform_device *pdev)
 	ret = ras_register_irq(node);
 	if (ret) {
 		ras_node_err(node, "register irq failed\n");
+		return ret;
+	}
+
+	ret = arm64_ras_storm_init(node);
+	if (ret) {
+		ras_node_err(node, "init storm mitigation failed\n");
 		return ret;
 	}
 
