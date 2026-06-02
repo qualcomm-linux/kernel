@@ -8,6 +8,7 @@
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/panic.h>
 #include <linux/platform_device.h>
 #include <linux/ras.h>
 
@@ -15,6 +16,12 @@
 
 #undef pr_fmt
 #define pr_fmt(fmt) "arm64_ras: " fmt
+
+static bool panic_on_ue;
+module_param(panic_on_ue, bool, 0600);
+MODULE_PARM_DESC(aest_panic_on_ue,
+		 "Panic on unrecoverable error: 0=off 1=on (default: 1)");
+
 
 static DEFINE_PER_CPU(struct ras_node, percpu_ras_node);
 
@@ -46,6 +53,145 @@ const struct ras_group ras_group_config[] = {
 	},
 };
 
+#define AEST_LOG_PREFIX_BUFFER 64
+
+static void ras_print(struct ras_record *record, struct ras_ext_regs *regs)
+{
+	static atomic_t seqno = { 0 };
+	struct ras_node *node = record->node;
+	u8 *data = node->specific_data;
+	unsigned int curr_seqno;
+	char pfx_seq[AEST_LOG_PREFIX_BUFFER];
+	int index = record->index;
+
+	curr_seqno = atomic_inc_return(&seqno);
+	snprintf(pfx_seq, sizeof(pfx_seq), "{%u}" HW_ERR, curr_seqno);
+	pr_info("%sHardware error from AEST %s\n", pfx_seq, node->name);
+
+	switch (node->type) {
+	case ACPI_AEST_PROCESSOR_ERROR_NODE: {
+		struct acpi_aest_processor *proc = (struct acpi_aest_processor *)data;
+
+		if (proc->flags &
+		    (ACPI_AEST_PROC_FLAG_SHARED | ACPI_AEST_PROC_FLAG_GLOBAL))
+			pr_err("%s Error from shared processor resource (interrupt handled on CPU%d)\n",
+			       pfx_seq, smp_processor_id());
+		else
+			pr_err("%s Error from CPU%d\n", pfx_seq, smp_processor_id());
+		break;
+	}
+	case ACPI_AEST_MEMORY_ERROR_NODE:
+		pr_err("%s Error from memory at SRAT proximity domain %#x\n",
+		       pfx_seq,
+		       ((struct acpi_aest_memory *)data)->srat_proximity_domain);
+		break;
+	case ACPI_AEST_SMMU_ERROR_NODE:
+		pr_err("%s Error from SMMU IORT node %#x subcomponent %#x\n",
+		       pfx_seq,
+		       ((struct acpi_aest_smmu *)data)->iort_node_reference,
+		       ((struct acpi_aest_smmu *)data)->subcomponent_reference);
+		break;
+	case ACPI_AEST_VENDOR_ERROR_NODE:
+		pr_err("%s Error from vendor hid %8.8s uid %#x\n", pfx_seq,
+		       ((struct acpi_aest_vendor_v2 *)data)->acpi_hid,
+		       ((struct acpi_aest_vendor_v2 *)data)->acpi_uid);
+		break;
+	case ACPI_AEST_GIC_ERROR_NODE:
+		pr_err("%s Error from GIC type %#x instance %#x\n", pfx_seq,
+		       ((struct acpi_aest_gic *)data)->interface_type,
+		       ((struct acpi_aest_gic *)data)->instance_id);
+		break;
+	default:
+		pr_err("%s Unknown AEST node type\n", pfx_seq);
+		return;
+	}
+
+	pr_err("%s  ERR%dFR: 0x%llx\n", pfx_seq, index, regs->err_fr);
+	pr_err("%s  ERR%dCTRL: 0x%llx\n", pfx_seq, index, regs->err_ctlr);
+	pr_err("%s  ERR%dSTATUS: 0x%llx\n", pfx_seq, index, regs->err_status);
+	if (regs->err_status & ERR_STATUS_AV)
+		pr_err("%s  ERR%dADDR: 0x%llx\n", pfx_seq, index,
+		       regs->err_addr);
+
+	if (regs->err_status & ERR_STATUS_MV) {
+		pr_err("%s  ERR%dMISC0: 0x%llx\n", pfx_seq, index,
+		       regs->err_misc[0]);
+		pr_err("%s  ERR%dMISC1: 0x%llx\n", pfx_seq, index,
+		       regs->err_misc[1]);
+		pr_err("%s  ERR%dMISC2: 0x%llx\n", pfx_seq, index,
+		       regs->err_misc[2]);
+		pr_err("%s  ERR%dMISC3: 0x%llx\n", pfx_seq, index,
+		       regs->err_misc[3]);
+	}
+}
+
+static void ras_do_proc(struct ras_record *record, struct ras_ext_regs *regs)
+{
+	ras_print(record, regs);
+}
+
+static void ras_panic(struct ras_record *record, struct ras_ext_regs *regs,
+		       char *msg)
+{
+	ras_print(record, regs);
+
+	panic(msg);
+}
+
+static void ras_proc_record(struct ras_record *record, void *data)
+{
+	struct ras_ext_regs regs = { 0 };
+	int *count = data;
+	u64 ue;
+
+	regs.err_status = record_read(record, ERXSTATUS);
+	if (!(regs.err_status & ERR_STATUS_V))
+		return;
+
+	(*count)++;
+
+	if (regs.err_status & ERR_STATUS_AV)
+		regs.err_addr = record_read(record, ERXADDR);
+
+	regs.err_fr = record_read(record, ERXFR);
+	regs.err_ctlr = record_read(record, ERXCTLR);
+
+	if (regs.err_status & ERR_STATUS_MV) {
+		regs.err_misc[0] = record_read(record, ERXMISC0);
+		regs.err_misc[1] = record_read(record, ERXMISC1);
+		if (record->node->flags & AEST_XFACE_FLAG_CLEAR_MISC) {
+			record_write(record, ERXMISC0, 0);
+			record_write(record, ERXMISC1, 0);
+		}
+	}
+
+	/* panic if unrecoverable and uncontainable error encountered */
+	ue = FIELD_GET(ERR_STATUS_UET, regs.err_status);
+	if ((regs.err_status & ERR_STATUS_UE) &&
+	    (ue == ERR_STATUS_UET_UC || ue == ERR_STATUS_UET_UEU)) {
+		if (!panic_on_ue)
+			ras_record_err(record, "UE detected, panic suppressed\n");
+		else
+			ras_panic(record, &regs,
+				  "AEST: unrecoverable error encountered");
+	}
+
+	ras_do_proc(record, &regs);
+
+	/* Write-one-to-clear the bits we've seen */
+	regs.err_status &= ERR_STATUS_W1TC;
+
+	/* Multi bit filed need to write all-ones to clear. */
+	if (regs.err_status & ERR_STATUS_CE)
+		regs.err_status |= ERR_STATUS_CE;
+
+	/* Multi bit filed need to write all-ones to clear. */
+	if (regs.err_status & ERR_STATUS_UET)
+		regs.err_status |= ERR_STATUS_UET;
+
+	record_write(record, ERXSTATUS, regs.err_status);
+}
+
 static void ras_node_foreach_record(void (*func)(struct ras_record *, void *),
 				    struct ras_node *node, void *data,
 				    unsigned long *bitmap)
@@ -59,11 +205,71 @@ static void ras_node_foreach_record(void (*func)(struct ras_record *, void *),
 
 		ras_sync(node);
 	}
+}
+
+static void ras_node_foreach_poll_record(void (*func)(struct ras_record *, void *),
+					 struct ras_node *node, void *data)
+{
+	int i;
+	/*
+	 * Per AEST spec:
+	 *  - record_implemented: bitmap of records that are actually
+	 *    implemented (valid records on this node).
+	 *  - status_reporting: bitmap of records whose error status is
+	 *    reported through ERRGSR; these will be discovered via the
+	 *    ERRGSR scan path below and do not need polling.
+	 *
+	 * The remaining records (implemented but not reported via ERRGSR)
+	 * must be polled one by one to detect errors. Compute that set as:
+	 *     poll_bitmap = record_implemented & ~status_reporting
+	 */
+	for_each_clear_bit(i, node->record_implemented, node->record_count) {
+		if (!test_bit(i, node->status_reporting))
+			continue;
+
+		ras_select_record(node, i);
+
+		func(&node->records[i], data);
+
+		ras_sync(node);
 	}
+}
+
+static int ras_proc(struct ras_node *node)
+{
+	int count = 0, i, j, size = node->record_count;
+	u64 err_group = 0;
+
+	ras_node_foreach_poll_record(ras_proc_record, node, &count);
+
+	if (!node->errgsr)
+		return count;
+
+	ras_node_dbg(node, "Report bitmap %*pb\n", size, node->status_reporting);
+	for (i = 0; i < BITS_TO_U64(size); i++) {
+		err_group = readq_relaxed((void *)node->errgsr + i * 8);
+		ras_node_dbg(node, "errgsr[%d]: 0x%llx\n", i, err_group);
+
+		for_each_set_bit(j, (unsigned long *)&err_group, BITS_PER_LONG) {
+			/*
+			 * Error group base is only valid in Memory Map node,
+			 * so driver do not need to write select register and
+			 * sync.
+			 */
+			if (test_bit(i * BITS_PER_LONG + j, node->status_reporting))
+				continue;
+			ras_proc_record(&node->records[j], &count);
+		}
+	}
+
+	return count;
+}
 
 static irqreturn_t ras_irq_func(int irq, void *input)
 {
 	struct ras_node *node = input;
+
+	ras_proc(node);
 
 	return IRQ_HANDLED;
 }
@@ -165,8 +371,15 @@ static void ras_online_record(struct ras_record *record, void *data)
 
 static void ras_online_node(struct ras_node *node)
 {
+	int count = 0;
+
 	if (!node->name)
 		return;
+
+	ras_node_foreach_record(ras_proc_record, node, &count,
+				node->record_implemented);
+
+	ras_node_dbg(node, "%d errors found before enabled\n", count);
 
 	ras_config_irq(node);
 
