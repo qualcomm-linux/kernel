@@ -70,6 +70,16 @@ struct ras_record {
 	const struct ras_access *access;
 
 	int index;
+	/*
+	 * This bit specifies the addressing mode to populate the ERR_ADDR
+	 * register:
+	 *   0b: Error record reports System Physical Addresses (SPA) in
+	 *       the ERR_ADDR register.
+	 *   1b: Error record reports error node-specific Logical Addresses (LA)
+	 *       in the ERR_ADDR register. OS must use other means to translate
+	 *       the reported LA into SPA.
+	 */
+	int addressing_mode;
 };
 
 struct ras_group {
@@ -116,6 +126,22 @@ struct ras_node {
 	 *              error events.
 	 */
 	unsigned long *status_reporting;
+	/*
+	 * This bitmap specifies the addressing mode used by each
+	 * error record within this error node to populate the
+	 * ERR<n>_ADDR register.
+	 * Bit[n] of this field pertains to error record corresponding
+	 * to index n in the error group.
+	 * Bit[n] = 0b: Error record at index n reports System
+	 *		Physical Addresses (SPA) in the ERR<n>_ADDR
+	 *		register.
+	 * Bit[n] = 1b: Error record at index n reports error
+	 *		node-specific Logical Addresses (LA) in the
+	 *		ERR<n>_ADDR register.
+	 * OS must use other means to translate the reported LA
+	 * into SPA
+	 */
+	unsigned long *addressing_mode;
 	struct ras_record *records;
 
 	u32 specific_data_size;
