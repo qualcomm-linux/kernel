@@ -9,6 +9,10 @@
 #define AEST_FHI_NAME "AEST:FHI"
 #define AEST_ERI_NAME "AEST:ERI"
 
+/* AEST component */
+#define ACPI_AEST_PROC_FLAG_GLOBAL	BIT(0)
+#define ACPI_AEST_PROC_FLAG_SHARED	BIT(1)
+
 /* AEST interrupt */
 #define AEST_INTERRUPT_MODE BIT(0)
 
