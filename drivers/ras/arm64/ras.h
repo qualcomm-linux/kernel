@@ -302,5 +302,7 @@ static inline void ras_sync(struct ras_node *node)
 }
 
 void ras_node_init_debugfs(struct ras_node *node);
+void ras_inject_init_debugfs(struct ras_record *record);
+void ras_proc_record(struct ras_record *record, void *data, bool fake);
 
 #endif /* _DRIVERS_RAS_ARM64_RAS_H_ */

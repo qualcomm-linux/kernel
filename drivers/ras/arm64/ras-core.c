@@ -200,7 +200,7 @@ static void ras_panic(struct ras_record *record, struct ras_ext_regs *regs,
 	panic(msg);
 }
 
-static void ras_proc_record(struct ras_record *record, void *data)
+void ras_proc_record(struct ras_record *record, void *data, bool fake)
 {
 	struct ras_ext_regs regs = { 0 };
 	int *count = data;
@@ -240,13 +240,15 @@ static void ras_proc_record(struct ras_record *record, void *data)
 	ue = FIELD_GET(ERR_STATUS_UET, regs.err_status);
 	if ((regs.err_status & ERR_STATUS_UE) &&
 	    (ue == ERR_STATUS_UET_UC || ue == ERR_STATUS_UET_UEU)) {
-		if (!panic_on_ue)
-			ras_record_err(record, "UE detected, panic suppressed\n");
-		else
+		if (fake)
+			ras_record_info(record,
+					"Simulated error! Skip panic due to fault injection\n");
+		else if (panic_on_ue)
 			ras_panic(record, &regs,
-				  "AEST: unrecoverable error encountered");
+				   "AEST: unrecoverable error encountered");
+		else
+			ras_record_err(record, "UE detected, panic suppressed\n");
 	}
-
 	ras_do_proc(record, &regs);
 
 	/* Write-one-to-clear the bits we've seen */
@@ -263,7 +265,7 @@ static void ras_proc_record(struct ras_record *record, void *data)
 	record_write(record, ERXSTATUS, regs.err_status);
 }
 
-static void ras_node_foreach_record(void (*func)(struct ras_record *, void *),
+static void ras_node_foreach_record(void (*func)(struct ras_record *, void *, bool),
 				    struct ras_node *node, void *data,
 				    unsigned long *bitmap)
 {
@@ -272,13 +274,13 @@ static void ras_node_foreach_record(void (*func)(struct ras_record *, void *),
 	for_each_clear_bit(i, bitmap, node->record_count) {
 		ras_select_record(node, i);
 
-		func(&node->records[i], data);
+		func(&node->records[i], data, false);
 
 		ras_sync(node);
 	}
 }
 
-static void ras_node_foreach_poll_record(void (*func)(struct ras_record *, void *),
+static void ras_node_foreach_poll_record(void (*func)(struct ras_record *, void *, bool),
 					 struct ras_node *node, void *data)
 {
 	int i;
@@ -300,7 +302,7 @@ static void ras_node_foreach_poll_record(void (*func)(struct ras_record *, void 
 
 		ras_select_record(node, i);
 
-		func(&node->records[i], data);
+		func(&node->records[i], data, false);
 
 		ras_sync(node);
 	}
@@ -329,7 +331,7 @@ static int ras_proc(struct ras_node *node)
 			 */
 			if (test_bit(i * BITS_PER_LONG + j, node->status_reporting))
 				continue;
-			ras_proc_record(&node->records[j], &count);
+			ras_proc_record(&node->records[j], &count, false);
 		}
 	}
 
@@ -521,7 +523,7 @@ static int ras_init_record(struct ras_record *record, int i, struct ras_node *no
 	return 0;
 }
 
-static void ras_online_record(struct ras_record *record, void *data)
+static void ras_online_record(struct ras_record *record, void *data, bool __unused)
 {
 	ras_set_ce_threshold(record);
 	ras_enable_irq(record);
