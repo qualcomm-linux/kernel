@@ -157,6 +157,8 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 					   common->error_group_register_base);
 	props[(*p)++] = PROPERTY_ENTRY_U64("arm,fault-inject-base",
 					   common->fault_inject_register_base);
+	props[(*p)++] = PROPERTY_ENTRY_U64("arm,interrupt-config-base",
+					   common->interrupt_config_register_base);
 	props[(*p)++] = PROPERTY_ENTRY_U32("arm,fhi-gsiv", fhi_gsiv);
 	props[(*p)++] = PROPERTY_ENTRY_U32("arm,eri-gsiv", eri_gsiv);
 
@@ -171,7 +173,7 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 static int __init
 aest_create_node_fwnode(struct acpi_aest_hdr *hdr, struct platform_device *pdev)
 {
-	struct property_entry props[14] = { };
+	struct property_entry props[15] = { };
 	int p = 0;
 	int ret;
 
