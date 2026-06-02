@@ -9,6 +9,7 @@
 #define _DRIVERS_RAS_ARM64_RAS_H_
 
 #include <linux/acpi_aest.h>
+#include <linux/interrupt.h>
 #include <asm/ras.h>
 #include <linux/debugfs.h>
 
@@ -98,6 +99,8 @@ struct ras_record {
 	struct ras_node *node;
 	const struct ras_access *access;
 	struct dentry *debugfs;
+	void *vendor_data;
+	size_t vendor_data_size;
 
 	struct ce_threshold ce;
 	enum ras_ce_threshold threshold_type;
@@ -177,6 +180,18 @@ struct ras_node {
 	 * into SPA
 	 */
 	unsigned long *addressing_mode;
+	/*
+	 * Usually bit[n] in errgsr indicates [n]th error record within this
+	 * error node report error. But some compoent may have different rules.
+	 * For example, CMN700 TRM 4.3.5.12 say:
+	 *	``` Error occurs when the index is even and Fault
+	 *	    occurs when the index is odd. ```
+	 *	Bit[n]: record[n] report ERROR.
+	 *	Bit[n + 1]: record[n] report FAULT.
+	 * errgsr_mapping function is used to map errgsr bit to record index
+	 * for various components.
+	 */
+	int (*errgsr_mapping)(int errgsr_bit);
 	struct ras_record *records;
 
 	u32 specific_data_size;
@@ -184,6 +199,7 @@ struct ras_node {
 	u32 record_index;
 	u32 flags;
 	int version;
+	int errgsr_num;
 
 	u8 type;
 	u8 access_type;
@@ -301,8 +317,21 @@ static inline void ras_sync(struct ras_node *node)
 		isb();
 }
 
+static inline int default_errgsr_mapping(int errgsr_bit)
+{
+	return errgsr_bit;
+}
+
+struct ras_vendor_match {
+	char hid[ACPI_ID_LEN];
+	int (*probe)(struct platform_device *pdev);
+};
+
 void ras_node_init_debugfs(struct ras_node *node);
 void ras_inject_init_debugfs(struct ras_record *record);
 void ras_proc_record(struct ras_record *record, void *data, bool fake);
+irqreturn_t ras_irq_func(int irq, void *input);
+void ras_online_node(struct ras_node *node);
+int ras_cmn700_probe(struct platform_device *pdev);
 
 #endif /* _DRIVERS_RAS_ARM64_RAS_H_ */

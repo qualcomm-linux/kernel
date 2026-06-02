@@ -5,6 +5,7 @@
  * Copyright (c) 2025, Alibaba Group.
  */
 
+#include <linux/xarray.h>
 #include <linux/cleanup.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -173,6 +174,10 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 	return 0;
 }
 
+/*
+ * Non-vendor path: attach all per-entry properties as the platform device's
+ * primary fwnode (single-layer structure).
+ */
 static int __init
 aest_create_node_fwnode(struct acpi_aest_hdr *hdr, struct platform_device *pdev)
 {
@@ -185,6 +190,51 @@ aest_create_node_fwnode(struct acpi_aest_hdr *hdr, struct platform_device *pdev)
 		return ret;
 
 	return device_create_managed_software_node(&pdev->dev, props, NULL);
+}
+
+/*
+ * CMN700 path (double-layer structure):
+ *   - first_time: create the parent fwnode on @pdev carrying the vendor
+ *     identification (HID/UID);
+ *   - always:     hang a child swnode under @pdev's primary fwnode for the
+ *     current AEST entry, so that multiple AEST entries sharing the same
+ *     HID/UID accumulate as siblings under one platform device.
+ */
+static int __init
+aest_create_cmn700_fwnode(struct acpi_aest_hdr *hdr,
+			  struct platform_device *pdev, bool first_time)
+{
+	struct acpi_aest_node_interface_header *interface;
+	struct property_entry child_props[17] = { };
+	struct fwnode_handle *child;
+	int p = 0;
+	int ret;
+
+	ret = aest_init_node_props(hdr, child_props, &p, pdev);
+	if (ret)
+		return ret;
+
+	if (first_time) {
+		ret = device_create_managed_software_node(&pdev->dev, child_props, NULL);
+		if (ret)
+			return ret;
+	}
+
+	interface = ACPI_ADD_PTR(struct acpi_aest_node_interface_header,
+				 hdr, hdr->node_interface_offset);
+
+	child_props[p++] = PROPERTY_ENTRY_U64("arm,record-base", interface->address);
+	/*
+	 * Hang the per-entry properties as a child swnode under the platform
+	 * device's primary fwnode. AEST platform devices live for the whole
+	 * system lifetime, so we intentionally do not track child fwnodes for
+	 * removal here.
+	 */
+	child = fwnode_create_software_node(child_props, dev_fwnode(&pdev->dev));
+	if (IS_ERR(child))
+		return PTR_ERR(child);
+
+	return 0;
 }
 
 static int aest_node_mem_size(u8 group_format)
@@ -264,9 +314,60 @@ static int __init acpi_aest_init_node(struct acpi_aest_hdr *aest_hdr)
 	return 0;
 }
 
+static DEFINE_XARRAY(aest_cmn700_groups);
+static int __init acpi_aest_init_cmn700_node(struct acpi_aest_hdr *aest_hdr)
+{
+	struct acpi_aest_vendor_v2 *vendor;
+	struct platform_device *existing;
+	int ret;
+
+	vendor = ACPI_ADD_PTR(struct acpi_aest_vendor_v2, aest_hdr,
+			      aest_hdr->node_specific_offset);
+
+	/*
+	 * If a previous AEST entry already produced a platform device for
+	 * the same vendor HID/UID, just append a child swnode for the
+	 * current entry under that pdev's primary fwnode and return.
+	 */
+	existing = xa_load(&aest_cmn700_groups, vendor->acpi_uid);
+	if (existing)
+		return aest_create_cmn700_fwnode(aest_hdr, existing, false);
+
+	struct platform_device *pdev __free(platform_device_put) =
+		acpi_aest_alloc_pdev(aest_hdr);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	ret = aest_create_cmn700_fwnode(aest_hdr, pdev, true);
+	if (ret)
+		return ret;
+
+	ret = platform_device_add(pdev);
+	if (ret)
+		return ret;
+
+	/* pdev is now owned by the driver core; release the cleanup-managed put. */
+	struct platform_device *added = no_free_ptr(pdev);
+
+	ret = xa_err(xa_store(&aest_cmn700_groups, vendor->acpi_uid, added, GFP_KERNEL));
+	if (ret)
+		return ret;
+
+	pr_debug("Platform device added for AEST vendor node: %s.%d\n",
+		 added->name, added->id);
+
+	return 0;
+}
+
+static int __init is_acpi_aest_cmn_node(struct acpi_aest_vendor_v2 *vendor)
+{
+	return strncmp(vendor->acpi_hid, "ARMHC701", 8) == 0;
+}
+
 static int __init acpi_aest_init_nodes(struct acpi_table_header *aest_table)
 {
 	struct acpi_aest_hdr *aest_node, *aest_end;
+	struct acpi_aest_vendor_v2 *vendor;
 	struct acpi_table_aest *aest;
 	int rc;
 
@@ -281,8 +382,14 @@ static int __init acpi_aest_init_nodes(struct acpi_table_header *aest_table)
 				"AEST node pointer overflow, bad table.\n");
 			return -EINVAL;
 		}
+		vendor = ACPI_ADD_PTR(struct acpi_aest_vendor_v2, aest_node,
+				      aest_node->node_specific_offset);
 
-		rc = acpi_aest_init_node(aest_node);
+		if (aest_node->type == ACPI_AEST_VENDOR_ERROR_NODE &&
+		    is_acpi_aest_cmn_node(vendor))
+			rc = acpi_aest_init_cmn700_node(aest_node);
+		else
+			rc = acpi_aest_init_node(aest_node);
 		if (rc)
 			return rc;
 
