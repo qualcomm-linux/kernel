@@ -1,0 +1,50 @@
+What:		/sys/kernel/debug/ras/arm64/<node_name>/
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		Directory representing a RAS node device, <name> means device
+		type, like:
+
+		- processor
+		- memory
+		- smmu
+		- ...
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/err_*
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RW) Read/Write err_* register.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/err_count
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RO) Outputs error statistics for all error records of this node.
+
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/err_count
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RO) Outputs error statistics for this record.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/ce_threshold
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(WO) Write the CE threshold to all records of this node.
+		Returns error if input exceeded the maximum threshold.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/ce_threshold
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RW) Read and write the CE threshold to this record.
+		Returns error if input exceeded the maximum threshold.

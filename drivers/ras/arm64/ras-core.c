@@ -25,6 +25,8 @@ MODULE_PARM_DESC(aest_panic_on_ue,
 
 static DEFINE_PER_CPU(struct ras_node, percpu_ras_node);
 
+struct dentry *arm64_ras_debugfs;
+
 static const char *const ras_node_name[] = {
 	[ACPI_AEST_PROCESSOR_ERROR_NODE] = "processor",
 	[ACPI_AEST_MEMORY_ERROR_NODE] = "memory",
@@ -158,6 +160,27 @@ static void ras_do_proc(struct ras_record *record, struct ras_ext_regs *regs)
 	u64 status = regs->err_status, addr = regs->err_addr;
 
 	ras_print(record, regs);
+	if (regs->err_status & ERR_STATUS_CE)
+		record->count.ce++;
+	if (regs->err_status & ERR_STATUS_DE)
+		record->count.de++;
+	if (regs->err_status & ERR_STATUS_UE) {
+		switch (FIELD_GET(ERR_STATUS_UET, regs->err_status)) {
+		case ERR_STATUS_UET_UC:
+			record->count.uc++;
+			break;
+		case ERR_STATUS_UET_UEU:
+			record->count.ueu++;
+			break;
+		case ERR_STATUS_UET_UER:
+			record->count.uer++;
+			break;
+		case ERR_STATUS_UET_UEO:
+			record->count.ueo++;
+			break;
+		}
+	}
+
 	atomic_notifier_call_chain(&ras_decoder_chain, 0, record);
 
 	if (status & ERR_STATUS_CE)
@@ -887,6 +910,8 @@ static int arm64_ras_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, node);
 
+	ras_node_init_debugfs(node);
+
 	return 0;
 }
 
@@ -900,12 +925,18 @@ static struct platform_driver arm64_ras_driver = {
 
 static int __init arm64_ras_init(void)
 {
+#ifdef CONFIG_DEBUG_FS
+	arm64_ras_debugfs = debugfs_create_dir("arm64", ras_debugfs_dir);
+#endif
 	return platform_driver_register(&arm64_ras_driver);
 }
 module_init(arm64_ras_init);
 
 static void __exit arm64_ras_exit(void)
 {
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(arm64_ras_debugfs);
+#endif
 	platform_driver_unregister(&arm64_ras_driver);
 }
 module_exit(arm64_ras_exit);

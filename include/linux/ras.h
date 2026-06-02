@@ -71,4 +71,6 @@ static inline void ras_register_decode_chain(struct notifier_block *nb) {}
 static inline void ras_unregister_decode_chain(struct notifier_block *nb) {}
 #endif /* CONFIG_ARM64_RAS_DRIVER */
 
+extern struct dentry *ras_debugfs_dir;
+
 #endif /* __RAS_H__ */
