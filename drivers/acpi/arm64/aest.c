@@ -15,6 +15,40 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "ACPI AEST: " fmt
 
+static int acpi_aest_parse_irqs(struct platform_device *pdev,
+				struct acpi_aest_hdr *aest_hdr,
+				struct resource *res, int *res_idx)
+{
+	int i;
+	struct acpi_aest_node_interrupt_v2 *interrupt;
+	int trigger, irq;
+
+	interrupt = ACPI_ADD_PTR(struct acpi_aest_node_interrupt_v2, aest_hdr,
+				aest_hdr->node_interrupt_offset);
+	for (i = 0; i < aest_hdr->node_interrupt_count; i++, interrupt++) {
+		trigger = (interrupt->flags & AEST_INTERRUPT_MODE) ?
+				  ACPI_LEVEL_SENSITIVE :
+				  ACPI_EDGE_SENSITIVE;
+
+		irq = acpi_register_gsi(&pdev->dev, interrupt->gsiv, trigger,
+					ACPI_ACTIVE_HIGH);
+		if (irq <= 0) {
+			pr_err("failed to map AEST GSI %d\n", interrupt->gsiv);
+			return irq ? irq : -EINVAL;
+		}
+
+		res[*res_idx].start = irq;
+		res[*res_idx].end = irq;
+		res[*res_idx].flags = IORESOURCE_IRQ;
+		res[*res_idx].name = interrupt->type ? AEST_ERI_NAME :
+						       AEST_FHI_NAME;
+
+		(*res_idx)++;
+	}
+
+	return 0;
+}
+
 /*
  * Fill the per-AEST-entry inner properties (node-type / interface-type /
  * group-format / record bitmaps / register bases ...).
@@ -25,9 +59,11 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 {
 	struct acpi_aest_node_interface_header *interface;
 	struct acpi_aest_node_interface_common *common = NULL;
+	struct acpi_aest_node_interrupt_v2 *interrupt;
 	u64 *record_implemented = NULL;
 	u64 *status_reporting = NULL;
 	u64 *addressing_mode = NULL;
+	u32 fhi_gsiv = 0, eri_gsiv = 0;
 	int group_len = 0, i;
 	size_t len;
 
@@ -72,6 +108,15 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 		return -EINVAL;
 	}
 
+	interrupt = ACPI_ADD_PTR(struct acpi_aest_node_interrupt_v2, hdr,
+				 hdr->node_interrupt_offset);
+	for (i = 0; i < hdr->node_interrupt_count; i++, interrupt++) {
+		if (interrupt->type == ACPI_AEST_NODE_FAULT_HANDLING)
+			fhi_gsiv = interrupt->gsiv;
+		else if (interrupt->type == ACPI_AEST_NODE_ERROR_RECOVERY)
+			eri_gsiv = interrupt->gsiv;
+	}
+
 	if (interface->flags & AEST_XFACE_FLAG_ERROR_DEVICE) {
 		struct acpi_device *companion;
 		char uid[16];
@@ -112,6 +157,8 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 					   common->error_group_register_base);
 	props[(*p)++] = PROPERTY_ENTRY_U64("arm,fault-inject-base",
 					   common->fault_inject_register_base);
+	props[(*p)++] = PROPERTY_ENTRY_U32("arm,fhi-gsiv", fhi_gsiv);
+	props[(*p)++] = PROPERTY_ENTRY_U32("arm,eri-gsiv", eri_gsiv);
 
 	len = hdr->node_interface_offset - hdr->node_specific_offset;
 	props[(*p)++] =
@@ -124,7 +171,7 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 static int __init
 aest_create_node_fwnode(struct acpi_aest_hdr *hdr, struct platform_device *pdev)
 {
-	struct property_entry props[12] = { };
+	struct property_entry props[14] = { };
 	int p = 0;
 	int ret;
 
@@ -163,7 +210,8 @@ acpi_aest_alloc_pdev(struct acpi_aest_hdr *aest_hdr)
 	if (!pdev)
 		return ERR_PTR(-ENOMEM);
 
-	res = kcalloc(1, sizeof(*res), GFP_KERNEL);
+	res = kcalloc(AEST_MAX_INTERRUPT_PER_NODE + 1, sizeof(*res),
+		      GFP_KERNEL);
 	if (!res)
 		return ERR_PTR(-ENOMEM);
 
@@ -176,6 +224,10 @@ acpi_aest_alloc_pdev(struct acpi_aest_hdr *aest_hdr)
 		res[j].flags = IORESOURCE_MEM;
 		j++;
 	}
+
+	ret = acpi_aest_parse_irqs(pdev, aest_hdr, res, &j);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = platform_device_add_resources(pdev, res, j);
 	if (ret)

@@ -5,6 +5,7 @@
  * Copyright (c) 2025, Alibaba Group.
  */
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/ras.h>
@@ -13,6 +14,8 @@
 
 #undef pr_fmt
 #define pr_fmt(fmt) "arm64_ras: " fmt
+
+static DEFINE_PER_CPU(struct ras_node, percpu_ras_node);
 
 static const char *const ras_node_name[] = {
 	[ACPI_AEST_PROCESSOR_ERROR_NODE] = "processor",
@@ -41,6 +44,55 @@ const struct ras_group ras_group_config[] = {
 		.errgsr_offset = ERXGROUP_64K_OFFSET,
 	},
 };
+
+static irqreturn_t ras_irq_func(int irq, void *input)
+{
+	struct ras_node *node = input;
+
+	return IRQ_HANDLED;
+}
+
+static int ras_register_irq(struct ras_node *node)
+{
+	int i, irq, ret;
+	char *irq_desc;
+
+	irq_desc = devm_kasprintf(node->dev, GFP_KERNEL, "%s.%s.",
+				  dev_driver_string(node->dev),
+				  node->name);
+	if (!irq_desc)
+		return -ENOMEM;
+
+	for (i = 0; i < AEST_MAX_INTERRUPT_PER_NODE; i++) {
+		irq = node->irq[i];
+
+		if (!irq)
+			continue;
+
+		if (irq_is_percpu_devid(irq)) {
+			ret = request_percpu_irq(irq, ras_irq_func, irq_desc,
+						 node->oncore_node);
+			if (ret)
+				goto free;
+		} else {
+			ret = devm_request_irq(node->dev, irq, ras_irq_func, IRQF_SHARED,
+					       irq_desc, node);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+
+free:
+	for (i = i - 1; i >= 0; i--) {
+		irq = node->irq[i];
+
+		if (irq_is_percpu_devid(irq))
+			free_percpu_irq(irq, node->oncore_node);
+	}
+
+	return ret;
+}
 
 static int ras_init_record(struct ras_record *record, int i, struct ras_node *node)
 {
@@ -249,6 +301,53 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 	return node;
 }
 
+
+static int __setup_ppi(struct ras_node *node)
+{
+	int cpu;
+	struct ras_node *oncore_node;
+	size_t size;
+
+	node->oncore_node = &percpu_ras_node;
+	for_each_possible_cpu(cpu) {
+		oncore_node = per_cpu_ptr(&percpu_ras_node, cpu);
+		memcpy(oncore_node, node, sizeof(struct ras_node));
+
+		oncore_node->records = devm_kcalloc(
+			node->dev, oncore_node->record_count,
+			sizeof(struct ras_record), GFP_KERNEL);
+		if (!oncore_node->records)
+			return -ENOMEM;
+
+		size = oncore_node->record_count *
+			sizeof(struct ras_record);
+		memcpy(oncore_node->records, node->records, size);
+
+		ras_node_dbg(node, "Init node on CPU%d.\n", cpu);
+	}
+
+	return 0;
+}
+
+static int ras_setup_irq(struct platform_device *pdev, struct ras_node *node)
+{
+	int fhi_irq, eri_irq;
+
+	fhi_irq = platform_get_irq_byname_optional(pdev, AEST_FHI_NAME);
+	if (fhi_irq > 0)
+		node->irq[ACPI_AEST_NODE_FAULT_HANDLING] = fhi_irq;
+
+	eri_irq = platform_get_irq_byname_optional(pdev, AEST_ERI_NAME);
+	if (eri_irq > 0)
+		node->irq[ACPI_AEST_NODE_ERROR_RECOVERY] = eri_irq;
+
+	/* Allocate and initialise the percpu device pointer for PPI */
+	if (irq_is_percpu(fhi_irq) || irq_is_percpu(eri_irq))
+		return __setup_ppi(node);
+
+	return 0;
+}
+
 static int arm64_ras_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -262,6 +361,16 @@ static int arm64_ras_probe(struct platform_device *pdev)
 			   pdev->id);
 	if (ret)
 		return ret;
+
+	ret = ras_setup_irq(pdev, node);
+	if (ret)
+		return ret;
+
+	ret = ras_register_irq(node);
+	if (ret) {
+		ras_node_err(node, "register irq failed\n");
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, node);
 
