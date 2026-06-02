@@ -452,6 +452,16 @@ static int cmn_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nodes);
 
 	for (int i = 0; i < cmn_config->dev_num; i++) {
+
+		if (!nodes[i].name)
+			continue;
+
+		ret = arm64_ras_storm_init(&nodes[i]);
+		if (ret) {
+			ras_node_err(&nodes[i], "init storm mitigation failed\n");
+			return ret;
+		}
+
 		ras_online_node(&nodes[i]);
 		ras_node_init_debugfs(&nodes[i]);
 	}

@@ -82,6 +82,9 @@ static int soft_inject_store(void *data, u64 val)
 
 	ras_proc_record(&record_inj, &count, true);
 
+	memcpy(&record->count, &record_inj.count, sizeof(record->count));
+	memcpy(&record->storm, &record_inj.storm, sizeof(record->storm));
+
 	if (count != 1)
 		return -EIO;
 
