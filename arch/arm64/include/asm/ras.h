@@ -31,6 +31,10 @@
 #define ERR_STATUS_UET_UEO		2
 #define ERR_STATUS_UET_UER		3
 
+/* ERR<n>ADDR */
+#define ERR_ADDR_AI			BIT(61)
+#define ERR_ADDR_PADDR			GENMASK_ULL(55, 0)
+
 /* ERR<n>CTLR */
 #define ERR_CTLR_CFI			BIT(8)
 #define ERR_CTLR_FI			BIT(3)

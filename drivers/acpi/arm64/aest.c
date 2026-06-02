@@ -153,6 +153,9 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 	props[(*p)++] = PROPERTY_ENTRY_U64_ARRAY_LEN("arm,status-reporting",
 						     status_reporting,
 						     group_len);
+	props[(*p)++] = PROPERTY_ENTRY_U64_ARRAY_LEN("arm,addressing-mode",
+						     addressing_mode,
+						     group_len);
 	props[(*p)++] = PROPERTY_ENTRY_U64("arm,error-group-base",
 					   common->error_group_register_base);
 	props[(*p)++] = PROPERTY_ENTRY_U64("arm,fault-inject-base",
@@ -173,7 +176,7 @@ aest_init_node_props(struct acpi_aest_hdr *hdr, struct property_entry *props,
 static int __init
 aest_create_node_fwnode(struct acpi_aest_hdr *hdr, struct platform_device *pdev)
 {
-	struct property_entry props[15] = { };
+	struct property_entry props[16] = { };
 	int p = 0;
 	int ret;
 
