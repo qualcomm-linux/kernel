@@ -51,6 +51,7 @@ static int ras_init_record(struct ras_record *record, int i, struct ras_node *no
 	if (node->base)
 		record->regs_base = node->base + sizeof(struct ras_ext_regs) * i;
 
+	record->access = &ras_access[node->access_type];
 	record->index = i;
 	record->node = node;
 
@@ -152,6 +153,7 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 	node->dev = &pdev->dev;
 
 	ret = ret ?: device_property_read_u8(dev, "arm,node-type", &node->type);
+	ret = ret ?: device_property_read_u8(dev, "arm,interface-type", &node->access_type);
 	ret = ret ?: device_property_read_u8(dev, "arm,group-format", &node->group_format);
 	ret = ret ?: device_property_read_u32(dev, "arm,interface-flags", &node->flags);
 	ret = ret ?: device_property_read_u32(dev, "arm,error-records-count", &node->record_count);
@@ -219,7 +221,8 @@ static struct ras_node *ras_init_node(struct platform_device *pdev)
 		if (ret)
 			return ERR_PTR(ret);
 	}
-	ras_node_dbg(node, "base: %llx\n", node->addr);
+	ras_node_dbg(node, "base: %llx, access_type: %s\n",
+		     node->addr, node->access_type ? "MMIO" : "Register");
 	return node;
 }
 
