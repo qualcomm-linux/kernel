@@ -53,6 +53,20 @@ const struct ras_group ras_group_config[] = {
 	},
 };
 
+static const struct ce_threshold_info ce_info[] = {
+	[RAS_CE_THRESHOLD_0B] = { 0 },
+	[RAS_CE_THRESHOLD_8B] = {
+		.max_count = ERR_8B_CEC_MAX,
+		.mask = ERR_MISC0_8B_CEC,
+		.shift = ERR_MISC0_CEC_SHIFT,
+	},
+	[RAS_CE_THRESHOLD_16B] = {
+		.max_count = ERR_16B_CEC_MAX,
+		.mask = ERR_MISC0_16B_CEC,
+		.shift = ERR_MISC0_CEC_SHIFT,
+	},
+};
+
 #define AEST_LOG_PREFIX_BUFFER 64
 
 static void ras_print(struct ras_record *record, struct ras_ext_regs *regs)
@@ -174,8 +188,8 @@ static void ras_proc_record(struct ras_record *record, void *data)
 			regs.err_misc[3] = record_read(record, ERXMISC3);
 		}
 
+		record_write(record, ERXMISC0, record->ce.reg_val);
 		if (record->node->flags & AEST_XFACE_FLAG_CLEAR_MISC) {
-			record_write(record, ERXMISC0, 0);
 			record_write(record, ERXMISC1, 0);
 			if (record->node->version >= ID_AA64PFR0_EL1_RAS_V1P1) {
 				record_write(record, ERXMISC2, 0);
@@ -367,6 +381,73 @@ static void ras_enable_irq(struct ras_record *record)
 	record_write(record, ERXCTLR, err_ctlr);
 }
 
+static int ras_get_ce_threshold(struct ras_record *record)
+{
+	u64 err_fr, err_fr_cec, err_fr_rp;
+
+	err_fr = record_read(record, ERXFR);
+	err_fr_cec = FIELD_GET(ERR_FR_CEC, err_fr);
+	err_fr_rp = FIELD_GET(ERR_FR_RP, err_fr);
+
+	if (err_fr_cec == ERR_FR_CEC_0B_COUNTER)
+		return RAS_CE_THRESHOLD_0B;
+	else if (err_fr_rp == ERR_FR_RP_DOUBLE_COUNTER)
+		return RAS_CE_THRESHOLD_32B;
+	else if (err_fr_cec == ERR_FR_CEC_8B_COUNTER)
+		return RAS_CE_THRESHOLD_8B;
+	else if (err_fr_cec == ERR_FR_CEC_16B_COUNTER)
+		return RAS_CE_THRESHOLD_16B;
+
+	return RAS_CE_THRESHOLD_UNKNOWN;
+}
+
+static void ras_set_ce_threshold(struct ras_record *record)
+{
+	u64 err_misc0;
+	struct ce_threshold *ce = &record->ce;
+	const struct ce_threshold_info *info;
+
+	record->threshold_type = ras_get_ce_threshold(record);
+
+	switch (record->threshold_type) {
+	case RAS_CE_THRESHOLD_0B:
+		ras_record_dbg(record, "do not support CE threshold!\n");
+		return;
+	case RAS_CE_THRESHOLD_8B:
+		ras_record_dbg(record, "support 8 bit CE threshold!\n");
+		break;
+	case RAS_CE_THRESHOLD_16B:
+		ras_record_dbg(record, "support 16 bit CE threshold!\n");
+		break;
+	case RAS_CE_THRESHOLD_32B:
+		ras_record_dbg(record, "not support 32 bit CE threshold!\n");
+		return;
+	default:
+		ras_record_dbg(record, "Unknown misc0 ce threshold!\n");
+		return;
+	}
+
+	err_misc0 = record_read(record, ERXMISC0);
+	info = &ce_info[record->threshold_type];
+	ce->info = info;
+
+	/* Default CE threshold is 1 */
+	ce->threshold = DEFAULT_CE_THRESHOLD;
+	/*
+	 * The CEC field in ERXMISC0 is a saturating up-counter; the
+	 * overflow flag (ERXSTATUS.OF) is asserted only when CEC
+	 * saturates at max_count. To make "threshold" mean "trigger OF
+	 * after `threshold` more CEs", preset CEC to max_count - threshold.
+	 */
+	ce->count = info->max_count - ce->threshold + 1;
+	ce->reg_val = (err_misc0 & ~info->mask) |
+		      (ce->count << info->shift);
+
+	record_write(record, ERXMISC0, ce->reg_val);
+	ras_record_dbg(record, "CE threshold is %llu, controlled by Kernel",
+		       ce->threshold);
+}
+
 static int get_ras_node_ver(struct ras_node *node)
 {
 	u32 reg;
@@ -381,6 +462,7 @@ static int get_ras_node_ver(struct ras_node *node)
 
 	return FIELD_GET(ID_AA64PFR0_EL1_RAS_MASK, read_cpuid(ID_AA64PFR0_EL1));
 }
+
 
 static int ras_init_record(struct ras_record *record, int i, struct ras_node *node)
 {
@@ -403,6 +485,7 @@ static int ras_init_record(struct ras_record *record, int i, struct ras_node *no
 
 static void ras_online_record(struct ras_record *record, void *data)
 {
+	ras_set_ce_threshold(record);
 	ras_enable_irq(record);
 }
 
