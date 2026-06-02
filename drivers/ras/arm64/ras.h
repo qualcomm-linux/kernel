@@ -58,6 +58,8 @@
 #define ERXPFGCTL		0x808
 #define ERXPFGCDN		0x810
 
+#define GIC_ERRDEVARCH		0xFFBC
+
 struct ras_access {
 	u64 (*read)(void __iomem *base, u32 offset);
 	void (*write)(void __iomem *base, u32 offset, u64 val);
@@ -148,6 +150,7 @@ struct ras_node {
 	u32 record_count;
 	u32 record_index;
 	u32 flags;
+	int version;
 
 	u8 type;
 	u8 access_type;
