@@ -136,6 +136,9 @@ void iris_hfi_gen2_packet_sys_init(struct iris_core *core, struct iris_hfi_heade
 				    &payload,
 				    sizeof(u32));
 
+	if (!core->iris_platform_data->ubwc_config)
+		return;
+
 	payload = core->iris_platform_data->ubwc_config->max_channels;
 	iris_hfi_gen2_create_packet(hdr,
 				    HFI_PROP_UBWC_MAX_CHANNELS,
