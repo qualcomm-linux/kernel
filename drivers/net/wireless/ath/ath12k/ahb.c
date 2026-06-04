@@ -17,7 +17,6 @@
 #include "hif.h"
 
 #define ATH12K_IRQ_CE0_OFFSET 4
-#define ATH12K_MAX_UPDS 1
 #define ATH12K_UPD_IRQ_WRD_LEN  18
 
 static struct ath12k_ahb_driver *ath12k_ahb_family_drivers[ATH12K_DEVICE_FAMILY_MAX];
