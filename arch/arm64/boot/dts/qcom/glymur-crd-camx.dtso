@@ -19,9 +19,22 @@
 #include <dt-bindings/interconnect/qcom,icc.h>
 
 #include "glymur-camera.dtsi"
+#include "glymur-camera-sensor.dtsi"
 
 &cam_icp_firmware {
 	camera-firmware {
 		iommus = <&apps_smmu 0x1901 0x0000>;
 	};
+};
+
+&camss {
+	status = "disabled";
+};
+
+&cci1 {
+	status = "disabled";
+};
+
+&cci1_i2c1 {
+	status = "disabled";
 };
