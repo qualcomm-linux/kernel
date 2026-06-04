@@ -23167,6 +23167,14 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/spmi/qcom,*spmi-pmic-arb*.yaml
 F:	drivers/spmi/spmi-pmic-arb.c
 
+QUALCOMM SCMI MEMLAT DEVFREQ DRIVER
+M:	Pragnesh Papaniya <pragnesh.papaniya@oss.qualcomm.com>
+M:	Sibi Sankar <sibi.sankar@oss.qualcomm.com>
+L:	linux-arm-msm@vger.kernel.org
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	drivers/devfreq/scmi-qcom-memlat-devfreq.c
+
 QUALCOMM TEE (QCOMTEE) DRIVER
 M:	Amirreza Zarrabi <amirreza.zarrabi@oss.qualcomm.com>
 L:	linux-arm-msm@vger.kernel.org
