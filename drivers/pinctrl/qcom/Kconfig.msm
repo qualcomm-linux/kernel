@@ -369,6 +369,14 @@ config PINCTRL_SDX75
          Qualcomm Technologies Inc TLMM block found on the Qualcomm
          Technologies Inc SDX75 platform.
 
+config PINCTRL_SHIKRA
+	tristate "Qualcomm Technologies Inc Shikra pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc Shikra platform.
+
 config PINCTRL_SM4450
 	tristate "Qualcomm Technologies Inc SM4450 pin controller driver"
 	depends on ARM64 || COMPILE_TEST
