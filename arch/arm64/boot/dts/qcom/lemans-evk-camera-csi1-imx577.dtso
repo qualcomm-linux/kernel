@@ -34,8 +34,9 @@
 
 			csiphy1_ep: endpoint {
 				clock-lanes = <7>;
-				data-lanes = <0 1 2 3>;
-				remote-endpoint = <&imx577_ep1>;
+				bus-type = <1>;
+				data-lanes = <0 1 2>;
+				remote-endpoint = <&imx686_ep1>;
 			};
 		};
 	};
@@ -53,7 +54,7 @@
 	#size-cells = <0>;
 
 	camera@1a {
-		compatible = "sony,imx577";
+		compatible = "sony,imx686";
 		reg = <0x1a>;
 
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
@@ -62,15 +63,16 @@
 
 		clocks = <&camcc CAM_CC_MCLK1_CLK>;
 		assigned-clocks = <&camcc CAM_CC_MCLK1_CLK>;
-		assigned-clock-rates = <24000000>;
+		assigned-clock-rates = <19200000>;
 
 		dovdd-supply = <&vreg_s4a>;
 		avdd-supply = <&vreg_cam1_1p8>;
 
 		port {
-			imx577_ep1: endpoint {
+			imx686_ep1: endpoint {
 				clock-lanes = <7>;
-				link-frequencies = /bits/ 64 <600000000>;
+				bus-type = <1>;
+				link-frequencies = /bits/ 64 <952000000>;
 				data-lanes = <0 1 2 3>;
 				remote-endpoint = <&csiphy1_ep>;
 			};
