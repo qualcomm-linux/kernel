@@ -1222,6 +1222,22 @@ static int csiphy_lanes_enable(struct csiphy_device *csiphy,
 	u8 val;
 	int i;
 
+	if (c->phy_cfg == V4L2_MBUS_CSI2_CPHY) {
+		switch (csiphy->camss->res->version) {
+		case CAMSS_2290:
+		case CAMSS_8280XP:
+		case CAMSS_X1E80100:
+		case CAMSS_8550:
+		case CAMSS_8650:
+		case CAMSS_8300:
+		case CAMSS_8775P:
+			dev_err(csiphy->camss->dev, "Missing lane_regs definition for C-PHY\n");
+			return -EINVAL;
+		default:
+			break;
+		}
+	}
+
 	switch (csiphy->camss->res->version) {
 	case CAMSS_845:
 		if (c->phy_cfg == V4L2_MBUS_CSI2_CPHY) {
