@@ -493,9 +493,7 @@ EXPORT_SYMBOL(ath12k_dp_mon_update_radiotap);
 void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 				   struct napi_struct *napi,
 				   struct sk_buff *msdu,
-				   const struct hal_rx_mon_ppdu_info *ppduinfo,
-				   struct ieee80211_rx_status *status,
-				   u8 decap)
+				   struct ieee80211_rx_status *status)
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ath12k_base *ab = dp->ab;
@@ -511,7 +509,6 @@ void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
 	struct hal_rx_desc_data rx_info;
 	bool is_mcbc = rxcb->is_mcbc;
-	bool is_eapol_tkip = rxcb->is_eapol;
 	struct hal_rx_desc *rx_desc = (struct hal_rx_desc *)msdu->data;
 	u8 addr[ETH_ALEN] = {};
 
@@ -569,17 +566,6 @@ void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 			msdu->data, msdu->len);
 	rx_status = IEEE80211_SKB_RXCB(msdu);
 	*rx_status = *status;
-
-	/* TODO: trace rx packet */
-
-	/* PN for multicast packets are not validate in HW,
-	 * so skip 802.3 rx path
-	 * Also, fast_rx expects the STA to be authorized, hence
-	 * eapol packets are sent in slow path.
-	 */
-	if (decap == DP_RX_DECAP_TYPE_ETHERNET2_DIX && !is_eapol_tkip &&
-	    !(is_mcbc && rx_status->flag & RX_FLAG_DECRYPTED))
-		rx_status->flag |= RX_FLAG_8023;
 
 	ieee80211_rx_napi(ath12k_pdev_dp_to_hw(dp_pdev), pubsta, msdu, napi);
 }

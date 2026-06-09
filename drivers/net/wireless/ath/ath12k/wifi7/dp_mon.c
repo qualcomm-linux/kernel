@@ -2481,7 +2481,6 @@ ath12k_wifi7_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
 {
 	struct sk_buff *mon_skb, *skb_next, *header;
 	struct ieee80211_rx_status *rxs = &dp_pdev->rx_status;
-	u8 decap = DP_RX_DECAP_TYPE_RAW;
 
 	mon_skb = ath12k_dp_mon_rx_merg_msdus(dp_pdev, mon_mpdu, ppduinfo, rxs);
 	if (!mon_skb)
@@ -2508,12 +2507,8 @@ ath12k_wifi7_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
 		}
 		rxs->flag |= RX_FLAG_ONLY_MONITOR;
 
-		if (!(rxs->flag & RX_FLAG_ONLY_MONITOR))
-			decap = mon_mpdu->decap_format;
-
 		ath12k_dp_mon_update_radiotap(dp_pdev, ppduinfo, mon_skb, rxs);
-		ath12k_dp_mon_rx_deliver_msdu(dp_pdev, napi, mon_skb, ppduinfo,
-					      rxs, decap);
+		ath12k_dp_mon_rx_deliver_msdu(dp_pdev, napi, mon_skb, rxs);
 		mon_skb = skb_next;
 	} while (mon_skb);
 	rxs->flag = 0;
