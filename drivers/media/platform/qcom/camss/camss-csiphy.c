@@ -267,6 +267,7 @@ static int csiphy_set_power_legacy(struct v4l2_subdev *sd, int on)
 static int csiphy_stream_on_legacy(struct csiphy_device *csiphy)
 {
 	struct csiphy_config *cfg = &csiphy->cfg;
+	const struct csiphy_hw_ops *ops = csiphy->res->hw_ops;
 	s64 link_freq;
 	u8 lane_mask = csiphy->res->hw_ops->get_lane_mask(&cfg->csi2->lane_cfg);
 	u8 bpp = csiphy_get_bpp(csiphy->res->formats->formats, csiphy->res->formats->nformats,
@@ -297,9 +298,7 @@ static int csiphy_stream_on_legacy(struct csiphy_device *csiphy)
 		wmb();
 	}
 
-	csiphy->res->hw_ops->lanes_enable(csiphy, cfg, link_freq, lane_mask);
-
-	return 0;
+	return ops->lanes_enable(csiphy, cfg, link_freq, lane_mask);
 }
 
 /*
