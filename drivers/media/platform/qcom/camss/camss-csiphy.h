@@ -63,6 +63,12 @@ struct csiphy_formats {
 	const struct csiphy_format_info *formats;
 };
 
+struct data_rate_reg_info {
+	u64 bandwidth;
+	ssize_t  data_rate_reg_array_size;
+	struct csiphy_lane_regs *data_rate_reg_array;
+};
+
 struct csiphy_device;
 
 struct csiphy_hw_ops {
