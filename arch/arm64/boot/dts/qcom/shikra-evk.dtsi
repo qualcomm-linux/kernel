@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/* Common daughter cards nodes to be added:
+ * QPS615 DC
+ * MIC DC
+ * Display DC
+ * Camera DC
+ * USB hub DC
+ * Sensor DC
+ * NFC DC
+ */
+
+&iris {
+	status = "okay";
+};
+
+&psci {
+	reboot-mode {
+		mode-bootloader = <0x10001 0x2>;
+		mode-edl = <0 0x1>;
+	};
+};
+
+&qupv3_0 {
+	firmware-name = "qcom/shikra/qupv3fw.elf";
+	status = "okay";
+};
+
+&uart8 {
+
+	bluetooth {
+		compatible = "qcom,wcn3988-bt";
+
+		max-speed = <3200000>;
+	};
+};
