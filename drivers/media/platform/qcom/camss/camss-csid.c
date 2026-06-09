@@ -536,9 +536,11 @@ const struct csid_format_info *csid_get_fmt_entry(const struct csid_format_info 
  * csid_set_clock_rates - Calculate and set clock rates on CSID module
  * @csiphy: CSID device
  */
-static int csid_set_clock_rates(struct csid_device *csid)
+static int csid_set_clock_rates(struct v4l2_subdev *sd, struct csid_device *csid)
 {
 	struct device *dev = csid->camss->dev;
+	struct csiphy_device *csiphy = &csid->camss->csiphy[csid->phy.csiphy_id];
+	struct csiphy_lanes_cfg *lane_cfg = &csiphy->cfg.csi2->lane_cfg;
 	const struct csid_format_info *fmt;
 	s64 link_freq;
 	int i, j;
@@ -546,8 +548,7 @@ static int csid_set_clock_rates(struct csid_device *csid)
 
 	fmt = csid_get_fmt_entry(csid->res->formats->formats, csid->res->formats->nformats,
 				 csid->fmt[MSM_CSIPHY_PAD_SINK].code);
-	link_freq = camss_get_link_freq(&csid->subdev.entity, fmt->bpp,
-					csid->phy.lane_cnt);
+	link_freq = camss_get_link_freq(&csid->subdev.entity, fmt->bpp, lane_cfg);
 	if (link_freq < 0)
 		link_freq = 0;
 
@@ -705,7 +706,7 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 			return ret;
 		}
 
-		ret = csid_set_clock_rates(csid);
+		ret = csid_set_clock_rates(sd, csid);
 		if (ret < 0) {
 			regulator_bulk_disable(csid->num_supplies,
 					       csid->supplies);
