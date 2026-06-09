@@ -10,6 +10,43 @@
 #define __DRIVERS_INTERCONNECT_INTERNAL_H
 
 /**
+ * struct icc_client_path - structure to hold client path information
+ * @kobj: kobj used for uniquely storing/showing the limit parameters
+ *        associated with path
+ * @dev: client's dev node pointer
+ * @limit_ab: ab bw value in KBpS used for limiting client voting
+ * @limit_ib: ib bw value in KBpS used for limiting client voting
+ * @commit: used to enforce the limit on client voting on path
+ * @kobj_inited: bool to indicate if kobj init
+ */
+struct icc_client_path {
+	struct icc_path *path;
+	struct kobject kobj;
+	u32 limit_ab;
+	u32 limit_ib;
+	bool commit;
+	bool kobj_inited;
+};
+
+/**
+ * struct icc_client - structure to hold client path and limit information
+ * @client_list: list to hold the clients
+ * @kobj: kobj used for displaying the client list in sysfs
+ * @dev: client's dev node pointer
+ * @num_paths : number of paths used by client
+ * @kobj_inited: bool to indicate if kobj init
+ * @paths: paths used by the client
+ */
+struct icc_client {
+	struct list_head client_list;
+	struct kobject kobj;
+	struct device *dev;
+	size_t num_paths;
+	bool kobj_inited;
+	struct icc_client_path paths[] __counted_by(num_paths);
+};
+
+/**
  * struct icc_req - constraints that are attached to each node
  * @req_node: entry in list of requests for the particular @node
  * @node: the interconnect node to which this constraint applies
@@ -18,6 +55,8 @@
  * @tag: path tag (optional)
  * @avg_bw: an integer describing the average bandwidth in kBps
  * @peak_bw: an integer describing the peak bandwidth in kBps
+ * @limit_ab: ab bw value in KBpS used for limiting client voting
+ * @limit_ib: ib bw value in KBpS used for limiting client voting
  */
 struct icc_req {
 	struct hlist_node req_node;
@@ -27,6 +66,8 @@ struct icc_req {
 	u32 tag;
 	u32 avg_bw;
 	u32 peak_bw;
+	u32 limit_ab;
+	u32 limit_ib;
 };
 
 /**
