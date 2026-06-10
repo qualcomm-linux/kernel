@@ -42,47 +42,11 @@ properties:
       - const: cpu-cfg
       - const: video-mem
 
-  '#address-cells':
-    const: 2
+  iommus:
+    maxItems: 4
 
-  '#size-cells':
-    const: 2
-
-  non-pixel:
-    type: object
-    description:
-      Context bank for VPU non-pixel buffers, including compressed and internal buffers.
-    properties:
-      iommus:
-        maxItems: 3
-      memory-region:
-        maxItems: 1
-    required:
-      - iommus
-      - memory-region
-    additionalProperties: false
-
-  pixel:
-    type: object
-    description:
-      Context bank for VPU pixel buffers containing uncompressed video data.
-    properties:
-      iommus:
-        maxItems: 1
-    required:
-      - iommus
-    additionalProperties: false
-
-  video-firmware:
-    type: object
-    description:
-      Context bank for the VPU firmware processing domain.
-    properties:
-      iommus:
-        maxItems: 1
-    required:
-      - iommus
-    additionalProperties: false
+  iommu-map:
+    maxItems: 1
 
   operating-points-v2: true
   opp-table:
@@ -118,8 +82,7 @@ required:
   - dma-coherent
   - interconnects
   - interconnect-names
-  - non-pixel
-  - pixel
+  - iommus
   - power-domains
   - power-domain-names
   - resets
@@ -133,6 +96,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/media/qcom,glymur-iris.h>
     #include <dt-bindings/power/qcom,rpmhpd.h>
 
     video-codec@aa00000 {
@@ -167,6 +131,13 @@ examples:
 
         interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 
+        iommus = <&apps_smmu 0x1940 0x0>,
+                 <&apps_smmu 0x1943 0x0>,
+                 <&apps_smmu 0x1944 0x0>,
+                 <&apps_smmu 0x19e0 0x0>;
+
+        iommu-map = <IOMMU_FID_IRIS_FIRMWARE &apps_smmu 0x19e2 0x1>;
+
         memory-region = <&video_mem>;
 
         operating-points-v2 = <&iris_opp_table>;
@@ -194,24 +165,6 @@ examples:
                       "vcodec0_core",
                       "vcodec1_bus",
                       "vcodec1_core";
-
-        #address-cells = <2>;
-        #size-cells = <2>;
-
-        non-pixel {
-            iommus = <&apps_smmu 0x1940 0x0000>,
-                     <&apps_smmu 0x1944 0x0000>,
-                     <&apps_smmu 0x19e0 0x0000>;
-            memory-region = <&iris_resv>;
-        };
-
-        pixel {
-            iommus = <&apps_smmu 0x1943 0x0000>;
-        };
-
-        firmware {
-            iommus = <&apps_smmu 0x19e2 0x0000>;
-        };
 
         iris_opp_table: opp-table {
             compatible = "operating-points-v2";
