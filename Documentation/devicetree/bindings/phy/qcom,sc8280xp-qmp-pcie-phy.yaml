@@ -16,6 +16,7 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,shikra-qmp-gen2x1-pcie-phy
       - qcom,glymur-qmp-gen4x2-pcie-phy
       - qcom,glymur-qmp-gen5x4-pcie-phy
       - qcom,kaanapali-qmp-gen3x2-pcie-phy
@@ -148,6 +149,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,shikra-qmp-gen2x1-pcie-phy
               - qcom,kaanapali-qmp-gen3x2-pcie-phy
               - qcom,qcs615-qmp-gen3x1-pcie-phy
               - qcom,sar2130p-qmp-gen3x2-pcie-phy
