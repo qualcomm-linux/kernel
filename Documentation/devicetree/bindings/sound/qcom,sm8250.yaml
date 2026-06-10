@@ -63,6 +63,11 @@ properties:
       List of phandles pointing to auxiliary devices, such
       as amplifiers, to be added to the sound card.
 
+  qcom,adsp-bypass-mode:
+    type: boolean
+    description:
+      Indicates the platform is configured for ADSP bypass mode.
+
   model:
     $ref: /schemas/types.yaml#/definitions/string
     description: User visible long sound card name
