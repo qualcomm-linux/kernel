@@ -207,6 +207,15 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	   }								\
 	})[0].attr.attr)
 
+#define coresight_cti_reg_index(name, offset, idx)			\
+	(&((struct cs_off_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_cti_reg_show, NULL),	\
+		offset,							\
+		idx							\
+	   }								\
+	})[0].attr.attr)
+
 #define coresight_cti_reg_rw(name, offset)				\
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
@@ -217,12 +226,31 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	   }								\
 	})[0].attr.attr)
 
+#define coresight_cti_reg_rw_index(name, offset, idx)			\
+	(&((struct cs_off_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0644, coresight_cti_reg_show,		\
+		       coresight_cti_reg_store),			\
+		offset,							\
+		idx							\
+	   }								\
+	})[0].attr.attr)
+
 #define coresight_cti_reg_wo(name, offset)				\
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
 		__ATTR(name, 0200, NULL, coresight_cti_reg_store),	\
 		offset,							\
 		0							\
+	   }								\
+	})[0].attr.attr)
+
+#define coresight_cti_reg_wo_index(name, offset, idx)			\
+	(&((struct cs_off_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0200, NULL, coresight_cti_reg_store),	\
+		offset,							\
+		idx							\
 	   }								\
 	})[0].attr.attr)
 
@@ -515,18 +543,36 @@ static struct attribute *coresight_cti_regs_attrs[] = {
 	&dev_attr_appclear.attr,
 	&dev_attr_apppulse.attr,
 	coresight_cti_reg(triginstatus, CTITRIGINSTATUS),
+	coresight_cti_reg_index(triginstatus1, CTITRIGINSTATUS, 1),
+	coresight_cti_reg_index(triginstatus2, CTITRIGINSTATUS, 2),
+	coresight_cti_reg_index(triginstatus3, CTITRIGINSTATUS, 3),
 	coresight_cti_reg(trigoutstatus, CTITRIGOUTSTATUS),
+	coresight_cti_reg_index(trigoutstatus1, CTITRIGOUTSTATUS, 1),
+	coresight_cti_reg_index(trigoutstatus2, CTITRIGOUTSTATUS, 2),
+	coresight_cti_reg_index(trigoutstatus3, CTITRIGOUTSTATUS, 3),
 	coresight_cti_reg(chinstatus, CTICHINSTATUS),
 	coresight_cti_reg(choutstatus, CTICHOUTSTATUS),
 #ifdef CONFIG_CORESIGHT_CTI_INTEGRATION_REGS
 	coresight_cti_reg_rw(itctrl, CORESIGHT_ITCTRL),
 	coresight_cti_reg(ittrigin, ITTRIGIN),
+	coresight_cti_reg_index(ittrigin1, ITTRIGIN, 1),
+	coresight_cti_reg_index(ittrigin2, ITTRIGIN, 2),
+	coresight_cti_reg_index(ittrigin3, ITTRIGIN, 3),
 	coresight_cti_reg(itchin, ITCHIN),
 	coresight_cti_reg_rw(ittrigout, ITTRIGOUT),
+	coresight_cti_reg_rw_index(ittrigout1, ITTRIGOUT, 1),
+	coresight_cti_reg_rw_index(ittrigout2, ITTRIGOUT, 2),
+	coresight_cti_reg_rw_index(ittrigout3, ITTRIGOUT, 3),
 	coresight_cti_reg_rw(itchout, ITCHOUT),
 	coresight_cti_reg(itchoutack, ITCHOUTACK),
 	coresight_cti_reg(ittrigoutack, ITTRIGOUTACK),
+	coresight_cti_reg_index(ittrigoutack1, ITTRIGOUTACK, 1),
+	coresight_cti_reg_index(ittrigoutack2, ITTRIGOUTACK, 2),
+	coresight_cti_reg_index(ittrigoutack3, ITTRIGOUTACK, 3),
 	coresight_cti_reg_wo(ittriginack, ITTRIGINACK),
+	coresight_cti_reg_wo_index(ittriginack1, ITTRIGINACK, 1),
+	coresight_cti_reg_wo_index(ittriginack2, ITTRIGINACK, 2),
+	coresight_cti_reg_wo_index(ittriginack3, ITTRIGINACK, 3),
 	coresight_cti_reg_wo(itchinack, ITCHINACK),
 #endif
 	NULL,
@@ -537,9 +583,21 @@ static umode_t coresight_cti_regs_is_visible(struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct device_attribute *dev_attr;
+	struct cs_off_attribute *cti_attr;
+	int max_bank;
 
 	if (attr == &dev_attr_asicctl.attr && !drvdata->config.asicctl_impl)
 		return 0;
+
+	dev_attr = container_of(attr, struct device_attribute, attr);
+	if (dev_attr->show == coresight_cti_reg_show ||
+	    dev_attr->store == coresight_cti_reg_store) {
+		cti_attr = container_of(dev_attr, struct cs_off_attribute, attr);
+		max_bank = DIV_ROUND_UP(drvdata->config.nr_trig_max, 32);
+		if (cti_attr->index >= max_bank)
+			return 0;
+	}
 
 	return attr->mode;
 }
