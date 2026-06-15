@@ -267,6 +267,15 @@ bool qcom_pas_is_available(void)
 }
 EXPORT_SYMBOL_GPL(qcom_pas_is_available);
 
+bool qcom_pas_is_tee_backed(void)
+{
+	/* Paired with smp_store_release() in qcom_pas_ops_register() */
+	struct qcom_pas_ops *ops = smp_load_acquire(&ops_ptr);
+
+	return ops && !strcmp(ops->drv_name, "qcom-pas-tee");
+}
+EXPORT_SYMBOL_GPL(qcom_pas_is_tee_backed);
+
 void qcom_pas_ops_register(struct qcom_pas_ops *ops)
 {
 	if (!qcom_pas_is_available())
