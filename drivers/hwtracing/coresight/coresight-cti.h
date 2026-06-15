@@ -30,8 +30,8 @@ struct fwnode_handle;
 #define CTIAPPSET		0x014
 #define CTIAPPCLEAR		0x018
 #define CTIAPPPULSE		0x01C
-#define CTIINEN(n)		(0x020 + (4 * n))
-#define CTIOUTEN(n)		(0x0A0 + (4 * n))
+#define CTIINEN			0x020
+#define CTIOUTEN		0x0A0
 #define CTITRIGINSTATUS		0x130
 #define CTITRIGOUTSTATUS	0x134
 #define CTICHINSTATUS		0x138
@@ -217,8 +217,6 @@ int cti_enable(struct coresight_device *csdev, enum cs_mode mode,
 int cti_disable(struct coresight_device *csdev, struct coresight_path *path);
 void cti_write_all_hw_regs(struct cti_drvdata *drvdata);
 void cti_write_intack(struct device *dev, u32 ackval);
-void cti_write_single_reg(struct cti_drvdata *drvdata, int offset, u32 value);
-u32 cti_read_single_reg(struct cti_drvdata *drvdata, int offset);
 int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
 			enum cti_trig_dir direction, u32 channel_idx,
 			u32 trigger_idx);
@@ -230,6 +228,46 @@ int cti_create_cons_sysfs(struct device *dev, struct cti_drvdata *drvdata);
 struct coresight_platform_data *
 coresight_cti_get_platform_data(struct device *dev);
 const char *cti_plat_get_node_name(struct fwnode_handle *fwnode);
+
+static inline void __iomem *__reg_addr(struct cti_drvdata *drvdata,
+				       u32 off, u32 index)
+{
+	return drvdata->base + off + index * sizeof(u32);
+}
+
+#define reg_addr(drvdata, off)		__reg_addr((drvdata), (off), 0)
+#define reg_index_addr(drvdata, off, i)	__reg_addr((drvdata), (off), (i))
+
+static inline u32 cti_read_single_reg_index(struct cti_drvdata *drvdata,
+					    u32 off, u32 index)
+{
+	u32 val;
+
+	CS_UNLOCK(drvdata->base);
+	val = readl_relaxed(reg_index_addr(drvdata, off, index));
+	CS_LOCK(drvdata->base);
+
+	return val;
+}
+
+static inline u32 cti_read_single_reg(struct cti_drvdata *drvdata, u32 off)
+{
+	return cti_read_single_reg_index(drvdata, off, 0);
+}
+
+static inline void cti_write_single_reg_index(struct cti_drvdata *drvdata,
+					      u32 off, u32 index, u32 value)
+{
+	CS_UNLOCK(drvdata->base);
+	writel_relaxed(value, reg_index_addr(drvdata, off, index));
+	CS_LOCK(drvdata->base);
+}
+
+static inline void cti_write_single_reg(struct cti_drvdata *drvdata,
+					u32 off, u32 value)
+{
+	cti_write_single_reg_index(drvdata, off, 0, value);
+}
 
 /* Check if a cti device is enabled */
 static inline bool cti_is_active(struct cti_config *cfg)

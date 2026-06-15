@@ -171,7 +171,7 @@ static ssize_t coresight_cti_reg_show(struct device *dev,
 	pm_runtime_get_sync(dev->parent);
 
 	scoped_guard(raw_spinlock_irqsave, &drvdata->spinlock)
-		val = cti_read_single_reg(drvdata, cti_attr->off);
+		val = cti_read_single_reg_index(drvdata, cti_attr->off, cti_attr->index);
 
 	pm_runtime_put_sync(dev->parent);
 	return sysfs_emit(buf, "0x%x\n", val);
@@ -192,7 +192,7 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	pm_runtime_get_sync(dev->parent);
 
 	scoped_guard(raw_spinlock_irqsave, &drvdata->spinlock)
-		cti_write_single_reg(drvdata, cti_attr->off, val);
+		cti_write_single_reg_index(drvdata, cti_attr->off, cti_attr->index, val);
 
 	pm_runtime_put_sync(dev->parent);
 	return size;
@@ -202,7 +202,8 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
 		__ATTR(name, 0444, coresight_cti_reg_show, NULL),	\
-		offset							\
+		offset,							\
+		0							\
 	   }								\
 	})[0].attr.attr)
 
@@ -211,7 +212,8 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	   {								\
 		__ATTR(name, 0644, coresight_cti_reg_show,		\
 		       coresight_cti_reg_store),			\
-		offset							\
+		offset,							\
+		0							\
 	   }								\
 	})[0].attr.attr)
 
@@ -219,7 +221,8 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
 		__ATTR(name, 0200, NULL, coresight_cti_reg_store),	\
-		offset							\
+		offset,							\
+		0							\
 	   }								\
 	})[0].attr.attr)
 
@@ -386,7 +389,7 @@ static ssize_t inen_store(struct device *dev,
 
 	/* write through if enabled */
 	if (cti_is_active(config))
-		cti_write_single_reg(drvdata, CTIINEN(index), val);
+		cti_write_single_reg_index(drvdata, CTIINEN, index, val);
 
 	return size;
 }
@@ -427,7 +430,7 @@ static ssize_t outen_store(struct device *dev,
 
 	/* write through if enabled */
 	if (cti_is_active(config))
-		cti_write_single_reg(drvdata, CTIOUTEN(index), val);
+		cti_write_single_reg_index(drvdata, CTIOUTEN, index, val);
 
 	return size;
 }

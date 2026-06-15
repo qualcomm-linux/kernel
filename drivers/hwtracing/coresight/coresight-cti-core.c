@@ -55,16 +55,17 @@ void cti_write_all_hw_regs(struct cti_drvdata *drvdata)
 
 	/* write the CTI trigger registers */
 	for (i = 0; i < config->nr_trig_max; i++) {
-		writel_relaxed(config->ctiinen[i], drvdata->base + CTIINEN(i));
+		writel_relaxed(config->ctiinen[i],
+			       reg_index_addr(drvdata, CTIINEN, i));
 		writel_relaxed(config->ctiouten[i],
-			       drvdata->base + CTIOUTEN(i));
+			       reg_index_addr(drvdata, CTIOUTEN, i));
 	}
 
 	/* other regs */
-	writel_relaxed(config->ctigate, drvdata->base + CTIGATE);
+	writel_relaxed(config->ctigate, reg_addr(drvdata, CTIGATE));
 	if (config->asicctl_impl)
-		writel_relaxed(config->asicctl, drvdata->base + ASICCTL);
-	writel_relaxed(config->ctiappset, drvdata->base + CTIAPPSET);
+		writel_relaxed(config->asicctl, reg_addr(drvdata, ASICCTL));
+	writel_relaxed(config->ctiappset, reg_addr(drvdata, CTIAPPSET));
 
 	/* re-enable CTI */
 	writel_relaxed(1, drvdata->base + CTICONTROL);
@@ -120,24 +121,6 @@ static int cti_disable_hw(struct cti_drvdata *drvdata)
 	coresight_disclaim_device_unlocked(csdev);
 	CS_LOCK(drvdata->base);
 	return 0;
-}
-
-u32 cti_read_single_reg(struct cti_drvdata *drvdata, int offset)
-{
-	int val;
-
-	CS_UNLOCK(drvdata->base);
-	val = readl_relaxed(drvdata->base + offset);
-	CS_LOCK(drvdata->base);
-
-	return val;
-}
-
-void cti_write_single_reg(struct cti_drvdata *drvdata, int offset, u32 value)
-{
-	CS_UNLOCK(drvdata->base);
-	writel_relaxed(value, drvdata->base + offset);
-	CS_LOCK(drvdata->base);
 }
 
 void cti_write_intack(struct device *dev, u32 ackval)
@@ -333,7 +316,7 @@ int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
 	struct cti_config *config = &drvdata->config;
 	u32 chan_bitmask;
 	u32 reg_value;
-	int reg_offset;
+	u32 reg_offset;
 
 	/* ensure indexes in range */
 	if ((channel_idx >= config->nr_ctm_channels) ||
@@ -355,8 +338,7 @@ int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
 
 	/* update the local register values */
 	chan_bitmask = BIT(channel_idx);
-	reg_offset = (direction == CTI_TRIG_IN ? CTIINEN(trigger_idx) :
-		      CTIOUTEN(trigger_idx));
+	reg_offset = (direction == CTI_TRIG_IN ? CTIINEN : CTIOUTEN);
 
 	guard(raw_spinlock_irqsave)(&drvdata->spinlock);
 
@@ -376,7 +358,7 @@ int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
 
 	/* write through if enabled */
 	if (cti_is_active(config))
-		cti_write_single_reg(drvdata, reg_offset, reg_value);
+		cti_write_single_reg_index(drvdata, reg_offset, trigger_idx, reg_value);
 
 	return 0;
 }
