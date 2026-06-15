@@ -719,12 +719,12 @@ static ssize_t trigout_filtered_show(struct device *dev,
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
 	int nr_trig_max = cfg->nr_trig_max;
-	unsigned long mask = cfg->trig_out_filter;
+	unsigned long *mask = cfg->trig_out_filter;
 
-	if (mask == 0)
+	if (bitmap_empty(mask, nr_trig_max))
 		return 0;
 
-	return sysfs_emit(buf, "%*pbl\n", nr_trig_max, &mask);
+	return sysfs_emit(buf, "%*pbl\n", nr_trig_max, mask);
 }
 static DEVICE_ATTR_RO(trigout_filtered);
 
@@ -931,9 +931,9 @@ static ssize_t trigin_sig_show(struct device *dev,
 	struct cti_trig_con *con = (struct cti_trig_con *)ext_attr->var;
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
-	unsigned long mask = con->con_in->used_mask;
+	unsigned long *mask = con->con_in->used_mask;
 
-	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, &mask);
+	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, mask);
 }
 
 static ssize_t trigout_sig_show(struct device *dev,
@@ -945,9 +945,9 @@ static ssize_t trigout_sig_show(struct device *dev,
 	struct cti_trig_con *con = (struct cti_trig_con *)ext_attr->var;
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
-	unsigned long mask = con->con_out->used_mask;
+	unsigned long *mask = con->con_out->used_mask;
 
-	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, &mask);
+	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, mask);
 }
 
 /* convert a sig type id to a name */
