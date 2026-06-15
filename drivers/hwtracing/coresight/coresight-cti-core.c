@@ -73,6 +73,35 @@ void cti_write_all_hw_regs(struct cti_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
+/*
+ * Qualcomm CTIs do not implement the CoreSight Claim tag protocol, so
+ * bypass coresight_clear_self_claim_tag() for them.
+ */
+static void cti_clear_self_claim_tag(struct cti_drvdata *drvdata,
+				     struct csdev_access *csa)
+{
+	if (drvdata->is_qcom_cti)
+		return;
+
+	coresight_clear_self_claim_tag(csa);
+}
+
+static int cti_claim_device(struct cti_drvdata *drvdata)
+{
+	if (drvdata->is_qcom_cti)
+		return 0;
+
+	return coresight_claim_device(drvdata->csdev);
+}
+
+static void cti_unclaim_device_unlocked(struct cti_drvdata *drvdata)
+{
+	if (drvdata->is_qcom_cti)
+		return;
+
+	coresight_disclaim_device_unlocked(drvdata->csdev);
+}
+
 /* write regs to hardware and enable */
 static int cti_enable_hw(struct cti_drvdata *drvdata)
 {
@@ -86,7 +115,7 @@ static int cti_enable_hw(struct cti_drvdata *drvdata)
 		goto cti_state_unchanged;
 
 	/* claim the device */
-	rc = coresight_claim_device(drvdata->csdev);
+	rc = cti_claim_device(drvdata);
 	if (rc)
 		return rc;
 
@@ -101,7 +130,6 @@ cti_state_unchanged:
 static int cti_disable_hw(struct cti_drvdata *drvdata)
 {
 	struct cti_config *config = &drvdata->config;
-	struct coresight_device *csdev = drvdata->csdev;
 
 	guard(raw_spinlock_irqsave)(&drvdata->spinlock);
 
@@ -118,7 +146,7 @@ static int cti_disable_hw(struct cti_drvdata *drvdata)
 	/* disable CTI */
 	writel_relaxed(0, drvdata->base + CTICONTROL);
 
-	coresight_disclaim_device_unlocked(csdev);
+	cti_unclaim_device_unlocked(drvdata);
 	CS_LOCK(drvdata->base);
 	return 0;
 }
@@ -143,6 +171,9 @@ void cti_write_intack(struct device *dev, u32 ackval)
 
 /* DEVID[19:16] - number of CTM channels */
 #define CTI_DEVID_CTMCHANNELS(devid_val) ((int) BMVAL(devid_val, 16, 19))
+
+/* DEVARCH[31:21] - ARCHITECT */
+#define CTI_DEVARCH_ARCHITECT(devarch_val) ((int)BMVAL(devarch_val, 21, 31))
 
 static int cti_set_default_config(struct device *dev,
 				  struct cti_drvdata *drvdata)
@@ -684,6 +715,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_desc cti_desc = { 0 };
 	struct coresight_platform_data *pdata = NULL;
 	struct resource *res = &adev->res;
+	u32 devarch;
 
 	/* driver data*/
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
@@ -707,6 +739,10 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	INIT_LIST_HEAD(&drvdata->ctidev.trig_cons);
 
 	raw_spin_lock_init(&drvdata->spinlock);
+
+	devarch = readl_relaxed(drvdata->base + CORESIGHT_DEVARCH);
+	if (CTI_DEVARCH_ARCHITECT(devarch) == QCOM_ARCHITECT)
+		drvdata->is_qcom_cti = true;
 
 	/* initialise CTI driver config values */
 	ret = cti_set_default_config(dev, drvdata);
@@ -753,7 +789,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	cti_desc.groups = drvdata->ctidev.con_groups;
 	cti_desc.dev = dev;
 
-	coresight_clear_self_claim_tag(&cti_desc.access);
+	cti_clear_self_claim_tag(drvdata, &cti_desc.access);
 	drvdata->csdev = coresight_register(&cti_desc);
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
@@ -767,7 +803,8 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* all done - dec pm refcount */
 	pm_runtime_put(&adev->dev);
-	dev_info(&drvdata->csdev->dev, "CTI initialized\n");
+	dev_info(&drvdata->csdev->dev,
+		 "%sCTI initialized\n", drvdata->is_qcom_cti ? "QCOM " : "");
 	return 0;
 }
 
