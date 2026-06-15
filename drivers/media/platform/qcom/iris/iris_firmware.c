@@ -184,9 +184,18 @@ int iris_fw_load(struct iris_core *core)
 						     cp_config->cp_nonpixel_start,
 						     cp_config->cp_nonpixel_size);
 		if (ret) {
-			dev_err(core->dev, "qcom_scm_mem_protect_video_var failed: %d\n", ret);
-			qcom_pas_shutdown(IRIS_PAS_ID);
-			return ret;
+			/*
+			 * When PAS is backed by OP-TEE, secure memory
+			 * protection is owned by the TEE and this SCM call is
+			 * not serviced, so its failure is expected. Only treat
+			 * it as fatal when OP-TEE is not on the bus.
+			 */
+			if (!qcom_pas_is_tee_backed()) {
+				dev_err(core->dev, "qcom_scm_mem_protect_video_var failed: %d\n", ret);
+				qcom_pas_shutdown(IRIS_PAS_ID);
+				return ret;
+			}
+			dev_dbg(core->dev, "qcom_scm_mem_protect_video_var failed: %d; OP-TEE PAS in use, ignoring\n", ret);
 		}
 	}
 
