@@ -501,13 +501,19 @@ static inline int adreno_is_a702(const struct adreno_gpu *gpu)
 	return gpu->info->chip_ids[0] == 0x07000200;
 }
 
+static inline int adreno_is_a704(const struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x07000400;
+}
+
 static inline int adreno_is_a610_family(const struct adreno_gpu *gpu)
 {
 	if (WARN_ON_ONCE(!gpu->info))
 		return false;
 	return adreno_is_a610(gpu) ||
 	       adreno_is_a612(gpu) ||
-	       adreno_is_a702(gpu);
+	       adreno_is_a702(gpu) ||
+	       adreno_is_a704(gpu);
 }
 
 /* TODO: 615/616 */
