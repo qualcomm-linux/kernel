@@ -105,3 +105,15 @@
 		};
 	};
 };
+
+&vreg_cam0_2p8 {
+	status = "disabled";
+};
+
+&vreg_cam1_2p8 {
+	status = "disabled";
+};
+
+&vreg_cam2_2p8 {
+	status = "disabled";
+};

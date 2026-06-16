@@ -4326,6 +4326,7 @@ static const struct qcom_reset_map gcc_shikra_resets[] = {
 	[GCC_USB20_BCR] = { 0xb0000 },
 	[GCC_USB30_PRIM_BCR] = { 0x1a000 },
 	[GCC_USB3PHY_PHY_PRIM_SP0_BCR] = { 0x1b008 },
+	[GCC_USB3_DP_PHY_PRIM_BCR] = { 0x1b020 },
 	[GCC_USB3_PHY_PRIM_SP0_BCR] = { 0x1b000 },
 	[GCC_USB_PHY_CFG_AHB2PHY_BCR] = { 0x1d000 },
 	[GCC_VCODEC0_BCR] = { 0x6d034 },
@@ -4347,6 +4348,8 @@ static const u32 gcc_shikra_critical_cbcrs[] = {
 	0x1702c, /* GCC_DISP_XO_CLK */
 	0x36004, /* GCC_GPU_CFG_AHB_CLK */
 	0x36100, /* GCC_GPU_IREF_CLK */
+	0x3a00c, /* GCC_LPASS_CONFIG_CLK */
+	0x3a008, /* GCC_LPASS_CORE_AXIM_CLK */
 	0x79004, /* GCC_SYS_NOC_CPUSS_AHB_CLK */
 	0x17004, /* GCC_VIDEO_AHB_CLK */
 	0x17024, /* GCC_VIDEO_XO_CLK */

@@ -1070,9 +1070,7 @@ static const struct venus_resources sc7280_res = {
 	.dec_nodename = "video-decoder",
 	.enc_nodename = "video-encoder",
 };
-#endif
 
-#if (!IS_ENABLED(CONFIG_VIDEO_QCOM_IRIS))
 static const struct bw_tbl qcm2290_bw_table_dec[] = {
 	{ 352800, 597000, 0, 746000, 0 }, /* 1080p@30 + 720p@30 */
 	{ 244800, 413000, 0, 516000, 0 }, /* 1080p@30 */
