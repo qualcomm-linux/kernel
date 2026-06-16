@@ -65,6 +65,7 @@ properties:
           - qcom,msm8996-apcs-hmss-global
           - qcom,qcm2290-apcs-hmss-global
           - qcom,sdm845-apss-shared
+          - qcom,shikra-apcs-hmss-global
 
   reg:
     maxItems: 1
@@ -238,6 +239,7 @@ allOf:
               - qcom,msm8996-apcs-hmss-global
               - qcom,qcm2290-apcs-hmss-global
               - qcom,sdm845-apss-shared
+              - qcom,shikra-apcs-hmss-global
     then:
       properties:
         clocks: false
