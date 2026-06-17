@@ -44,12 +44,18 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	clocks {
+		mcp2518fd_osc: can-clk {
+			compatible = "fixed-clock";
+			clock-frequency = <40000000>;
+			#clock-cells = <0>;
+		};
+	};
+
 	dp-connector {
 		compatible = "dp-connector";
 		label = "DP";
 		type = "mini";
-
-		hpd-gpios = <&tlmm 60 GPIO_ACTIVE_HIGH>;
 
 		port {
 			dp_connector_in: endpoint {
@@ -185,6 +191,7 @@
 			reg = <0>;
 			power-role = "dual";
 			data-role = "dual";
+			usb-role-switch = <&usb_1>;
 
 			ports {
 				#address-cells = <1>;
@@ -194,7 +201,7 @@
 					reg = <0>;
 
 					pmic_glink_hs_in: endpoint {
-						remote-endpoint = <&usb_1_dwc3_hs>;
+						remote-endpoint = <&eud_con>;
 					};
 				};
 
@@ -694,6 +701,7 @@
 	lt9611_codec: hdmi-bridge@2b {
 		compatible = "lontium,lt9611uxc";
 		reg = <0x2b>;
+		#sound-dai-cells = <1>;
 
 		interrupts-extended = <&tlmm 24 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&pm7250b_gpios 2 GPIO_ACTIVE_HIGH>;
@@ -789,7 +797,7 @@
 };
 
 &mdss_dp_out {
-	data-lanes = <0 1>;
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&usb_dp_qmpphy_dp_in>;
 };
 
@@ -1088,6 +1096,13 @@
 	status = "okay";
 };
 
+&psci {
+	reboot-mode {
+		mode-bootloader = <0x10001 0x2>;
+		mode-edl = <0 0x1>;
+	};
+};
+
 &qup_uart7_cts {
 	/*
 	 * Configure a bias-bus-hold on CTS to lower power
@@ -1167,6 +1182,9 @@
 	compatible = "qcom,qcs6490-rb3gen2-sndcard";
 	model = "QCS6490-RB3Gen2";
 
+	pinctrl-0 = <&mi2s1_data0>, <&mi2s1_mclk>, <&mi2s1_sclk>, <&mi2s1_ws>;
+	pinctrl-names = "default";
+
 	audio-routing = "SpkrLeft IN", "WSA_SPK1 OUT",
 			"SpkrRight IN", "WSA_SPK2 OUT",
 			"VA DMIC0", "vdd-micb",
@@ -1205,6 +1223,52 @@
 		platform {
 			sound-dai = <&q6apm>;
 		};
+	};
+
+	mi2s1-playback-dai-link {
+		link-name = "Secondary MI2S Playback";
+
+		codec {
+			sound-dai = <&lt9611_codec 0>;
+		};
+
+		cpu {
+			sound-dai = <&q6apmbedai SECONDARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6apm>;
+		};
+	};
+
+	dp-dai-link {
+		link-name = "DisplayPort0 Playback";
+
+		codec {
+			sound-dai = <&mdss_dp>;
+		};
+
+		cpu {
+			sound-dai = <&q6apmbedai DISPLAY_PORT_RX_0>;
+		};
+
+		platform {
+			sound-dai = <&q6apm>;
+		};
+	};
+};
+
+&spi3 {
+	status = "okay";
+
+	can@0 {
+		compatible = "microchip,mcp2518fd";
+		reg = <0>;
+		interrupts-extended = <&tlmm 7 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&mcp2518fd_osc>;
+		spi-max-frequency = <14000000>;
+		vdd-supply = <&vreg_l11c_2p8>;
+		microchip,xstbyen;
 	};
 };
 
@@ -1371,12 +1435,12 @@
 	status = "okay";
 };
 
-&usb_1_dwc3_hs {
-	remote-endpoint = <&pmic_glink_hs_in>;
-};
-
 &usb_1_dwc3_ss {
 	remote-endpoint = <&usb_dp_qmpphy_usb_ss_in>;
+};
+
+&eud_con {
+	remote-endpoint = <&pmic_glink_hs_in>;
 };
 
 &usb_1_hsphy {
@@ -1391,6 +1455,7 @@
 	vdda-phy-supply = <&vreg_l6b_1p2>;
 	vdda-pll-supply = <&vreg_l1b_0p912>;
 
+	mode-switch;
 	orientation-switch;
 
 	status = "okay";
@@ -1441,7 +1506,6 @@
 /* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
 
 &edp_hot_plug_det {
-	function = "gpio";
 	bias-disable;
 };
 
@@ -1529,4 +1593,27 @@
 &lpass_audiocc {
 	compatible = "qcom,qcm6490-lpassaudiocc";
 	/delete-property/ power-domains;
+};
+
+&mi2s1_data0 {
+	drive-strength = <8>;
+	bias-disable;
+};
+
+&mi2s1_mclk {
+	drive-strength = <8>;
+	bias-disable;
+	output-high;
+};
+
+&mi2s1_sclk {
+	drive-strength = <8>;
+	bias-disable;
+	output-high;
+};
+
+&mi2s1_ws {
+	drive-strength = <8>;
+	bias-disable;
+	output-high;
 };

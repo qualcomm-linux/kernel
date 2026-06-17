@@ -60,6 +60,7 @@ struct qcom_pas_data {
 	int region_assign_count;
 	bool region_assign_shared;
 	int region_assign_vmid;
+	bool early_boot;
 };
 
 struct qcom_pas {
@@ -100,8 +101,9 @@ struct qcom_pas {
 	phys_addr_t mem_reloc;
 	phys_addr_t dtb_mem_reloc;
 	phys_addr_t region_assign_phys[MAX_ASSIGN_COUNT];
+
 	void *mem_region;
-	void *dtb_mem_region;
+
 	size_t mem_size;
 	size_t dtb_mem_size;
 	size_t region_assign_size[MAX_ASSIGN_COUNT];
@@ -148,7 +150,16 @@ static void qcom_pas_minidump(struct rproc *rproc)
 	if (rproc->dump_conf == RPROC_COREDUMP_DISABLED)
 		return;
 
+	pas->mem_region = ioremap_wc(pas->mem_phys, pas->mem_size);
+	if (!pas->mem_region) {
+		dev_err(pas->dev, "unable to map memory region: %pa+%zx\n",
+			&pas->mem_phys, pas->mem_size);
+		return;
+	}
+
 	qcom_minidump(rproc, pas->minidump_id, qcom_pas_segment_dump);
+	iounmap(pas->mem_region);
+	pas->mem_region = NULL;
 }
 
 static int qcom_pas_pds_enable(struct qcom_pas *pas, struct device **pds,
@@ -184,6 +195,18 @@ static void qcom_pas_pds_disable(struct qcom_pas *pas, struct device **pds,
 	int i;
 
 	for (i = 0; i < pd_count; i++) {
+		/*
+		 * There is a race condition which occurs sometimes for RB8 platform when APPS
+		 * removes it's vote on handover INT from fw - ADSP F/W side vote is not yet
+		 * applied on the lcx and lmx rails because of which PMIC shutdowns shut and device
+		 * goes into hung state. Carry this WA until a proper fix is finalized.
+		 */
+		if (of_device_is_compatible(dev_of_node(pas->dev), "qcom,sa8775p-adsp-pas")) {
+			/* Apply SVS_L1 vote to keep lcx and lmx rails ON */
+			dev_pm_genpd_set_performance_state(pds[i], 192);
+			return;
+		}
+
 		dev_pm_genpd_set_performance_state(pds[i], 0);
 		pm_runtime_put(pds[i]);
 	}
@@ -241,7 +264,7 @@ static int qcom_pas_load(struct rproc *rproc, const struct firmware *fw)
 		}
 
 		ret = qcom_mdt_pas_load(pas->dtb_pas_ctx, pas->dtb_firmware,
-					pas->dtb_firmware_name, pas->dtb_mem_region,
+					pas->dtb_firmware_name,
 					&pas->dtb_mem_reloc);
 		if (ret)
 			goto release_dtb_metadata;
@@ -250,7 +273,9 @@ static int qcom_pas_load(struct rproc *rproc, const struct firmware *fw)
 	return 0;
 
 release_dtb_metadata:
-	qcom_scm_pas_metadata_release(pas->dtb_pas_ctx);
+	if (pas->dtb_pas_id)
+		qcom_scm_pas_metadata_release(pas->dtb_pas_ctx);
+
 	release_firmware(pas->dtb_firmware);
 
 	return ret;
@@ -319,7 +344,7 @@ static int qcom_pas_start(struct rproc *rproc)
 	}
 
 	ret = qcom_mdt_pas_load(pas->pas_ctx, pas->firmware, rproc->firmware,
-				pas->mem_region, &pas->mem_reloc);
+				&pas->mem_reloc);
 	if (ret)
 		goto release_pas_metadata;
 
@@ -423,9 +448,15 @@ static int qcom_pas_stop(struct rproc *rproc)
 
 	qcom_pas_unmap_carveout(rproc, pas->mem_phys, pas->mem_size);
 
-	handover = qcom_q6v5_unprepare(&pas->q6v5);
-	if (handover)
-		qcom_pas_handover(&pas->q6v5);
+	/*
+	 * qcom_q6v5_prepare is not called in qcom_pas_attach, skip unprepare to
+	 * avoid mismatch.
+	 */
+	if (pas->rproc->state != RPROC_ATTACHED) {
+		handover = qcom_q6v5_unprepare(&pas->q6v5);
+		if (handover)
+			qcom_pas_handover(&pas->q6v5);
+	}
 
 	if (pas->smem_host_id)
 		ret = qcom_smem_bust_hwspin_lock_by_host(pas->smem_host_id);
@@ -510,6 +541,79 @@ static unsigned long qcom_pas_panic(struct rproc *rproc)
 	return qcom_q6v5_panic(&pas->q6v5);
 }
 
+static void qcom_pas_coredump(struct rproc *rproc)
+{
+	struct qcom_pas *pas = rproc->priv;
+
+	pas->mem_region = ioremap_wc(pas->mem_phys, pas->mem_size);
+	if (!pas->mem_region) {
+		dev_err(pas->dev, "unable to map memory region: %pa+%zx\n",
+			&pas->mem_phys, pas->mem_size);
+		return;
+	}
+
+	rproc_coredump(rproc);
+	iounmap(pas->mem_region);
+	pas->mem_region = NULL;
+}
+
+static int qcom_pas_attach(struct rproc *rproc)
+{
+	int ret;
+	struct qcom_pas *pas = rproc->priv;
+	bool ready_state;
+	bool crash_state;
+
+	pas->q6v5.running = true;
+	ret = irq_get_irqchip_state(pas->q6v5.fatal_irq,
+				    IRQCHIP_STATE_LINE_LEVEL, &crash_state);
+
+	if (ret)
+		goto disable_running;
+
+	if (crash_state) {
+		dev_err(pas->dev, "Subsystem has crashed before driver probe\n");
+		rproc_report_crash(rproc, RPROC_FATAL_ERROR);
+		ret = -EINVAL;
+		goto disable_running;
+	}
+
+	ret = irq_get_irqchip_state(pas->q6v5.ready_irq,
+				    IRQCHIP_STATE_LINE_LEVEL, &ready_state);
+
+	if (ret)
+		goto disable_running;
+
+	if (unlikely(!ready_state)) {
+		/*
+		 * The bootloader may not support early boot, mark the state as
+		 * RPROC_OFFLINE so that the PAS driver can load the firmware and
+		 * start the remoteproc.
+		 */
+		dev_err(pas->dev, "Failed to get subsystem ready interrupt\n");
+		pas->rproc->state = RPROC_OFFLINE;
+		ret = -EINVAL;
+		goto disable_running;
+	}
+
+	ret = qcom_q6v5_ping_subsystem(&pas->q6v5);
+
+	if (ret) {
+		dev_err(pas->dev, "Failed to ping subsystem, assuming device crashed\n");
+		rproc_report_crash(rproc, RPROC_FATAL_ERROR);
+		goto disable_running;
+	}
+
+	pas->q6v5.handover_issued = true;
+
+	return 0;
+
+disable_running:
+	pas->q6v5.running = false;
+
+	return ret;
+}
+
 static const struct rproc_ops qcom_pas_ops = {
 	.unprepare = qcom_pas_unprepare,
 	.start = qcom_pas_start,
@@ -518,6 +622,8 @@ static const struct rproc_ops qcom_pas_ops = {
 	.parse_fw = qcom_pas_parse_firmware,
 	.load = qcom_pas_load,
 	.panic = qcom_pas_panic,
+	.coredump = qcom_pas_coredump,
+	.attach = qcom_pas_attach,
 };
 
 static const struct rproc_ops qcom_pas_minidump_ops = {
@@ -623,6 +729,7 @@ static void qcom_pas_pds_detach(struct qcom_pas *pas, struct device **pds, size_
 
 static int qcom_pas_alloc_memory_region(struct qcom_pas *pas)
 {
+	struct rproc *rproc = pas->rproc;
 	struct resource res;
 	int ret;
 
@@ -634,12 +741,13 @@ static int qcom_pas_alloc_memory_region(struct qcom_pas *pas)
 
 	pas->mem_phys = pas->mem_reloc = res.start;
 	pas->mem_size = resource_size(&res);
-	pas->mem_region = devm_ioremap_resource_wc(pas->dev, &res);
-	if (IS_ERR(pas->mem_region)) {
-		dev_err(pas->dev, "unable to map memory region: %pR\n", &res);
-		return PTR_ERR(pas->mem_region);
-	}
 
+	pas->pas_ctx = devm_qcom_scm_pas_context_alloc(pas->dev, pas->pas_id,
+						       pas->mem_phys, pas->mem_size);
+	if (IS_ERR(pas->pas_ctx))
+		return PTR_ERR(pas->pas_ctx);
+
+	pas->pas_ctx->use_tzmem = rproc->has_iommu;
 	if (!pas->dtb_pas_id)
 		return 0;
 
@@ -651,11 +759,14 @@ static int qcom_pas_alloc_memory_region(struct qcom_pas *pas)
 
 	pas->dtb_mem_phys = pas->dtb_mem_reloc = res.start;
 	pas->dtb_mem_size = resource_size(&res);
-	pas->dtb_mem_region = devm_ioremap_resource_wc(pas->dev, &res);
-	if (IS_ERR(pas->dtb_mem_region)) {
-		dev_err(pas->dev, "unable to map dtb memory region: %pR\n", &res);
-		return PTR_ERR(pas->dtb_mem_region);
-	}
+
+	pas->dtb_pas_ctx = devm_qcom_scm_pas_context_alloc(pas->dev, pas->dtb_pas_id,
+							   pas->dtb_mem_phys,
+							   pas->dtb_mem_size);
+	if (IS_ERR(pas->dtb_pas_ctx))
+		return PTR_ERR(pas->dtb_pas_ctx);
+
+	pas->dtb_pas_ctx->use_tzmem = rproc->has_iommu;
 
 	return 0;
 }
@@ -855,6 +966,15 @@ static int qcom_pas_probe(struct platform_device *pdev)
 
 	pas->pas_ctx->use_tzmem = rproc->has_iommu;
 	pas->dtb_pas_ctx->use_tzmem = rproc->has_iommu;
+
+	if (desc->early_boot) {
+		ret = qcom_q6v5_ping_subsystem_init(&pas->q6v5, pdev);
+		if (ret)
+			dev_warn(&pdev->dev, "Falling back to firmware load\n");
+		else
+			pas->rproc->state = RPROC_DETACHED;
+	}
+
 	ret = rproc_add(rproc);
 	if (ret)
 		goto remove_ssr_sysmon;
@@ -1457,6 +1577,55 @@ static const struct qcom_pas_data sc7280_wpss_resource = {
 	.ssctl_id = 0x19,
 };
 
+static const struct qcom_pas_data shikra_cdsp_resource = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp.mbn",
+	.pas_id = 18,
+	.minidump_id = 7,
+	.auto_boot = false,
+	.proxy_pd_names = (char *[]){
+		"cx",
+		NULL
+	},
+	.load_state = "cdsp",
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.ssctl_id = 0x17,
+	.smem_host_id = 5,
+	.region_assign_vmid = QCOM_SCM_VMID_CDSP,
+};
+
+static const struct qcom_pas_data shikra_lpaicp_resource = {
+	.crash_reason_smem = 682,
+	.firmware_name = "lpaicp.mbn",
+	.dtb_firmware_name = "lpaicp_dtb.mbn",
+	.pas_id = 0x56,
+	.dtb_pas_id = 0x57,
+	/* placeholder for lpaicp subsystem dump collection id to be added */
+	.minidump_id = 0,
+	.auto_boot = true,
+	.ssr_name = "lpaicp",
+	.sysmon_name = "lpaicp",
+};
+
+static const struct qcom_pas_data shikra_mpss_resource = {
+	.crash_reason_smem = 421,
+	.firmware_name = "qdsp6sw.mbn",
+	.pas_id = 4,
+	.minidump_id = 3,
+	.auto_boot = false,
+	.decrypt_shutdown = true,
+	.proxy_pd_names = (char *[]){
+		"cx",
+		NULL
+	},
+	.load_state = "modem",
+	.ssr_name = "mpss",
+	.sysmon_name = "modem",
+	.ssctl_id = 0x12,
+	.region_assign_vmid = QCOM_SCM_VMID_MSS_MSA,
+};
+
 static const struct qcom_pas_data sm8650_cdsp_resource = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mdt",
@@ -1530,8 +1699,26 @@ static const struct qcom_pas_data sm8750_mpss_resource = {
 	.region_assign_vmid = QCOM_SCM_VMID_MSS_MSA,
 };
 
+static const struct qcom_pas_data kaanapali_soccp_resource = {
+	.crash_reason_smem = 656,
+	.firmware_name = "soccp.mbn",
+	.dtb_firmware_name = "soccp_dtb.mbn",
+	.pas_id = 51,
+	.dtb_pas_id = 0x41,
+	.proxy_pd_names = (char*[]){
+		"cx",
+		"mx",
+		NULL
+	},
+	.ssr_name = "soccp",
+	.sysmon_name = "soccp",
+	.auto_boot = true,
+	.early_boot = true,
+};
+
 static const struct of_device_id qcom_pas_of_match[] = {
 	{ .compatible = "qcom,eliza-adsp-pas", .data = &sm8550_adsp_resource },
+	{ .compatible = "qcom,kaanapali-soccp-pas", .data = &kaanapali_soccp_resource },
 	{ .compatible = "qcom,milos-adsp-pas", .data = &sm8550_adsp_resource },
 	{ .compatible = "qcom,milos-cdsp-pas", .data = &milos_cdsp_resource },
 	{ .compatible = "qcom,milos-mpss-pas", .data = &sm8450_mpss_resource },
@@ -1546,64 +1733,67 @@ static const struct of_device_id qcom_pas_of_match[] = {
 	{ .compatible = "qcom,qcs404-adsp-pas", .data = &adsp_resource_init },
 	{ .compatible = "qcom,qcs404-cdsp-pas", .data = &cdsp_resource_init },
 	{ .compatible = "qcom,qcs404-wcss-pas", .data = &wcss_resource_init },
-	{ .compatible = "qcom,sa8775p-adsp-pas", .data = &sa8775p_adsp_resource },
-	{ .compatible = "qcom,sa8775p-cdsp0-pas", .data = &sa8775p_cdsp0_resource },
-	{ .compatible = "qcom,sa8775p-cdsp1-pas", .data = &sa8775p_cdsp1_resource },
-	{ .compatible = "qcom,sa8775p-gpdsp0-pas", .data = &sa8775p_gpdsp0_resource },
-	{ .compatible = "qcom,sa8775p-gpdsp1-pas", .data = &sa8775p_gpdsp1_resource },
-	{ .compatible = "qcom,sar2130p-adsp-pas", .data = &sm8350_adsp_resource },
-	{ .compatible = "qcom,sc7180-adsp-pas", .data = &sm8250_adsp_resource },
-	{ .compatible = "qcom,sc7180-mpss-pas", .data = &mpss_resource_init },
-	{ .compatible = "qcom,sc7280-adsp-pas", .data = &sm8350_adsp_resource },
-	{ .compatible = "qcom,sc7280-cdsp-pas", .data = &sm6350_cdsp_resource },
-	{ .compatible = "qcom,sc7280-mpss-pas", .data = &mpss_resource_init },
-	{ .compatible = "qcom,sc7280-wpss-pas", .data = &sc7280_wpss_resource },
-	{ .compatible = "qcom,sc8180x-adsp-pas", .data = &sm8150_adsp_resource },
-	{ .compatible = "qcom,sc8180x-cdsp-pas", .data = &sm8150_cdsp_resource },
-	{ .compatible = "qcom,sc8180x-mpss-pas", .data = &sc8180x_mpss_resource },
-	{ .compatible = "qcom,sc8280xp-adsp-pas", .data = &sm8250_adsp_resource },
-	{ .compatible = "qcom,sc8280xp-nsp0-pas", .data = &sc8280xp_nsp0_resource },
-	{ .compatible = "qcom,sc8280xp-nsp1-pas", .data = &sc8280xp_nsp1_resource },
-	{ .compatible = "qcom,sdm660-adsp-pas", .data = &adsp_resource_init },
-	{ .compatible = "qcom,sdm660-cdsp-pas", .data = &cdsp_resource_init },
-	{ .compatible = "qcom,sdm845-adsp-pas", .data = &sdm845_adsp_resource_init },
-	{ .compatible = "qcom,sdm845-cdsp-pas", .data = &sdm845_cdsp_resource_init },
-	{ .compatible = "qcom,sdm845-slpi-pas", .data = &sdm845_slpi_resource_init },
-	{ .compatible = "qcom,sdx55-mpss-pas", .data = &sdx55_mpss_resource },
-	{ .compatible = "qcom,sdx75-mpss-pas", .data = &sm8650_mpss_resource },
-	{ .compatible = "qcom,sm6115-adsp-pas", .data = &adsp_resource_init },
-	{ .compatible = "qcom,sm6115-cdsp-pas", .data = &cdsp_resource_init },
-	{ .compatible = "qcom,sm6115-mpss-pas", .data = &sc8180x_mpss_resource },
-	{ .compatible = "qcom,sm6350-adsp-pas", .data = &sm6350_adsp_resource },
-	{ .compatible = "qcom,sm6350-cdsp-pas", .data = &sm6350_cdsp_resource },
-	{ .compatible = "qcom,sm6350-mpss-pas", .data = &mpss_resource_init },
-	{ .compatible = "qcom,sm6375-adsp-pas", .data = &sm6350_adsp_resource },
-	{ .compatible = "qcom,sm6375-cdsp-pas", .data = &sm8150_cdsp_resource },
-	{ .compatible = "qcom,sm6375-mpss-pas", .data = &sm6375_mpss_resource },
-	{ .compatible = "qcom,sm8150-adsp-pas", .data = &sm8150_adsp_resource },
-	{ .compatible = "qcom,sm8150-cdsp-pas", .data = &sm8150_cdsp_resource },
-	{ .compatible = "qcom,sm8150-mpss-pas", .data = &mpss_resource_init },
-	{ .compatible = "qcom,sm8150-slpi-pas", .data = &sdm845_slpi_resource_init },
-	{ .compatible = "qcom,sm8250-adsp-pas", .data = &sm8250_adsp_resource },
-	{ .compatible = "qcom,sm8250-cdsp-pas", .data = &sm8250_cdsp_resource },
-	{ .compatible = "qcom,sm8250-slpi-pas", .data = &sdm845_slpi_resource_init },
-	{ .compatible = "qcom,sm8350-adsp-pas", .data = &sm8350_adsp_resource },
-	{ .compatible = "qcom,sm8350-cdsp-pas", .data = &sm8350_cdsp_resource },
-	{ .compatible = "qcom,sm8350-slpi-pas", .data = &sdm845_slpi_resource_init },
-	{ .compatible = "qcom,sm8350-mpss-pas", .data = &mpss_resource_init },
-	{ .compatible = "qcom,sm8450-adsp-pas", .data = &sm8350_adsp_resource },
-	{ .compatible = "qcom,sm8450-cdsp-pas", .data = &sm8350_cdsp_resource },
-	{ .compatible = "qcom,sm8450-slpi-pas", .data = &sdm845_slpi_resource_init },
-	{ .compatible = "qcom,sm8450-mpss-pas", .data = &sm8450_mpss_resource },
-	{ .compatible = "qcom,sm8550-adsp-pas", .data = &sm8550_adsp_resource },
-	{ .compatible = "qcom,sm8550-cdsp-pas", .data = &sm8550_cdsp_resource },
-	{ .compatible = "qcom,sm8550-mpss-pas", .data = &sm8550_mpss_resource },
-	{ .compatible = "qcom,sm8650-adsp-pas", .data = &sm8550_adsp_resource },
-	{ .compatible = "qcom,sm8650-cdsp-pas", .data = &sm8650_cdsp_resource },
-	{ .compatible = "qcom,sm8650-mpss-pas", .data = &sm8650_mpss_resource },
-	{ .compatible = "qcom,sm8750-mpss-pas", .data = &sm8750_mpss_resource },
-	{ .compatible = "qcom,x1e80100-adsp-pas", .data = &x1e80100_adsp_resource },
-	{ .compatible = "qcom,x1e80100-cdsp-pas", .data = &x1e80100_cdsp_resource },
+	{ .compatible = "qcom,sa8775p-adsp-pas", .data = &sa8775p_adsp_resource},
+	{ .compatible = "qcom,sa8775p-cdsp0-pas", .data = &sa8775p_cdsp0_resource},
+	{ .compatible = "qcom,sa8775p-cdsp1-pas", .data = &sa8775p_cdsp1_resource},
+	{ .compatible = "qcom,sa8775p-gpdsp0-pas", .data = &sa8775p_gpdsp0_resource},
+	{ .compatible = "qcom,sa8775p-gpdsp1-pas", .data = &sa8775p_gpdsp1_resource},
+	{ .compatible = "qcom,sar2130p-adsp-pas", .data = &sm8350_adsp_resource},
+	{ .compatible = "qcom,sc7180-adsp-pas", .data = &sm8250_adsp_resource},
+	{ .compatible = "qcom,sc7180-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sc7280-adsp-pas", .data = &sm8350_adsp_resource},
+	{ .compatible = "qcom,sc7280-cdsp-pas", .data = &sm6350_cdsp_resource},
+	{ .compatible = "qcom,sc7280-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sc7280-wpss-pas", .data = &sc7280_wpss_resource},
+	{ .compatible = "qcom,sc8180x-adsp-pas", .data = &sm8150_adsp_resource},
+	{ .compatible = "qcom,sc8180x-cdsp-pas", .data = &sm8150_cdsp_resource},
+	{ .compatible = "qcom,sc8180x-mpss-pas", .data = &sc8180x_mpss_resource},
+	{ .compatible = "qcom,sc8280xp-adsp-pas", .data = &sm8250_adsp_resource},
+	{ .compatible = "qcom,sc8280xp-nsp0-pas", .data = &sc8280xp_nsp0_resource},
+	{ .compatible = "qcom,sc8280xp-nsp1-pas", .data = &sc8280xp_nsp1_resource},
+	{ .compatible = "qcom,sdm660-adsp-pas", .data = &adsp_resource_init},
+	{ .compatible = "qcom,sdm660-cdsp-pas", .data = &cdsp_resource_init},
+	{ .compatible = "qcom,sdm845-adsp-pas", .data = &sdm845_adsp_resource_init},
+	{ .compatible = "qcom,sdm845-cdsp-pas", .data = &sdm845_cdsp_resource_init},
+	{ .compatible = "qcom,sdm845-slpi-pas", .data = &sdm845_slpi_resource_init},
+	{ .compatible = "qcom,sdx55-mpss-pas", .data = &sdx55_mpss_resource},
+	{ .compatible = "qcom,sdx75-mpss-pas", .data = &sm8650_mpss_resource},
+	{ .compatible = "qcom,shikra-cdsp-pas", .data = &shikra_cdsp_resource },
+	{ .compatible = "qcom,shikra-lpaicp-pas", .data = &shikra_lpaicp_resource },
+	{ .compatible = "qcom,shikra-mpss-pas", .data = &shikra_mpss_resource },
+	{ .compatible = "qcom,sm6115-adsp-pas", .data = &adsp_resource_init},
+	{ .compatible = "qcom,sm6115-cdsp-pas", .data = &cdsp_resource_init},
+	{ .compatible = "qcom,sm6115-mpss-pas", .data = &sc8180x_mpss_resource},
+	{ .compatible = "qcom,sm6350-adsp-pas", .data = &sm6350_adsp_resource},
+	{ .compatible = "qcom,sm6350-cdsp-pas", .data = &sm6350_cdsp_resource},
+	{ .compatible = "qcom,sm6350-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sm6375-adsp-pas", .data = &sm6350_adsp_resource},
+	{ .compatible = "qcom,sm6375-cdsp-pas", .data = &sm8150_cdsp_resource},
+	{ .compatible = "qcom,sm6375-mpss-pas", .data = &sm6375_mpss_resource},
+	{ .compatible = "qcom,sm8150-adsp-pas", .data = &sm8150_adsp_resource},
+	{ .compatible = "qcom,sm8150-cdsp-pas", .data = &sm8150_cdsp_resource},
+	{ .compatible = "qcom,sm8150-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sm8150-slpi-pas", .data = &sdm845_slpi_resource_init},
+	{ .compatible = "qcom,sm8250-adsp-pas", .data = &sm8250_adsp_resource},
+	{ .compatible = "qcom,sm8250-cdsp-pas", .data = &sm8250_cdsp_resource},
+	{ .compatible = "qcom,sm8250-slpi-pas", .data = &sdm845_slpi_resource_init},
+	{ .compatible = "qcom,sm8350-adsp-pas", .data = &sm8350_adsp_resource},
+	{ .compatible = "qcom,sm8350-cdsp-pas", .data = &sm8350_cdsp_resource},
+	{ .compatible = "qcom,sm8350-slpi-pas", .data = &sdm845_slpi_resource_init},
+	{ .compatible = "qcom,sm8350-mpss-pas", .data = &mpss_resource_init},
+	{ .compatible = "qcom,sm8450-adsp-pas", .data = &sm8350_adsp_resource},
+	{ .compatible = "qcom,sm8450-cdsp-pas", .data = &sm8350_cdsp_resource},
+	{ .compatible = "qcom,sm8450-slpi-pas", .data = &sdm845_slpi_resource_init},
+	{ .compatible = "qcom,sm8450-mpss-pas", .data = &sm8450_mpss_resource},
+	{ .compatible = "qcom,sm8550-adsp-pas", .data = &sm8550_adsp_resource},
+	{ .compatible = "qcom,sm8550-cdsp-pas", .data = &sm8550_cdsp_resource},
+	{ .compatible = "qcom,sm8550-mpss-pas", .data = &sm8550_mpss_resource},
+	{ .compatible = "qcom,sm8650-adsp-pas", .data = &sm8550_adsp_resource},
+	{ .compatible = "qcom,sm8650-cdsp-pas", .data = &sm8650_cdsp_resource},
+	{ .compatible = "qcom,sm8650-mpss-pas", .data = &sm8650_mpss_resource},
+	{ .compatible = "qcom,sm8750-mpss-pas", .data = &sm8750_mpss_resource},
+	{ .compatible = "qcom,x1e80100-adsp-pas", .data = &x1e80100_adsp_resource},
+	{ .compatible = "qcom,x1e80100-cdsp-pas", .data = &x1e80100_cdsp_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_pas_of_match);

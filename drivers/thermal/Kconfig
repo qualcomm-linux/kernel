@@ -229,6 +229,17 @@ config PCIE_THERMAL
 
 	  If you want this support, you should say Y here.
 
+
+config REMOTEPROC_THERMAL
+	bool "Remote processor cooling support"
+	help
+	  This implements a generic cooling mechanism for remote processors
+	  (modem, DSP, etc.) that allows vendor-specific implementations to
+	  register thermal cooling devices and provide callbacks for thermal
+	  mitigation.
+
+	  If you want this support, you should say Y here.
+
 config THERMAL_EMULATION
 	bool "Thermal emulation mode support"
 	help

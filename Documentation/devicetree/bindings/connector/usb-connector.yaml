@@ -95,6 +95,14 @@ properties:
       - device
       - dual
 
+  usb-role-switch:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      A phandle to the USB role-switch provider. The provider is typically
+      a dual-role (DRD) USB controller node that declares the boolean
+      'usb-role-switch' property. Use this when the connector is not
+      directly linked to the provider in the OF graph.
+
   typec-power-opmode:
     description: Determines the power operation mode that the Type C connector
       will support and will advertise through CC pins when it has no power

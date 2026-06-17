@@ -26,6 +26,7 @@
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
 
+#include "../pci-host-common.h"
 #include "../../pci.h"
 
 /* DWC PCIe IP-core versions (native support since v4.70a) */
@@ -450,6 +451,7 @@ struct dw_pcie_rp {
 	bool			ecam_enabled;
 	bool			native_ecam;
 	bool                    skip_l23_ready;
+	bool			skip_pwrctrl_off;
 };
 
 struct dw_pcie_ep_ops {

@@ -51,6 +51,9 @@
 	.max_power              = 30, \
 }
 
+#define ATH12K_5_9_GHZ_MIN_FREQ 5845
+#define ATH12K_5_9_GHZ_MAX_FREQ 5885
+
 static const struct ieee80211_channel ath12k_2ghz_channels[] = {
 	CHAN2G(1, 2412, 0),
 	CHAN2G(2, 2417, 0),
@@ -96,6 +99,7 @@ static const struct ieee80211_channel ath12k_5ghz_channels[] = {
 	CHAN5G(165, 5825, 0),
 	CHAN5G(169, 5845, 0),
 	CHAN5G(173, 5865, 0),
+	CHAN5G(177, 5885, 0),
 };
 
 static const struct ieee80211_channel ath12k_6ghz_channels[] = {
@@ -1234,9 +1238,13 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 		/* cleanup dp peer */
 		spin_lock_bh(&dp_hw->peer_lock);
 		dp_peer = peer->dp_peer;
-		peerid_index = ath12k_dp_peer_get_peerid_index(dp, peer->peer_id);
-		rcu_assign_pointer(dp_peer->link_peers[peer->link_id], NULL);
-		rcu_assign_pointer(dp_hw->dp_peers[peerid_index], NULL);
+		if (dp_peer) {
+			peerid_index = ath12k_dp_peer_get_peerid_index(dp, peer->peer_id);
+			rcu_assign_pointer(dp_peer->link_peers[peer->link_id], NULL);
+			WRITE_ONCE(dp_peer->link_peers_map,
+				   READ_ONCE(dp_peer->link_peers_map) & ~BIT(peer->link_id));
+			rcu_assign_pointer(dp_hw->dp_peers[peerid_index], NULL);
+		}
 		spin_unlock_bh(&dp_hw->peer_lock);
 
 		ath12k_dp_link_peer_rhash_delete(dp, peer);
@@ -8054,16 +8062,16 @@ int ath12k_mac_op_change_sta_links(struct ieee80211_hw *hw,
 			continue;
 
 		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
-		arsta = ath12k_mac_alloc_assign_link_sta(ah, ahsta, ahvif, link_id);
+		if (!arvif || !arvif->is_created)
+			continue;
 
-		if (!arvif || !arsta) {
+		arsta = ath12k_mac_alloc_assign_link_sta(ah, ahsta, ahvif, link_id);
+		if (!arsta) {
 			ath12k_hw_warn(ah, "Failed to alloc/assign link sta");
 			continue;
 		}
 
 		ar = arvif->ar;
-		if (!ar)
-			continue;
 
 		ret = ath12k_mac_station_add(ar, arvif, arsta);
 		if (ret) {
@@ -10293,7 +10301,7 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 	if (ret) {
 		ath12k_warn(ab, "failed to create WMI vdev %d: %d\n",
 			    arvif->vdev_id, ret);
-		return ret;
+		goto err;
 	}
 
 	ar->num_created_vdevs++;
@@ -10440,13 +10448,13 @@ err_peer_del:
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
 				    arvif->vdev_id, arvif->bssid);
-			goto err;
+			goto err_dp_peer_del;
 		}
 
 		ret = ath12k_wait_for_peer_delete_done(ar, arvif->vdev_id,
 						       arvif->bssid);
 		if (ret)
-			goto err_vdev_del;
+			goto err_dp_peer_del;
 
 		ar->num_peers--;
 	}
@@ -10463,8 +10471,6 @@ err_vdev_del:
 
 	ath12k_wmi_vdev_delete(ar, arvif->vdev_id);
 	ar->num_created_vdevs--;
-	arvif->is_created = false;
-	arvif->ar = NULL;
 	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
 	ab->free_vdev_map |= 1LL << arvif->vdev_id;
 	ab->free_vdev_stats_id_map &= ~(1LL << arvif->vdev_stats_id);
@@ -10473,6 +10479,7 @@ err_vdev_del:
 	spin_unlock_bh(&ar->data_lock);
 
 err:
+	arvif->is_created = false;
 	arvif->ar = NULL;
 	return ret;
 }
@@ -13351,6 +13358,7 @@ int ath12k_mac_op_get_survey(struct ieee80211_hw *hw, int idx,
 	struct ath12k *ar;
 	struct ieee80211_supported_band *sband;
 	struct survey_info *ar_survey;
+	int orig_idx = idx;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
@@ -13385,7 +13393,7 @@ int ath12k_mac_op_get_survey(struct ieee80211_hw *hw, int idx,
 		return -ENOENT;
 	}
 
-	ar_survey = &ar->survey[idx];
+	ar_survey = &ar->survey[orig_idx];
 
 	ath12k_mac_update_bss_chan_survey(ar, &sband->channels[idx]);
 
@@ -13904,6 +13912,26 @@ static int ath12k_mac_update_band(struct ath12k *ar,
 	return 0;
 }
 
+static void ath12k_mac_update_5_9_ghz_ch_list(struct ath12k *ar,
+					      struct ieee80211_supported_band *band)
+{
+	int i;
+
+	if (test_bit(WMI_TLV_SERVICE_5_9GHZ_SUPPORT,
+		     ar->ab->wmi_ab.svc_map))
+		return;
+
+	guard(spinlock_bh)(&ar->ab->base_lock);
+	if (ar->ab->dfs_region != ATH12K_DFS_REG_FCC)
+		return;
+
+	for (i = 0; i < band->n_channels; i++) {
+		if (band->channels[i].center_freq >= ATH12K_5_9_GHZ_MIN_FREQ &&
+		    band->channels[i].center_freq <= ATH12K_5_9_GHZ_MAX_FREQ)
+			band->channels[i].flags |= IEEE80211_CHAN_DISABLED;
+	}
+}
+
 static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 					   u32 supported_bands,
 					   struct ieee80211_supported_band *bands[])
@@ -14036,6 +14064,8 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 			band->channels = channels;
 			band->n_bitrates = ath12k_a_rates_size;
 			band->bitrates = ath12k_a_rates;
+
+			ath12k_mac_update_5_9_ghz_ch_list(ar, band);
 
 			if (ab->hw_params->single_pdev_only) {
 				phy_id = ath12k_get_phy_id(ar, WMI_HOST_WLAN_5GHZ_CAP);

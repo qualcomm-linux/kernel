@@ -321,7 +321,7 @@ int qmi_txn_init(struct qmi_handle *qmi, struct qmi_txn *txn,
 	mutex_lock(&qmi->txn_lock);
 	ret = idr_alloc_cyclic(&qmi->txns, txn, 0, U16_MAX, GFP_KERNEL);
 	if (ret < 0)
-		pr_err("failed to allocate transaction id\n");
+		pr_err("failed to allocate transaction id: %d\n", ret);
 
 	txn->id = ret;
 	mutex_unlock(&qmi->txn_lock);
@@ -413,7 +413,7 @@ static void qmi_invoke_handler(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 
 	ret = qmi_decode_message(buf, len, handler->ei, dest);
 	if (ret < 0)
-		pr_err("failed to decode incoming message\n");
+		pr_err("failed to decode incoming message: %d\n", ret);
 	else
 		handler->fn(qmi, sq, txn, dest);
 
@@ -502,7 +502,7 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 		if (txn->dest && txn->ei) {
 			ret = qmi_decode_message(buf, len, txn->ei, txn->dest);
 			if (ret < 0)
-				pr_err("failed to decode incoming message\n");
+				pr_err("failed to decode incoming message: %d\n", ret);
 
 			txn->result = ret;
 			complete(&txn->completion);
@@ -661,8 +661,8 @@ int qmi_handle_init(struct qmi_handle *qmi, size_t recv_buf_size,
 		if (PTR_ERR(qmi->sock) == -EAFNOSUPPORT) {
 			ret = -EPROBE_DEFER;
 		} else {
-			pr_err("failed to create QMI socket\n");
 			ret = PTR_ERR(qmi->sock);
+			pr_err("failed to create QMI socket: %d\n", ret);
 		}
 		goto err_destroy_wq;
 	}
@@ -766,7 +766,7 @@ static ssize_t qmi_send_message(struct qmi_handle *qmi,
 	if (qmi->sock) {
 		ret = kernel_sendmsg(qmi->sock, &msghdr, &iv, 1, len);
 		if (ret < 0)
-			pr_err("failed to send QMI message\n");
+			pr_err("failed to send QMI message: %d\n", ret);
 	} else {
 		ret = -EPIPE;
 	}

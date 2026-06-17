@@ -419,7 +419,7 @@ struct ath12k_dp_peer *ath12k_dp_peer_find_by_peerid(struct ath12k_pdev_dp *dp_p
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
 			 "ath12k dp peer find by peerid index called without rcu lock");
 
-	if (!peer_id || peer_id >= ATH12K_DP_PEER_ID_INVALID)
+	if (peer_id >= ATH12K_DP_PEER_ID_INVALID)
 		return NULL;
 
 	index = ath12k_dp_peer_get_peerid_index(dp, peer_id);
@@ -570,6 +570,8 @@ int ath12k_dp_link_peer_assign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_hw,
 	peerid_index = ath12k_dp_peer_get_peerid_index(dp, peer->peer_id);
 
 	rcu_assign_pointer(dp_peer->link_peers[peer->link_id], peer);
+	WRITE_ONCE(dp_peer->link_peers_map,
+		   READ_ONCE(dp_peer->link_peers_map) | BIT(peer->link_id));
 
 	rcu_assign_pointer(dp_hw->dp_peers[peerid_index], dp_peer);
 
@@ -632,6 +634,8 @@ void ath12k_dp_link_peer_unassign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_
 	peerid_index = ath12k_dp_peer_get_peerid_index(dp, peer->peer_id);
 
 	rcu_assign_pointer(dp_peer->link_peers[peer->link_id], NULL);
+	WRITE_ONCE(dp_peer->link_peers_map,
+		   READ_ONCE(dp_peer->link_peers_map) & ~BIT(peer->link_id));
 
 	rcu_assign_pointer(dp_hw->dp_peers[peerid_index], NULL);
 

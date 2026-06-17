@@ -63,6 +63,7 @@ struct geni_icc_path {
  * @num_clk_levels:	Number of valid clock levels in clk_perf_tbl
  * @clk_perf_tbl:	Table of clock frequency input to serial engine clock
  * @icc_paths:		Array of ICC paths for SE
+ * @multi_owner:	True if SE is shared between multiprocessors.
  */
 struct geni_se {
 	void __iomem *base;
@@ -72,6 +73,7 @@ struct geni_se {
 	unsigned int num_clk_levels;
 	unsigned long *clk_perf_tbl;
 	struct geni_icc_path icc_paths[3];
+	bool multi_owner;
 };
 
 /* Common SE registers */

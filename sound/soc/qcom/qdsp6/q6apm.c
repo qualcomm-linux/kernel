@@ -102,7 +102,10 @@ static int audioreach_graph_mgmt_cmd(struct audioreach_graph *graph, uint32_t op
 	struct q6apm *apm = graph->apm;
 	int i = 0, payload_size = APM_GRAPH_MGMT_PSIZE(mgmt_cmd, num_sub_graphs);
 
-	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(payload_size, opcode, 0);
+	u16 dest_domain = audioreach_gpr_dest_domain(apm->gdev);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_apm_cmd_pkt(payload_size, opcode, 0,
+					     dest_domain);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -142,8 +145,10 @@ static void q6apm_put_audioreach_graph(struct kref *ref)
 
 static int q6apm_get_apm_state(struct q6apm *apm)
 {
-	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(0,
-								APM_CMD_GET_SPF_STATE, 0);
+	u16 dest_domain = audioreach_gpr_dest_domain(apm->gdev);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_apm_cmd_pkt(0, APM_CMD_GET_SPF_STATE, 0,
+					     dest_domain);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -211,8 +216,11 @@ int q6apm_map_memory_fixed_region(struct device *dev, unsigned int graph_id, phy
 	int payload_size = sizeof(*cmd) + (sizeof(*mregions));
 	uint32_t buf_sz;
 	void *p;
-	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(payload_size,
-						APM_CMD_SHARED_MEM_MAP_REGIONS, graph_id);
+	u16 dest_domain = audioreach_gpr_dest_domain(apm->gdev);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_apm_cmd_pkt(payload_size,
+					     APM_CMD_SHARED_MEM_MAP_REGIONS, graph_id,
+					     dest_domain);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -298,8 +306,11 @@ int q6apm_unmap_memory_fixed_region(struct device *dev, unsigned int graph_id)
 	struct apm_cmd_shared_mem_unmap_regions *cmd;
 	struct q6apm *apm = dev_get_drvdata(dev->parent);
 	struct audioreach_graph_info *info;
-	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(sizeof(*cmd),
-						APM_CMD_SHARED_MEM_UNMAP_REGIONS, graph_id);
+	u16 dest_domain = audioreach_gpr_dest_domain(apm->gdev);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_apm_cmd_pkt(sizeof(*cmd),
+					     APM_CMD_SHARED_MEM_UNMAP_REGIONS, graph_id,
+					     dest_domain);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -448,10 +459,14 @@ int q6apm_write_async(struct q6apm_graph *graph, uint32_t len, uint32_t msw_ts,
 	struct apm_data_cmd_wr_sh_mem_ep_data_buffer_v2 *write_buffer;
 	struct audio_buffer *ab;
 
-	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_pkt(sizeof(*write_buffer),
-					DATA_CMD_WR_SH_MEM_EP_DATA_BUFFER_V2,
-					graph->rx_data.dsp_buf | (len << APM_WRITE_TOKEN_LEN_SHIFT),
-					graph->port->id, graph->shm_iid);
+	u16 dest_domain = audioreach_gpr_dest_domain(graph->apm->gdev);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_pkt(sizeof(*write_buffer),
+				     DATA_CMD_WR_SH_MEM_EP_DATA_BUFFER_V2,
+				     graph->rx_data.dsp_buf |
+				     (len << APM_WRITE_TOKEN_LEN_SHIFT),
+				     graph->port->id, graph->shm_iid,
+				     dest_domain);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -485,9 +500,13 @@ int q6apm_read(struct q6apm_graph *graph)
 	struct audioreach_graph_data *port;
 	struct audio_buffer *ab;
 
-	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_pkt(sizeof(*read_buffer),
-					DATA_CMD_RD_SH_MEM_EP_DATA_BUFFER_V2,
-					graph->tx_data.dsp_buf, graph->port->id, graph->shm_iid);
+	u16 dest_domain = audioreach_gpr_dest_domain(graph->apm->gdev);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_pkt(sizeof(*read_buffer),
+				     DATA_CMD_RD_SH_MEM_EP_DATA_BUFFER_V2,
+				     graph->tx_data.dsp_buf,
+				     graph->port->id, graph->shm_iid,
+				     dest_domain);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 

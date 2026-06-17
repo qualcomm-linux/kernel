@@ -829,6 +829,14 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
 		if (i < num - 1)
 			peripheral.stretch = 1;
 
+		peripheral.lock_action = GPI_LOCK_NONE;
+		if (gi2c->se.multi_owner) {
+			if (i == 0)
+				peripheral.lock_action = GPI_LOCK_ACQUIRE;
+			else if (i == num - 1)
+				peripheral.lock_action = GPI_LOCK_RELEASE;
+		}
+
 		peripheral.addr = msgs[i].addr;
 		if (i > 0 && (!(msgs[i].flags & I2C_M_RD)))
 			peripheral.multi_msg = false;
@@ -1028,6 +1036,17 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		gi2c->clk_freq_out = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,qup-multi-owner")) {
+		/*
+		 * Multi-owner controller configuration: the controller may be
+		 * used by another system processor. Mark the SE as shared so
+		 * common GENI resource handling can avoid pin state changes
+		 * that would disrupt the other user.
+		 */
+		gi2c->se.multi_owner = true;
+		dev_dbg(&pdev->dev, "I2C controller is shared with another system processor\n");
+	}
+
 	if (has_acpi_companion(dev))
 		ACPI_COMPANION_SET(&gi2c->adap.dev, ACPI_COMPANION(dev));
 
@@ -1045,8 +1064,14 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	spin_lock_init(&gi2c->lock);
 	platform_set_drvdata(pdev, gi2c);
 
-	/* Keep interrupts disabled initially to allow for low-power modes */
-	ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq, IRQF_NO_AUTOEN,
+	/*
+	 * Keep interrupts disabled initially to allow for low-power modes.
+	 * IRQF_NO_SUSPEND: Keep IRQ enabled during suspend to handle I2C transfers
+	 *                  in noirq phase (e.g., from PCIe driver's noirq_resume).
+	 * IRQF_EARLY_RESUME: Enable IRQ early during resume sequence.
+	 */
+	ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq,
+			       IRQF_NO_AUTOEN | IRQF_NO_SUSPEND | IRQF_EARLY_RESUME,
 			       dev_name(dev), gi2c);
 	if (ret)
 		return dev_err_probe(dev, ret,
@@ -1103,7 +1128,9 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (fifo_disable) {
-		/* FIFO is disabled, so we can only use GPI DMA */
+		/* FIFO is disabled, so we can only use GPI DMA.
+		 * SE can be shared in GSI mode between subsystems, each SS owns a GPII.
+		 */
 		gi2c->gpi_mode = true;
 		ret = setup_gpi_dma(gi2c);
 		if (ret)
@@ -1112,6 +1139,10 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		dev_dbg(dev, "Using GPI DMA mode for I2C\n");
 	} else {
 		gi2c->gpi_mode = false;
+
+		if (gi2c->se.multi_owner)
+			dev_err_probe(dev, -EINVAL, "I2C sharing not supported in non GSI mode\n");
+
 		tx_depth = geni_se_get_tx_fifo_depth(&gi2c->se);
 
 		/* I2C Master Hub Serial Elements doesn't have the HW_PARAM_0 register */
@@ -1258,6 +1289,20 @@ static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
 static int __maybe_unused geni_i2c_resume_noirq(struct device *dev)
 {
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
+	int ret = 0;
+
+	/*
+	 * Resume hardware to handle I2C transfers from other drivers'
+	 * noirq_resume callbacks (e.g., PCIe driver).
+	 * pm_runtime_force_resume() properly handles PM state and usage_count.
+	 */
+	if (gi2c->suspended) {
+		ret = pm_runtime_force_resume(dev);
+		if (ret) {
+			dev_err(dev, "Failed to resume I2C during noirq: %d\n", ret);
+			return ret;
+		}
+	}
 
 	i2c_mark_adapter_resumed(&gi2c->adap);
 	return 0;

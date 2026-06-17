@@ -63,6 +63,8 @@
 
 #define TC9563_TX_MARGIN_MIN_UA		400000
 
+#define TC9563_GPIO_NONE		(-1)
+
 /*
  * From TC9563 PORSYS rev 0.2, figure 1.1 POR boot sequence
  * wait for 10ms for the internal osc frequency to stabilize.
@@ -92,6 +94,10 @@ struct tc9563_pwrctrl_cfg {
 	u8 nfts[2]; /* GEN1 & GEN2 */
 	bool disable_dfe;
 	bool disable_port;
+
+	int ep_reset_gpio;
+	int ep_pwr_en_gpio;
+
 };
 
 #define TC9563_PWRCTL_MAX_SUPPLY	6
@@ -257,6 +263,89 @@ static int tc9563_pwrctrl_disable_port(struct tc9563_pwrctrl *tc9563,
 					     ARRAY_SIZE(common_pwroff_seq));
 }
 
+static int tc9563_pwrctrl_ep_pwr_en(struct tc9563_pwrctrl *tc9563,
+				    enum tc9563_pwrctrl_ports port,
+				    bool enable, int ep_pwr_en_gpio)
+{
+	u32 ep_pwr_en_gpio_mask, val;
+	int ret;
+
+	if (ep_pwr_en_gpio == TC9563_GPIO_NONE) {
+		return 0;
+	}
+
+	ep_pwr_en_gpio_mask = BIT(ep_pwr_en_gpio);
+
+	/* Set TC9563 GPIO as output */
+	ret = tc9563_pwrctrl_i2c_read(tc9563->client, TC9563_GPIO_CONFIG,
+				      &val);
+	if (ret)
+		return ret;
+
+	val &= ~ep_pwr_en_gpio_mask;
+
+	ret = tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_GPIO_CONFIG,
+				       val);
+	if (ret)
+		return ret;
+
+	/* Toggle 0->1 to enable power */
+	ret = tc9563_pwrctrl_i2c_read(tc9563->client, TC9563_RESET_GPIO,
+				      &val);
+	if (ret)
+		return ret;
+
+	val = enable ? (val | ep_pwr_en_gpio_mask) : (val & ~ep_pwr_en_gpio_mask);
+
+	return tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_RESET_GPIO, val);
+}
+
+static int tc9563_pwrctrl_ep_assert_deassert_reset(struct tc9563_pwrctrl *tc9563,
+						   enum tc9563_pwrctrl_ports port,
+						   bool deassert, int ep_reset_gpio)
+{
+	u32 ep_reset_gpio_mask, val;
+	int ret;
+
+	if (ep_reset_gpio == TC9563_GPIO_NONE) {
+		switch (port) {
+		case TC9563_DSP1:
+			ep_reset_gpio = 0x2;
+			break;
+		case TC9563_DSP2:
+			ep_reset_gpio = 0x3;
+			break;
+		default:
+			return 0;
+		}
+	}
+
+	ep_reset_gpio_mask = BIT(ep_reset_gpio);
+
+	/* Set TC9563 GPIO as output */
+	ret = tc9563_pwrctrl_i2c_read(tc9563->client, TC9563_GPIO_CONFIG,
+				      &val);
+	if (ret)
+		return ret;
+
+	val &= ~ep_reset_gpio_mask;
+
+	ret = tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_GPIO_CONFIG,
+				       val);
+	if (ret)
+		return ret;
+
+	/* Assert-deassert endpoint reset */
+	ret = tc9563_pwrctrl_i2c_read(tc9563->client, TC9563_RESET_GPIO,
+				      &val);
+	if (ret)
+		return ret;
+
+	val = deassert ? (val | ep_reset_gpio_mask) : (val & ~ep_reset_gpio_mask);
+
+	return tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_RESET_GPIO, val);
+}
+
 static int tc9563_pwrctrl_set_l0s_l1_entry_delay(struct tc9563_pwrctrl *tc9563,
 						 enum tc9563_pwrctrl_ports port,
 						 bool is_l1, u32 ns)
@@ -401,27 +490,16 @@ static int tc9563_pwrctrl_set_nfts(struct tc9563_pwrctrl *tc9563,
 					     ARRAY_SIZE(nfts_seq));
 }
 
-static int tc9563_pwrctrl_assert_deassert_reset(struct tc9563_pwrctrl *tc9563,
-						bool deassert)
-{
-	int ret, val;
-
-	ret = tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_GPIO_CONFIG,
-				       TC9563_GPIO_MASK);
-	if (ret)
-		return ret;
-
-	val = deassert ? TC9563_GPIO_DEASSERT_BITS : 0;
-
-	return tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_RESET_GPIO, val);
-}
-
 static int tc9563_pwrctrl_parse_device_dt(struct tc9563_pwrctrl *tc9563,
 					  struct device_node *node,
 					  enum tc9563_pwrctrl_ports port)
 {
 	struct tc9563_pwrctrl_cfg *cfg = &tc9563->cfg[port];
+	struct of_phandle_args args;
 	int ret;
+
+	cfg->ep_reset_gpio = TC9563_GPIO_NONE;
+	cfg->ep_pwr_en_gpio = TC9563_GPIO_NONE;
 
 	/* Disable port if the status of the port is disabled. */
 	if (!of_device_is_available(node)) {
@@ -436,6 +514,18 @@ static int tc9563_pwrctrl_parse_device_dt(struct tc9563_pwrctrl *tc9563,
 	ret = of_property_read_u32(node, "aspm-l1-entry-delay-ns", &cfg->l1_delay);
 	if (ret && ret != -EINVAL)
 		return ret;
+
+	ret = of_parse_phandle_with_fixed_args(node, "ep-pwr-en-gpio", 2, 0, &args);
+	if (ret && ret != -ENOENT)
+		return ret;
+	else if (!ret)
+		cfg->ep_pwr_en_gpio = args.args[0];
+
+	ret = of_parse_phandle_with_fixed_args(node, "ep-reset-gpio", 2, 0, &args);
+	if (ret && ret != -ENOENT)
+		return ret;
+	else if (!ret)
+		cfg->ep_reset_gpio = args.args[0];
 
 	ret = of_property_read_u32(node, "toshiba,tx-amplitude-microvolt", &cfg->tx_amp);
 	if (ret && ret != -EINVAL)
@@ -479,15 +569,25 @@ static int tc9563_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
 
 	fsleep(TC9563_OSC_STAB_DELAY_US);
 
-	ret = tc9563_pwrctrl_assert_deassert_reset(tc9563, false);
-	if (ret)
-		goto power_off;
-
 	for (i = 0; i < TC9563_MAX; i++) {
 		cfg = &tc9563->cfg[i];
+
 		ret = tc9563_pwrctrl_disable_port(tc9563, i);
 		if (ret) {
 			dev_err(dev, "Disabling port failed\n");
+			goto power_off;
+		}
+
+		ret = tc9563_pwrctrl_ep_assert_deassert_reset(tc9563, i, false,
+							      cfg->ep_reset_gpio);
+		if (ret) {
+			dev_err(dev, "Assert EP reset failed\n");
+			goto power_off;
+		}
+
+		ret = tc9563_pwrctrl_ep_pwr_en(tc9563, i, true, cfg->ep_pwr_en_gpio);
+		if (ret) {
+			dev_err(dev, "Enabling EP Power failed\n");
 			goto power_off;
 		}
 
@@ -520,11 +620,17 @@ static int tc9563_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
 			dev_err(dev, "Disabling DFE failed\n");
 			goto power_off;
 		}
+
+		ret = tc9563_pwrctrl_ep_assert_deassert_reset(tc9563, i, true,
+							      cfg->ep_reset_gpio);
+		if (ret) {
+			dev_err(dev, "De-assert EP reset failed\n");
+			goto power_off;
+		}
+
 	}
 
-	ret = tc9563_pwrctrl_assert_deassert_reset(tc9563, true);
-	if (!ret)
-		return 0;
+	return 0;
 
 power_off:
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
@@ -602,7 +708,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 				port++;
 				ret = tc9563_pwrctrl_parse_device_dt(tc9563,
 								child1, port);
-				if (ret)
+				if (port + 1 >= TC9563_MAX || ret)
 					break;
 			}
 		}

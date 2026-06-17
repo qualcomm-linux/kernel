@@ -67,6 +67,11 @@ properties:
       Indicates that the replicator will lose register context when AMBA clock
       is removed which is observed in some replicator designs.
 
+  qcom,cpu-bound-components:
+    type: boolean
+    description:
+      Indicates whether the replicator is located physically within cpu cluster.
+
   in-ports:
     $ref: /schemas/graph.yaml#/properties/ports
     additionalProperties: false

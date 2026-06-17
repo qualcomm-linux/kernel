@@ -36,6 +36,10 @@ properties:
     description:
       Phandle to a regulator that provides power to the PHY.
 
+  vdda-0p9-supply:
+    description:
+      Phandle to a 0.9V regulator supply to the PHY.
+
   "#phy-cells":
     const: 0
 

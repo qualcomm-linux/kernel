@@ -220,6 +220,9 @@ static void glink_subdev_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_rproc_glink *glink = to_glink_subdev(subdev);
 
+	if (!glink->edge)
+		return;
+
 	qcom_glink_smem_unregister(glink->edge);
 	glink->edge = NULL;
 }
@@ -330,6 +333,9 @@ static int smd_subdev_start(struct rproc_subdev *subdev)
 static void smd_subdev_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_rproc_subdev *smd = to_smd_subdev(subdev);
+
+	if (!smd->edge)
+		return;
 
 	qcom_smd_unregister_edge(smd->edge);
 	smd->edge = NULL;

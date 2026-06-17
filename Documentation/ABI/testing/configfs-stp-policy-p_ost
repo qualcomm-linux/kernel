@@ -1,0 +1,6 @@
+What:		/config/stp-policy/<device>:p_ost.<policy>/<node>/entity
+Date:		Jan 2026
+KernelVersion:	6.20
+Description:
+		Set the entity which is to identify the source, RW.
+
