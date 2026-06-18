@@ -2675,6 +2675,7 @@ static struct gdsc usb20_sec_gdsc = {
 	.clk_dis_wait_val = 0x2,
 	.pd = {
 		.name = "usb20_sec_gdsc",
+		.power_off = gdsc_synced_poweroff_disable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 };
@@ -2686,6 +2687,7 @@ static struct gdsc usb30_prim_gdsc = {
 	.clk_dis_wait_val = 0x2,
 	.pd = {
 		.name = "usb30_prim_gdsc",
+		.power_off = gdsc_synced_poweroff_disable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 };
