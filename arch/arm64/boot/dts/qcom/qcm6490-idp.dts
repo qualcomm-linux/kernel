@@ -616,6 +616,8 @@
 &ipa {
 	firmware-name = "qcom/qcm6490/ipa_fws.mbn";
 
+	qcom,gsi-loader = "self";
+	memory-region = <&ipa_fw_mem>;
 	status = "okay";
 };
 
