@@ -14877,12 +14877,6 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 
 	wiphy->features |= NL80211_FEATURE_TX_POWER_INSERTION;
 
-	/* MLO is not yet supported so disable Wireless Extensions for now
-	 * to make sure ath12k users don't use it. This flag can be removed
-	 * once WIPHY_FLAG_SUPPORTS_MLO is enabled.
-	 */
-	wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
-
 	/* Copy over MLO related capabilities received from
 	 * WMI_SERVICE_READY_EXT2_EVENT if single_chip_mlo_supp is set.
 	 */
