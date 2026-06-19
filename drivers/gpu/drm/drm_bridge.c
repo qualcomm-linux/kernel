@@ -381,7 +381,10 @@ drm_bridge_atomic_create_priv_state(struct drm_private_obj *obj)
 	struct drm_bridge *bridge = drm_priv_to_bridge(obj);
 	struct drm_bridge_state *state;
 
-	state = bridge->funcs->atomic_reset(bridge);
+	if (bridge->funcs->atomic_create_state)
+		state = bridge->funcs->atomic_create_state(bridge);
+	else
+		state = bridge->funcs->atomic_reset(bridge);
 	if (IS_ERR(state))
 		return ERR_CAST(state);
 
@@ -396,7 +399,8 @@ static const struct drm_private_state_funcs drm_bridge_priv_state_funcs = {
 
 static bool drm_bridge_is_atomic(struct drm_bridge *bridge)
 {
-	return bridge->funcs->atomic_reset != NULL;
+	return (bridge->funcs->atomic_create_state ||
+		bridge->funcs->atomic_reset);
 }
 
 /**

@@ -813,8 +813,9 @@ EXPORT_SYMBOL(drm_atomic_helper_bridge_destroy_state);
  * @state: bridge state to initialize
  *
  * Initializes the bridge state to default values. This is meant to be called
- * by the bridge &drm_bridge_funcs.atomic_reset hook for bridges that subclass
- * the bridge state.
+ * by the bridge &drm_bridge_funcs.atomic_create_state or
+ * &drm_bridge_funcs.atomic_reset hook for bridges that subclass the bridge
+ * state.
  */
 void __drm_atomic_helper_bridge_reset(struct drm_bridge *bridge,
 				      struct drm_bridge_state *state)
