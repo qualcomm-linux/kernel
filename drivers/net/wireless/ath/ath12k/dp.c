@@ -1098,7 +1098,6 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 		return;
 
 	if (dp->reoq_lut.vaddr_unaligned) {
-		ath12k_hal_write_reoq_lut_addr(ab, 0);
 		dma_free_coherent(ab->dev, dp->reoq_lut.size,
 				  dp->reoq_lut.vaddr_unaligned,
 				  dp->reoq_lut.paddr_unaligned);
@@ -1106,7 +1105,6 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 	}
 
 	if (dp->ml_reoq_lut.vaddr_unaligned) {
-		ath12k_hal_write_ml_reoq_lut_addr(ab, 0);
 		dma_free_coherent(ab->dev, dp->ml_reoq_lut.size,
 				  dp->ml_reoq_lut.vaddr_unaligned,
 				  dp->ml_reoq_lut.paddr_unaligned);
@@ -1569,6 +1567,7 @@ fail_dp_rx_free:
 	ath12k_dp_rx_free(ab);
 
 fail_cmn_reoq_cleanup:
+	ath12k_dp_reoq_lut_addr_reset(dp);
 	ath12k_dp_reoq_lut_cleanup(ab);
 
 fail_cmn_srng_cleanup:
@@ -1627,4 +1626,15 @@ void ath12k_dp_cmn_hw_group_assign(struct ath12k_dp *dp,
 	dp->ag = ag;
 	dp->device_id = ab->device_id;
 	dp_hw_grp->dp[dp->device_id] = dp;
+}
+
+void ath12k_dp_reoq_lut_addr_reset(struct ath12k_dp *dp)
+{
+	struct ath12k_base *ab = dp->ab;
+
+	if (dp->reoq_lut.vaddr_unaligned)
+		ath12k_hal_write_reoq_lut_addr(ab, 0);
+
+	if (dp->ml_reoq_lut.vaddr_unaligned)
+		ath12k_hal_write_ml_reoq_lut_addr(ab, 0);
 }
