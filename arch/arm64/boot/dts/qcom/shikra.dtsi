@@ -2931,7 +2931,7 @@
 			      <0x0 0x05d16000 0x0 0x100>;
 			reg-names = "stmmaceth", "rgmii";
 
-			interrupts = <GIC_SPI 478 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 478 IRQ_TYPE_LEVEL_HIGH 0>;
 			interrupt-names = "macirq";
 
 			clocks = <&gcc GCC_EMAC0_AXI_CLK>,
@@ -2970,7 +2970,7 @@
 			      <0x0 0x05d36000 0x0 0x100>;
 			reg-names = "stmmaceth", "rgmii";
 
-			interrupts = <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH 0>;
 			interrupt-names = "macirq";
 
 			clocks = <&gcc GCC_EMAC1_AXI_CLK>,
