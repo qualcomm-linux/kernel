@@ -96,9 +96,9 @@
 		};
 	};
 
-	vreg_bt_3p3_dummy: regulator-bt-3p3-dummy {
+	vreg_wcn_3p3: regulator-wcn-3p3 {
 		compatible = "regulator-fixed";
-		regulator-name = "bt_3p3_dummy";
+		regulator-name = "wcn_3p3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
@@ -302,6 +302,42 @@
 			snps,idle_slope = <0x1000>;
 			snps,high_credit = <0x3e800>;
 			snps,low_credit = <0xffc18000>;
+		};
+	};
+
+	wcn3988-pmu {
+		compatible = "qcom,wcn3988-pmu";
+
+		pinctrl-0 = <&sw_ctrl_default>;
+		pinctrl-names = "default";
+
+		vddio-supply = <&pm8150_s4>;
+		vddxo-supply = <&pm8150_l12>;
+		vddrf-supply = <&pm8150_l8>;
+		vddch0-supply = <&vreg_wcn_3p3>;
+
+		swctrl-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
+
+		regulators {
+			vreg_pmu_io: ldo0 {
+				regulator-name = "vreg_pmu_io";
+			};
+
+			vreg_pmu_xo: ldo1 {
+				regulator-name = "vreg_pmu_xo";
+			};
+
+			vreg_pmu_rf: ldo2 {
+				regulator-name = "vreg_pmu_rf";
+			};
+
+			vreg_pmu_ch0: ldo3 {
+				regulator-name = "vreg_pmu_ch0";
+			};
+
+			vreg_pmu_ch1: ldo4 {
+				regulator-name = "vreg_pmu_ch1";
+			};
 		};
 	};
 };
@@ -599,10 +635,10 @@
 	status = "okay";
 
 	bluetooth {
-		vddio-supply = <&pm8150_s4>;
-		vddxo-supply = <&pm8150_l12>;
-		vddrf-supply = <&pm8150_l8>;
-		vddch0-supply = <&vreg_bt_3p3_dummy>;
+		vddio-supply = <&vreg_pmu_io>;
+		vddxo-supply = <&vreg_pmu_xo>;
+		vddrf-supply = <&vreg_pmu_rf>;
+		vddch0-supply = <&vreg_pmu_ch0>;
 	};
 };
 

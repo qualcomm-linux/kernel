@@ -2432,13 +2432,6 @@
 				pinctrl-names = "default";
 
 				status = "disabled";
-
-				bluetooth {
-					compatible = "qcom,wcn3988-bt";
-					enable-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
-					max-speed = <3200000>;
-				};
-
 			};
 
 			i2c9: i2c@4aa4000 {
