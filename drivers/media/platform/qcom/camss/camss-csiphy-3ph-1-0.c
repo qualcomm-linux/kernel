@@ -1444,6 +1444,10 @@ static void csiphy_cphy_data_rate_config(struct csiphy_device *csiphy,
 		}
 	}
 
+	dev_dbg(dev,
+		"CSIPHY using specific bandwidth %llu bits/s (entry %zu) for link_freq %lld\n",
+		settings[idx].bandwidth, idx, link_freq);
+
 	r = settings[idx].data_rate_reg_array;
 	for (i = 0; i < settings[idx].data_rate_reg_array_size; i++, r++) {
 		switch (r->csiphy_param_type) {
