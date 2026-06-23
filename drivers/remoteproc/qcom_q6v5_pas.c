@@ -561,15 +561,17 @@ static void qcom_pas_coredump(struct rproc *rproc)
 
 static int qcom_pas_attach(struct rproc *rproc)
 {
-	int ret;
 	struct qcom_pas *pas = rproc->priv;
 	bool ready_state;
 	bool crash_state;
+	bool stop_state;
+	int ret;
+
+	pas->q6v5.handover_issued = true;
 
 	pas->q6v5.running = true;
 	ret = irq_get_irqchip_state(pas->q6v5.fatal_irq,
 				    IRQCHIP_STATE_LINE_LEVEL, &crash_state);
-
 	if (ret)
 		goto disable_running;
 
@@ -580,9 +582,18 @@ static int qcom_pas_attach(struct rproc *rproc)
 		goto disable_running;
 	}
 
+	ret = irq_get_irqchip_state(pas->q6v5.stop_irq,
+				    IRQCHIP_STATE_LINE_LEVEL, &stop_state);
+	if (ret)
+		goto disable_running;
+
+	if (stop_state || qcom_sysmon_shutdown_irq_state(pas->sysmon)) {
+		dev_info(pas->dev, "Subsystem found stop state set. Falling back to start.\n");
+		goto unroll_attach;
+	}
+
 	ret = irq_get_irqchip_state(pas->q6v5.ready_irq,
 				    IRQCHIP_STATE_LINE_LEVEL, &ready_state);
-
 	if (ret)
 		goto disable_running;
 
@@ -593,23 +604,14 @@ static int qcom_pas_attach(struct rproc *rproc)
 		 * start the remoteproc.
 		 */
 		dev_err(pas->dev, "Failed to get subsystem ready interrupt\n");
-		pas->rproc->state = RPROC_OFFLINE;
-		ret = -EINVAL;
-		goto disable_running;
+		goto unroll_attach;
 	}
-
-	ret = qcom_q6v5_ping_subsystem(&pas->q6v5);
-
-	if (ret) {
-		dev_err(pas->dev, "Failed to ping subsystem, assuming device crashed\n");
-		rproc_report_crash(rproc, RPROC_FATAL_ERROR);
-		goto disable_running;
-	}
-
-	pas->q6v5.handover_issued = true;
 
 	return 0;
 
+unroll_attach:
+	pas->rproc->state = RPROC_OFFLINE;
+	ret = -EINVAL;
 disable_running:
 	pas->q6v5.running = false;
 
@@ -637,6 +639,7 @@ static const struct rproc_ops qcom_pas_minidump_ops = {
 	.load = qcom_pas_load,
 	.panic = qcom_pas_panic,
 	.coredump = qcom_pas_minidump,
+	.attach = qcom_pas_attach,
 };
 
 static int qcom_pas_init_clock(struct qcom_pas *pas)
@@ -1012,14 +1015,8 @@ static int qcom_pas_probe(struct platform_device *pdev)
 	pas->pas_ctx->use_tzmem = desc->needs_tzmem || rproc->has_iommu;
 	pas->dtb_pas_ctx->use_tzmem = desc->needs_tzmem || rproc->has_iommu;
 
-	if (desc->early_boot) {
-		ret = qcom_q6v5_ping_subsystem_init(&pas->q6v5, pdev);
-		if (ret)
-			dev_warn(&pdev->dev, "Falling back to firmware load\n");
-		else
-			pas->rproc->state = RPROC_DETACHED;
-	}
-
+	if (desc->early_boot)
+		pas->rproc->state = RPROC_DETACHED;
 
 	ret = qcom_pas_setup_tmd(pas);
 	if (ret)
