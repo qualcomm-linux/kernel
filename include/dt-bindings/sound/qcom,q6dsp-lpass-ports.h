@@ -221,6 +221,63 @@
 /* Clock ID for RX CORE MCLK2 2X  MCLK */
 #define LPASS_CLK_ID_RX_CORE_MCLK2_2X_MCLK	70
 
+/** Clock ID of the Audio Intf 0 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF0_IBIT 71
+/** Clock ID of the Audio Intf 0 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF0_EBIT 72
+/** Clock ID of the Audio Intf 1 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF1_IBIT 73
+/** Clock ID of the Audio Intf 1 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF1_EBIT 74
+/** Clock ID of the Audio Intf 2 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF2_IBIT 75
+/** Clock ID of the Audio Intf 2 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF2_EBIT 76
+/** Clock ID of the Audio Intf 3 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF3_IBIT 77
+/** Clock ID of the Audio Intf 3 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF3_EBIT 78
+/** Clock ID of the Audio Intf 4 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF4_IBIT 79
+/** Clock ID of the Audio Intf 4 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF4_EBIT 80
+/** Clock ID of the Audio Intf 5 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF5_IBIT 81
+/** Clock ID of the Audio Intf 5 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF5_EBIT 82
+/** Clock ID of the Audio Intf 6 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF6_IBIT 83
+/** Clock ID of the Audio Intf 6 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF6_EBIT 84
+/** Clock ID of the Audio Intf 7 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF7_IBIT 85
+/** Clock ID of the Audio Intf 7 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF7_EBIT 86
+/** Clock ID of the Audio Intf 8 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF8_IBIT 87
+/** Clock ID of the Audio Intf 8 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF8_EBIT 88
+/** Clock ID of the Audio Intf 9 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF9_IBIT 89
+/** Clock ID of the Audio Intf 9 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF9_EBIT 90
+/** Clock ID of the Audio Intf 10 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF10_IBIT 91
+/** Clock ID of the Audio Intf 10 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF10_EBIT 92
+/** Clock ID of the Audio Intf 11 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF11_IBIT 93
+/** Clock ID of the Audio Intf 11 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF11_EBIT 94
+/** Clock ID of the Audio Intf 12 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_INTF12_IBIT 95
+/** Clock ID of the Audio Intf 12 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_INTF12_EBIT 96
+/** Clock ID of the Audio VA Intf 0 internal bit clock (IBIT). */
+#define LPASS_CLK_ID_AUD_VA_INTF0_IBIT 97
+/** Clock ID of the Audio VA Intf 0 external bit clock (EBIT). */
+#define LPASS_CLK_ID_AUD_VA_INTF0_EBIT 98
+
 #define LPASS_HW_AVTIMER_VOTE		101
 #define LPASS_HW_MACRO_VOTE		102
 #define LPASS_HW_DCODEC_VOTE		103

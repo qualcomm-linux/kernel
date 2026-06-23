@@ -140,20 +140,16 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk0_active
-			     &cam_sensor_active_rst0>;
-		pinctrl-1 = <&cam_sensor_mclk0_suspend
-			     &cam_sensor_suspend_rst0>;
+		pinctrl-0 = <&cam_sensor_mclk0_active>;
+		pinctrl-1 = <&cam_sensor_mclk0_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 72 0>,
-			<&tlmm 132 0>,
+		gpios =<&tlmm 132 0>,
 			<&pmm8654au_0_gpios 7 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK0",
-				     "CAMIF_RESET0",
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
 				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK0_CLK>;
@@ -181,21 +177,17 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk0_active
-			     &cam_sensor_active_rst0>;
-		pinctrl-1 = <&cam_sensor_mclk0_suspend
-			     &cam_sensor_suspend_rst0>;
+		pinctrl-0 = <&cam_sensor_mclk0_active>;
+		pinctrl-1 = <&cam_sensor_mclk0_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 72 0>,
-			<&tlmm 132 0>,
+		gpios =<&tlmm 132 0>,
 			<&pmm8654au_0_gpios 7 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK0",
-				     "CAMIF_RESET0",
-			             "CAM_CUSTOM1";
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
+				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK0_CLK>;
 		clock-names = "cam_clk";
@@ -222,20 +214,16 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk0_active
-			     &cam_sensor_active_rst0>;
-		pinctrl-1 = <&cam_sensor_mclk0_suspend
-			     &cam_sensor_suspend_rst0>;
+		pinctrl-0 = <&cam_sensor_mclk0_active>;
+		pinctrl-1 = <&cam_sensor_mclk0_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 72 0>,
-			<&tlmm 132 0>,
+		gpios =<&tlmm 132 0>,
 			<&pmm8654au_0_gpios 7 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK0",
-				     "CAMIF_RESET0",
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
 				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK0_CLK>;
@@ -257,21 +245,17 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk0_active
-			     &cam_sensor_active_rst0>;
-		pinctrl-1 = <&cam_sensor_mclk0_suspend
-			     &cam_sensor_suspend_rst0>;
+		pinctrl-0 = <&cam_sensor_mclk0_active>;
+		pinctrl-1 = <&cam_sensor_mclk0_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 72 0>,
-			<&tlmm 132 0>,
+		gpios =<&tlmm 132 0>,
 			<&pmm8654au_0_gpios 7 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK0",
-			             "CAMIF_RESET0",
-			             "CAM_CUSTOM1";
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
+				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK0_CLK>;
 		clock-names = "cam_clk";
@@ -292,19 +276,16 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk0_active
-			     &cam_sensor_active_rst0>;
-		pinctrl-1 = <&cam_sensor_mclk0_suspend
-			     &cam_sensor_suspend_rst0>;
-		gpios = <&tlmm 72 0>,
-			<&tlmm 132 0>,
+		pinctrl-0 = <&cam_sensor_mclk0_active>;
+		pinctrl-1 = <&cam_sensor_mclk0_suspend>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		gpios =<&tlmm 132 0>,
 			<&pmm8654au_0_gpios 7 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK0",
-				     "CAMIF_RESET0",
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
 				     "CAM_CUSTOM1";
 		sensor-mode = <0>;
 		cci-master = <0>;
@@ -454,9 +435,6 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_suspend_rst1>;
-		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 73 0>,
 			<&tlmm 133 0>,
 			<&pmm8654au_0_gpios 8 0>;
@@ -466,7 +444,7 @@
 		gpio-req-tbl-flags = <1 0 0>;
 		gpio-req-tbl-label = "CAM_MCLK1",
 				     "CAMIF_RESET1",
-			             "CAM_CUSTOM1";
+				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK1_CLK>;
 		clock-names = "cam_clk";
@@ -493,11 +471,6 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk1_active
-			     &cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_mclk1_suspend
-			     &cam_sensor_suspend_rst1>;
-		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 73 0>,
 			<&tlmm 133 0>,
 			<&pmm8654au_0_gpios 8 0>;
@@ -563,11 +536,6 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk1_active
-			     &cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_mclk1_suspend
-			     &cam_sensor_suspend_rst1>;
-		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 73 0>,
 			<&tlmm 133 0>,
 			<&pmm8654au_0_gpios 8 0>;
@@ -726,21 +694,17 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk2_active
-			     &cam_sensor_active_rst2>;
-		pinctrl-1 = <&cam_sensor_mclk2_suspend
-			     &cam_sensor_suspend_rst2>;
+		pinctrl-0 = <&cam_sensor_mclk2_active>;
+		pinctrl-1 = <&cam_sensor_mclk2_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 74 0>,
-			<&tlmm 134 0>,
+		gpios = <&tlmm 134 0>,
 			<&pmm8654au_0_gpios 9 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK2",
-				     "CAMIF_RESET2",
-			             "CAM_CUSTOM1";
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET2",
+				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK2_CLK>;
 		clock-names = "cam_clk";
@@ -767,20 +731,16 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk2_active
-			     &cam_sensor_active_rst2>;
-		pinctrl-1 = <&cam_sensor_mclk2_suspend
-			     &cam_sensor_suspend_rst2>;
+		pinctrl-0 = <&cam_sensor_mclk2_active>;
+		pinctrl-1 = <&cam_sensor_mclk2_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 74 0>,
-			<&tlmm 134 0>,
+		gpios = <&tlmm 134 0>,
 			<&pmm8654au_0_gpios 9 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK2",
-				     "CAMIF_RESET2",
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET2",
 				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK2_CLK>;
@@ -802,20 +762,16 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk2_active
-			     &cam_sensor_active_rst2>;
-		pinctrl-1 = <&cam_sensor_mclk2_suspend
-			     &cam_sensor_suspend_rst2>;
+		pinctrl-0 = <&cam_sensor_mclk2_active>;
+		pinctrl-1 = <&cam_sensor_mclk2_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 74 0>,
-			<&tlmm 134 0>,
+		gpios = <&tlmm 134 0>,
 			<&pmm8654au_0_gpios 9 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAMIF_MCLK2",
-				     "CAM_RESET2",
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET2",
 				     "CAM_CUSTOM1";
 		sensor-mode = <0>;
 		cci-master = <0>;
@@ -965,21 +921,17 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk3_active
-			     &cam_sensor_active_rst3>;
-		pinctrl-1 = <&cam_sensor_mclk3_suspend
-			     &cam_sensor_suspend_rst3>;
+		pinctrl-0 = <&cam_sensor_mclk3_active>;
+		pinctrl-1 = <&cam_sensor_mclk3_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 75 0>,
-			<&tlmm 135 0>,
+		gpios = <&tlmm 135 0>,
 			<&pmm8654au_0_gpios 10 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK3",
-				     "CAMIF_RESET3",
-			             "CAM_CUSTOM1";
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET3",
+				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK3_CLK>;
 		clock-names = "cam_clk";
@@ -1006,20 +958,16 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
+		pinctrl-0 = <&cam_sensor_mclk3_active>;
+		pinctrl-1 = <&cam_sensor_mclk3_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		pinctrl-0 = <&cam_sensor_mclk3_active
-			     &cam_sensor_active_rst3>;
-		pinctrl-1 = <&cam_sensor_mclk3_suspend
-			     &cam_sensor_suspend_rst3>;
-		gpios = <&tlmm 75 0>,
-			<&tlmm 135 0>,
+		gpios = <&tlmm 135 0>,
 			<&pmm8654au_0_gpios 10 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK3",
-				     "CAMIF_RESET3",
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET3",
 				     "CAM_CUSTOM1";
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK3_CLK>;
@@ -1041,20 +989,16 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk3_active
-			     &cam_sensor_active_rst3>;
-		pinctrl-1 = <&cam_sensor_mclk3_suspend
-			     &cam_sensor_suspend_rst3>;
-		gpios = <&tlmm 75 0>,
-			<&tlmm 135 0>,
-			<&pmm8654au_0_gpios 10 0>;
+		pinctrl-0 = <&cam_sensor_mclk3_active>;
+		pinctrl-1 = <&cam_sensor_mclk3_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAMIF_MCLK3",
-				     "CAM_RESET3",
+		gpios = <&tlmm 135 0>,
+			<&pmm8654au_0_gpios 10 0>;
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET3",
 				     "CAM_CUSTOM1";
 		sensor-mode = <0>;
 		cci-master = <0>;

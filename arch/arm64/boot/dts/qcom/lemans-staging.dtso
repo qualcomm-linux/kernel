@@ -7,6 +7,8 @@
 
 /dts-v1/;
 /plugin/;
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/qcom,sa8775p-gcc.h>
 
 &soc {
 	tgu@4b0e000 {
@@ -23,5 +25,42 @@
 
 		clocks = <&aoss_qmp>;
 		clock-names = "apb_pclk";
+	};
+
+	tsc@1c80000 {
+		compatible = "qcom,tsc";
+		reg = <0x0 0x01c80000 0x0 0x2000>,
+		      <0x0 0x01c90000 0x0 0x10000>;
+		reg-names = "tsc", "etu";
+
+		clocks = <&gcc GCC_TSCSS_AHB_CLK>,
+			 <&gcc GCC_TSCSS_GLOBAL_CNTR_CLK>,
+			 <&gcc GCC_TSCSS_ETU_CLK>;
+		clock-names = "cfg_ahb", "cntr", "etu";
+
+		assigned-clocks = <&gcc GCC_TSCSS_GLOBAL_CNTR_CLK>,
+				  <&gcc GCC_TSCSS_ETU_CLK>;
+		assigned-clock-rates = <15625000>, <15625000>;
+
+		qcom,tsc-nsec-update;
+
+		interrupts = <GIC_SPI 766 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "etu_summary_irq";
+
+		qcom,etu-slice = <10 11>;
+		qcom,etu-event-sel = <10 11>;
+		qcom,etu-event-names = "gps_pps", "tod_pps";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cci_async_default>;
+	};
+};
+
+&tlmm {
+	cci_async_default: cci-async-state {
+		pins = "gpio68", "gpio69";
+		function = "cci_async";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

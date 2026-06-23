@@ -168,6 +168,48 @@ enum ar_event_types {
  *						LOG_WAIT = 0,
  *						LOG_IMMEDIATELY = 1
  *
+ * %AR_TKN_U32_MODULE_SYNC_SRC:			Frame sync source
+ *						0 = external, 1 = internal
+ *
+ * %AR_TKN_U32_MODULE_CTRL_DATA_OUT_ENABLE:	Enable data-out tri-state control
+ *						0 = disable, 1 = enable
+ *
+ * %AR_TKN_U32_MODULE_SLOT_MASK:			Active TDM slot bitmask
+ *
+ * %AR_TKN_U32_MODULE_NSLOTS_PER_FRAME:		Number of slots per TDM frame
+ *
+ * %AR_TKN_U32_MODULE_SLOT_WIDTH:			Slot width in bits (16 or 32)
+ *
+ * %AR_TKN_U32_MODULE_SYNC_MODE:			Frame sync mode
+ *						0 = short pulse, 1 = long pulse
+ *
+ * %AR_TKN_U32_MODULE_CTRL_INVERT_SYNC_PULSE:	Invert frame sync pulse polarity
+ *						0 = normal, 1 = inverted
+ *
+ * %AR_TKN_U32_MODULE_CTRL_SYNC_DATA_DELAY:	Data delay relative to frame sync
+ *						0 = no delay, 1 = one cycle delay
+ *
+ * %AR_TKN_U32_MODULE_INTF_MODE:			Audio IF interface mode
+ *						AUDIO_IF_INTF_MODE_TDM = 0,
+ *						AUDIO_IF_INTF_MODE_PCM = 1,
+ *						AUDIO_IF_INTF_MODE_I2S = 2
+ *
+ * %AR_TKN_U32_MODULE_QAIF_TYPE:			QAIF hardware port type index
+ *
+ * %AR_TKN_U32_MODULE_ACTIVE_LANE_MASK:		Active lane bitmask for multi-lane
+ *
+ * %AR_TKN_U32_MODULE_FRAME_SYNC_RATE:		Frame sync rate in Hz
+ *
+ * %AR_TKN_U32_MODULE_BIT_CLK_TYPE:			Bit clock type
+ *						0 = internal, 1 = external,
+ *						2 = skip (bypass bit clock enable)
+ *
+ * %AR_TKN_U32_MODULE_INV_INT_BIT_CLK:		Invert internal bit clock
+ *						0 = normal, 1 = inverted
+ *
+ * %AR_TKN_U32_MODULE_INV_EXT_BIT_CLK:		Invert external bit clock
+ *						0 = normal, 1 = inverted
+ *
  * %AR_TKN_DAI_INDEX:				dai index
  *
  */
@@ -239,6 +281,22 @@ enum ar_event_types {
 #define AR_TKN_U32_MODULE_LOG_CODE		259
 #define AR_TKN_U32_MODULE_LOG_TAP_POINT_ID	260
 #define AR_TKN_U32_MODULE_LOG_MODE		261
+
+#define AR_TKN_U32_MODULE_SYNC_SRC		262
+#define AR_TKN_U32_MODULE_CTRL_DATA_OUT_ENABLE	263
+#define AR_TKN_U32_MODULE_SLOT_MASK		264
+#define AR_TKN_U32_MODULE_NSLOTS_PER_FRAME	265
+#define AR_TKN_U32_MODULE_SLOT_WIDTH		266
+#define AR_TKN_U32_MODULE_SYNC_MODE		267
+#define AR_TKN_U32_MODULE_CTRL_INVERT_SYNC_PULSE	268
+#define AR_TKN_U32_MODULE_CTRL_SYNC_DATA_DELAY	269
+#define AR_TKN_U32_MODULE_INTF_MODE		270
+#define AR_TKN_U32_MODULE_QAIF_TYPE		271
+#define AR_TKN_U32_MODULE_ACTIVE_LANE_MASK	272
+#define AR_TKN_U32_MODULE_FRAME_SYNC_RATE	273
+#define AR_TKN_U32_MODULE_BIT_CLK_TYPE		274
+#define AR_TKN_U32_MODULE_INV_INT_BIT_CLK	275
+#define AR_TKN_U32_MODULE_INV_EXT_BIT_CLK	276
 
 #define SND_SOC_AR_TPLG_MODULE_CFG_TYPE 0x01001006
 struct audioreach_module_priv_data {

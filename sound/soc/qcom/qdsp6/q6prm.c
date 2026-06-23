@@ -73,7 +73,9 @@ static int q6prm_set_hw_core_req(struct device *dev, uint32_t hw_block_id, bool 
 		rsp_opcode = PRM_CMD_RSP_RELEASE_HW_RSC;
 	}
 
-	pkt = audioreach_alloc_cmd_pkt(sizeof(*req), opcode, 0, gdev->svc.id, GPR_PRM_MODULE_IID);
+	pkt = audioreach_alloc_cmd_pkt(sizeof(*req), opcode, 0, gdev->svc.id,
+				       GPR_PRM_MODULE_IID,
+				       audioreach_gpr_dest_domain(gdev));
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -120,7 +122,8 @@ static int q6prm_request_lpass_clock(struct device *dev, int clk_id, int clk_att
 	int rc;
 
 	pkt = audioreach_alloc_cmd_pkt(sizeof(*req), PRM_CMD_REQUEST_HW_RSC, 0, gdev->svc.id,
-				       GPR_PRM_MODULE_IID);
+				       GPR_PRM_MODULE_IID,
+				       audioreach_gpr_dest_domain(gdev));
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -157,7 +160,8 @@ static int q6prm_release_lpass_clock(struct device *dev, int clk_id, int clk_att
 	int rc;
 
 	pkt = audioreach_alloc_cmd_pkt(sizeof(*rel), PRM_CMD_RELEASE_HW_RSC, 0, gdev->svc.id,
-				       GPR_PRM_MODULE_IID);
+				       GPR_PRM_MODULE_IID,
+				       audioreach_gpr_dest_domain(gdev));
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 

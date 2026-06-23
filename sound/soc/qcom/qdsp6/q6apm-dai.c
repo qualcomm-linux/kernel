@@ -14,6 +14,8 @@
 #include <asm/div64.h>
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
+#include <linux/firmware/qcom/qcom_scm.h>
+#include <linux/of_reserved_mem.h>
 #include <sound/pcm_params.h>
 #include "q6apm.h"
 
@@ -33,6 +35,9 @@
 #define COMPR_PLAYBACK_MAX_NUM_FRAGMENTS (16 * 4)
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
 #define COMPR_PLAYBACK_MIN_NUM_FRAGMENTS (4)
+#define Q6APM_SCM_MAX_VMID	31
+#define Q6APM_MAX_VMIDS		8
+#define Q6APM_MAX_CARVEOUTS	8
 #define SID_MASK_DEFAULT	0xF
 
 static const struct snd_compr_codec_caps q6apm_compr_caps = {
@@ -78,9 +83,211 @@ struct q6apm_dai_rtd {
 	bool notify_on_drain;
 };
 
+struct q6apm_scm_region {
+	phys_addr_t dma_addr;
+	unsigned int size;
+	u64 src_perms;
+	bool assigned;
+};
+
 struct q6apm_dai_data {
 	long long sid;
+	int num_vmids;
+	u32 vmids[Q6APM_MAX_VMIDS];
+	bool use_scm_assign;
+	struct q6apm_scm_region scm_regions[SNDRV_PCM_STREAM_LAST + 1];
+	/*
+	 * carveout regions from memory-region DT property
+	 * (index 0: control path, index 1+: data path)
+	 */
+	struct q6apm_scm_region carveout_regions[Q6APM_MAX_CARVEOUTS];
+	int num_carveouts;
+	/* true when memory-region DT property is present and DMA pool attached */
+	bool has_reserved_mem;
+	/* size of the data-path reserved region, capped at BUFFER_BYTES_MAX */
+	size_t reserved_buf_size;
 };
+
+static int q6apm_dai_assign_memory(struct snd_pcm_substream *substream,
+				   struct q6apm_dai_data *pdata)
+{
+	struct q6apm_scm_region *scm_region = &pdata->scm_regions[substream->stream];
+	struct qcom_scm_vmperm *dst_vmids;
+	int dst_count = 0;
+	int ret;
+	int i;
+
+	if (!pdata->use_scm_assign || pdata->num_vmids <= 0 || scm_region->assigned)
+		return 0;
+
+	if (!substream->dma_buffer.addr)
+		return -ENOMEM;
+
+	dst_vmids = kcalloc(pdata->num_vmids + 1, sizeof(*dst_vmids), GFP_KERNEL);
+	if (!dst_vmids)
+		return -ENOMEM;
+
+	/* Always keep HLOS RW so CPU can continue buffer access. */
+	dst_vmids[dst_count].vmid = QCOM_SCM_VMID_HLOS;
+	dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
+	dst_count++;
+
+	for (i = 0; i < pdata->num_vmids; i++) {
+		/*
+		 * Probe-time validation rejects HLOS in qcom,vmid, so this is
+		 * only a defensive check for future non-DT vmids[] population.
+		 */
+		if (WARN_ON_ONCE(pdata->vmids[i] == QCOM_SCM_VMID_HLOS))
+			continue;
+
+		dst_vmids[dst_count].vmid = pdata->vmids[i];
+		dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
+		dst_count++;
+	}
+
+	/* Nothing to assign beyond HLOS access. */
+	if (dst_count == 1) {
+		kfree(dst_vmids);
+		return 0;
+	}
+
+	scm_region->dma_addr = substream->dma_buffer.addr;
+	scm_region->size = ALIGN(BUFFER_BYTES_MAX, PAGE_SIZE);
+	scm_region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
+
+	ret = qcom_scm_assign_mem(scm_region->dma_addr, scm_region->size,
+				  &scm_region->src_perms, dst_vmids, dst_count);
+	kfree(dst_vmids);
+	if (ret)
+		return ret;
+
+	scm_region->assigned = true;
+	return 0;
+}
+
+static int q6apm_dai_unassign_memory(struct snd_soc_component *component,
+				     struct snd_pcm_substream *substream,
+				     struct q6apm_dai_data *pdata)
+{
+	struct q6apm_scm_region *scm_region = &pdata->scm_regions[substream->stream];
+	struct qcom_scm_vmperm hlos = {
+		.vmid = QCOM_SCM_VMID_HLOS,
+		.perm = QCOM_SCM_PERM_RW,
+	};
+	struct device *dev = component->dev;
+	int ret;
+
+	if (!pdata->use_scm_assign || !scm_region->assigned)
+		return 0;
+
+	ret = qcom_scm_assign_mem(scm_region->dma_addr, scm_region->size,
+				  &scm_region->src_perms, &hlos, 1);
+	if (!ret) {
+		scm_region->assigned = false;
+		scm_region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
+	} else {
+		dev_err(dev, "Failed to unassign DMA buffer %pa from VMIDs: %d\n",
+			&scm_region->dma_addr, ret);
+	}
+
+	return ret;
+}
+
+static int q6apm_dai_assign_one_region(struct q6apm_scm_region *region,
+				       struct q6apm_dai_data *pdata)
+{
+	struct qcom_scm_vmperm *dst_vmids;
+	int dst_count = 0;
+	int ret, i;
+
+	if (region->assigned)
+		return 0;
+
+	dst_vmids = kcalloc(pdata->num_vmids + 1, sizeof(*dst_vmids),
+			    GFP_KERNEL);
+	if (!dst_vmids)
+		return -ENOMEM;
+
+	/* Always keep HLOS RW so CPU can continue carveout access. */
+	dst_vmids[dst_count].vmid = QCOM_SCM_VMID_HLOS;
+	dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
+	dst_count++;
+
+	for (i = 0; i < pdata->num_vmids; i++) {
+		if (WARN_ON_ONCE(pdata->vmids[i] == QCOM_SCM_VMID_HLOS))
+			continue;
+		dst_vmids[dst_count].vmid = pdata->vmids[i];
+		dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
+		dst_count++;
+	}
+
+	if (dst_count == 1) {
+		/* Nothing to assign beyond HLOS access. */
+		kfree(dst_vmids);
+		return 0;
+	}
+
+	ret = qcom_scm_assign_mem(region->dma_addr, region->size,
+				  &region->src_perms, dst_vmids, dst_count);
+	kfree(dst_vmids);
+	if (!ret)
+		region->assigned = true;
+	return ret;
+}
+
+static int q6apm_dai_assign_carveout(struct q6apm_dai_data *pdata)
+{
+	int i, ret;
+
+	if (!pdata->use_scm_assign || !pdata->num_carveouts)
+		return 0;
+
+	for (i = 0; i < pdata->num_carveouts; i++) {
+		ret = q6apm_dai_assign_one_region(&pdata->carveout_regions[i],
+						  pdata);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static void q6apm_dai_unassign_one_region(struct snd_soc_component *component,
+					  struct q6apm_scm_region *region)
+{
+	struct device *dev = component->dev;
+	struct qcom_scm_vmperm hlos = {
+		.vmid = QCOM_SCM_VMID_HLOS,
+		.perm = QCOM_SCM_PERM_RW,
+	};
+	int ret;
+
+	if (!region->assigned)
+		return;
+
+	ret = qcom_scm_assign_mem(region->dma_addr, region->size,
+				  &region->src_perms, &hlos, 1);
+	if (!ret) {
+		region->assigned = false;
+		region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
+	} else {
+		dev_err(dev,
+			"Failed to unassign carveout %pa from VMIDs: %d\n",
+			&region->dma_addr, ret);
+	}
+}
+
+static void q6apm_dai_unassign_carveout(struct snd_soc_component *component,
+					struct q6apm_dai_data *pdata)
+{
+	int i;
+
+	if (!pdata->use_scm_assign || !pdata->num_carveouts)
+		return;
+
+	for (i = 0; i < pdata->num_carveouts; i++)
+		q6apm_dai_unassign_one_region(component,
+					      &pdata->carveout_regions[i]);
+}
 
 static const struct snd_pcm_hardware q6apm_dai_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -238,7 +445,7 @@ static int q6apm_dai_prepare(struct snd_soc_component *component,
 	if (prtd->state) {
 		/* clear the previous setup if any  */
 		q6apm_graph_stop(prtd->graph);
-		q6apm_unmap_memory_regions(prtd->graph, substream->stream);
+		q6apm_free_fragments(prtd->graph, substream->stream);
 	}
 
 	prtd->pcm_count = snd_pcm_lib_period_bytes(substream);
@@ -253,9 +460,8 @@ static int q6apm_dai_prepare(struct snd_soc_component *component,
 	if (ret < 0)
 		dev_err(dev, "%s: CMD Format block failed\n", __func__);
 
-	ret = q6apm_map_memory_regions(prtd->graph, substream->stream, prtd->phys,
-				       (prtd->pcm_size / prtd->periods), prtd->periods);
-
+	ret = q6apm_alloc_fragments(prtd->graph, substream->stream, prtd->phys,
+				    (prtd->pcm_size / prtd->periods), prtd->periods);
 	if (ret < 0) {
 		dev_err(dev, "Audio Start: Buffer Allocation failed rc = %d\n",	ret);
 		return -ENOMEM;
@@ -424,7 +630,7 @@ static int q6apm_dai_close(struct snd_soc_component *component,
 
 	if (prtd->state) { /* only stop graph that is started */
 		q6apm_graph_stop(prtd->graph);
-		q6apm_unmap_memory_regions(prtd->graph, substream->stream);
+		q6apm_free_fragments(prtd->graph, substream->stream);
 	}
 
 	q6apm_graph_close(prtd->graph);
@@ -473,11 +679,146 @@ static int q6apm_dai_hw_params(struct snd_soc_component *component,
 	return 0;
 }
 
+static void q6apm_dai_memory_unmap(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream);
+
+static int q6apm_dai_memory_map(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream, int graph_id)
+{
+	struct q6apm_dai_data *pdata;
+	struct device *dev = component->dev;
+	phys_addr_t phys;
+	int ret;
+
+	pdata = snd_soc_component_get_drvdata(component);
+	if (!pdata) {
+		dev_err(component->dev, "Drv data not found ..\n");
+		return -EINVAL;
+	}
+
+	if (pdata->sid < 0)
+		phys = substream->dma_buffer.addr;
+	else
+		phys = substream->dma_buffer.addr | (pdata->sid << 32);
+
+	ret = q6apm_map_memory_fixed_region(dev, graph_id, phys, BUFFER_BYTES_MAX);
+	if (ret < 0)
+		dev_err(dev, "Audio Start: Buffer Allocation failed rc = %d\n", ret);
+
+	return ret;
+}
+
 static int q6apm_dai_pcm_new(struct snd_soc_component *component, struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct q6apm_dai_data *pdata = snd_soc_component_get_drvdata(component);
+	struct snd_pcm *pcm = rtd->pcm;
 	int size = BUFFER_BYTES_MAX;
+	int graph_id, ret;
+	struct snd_pcm_substream *substream;
 
-	return snd_pcm_set_fixed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV, component->dev, size);
+	if (!pdata)
+		return -EINVAL;
+
+	graph_id = cpu_dai->driver->id;
+
+	/*
+	 * When a reserved DMA pool is attached (memory-region in DT), allocate
+	 * PCM buffers from it so the DSP accesses the carveout address directly.
+	 * Fall back to the standard fixed system-RAM buffer on other platforms.
+	 */
+	if (pdata->has_reserved_mem)
+		ret = snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+						     component->dev,
+						     pdata->reserved_buf_size,
+						     pdata->reserved_buf_size);
+	else
+		ret = snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+						   component->dev, size);
+	if (ret)
+		return ret;
+
+	/* Note: DSP backend dais are uni-directional ONLY(either playback or capture) */
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
+		substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+		ret = q6apm_dai_memory_map(component, substream, graph_id);
+		if (ret)
+			return ret;
+		if (pdata->use_scm_assign) {
+			ret = q6apm_dai_assign_memory(substream, pdata);
+			if (ret) {
+				q6apm_dai_memory_unmap(component, substream);
+				return ret;
+			}
+		}
+	}
+
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
+		substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+		ret = q6apm_dai_memory_map(component, substream, graph_id);
+		if (ret)
+			return ret;
+		if (pdata->use_scm_assign) {
+			ret = q6apm_dai_assign_memory(substream, pdata);
+			if (ret) {
+				q6apm_dai_memory_unmap(component, substream);
+				return ret;
+			}
+		}
+	}
+
+	if (pdata->use_scm_assign && pdata->num_carveouts) {
+		ret = q6apm_dai_assign_carveout(pdata);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void q6apm_dai_memory_unmap(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *soc_prtd;
+	struct snd_soc_dai *cpu_dai;
+	int graph_id;
+
+	soc_prtd = snd_soc_substream_to_rtd(substream);
+	if (!soc_prtd)
+		return;
+
+	cpu_dai = snd_soc_rtd_to_cpu(soc_prtd, 0);
+	if (!cpu_dai)
+		return;
+
+	graph_id = cpu_dai->driver->id;
+	q6apm_unmap_memory_fixed_region(component->dev, graph_id);
+}
+
+static void q6apm_dai_pcm_free(struct snd_soc_component *component, struct snd_pcm *pcm)
+{
+	struct q6apm_dai_data *pdata = snd_soc_component_get_drvdata(component);
+	struct snd_pcm_substream *substream;
+
+	if (!pdata)
+		return;
+
+	if (pdata->use_scm_assign && pdata->num_carveouts)
+		q6apm_dai_unassign_carveout(component, pdata);
+
+	substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+	if (substream) {
+		if (pdata->use_scm_assign)
+			q6apm_dai_unassign_memory(component, substream, pdata);
+		q6apm_dai_memory_unmap(component, substream);
+	}
+
+	substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	if (substream) {
+		if (pdata->use_scm_assign)
+			q6apm_dai_unassign_memory(component, substream, pdata);
+		q6apm_dai_memory_unmap(component, substream);
+	}
 }
 
 static int q6apm_dai_compr_open(struct snd_soc_component *component,
@@ -535,7 +876,8 @@ static int q6apm_dai_compr_free(struct snd_soc_component *component,
 	struct q6apm_dai_rtd *prtd = runtime->private_data;
 
 	q6apm_graph_stop(prtd->graph);
-	q6apm_unmap_memory_regions(prtd->graph, SNDRV_PCM_STREAM_PLAYBACK);
+	q6apm_free_fragments(prtd->graph, SNDRV_PCM_STREAM_PLAYBACK);
+	q6apm_unmap_memory_fixed_region(component->dev, prtd->graph->id);
 	q6apm_graph_close(prtd->graph);
 	snd_dma_free_pages(&prtd->dma_buffer);
 	prtd->graph = NULL;
@@ -688,9 +1030,9 @@ static int q6apm_dai_compr_set_params(struct snd_soc_component *component,
 		if (ret)
 			return ret;
 
-		ret = q6apm_map_memory_regions(prtd->graph, SNDRV_PCM_STREAM_PLAYBACK,
-					       prtd->phys, (prtd->pcm_size / prtd->periods),
-					       prtd->periods);
+		ret = q6apm_alloc_fragments(prtd->graph, SNDRV_PCM_STREAM_PLAYBACK,
+					    prtd->phys, (prtd->pcm_size / prtd->periods),
+					    prtd->periods);
 		if (ret < 0)
 			return -ENOMEM;
 
@@ -846,6 +1188,7 @@ static const struct snd_soc_component_driver q6apm_fe_dai_component = {
 	.close		= q6apm_dai_close,
 	.prepare	= q6apm_dai_prepare,
 	.pcm_construct	= q6apm_dai_pcm_new,
+	.pcm_destruct	= q6apm_dai_pcm_free,
 	.hw_params	= q6apm_dai_hw_params,
 	.pointer	= q6apm_dai_pointer,
 	.trigger	= q6apm_dai_trigger,
@@ -861,6 +1204,7 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct q6apm_dai_data *pdata;
 	struct of_phandle_args args;
+	int vmids;
 	int rc;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -872,6 +1216,118 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 		pdata->sid = -1;
 	else
 		pdata->sid = args.args[0] & SID_MASK_DEFAULT;
+
+	vmids = of_property_count_u32_elems(node, "qcom,vmid");
+	if (vmids == -EINVAL) {
+		pdata->num_vmids = 0;
+		pdata->use_scm_assign = false;
+	} else if (vmids < 0) {
+		return vmids;
+	} else if (vmids == 0) {
+		dev_err(dev, "qcom,vmid must contain at least one VMID\n");
+		return -EINVAL;
+	} else if (vmids > Q6APM_MAX_VMIDS) {
+		dev_err(dev, "qcom,vmid: %d VMIDs exceeds maximum of %d\n",
+			vmids, Q6APM_MAX_VMIDS);
+		return -EINVAL;
+	}
+
+	if (vmids > 0) {
+		int i;
+
+		rc = of_property_read_u32_array(node, "qcom,vmid",
+						pdata->vmids, vmids);
+		if (rc)
+			return rc;
+		for (i = 0; i < vmids; i++) {
+			if (pdata->vmids[i] == QCOM_SCM_VMID_HLOS) {
+				dev_err(dev, "qcom,vmid must not include HLOS VMID (%u)\n",
+					QCOM_SCM_VMID_HLOS);
+				return -EINVAL;
+			}
+			if (pdata->vmids[i] > Q6APM_SCM_MAX_VMID) {
+				dev_err(dev, "qcom,vmid[%d]=%u exceeds SCM max VMID %u\n",
+					i, pdata->vmids[i], Q6APM_SCM_MAX_VMID);
+				return -EINVAL;
+			}
+		}
+		pdata->num_vmids = vmids;
+		pdata->use_scm_assign = true;
+	}
+
+	/*
+	 * Attach the data-path reserved memory region (index 1 in
+	 * memory-region, e.g. audio_mdsp_carveout_mem on shikra) as a DMA
+	 * pool so that snd_pcm_set_managed_buffer_all() allocates PCM
+	 * buffers from the carveout instead of system RAM. The size is read
+	 * from the DT node and capped at BUFFER_BYTES_MAX.
+	 * Index 0 is the control-path carveout (SCM-assigned separately).
+	 * Platforms without memory-region are completely unaffected.
+	 */
+	if (of_property_present(node, "memory-region")) {
+		struct device_node *rmem_node;
+		struct reserved_mem *rmem = NULL;
+
+		/* index 1 = data path (PCM DMA buffer pool) */
+		rmem_node = of_parse_phandle(node, "memory-region", 1);
+		if (rmem_node) {
+			rmem = of_reserved_mem_lookup(rmem_node);
+			of_node_put(rmem_node);
+		}
+
+		if (rmem) {
+			rc = of_reserved_mem_device_init_by_idx(dev, node, 1);
+			if (rc) {
+				dev_err(dev,
+					"failed to attach reserved memory pool: %d\n",
+					rc);
+				return rc;
+			}
+			rc = devm_add_action_or_reset(dev,
+						      (void (*)(void *))
+						      of_reserved_mem_device_release,
+						      dev);
+			if (rc)
+				return rc;
+			pdata->reserved_buf_size = min_t(size_t, rmem->size,
+							 BUFFER_BYTES_MAX);
+			pdata->has_reserved_mem = true;
+		} else {
+			dev_warn(dev,
+				 "memory-region index 1 not found, using system RAM\n");
+		}
+	}
+
+	if (pdata->use_scm_assign) {
+		struct device_node *mem_node;
+		int idx = 0;
+
+		while ((mem_node = of_parse_phandle(node, "memory-region",
+						    idx++))) {
+			struct reserved_mem *rmem;
+			struct q6apm_scm_region *r;
+
+			if (pdata->num_carveouts >= Q6APM_MAX_CARVEOUTS) {
+				dev_warn(dev,
+					 "memory-region: too many entries, ignoring rest\n");
+				of_node_put(mem_node);
+				break;
+			}
+
+			rmem = of_reserved_mem_lookup(mem_node);
+			of_node_put(mem_node);
+			if (!rmem)
+				continue;
+
+			r = &pdata->carveout_regions[pdata->num_carveouts++];
+			r->dma_addr  = rmem->base;
+			r->size      = ALIGN(rmem->size, PAGE_SIZE);
+			r->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
+		}
+	}
+
+	if (pdata->use_scm_assign && !qcom_scm_is_available())
+		return -EPROBE_DEFER;
 
 	dev_set_drvdata(dev, pdata);
 

@@ -148,7 +148,57 @@
 #define CDC_VA_TX3_TX_PATH_SEC5			(0x05A4)
 #define CDC_VA_TX3_TX_PATH_SEC6			(0x05A8)
 
+/* ADPT control registers - Shikra adaptive filter blocks */
+#define CDC_VA_CDC_ADPT0_ADPT_CTRL		(0x0800)
+#define CDC_VA_CDC_ADPT0_ADPT_GAIN_0		(0x0804)
+#define CDC_VA_CDC_ADPT0_ADPT_GAIN_1		(0x0808)
+#define CDC_VA_CDC_ADPT0_DH_FSM_CTRL		(0x080C)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_0	(0x0810)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_1	(0x0814)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_2	(0x0818)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_3	(0x081C)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_4	(0x0820)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_5	(0x0824)
+
+#define CDC_VA_CDC_ADPT1_ADPT_CTRL		(0x0880)
+#define CDC_VA_CDC_ADPT1_ADPT_GAIN_0		(0x0884)
+#define CDC_VA_CDC_ADPT1_ADPT_GAIN_1		(0x0888)
+#define CDC_VA_CDC_ADPT1_DH_FSM_CTRL		(0x088C)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_0	(0x0890)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_1	(0x0894)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_2	(0x0898)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_3	(0x089C)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_4	(0x08A0)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_5	(0x08A4)
+#define CDC_VA_CDC_ADPT1_DBG_CTRL		(0x08B0)
+#define CDC_VA_CDC_ADPT1_DBG_PDM_RATE_CTRL_0	(0x08B2)
+#define CDC_VA_CDC_ADPT1_DBG_PDM_RATE_CTRL_1	(0x08B4)
+#define CDC_VA_CDC_ADPT1_SPARE0			(0x08B8)
+
+#define CDC_VA_CDC_ADPT2_ADPT_CTRL		(0x0900)
+#define CDC_VA_CDC_ADPT2_ADPT_GAIN_0		(0x0904)
+#define CDC_VA_CDC_ADPT2_ADPT_GAIN_1		(0x0908)
+#define CDC_VA_CDC_ADPT2_DH_FSM_CTRL		(0x090C)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_0	(0x0910)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_1	(0x0914)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_2	(0x0918)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_3	(0x091C)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_4	(0x0920)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_5	(0x0924)
+
+#define CDC_VA_CDC_ADPT3_ADPT_CTRL		(0x0980)
+#define CDC_VA_CDC_ADPT3_ADPT_GAIN_0		(0x0984)
+#define CDC_VA_CDC_ADPT3_ADPT_GAIN_1		(0x0988)
+#define CDC_VA_CDC_ADPT3_DH_FSM_CTRL		(0x098C)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_0	(0x0990)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_1	(0x0994)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_2	(0x0998)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_3	(0x099C)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_4	(0x09A0)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_5	(0x09A4)
+
 #define VA_MAX_OFFSET				(0x07A8)
+#define VA_SHIKRA_MAX_OFFSET			(0x0980)
 
 #define VA_MACRO_NUM_DECIMATORS 4
 #define VA_MACRO_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
@@ -202,6 +252,8 @@ struct va_macro {
 	u16 dmic_clk_div;
 	bool has_swr_master;
 	bool has_npl_clk;
+	bool bypass_fs_control;
+	bool has_adpt_block;
 
 	int dec_mode[VA_MACRO_NUM_DECIMATORS];
 	struct regmap *regmap;
@@ -228,24 +280,12 @@ struct va_macro {
 struct va_macro_data {
 	bool has_swr_master;
 	bool has_npl_clk;
+	bool bypass_fs_control;
+	bool has_adpt_block;
 	int version;
+	const struct regmap_config *regmap_config;
 };
 
-static const struct va_macro_data sm8250_va_data = {
-	.has_swr_master = false,
-	.has_npl_clk = false,
-	.version = LPASS_CODEC_VERSION_1_0,
-};
-
-static const struct va_macro_data sm8450_va_data = {
-	.has_swr_master = true,
-	.has_npl_clk = true,
-};
-
-static const struct va_macro_data sm8550_va_data = {
-	.has_swr_master = true,
-	.has_npl_clk = false,
-};
 
 static bool va_is_volatile_register(struct device *dev, unsigned int reg)
 {
@@ -417,6 +457,10 @@ static bool va_is_rw_register(struct device *dev, unsigned int reg)
 	case CDC_VA_TX3_TX_PATH_SEC4:
 	case CDC_VA_TX3_TX_PATH_SEC5:
 	case CDC_VA_TX3_TX_PATH_SEC6:
+	case CDC_VA_CDC_ADPT0_ADPT_CTRL:
+	case CDC_VA_CDC_ADPT1_ADPT_CTRL:
+	case CDC_VA_CDC_ADPT2_ADPT_CTRL:
+	case CDC_VA_CDC_ADPT3_ADPT_CTRL:
 		return true;
 	}
 
@@ -450,6 +494,174 @@ static const struct regmap_config va_regmap_config = {
 	.writeable_reg = va_is_rw_register,
 };
 
+static const struct reg_default va_shikra_defaults[] = {
+	/* VA macro */
+	{ CDC_VA_CLK_RST_CTRL_MCLK_CONTROL, 0x00},
+	{ CDC_VA_CLK_RST_CTRL_FS_CNT_CONTROL, 0x00},
+	{ CDC_VA_CLK_RST_CTRL_SWR_CONTROL, 0x00},
+	{ CDC_VA_TOP_CSR_TOP_CFG0, 0x00},
+	{ CDC_VA_TOP_CSR_DMIC0_CTL, 0x00},
+	{ CDC_VA_TOP_CSR_DMIC1_CTL, 0x00},
+	{ CDC_VA_TOP_CSR_DMIC2_CTL, 0x00},
+	{ CDC_VA_TOP_CSR_DMIC3_CTL, 0x00},
+	{ CDC_VA_TOP_CSR_DMIC_CFG, 0x80},
+	{ CDC_VA_TOP_CSR_DEBUG_BUS, 0x00},
+	{ CDC_VA_TOP_CSR_DEBUG_EN, 0x00},
+	{ CDC_VA_TOP_CSR_TX_I2S_CTL, 0x0C},
+	{ CDC_VA_TOP_CSR_I2S_CLK, 0x00},
+	{ CDC_VA_TOP_CSR_I2S_RESET, 0x00},
+	{ CDC_VA_TOP_CSR_CORE_ID_0, 0x00},
+	{ CDC_VA_TOP_CSR_CORE_ID_1, 0x00},
+	{ CDC_VA_TOP_CSR_CORE_ID_2, 0x00},
+	{ CDC_VA_TOP_CSR_CORE_ID_3, 0x00},
+	{ CDC_VA_TOP_CSR_SWR_MIC_CTL0, 0xEE},
+	{ CDC_VA_TOP_CSR_SWR_MIC_CTL1, 0xEE},
+	{ CDC_VA_TOP_CSR_SWR_MIC_CTL2, 0xEE},
+	{ CDC_VA_TOP_CSR_SWR_CTRL, 0x06},
+	/* VA core */
+	{ CDC_VA_INP_MUX_ADC_MUX0_CFG0, 0x00},
+	{ CDC_VA_INP_MUX_ADC_MUX0_CFG1, 0x00},
+	{ CDC_VA_INP_MUX_ADC_MUX1_CFG0, 0x00},
+	{ CDC_VA_INP_MUX_ADC_MUX1_CFG1, 0x00},
+	{ CDC_VA_INP_MUX_ADC_MUX2_CFG0, 0x00},
+	{ CDC_VA_INP_MUX_ADC_MUX2_CFG1, 0x00},
+	{ CDC_VA_INP_MUX_ADC_MUX3_CFG0, 0x00},
+	{ CDC_VA_INP_MUX_ADC_MUX3_CFG1, 0x00},
+	{ CDC_VA_TX0_TX_PATH_CTL, 0x04},
+	{ CDC_VA_TX0_TX_PATH_CFG0, 0x10},
+	{ CDC_VA_TX0_TX_PATH_CFG1, 0x0B},
+	{ CDC_VA_TX0_TX_VOL_CTL, 0x00},
+	{ CDC_VA_TX0_TX_PATH_SEC0, 0x00},
+	{ CDC_VA_TX0_TX_PATH_SEC1, 0x00},
+	{ CDC_VA_TX0_TX_PATH_SEC2, 0x01},
+	{ CDC_VA_TX0_TX_PATH_SEC3, 0x3C},
+	{ CDC_VA_TX0_TX_PATH_SEC4, 0x20},
+	{ CDC_VA_TX0_TX_PATH_SEC5, 0x00},
+	{ CDC_VA_TX0_TX_PATH_SEC6, 0x00},
+	{ CDC_VA_TX0_TX_PATH_SEC7, 0x25},
+	{ CDC_VA_TX1_TX_PATH_CTL, 0x04},
+	{ CDC_VA_TX1_TX_PATH_CFG0, 0x10},
+	{ CDC_VA_TX1_TX_PATH_CFG1, 0x0B},
+	{ CDC_VA_TX1_TX_VOL_CTL, 0x00},
+	{ CDC_VA_TX1_TX_PATH_SEC0, 0x00},
+	{ CDC_VA_TX1_TX_PATH_SEC1, 0x00},
+	{ CDC_VA_TX1_TX_PATH_SEC2, 0x01},
+	{ CDC_VA_TX1_TX_PATH_SEC3, 0x3C},
+	{ CDC_VA_TX1_TX_PATH_SEC4, 0x20},
+	{ CDC_VA_TX1_TX_PATH_SEC5, 0x00},
+	{ CDC_VA_TX1_TX_PATH_SEC6, 0x00},
+	{ CDC_VA_TX2_TX_PATH_CTL, 0x04},
+	{ CDC_VA_TX2_TX_PATH_CFG0, 0x10},
+	{ CDC_VA_TX2_TX_PATH_CFG1, 0x0B},
+	{ CDC_VA_TX2_TX_VOL_CTL, 0x00},
+	{ CDC_VA_TX2_TX_PATH_SEC0, 0x00},
+	{ CDC_VA_TX2_TX_PATH_SEC1, 0x00},
+	{ CDC_VA_TX2_TX_PATH_SEC2, 0x01},
+	{ CDC_VA_TX2_TX_PATH_SEC3, 0x3C},
+	{ CDC_VA_TX2_TX_PATH_SEC4, 0x20},
+	{ CDC_VA_TX2_TX_PATH_SEC5, 0x00},
+	{ CDC_VA_TX2_TX_PATH_SEC6, 0x00},
+	{ CDC_VA_TX3_TX_PATH_CTL, 0x04},
+	{ CDC_VA_TX3_TX_PATH_CFG0, 0x10},
+	{ CDC_VA_TX3_TX_PATH_CFG1, 0x0B},
+	{ CDC_VA_TX3_TX_VOL_CTL, 0x00},
+	{ CDC_VA_TX3_TX_PATH_SEC0, 0x00},
+	{ CDC_VA_TX3_TX_PATH_SEC1, 0x00},
+	{ CDC_VA_TX3_TX_PATH_SEC2, 0x01},
+	{ CDC_VA_TX3_TX_PATH_SEC3, 0x3C},
+	{ CDC_VA_TX3_TX_PATH_SEC4, 0x20},
+	{ CDC_VA_TX3_TX_PATH_SEC5, 0x00},
+	{ CDC_VA_TX3_TX_PATH_SEC6, 0x00},
+	/* ADPT blocks - Shikra adaptive filter control */
+
+	/* CDC ADPT0 - adaptive filter */
+	{ CDC_VA_CDC_ADPT0_ADPT_CTRL, 0x51},
+	{ CDC_VA_CDC_ADPT0_ADPT_GAIN_0,	0x11},
+	{ CDC_VA_CDC_ADPT0_ADPT_GAIN_1,	0x01},
+	{ CDC_VA_CDC_ADPT0_DH_FSM_CTRL,	0x02},
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_0, 0x77},
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_1, 0x64},
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_2, 0x00},
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_3, 0x41},
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_4, 0x04},
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_5, 0x01},
+
+	/* CDC ADPT1 */
+	{ CDC_VA_CDC_ADPT1_ADPT_CTRL, 0x51},
+	{ CDC_VA_CDC_ADPT1_ADPT_GAIN_0,	0x11},
+	{ CDC_VA_CDC_ADPT1_ADPT_GAIN_1,	0x01},
+	{ CDC_VA_CDC_ADPT1_DH_FSM_CTRL,	0x02},
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_0, 0x77},
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_1, 0x64},
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_2, 0x00},
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_3, 0x41},
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_4, 0x04},
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_5, 0x01},
+
+	/* CDC ADPT2 */
+	{ CDC_VA_CDC_ADPT2_ADPT_CTRL, 0x51},
+	{ CDC_VA_CDC_ADPT2_ADPT_GAIN_0,	0x11},
+	{ CDC_VA_CDC_ADPT2_ADPT_GAIN_1,	0x01},
+	{ CDC_VA_CDC_ADPT2_DH_FSM_CTRL,	0x02},
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_0, 0x77},
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_1, 0x64},
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_2, 0x00},
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_3, 0x41},
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_4, 0x04},
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_5, 0x01},
+
+	/* CDC ADPT3 */
+	{ CDC_VA_CDC_ADPT3_ADPT_CTRL, 0x51},
+	{ CDC_VA_CDC_ADPT3_ADPT_GAIN_0,	0x11},
+	{ CDC_VA_CDC_ADPT3_ADPT_GAIN_1, 0x01},
+	{ CDC_VA_CDC_ADPT3_DH_FSM_CTRL,	0x02},
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_0, 0x77},
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_1, 0x64},
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_2, 0x00},
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_3, 0x41},
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_4, 0x04},
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_5, 0x01},
+};
+
+static const struct regmap_config shikra_va_regmap_config = {
+	.name = "va_macro",
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.cache_type = REGCACHE_FLAT,
+	.reg_defaults = va_shikra_defaults,
+	.num_reg_defaults = ARRAY_SIZE(va_shikra_defaults),
+	.max_register = VA_SHIKRA_MAX_OFFSET,
+	.volatile_reg = va_is_volatile_register,
+	.readable_reg = va_is_readable_register,
+	.writeable_reg = va_is_rw_register,
+};
+
+static const struct va_macro_data sm8250_va_data = {
+	.has_swr_master = false,
+	.has_npl_clk = false,
+	.version = LPASS_CODEC_VERSION_1_0,
+};
+
+static const struct va_macro_data sm8450_va_data = {
+	.has_swr_master = true,
+	.has_npl_clk = true,
+};
+
+static const struct va_macro_data shikra_va_data = {
+	.has_swr_master = true,
+	.has_npl_clk = true,
+	.bypass_fs_control = true,
+	.has_adpt_block = true,
+	.version = LPASS_CODEC_VERSION_4_0,
+	.regmap_config = &shikra_va_regmap_config,
+};
+
+static const struct va_macro_data sm8550_va_data = {
+	.has_swr_master = true,
+	.has_npl_clk = false,
+};
+
 static int va_clk_rsc_fs_gen_request(struct va_macro *va, bool enable)
 {
 	struct regmap *regmap = va->regmap;
@@ -462,6 +674,10 @@ static int va_clk_rsc_fs_gen_request(struct va_macro *va, bool enable)
 		regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_FS_CNT_CONTROL,
 				   CDC_VA_FS_CONTROL_EN | CDC_VA_FS_COUNTER_CLR,
 				   CDC_VA_FS_CONTROL_EN | CDC_VA_FS_COUNTER_CLR);
+
+		if (va->bypass_fs_control)
+			regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_FS_CNT_CONTROL,
+					   0x80, 0x80);
 		regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_FS_CNT_CONTROL,
 				   CDC_VA_FS_CONTROL_EN | CDC_VA_FS_COUNTER_CLR,
 				   CDC_VA_FS_CONTROL_EN);
@@ -490,7 +706,7 @@ static int va_macro_mclk_enable(struct va_macro *va, bool mclk_enable)
 	if (mclk_enable) {
 		va_clk_rsc_fs_gen_request(va, true);
 		regcache_mark_dirty(regmap);
-		regcache_sync_region(regmap, 0x0, VA_MAX_OFFSET);
+		regcache_sync_region(regmap, 0x0, regmap_get_max_register(regmap));
 	} else {
 		va_clk_rsc_fs_gen_request(va, false);
 	}
@@ -739,6 +955,7 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 	unsigned int decimator;
 	u16 tx_vol_ctl_reg, dec_cfg_reg, hpf_gate_reg;
 	u16 tx_gain_ctl_reg;
+	u16 adapt_ctrl;
 	u8 hpf_cut_off_freq;
 
 	struct va_macro *va = snd_soc_component_get_drvdata(comp);
@@ -753,6 +970,8 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				VA_MACRO_TX_PATH_OFFSET * decimator;
 	tx_gain_ctl_reg = CDC_VA_TX0_TX_VOL_CTL +
 				VA_MACRO_TX_PATH_OFFSET * decimator;
+	adapt_ctrl = CDC_VA_CDC_ADPT0_ADPT_CTRL +
+		     (decimator * VA_MACRO_TX_PATH_OFFSET);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -762,6 +981,8 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		/* Enable TX PGA Mute */
 		break;
 	case SND_SOC_DAPM_POST_PMU:
+		if (va->has_adpt_block)
+			snd_soc_component_update_bits(comp, adapt_ctrl, 0xFF, 0x00);
 		/* Enable TX CLK */
 		snd_soc_component_update_bits(comp, tx_vol_ctl_reg,
 					      CDC_VA_TX_PATH_CLK_EN_MASK,
@@ -1508,6 +1729,9 @@ static void va_macro_set_lpass_codec_version(struct va_macro *va)
 		version = LPASS_CODEC_VERSION_2_8;
 	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && (core_id_2 == 0x90 || core_id_2 == 0x91))
 		version = LPASS_CODEC_VERSION_2_9;
+	if (core_id_0 == 0x04)
+		version = LPASS_CODEC_VERSION_4_0;
+
 
 	if (version == LPASS_CODEC_VERSION_UNKNOWN)
 		dev_warn(va->dev, "Unknown Codec version, ID: %02x / %02x / %02x\n",
@@ -1569,17 +1793,21 @@ static int va_macro_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	va->regmap = devm_regmap_init_mmio(dev, base,  &va_regmap_config);
+	data = of_device_get_match_data(dev);
+	va->has_swr_master = data->has_swr_master;
+	va->has_npl_clk = data->has_npl_clk;
+	va->bypass_fs_control = data->bypass_fs_control;
+	va->has_adpt_block = data->has_adpt_block;
+
+	va->regmap = devm_regmap_init_mmio(dev, base,
+					   data->regmap_config ? data->regmap_config
+						: &va_regmap_config);
 	if (IS_ERR(va->regmap)) {
 		ret = -EINVAL;
 		goto err;
 	}
 
 	dev_set_drvdata(dev, va);
-
-	data = of_device_get_match_data(dev);
-	va->has_swr_master = data->has_swr_master;
-	va->has_npl_clk = data->has_npl_clk;
 
 	/* mclk rate */
 	clk_set_rate(va->mclk, 2 * VA_MACRO_MCLK_FREQ);
@@ -1716,6 +1944,7 @@ static const struct of_device_id va_macro_dt_match[] = {
 	{ .compatible = "qcom,sm8450-lpass-va-macro", .data = &sm8450_va_data },
 	{ .compatible = "qcom,sm8550-lpass-va-macro", .data = &sm8550_va_data },
 	{ .compatible = "qcom,sc8280xp-lpass-va-macro", .data = &sm8450_va_data },
+	{ .compatible = "qcom,shikra-lpass-va-macro", .data = &shikra_va_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, va_macro_dt_match);

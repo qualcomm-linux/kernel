@@ -348,6 +348,14 @@ dtb-$(CONFIG_ARCH_QCOM)	+= sdx75-idp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqm-evk.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqs-evk.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-evk.dtb
+
+shikra-cqm-evk-imx577-camera-dtbs	:= shikra-cqm-evk.dtb shikra-cqm-evk-imx577-camera.dtbo
+shikra-cqs-evk-imx577-camera-dtbs	:= shikra-cqs-evk.dtb shikra-cqm-evk-imx577-camera.dtbo
+shikra-iqs-evk-imx577-camera-dtbs	:= shikra-iqs-evk.dtb shikra-iqs-evk-imx577-camera.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqm-evk-imx577-camera.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqs-evk-imx577-camera.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-evk-imx577-camera.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm4250-oneplus-billie2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm4450-qrd.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm6115-fxtec-pro1x.dtb
@@ -466,6 +474,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= lemans-camx-el2.dtb
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-staging.dtbo
 
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-rtss-mb.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-staging.dtbo
 
 monaco-evk-camx-dtbs   := monaco-evk.dtb monaco-evk-camx.dtbo
@@ -477,6 +486,7 @@ monaco-camx-el2-dtbs	:= monaco-evk-el2.dtb monaco-evk-camx.dtbo monaco-camx-el2.
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-camx-el2.dtb
 
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk-staging.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-rtss-mb.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-staging.dtbo
 
@@ -531,4 +541,10 @@ dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtb
 
 dtb-$(CONFIG_ARCH_QCOM) += talos-staging.dtbo
 
+dtb-$(CONFIG_ARCH_QCOM) += talos-evk-staging.dtbo
+
 dtb-$(CONFIG_ARCH_QCOM) += kodiak-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += hamoa-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= glymur-staging.dtbo
