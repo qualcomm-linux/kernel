@@ -60,6 +60,7 @@ properties:
 
 required:
   - compatible
+  - iommus
 
 additionalProperties: false
 

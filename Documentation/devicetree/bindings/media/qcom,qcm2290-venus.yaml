@@ -15,10 +15,27 @@ description:
 
 allOf:
   - $ref: qcom,venus-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,shikra-iris
+    then:
+      properties:
+        iommus:
+          maxItems: 1
+    else:
+      properties:
+        iommus:
+          maxItems: 2
 
 properties:
   compatible:
-    const: qcom,qcm2290-venus
+    oneOf:
+      - items:
+          - const: qcom,shikra-iris
+          - const: qcom,qcm2290-venus
+      - const: qcom,qcm2290-venus
 
   power-domains:
     maxItems: 3
@@ -40,9 +57,6 @@ properties:
       - const: throttle
       - const: vcodec0_core
       - const: vcodec0_bus
-
-  iommus:
-    maxItems: 2
 
   interconnects:
     maxItems: 2

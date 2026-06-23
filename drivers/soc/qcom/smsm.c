@@ -15,6 +15,9 @@
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 
+#define CREATE_TRACE_POINTS
+#include "trace-smsm.h"
+
 /*
  * This driver implements the Qualcomm Shared Memory State Machine, a mechanism
  * for communicating single bit state information to remote processors.
@@ -54,7 +57,7 @@
  * Default sizes, in case SMEM_SMSM_SIZE_INFO is not found.
  */
 #define SMSM_DEFAULT_NUM_ENTRIES	8
-#define SMSM_DEFAULT_NUM_HOSTS		3
+#define SMSM_DEFAULT_NUM_HOSTS		5
 
 struct smsm_entry;
 struct smsm_host;
@@ -162,6 +165,9 @@ static int smsm_update_bits(void *data, u32 mask, u32 value)
 
 	/* Don't signal if we didn't change the value */
 	changes = val ^ orig;
+
+	trace_smsm_update_bits(smsm->dev, mask, value, orig, val, changes);
+
 	if (!changes) {
 		spin_unlock_irqrestore(&smsm->lock, flags);
 		goto done;
@@ -181,6 +187,8 @@ static int smsm_update_bits(void *data, u32 mask, u32 value)
 		val = readl(smsm->subscription + host);
 		if (!(val & changes))
 			continue;
+
+		trace_smsm_ipc_kick(smsm->dev, host, val);
 
 		if (hostp->mbox_chan) {
 			mbox_send_message(hostp->mbox_chan, NULL);
@@ -214,10 +222,14 @@ static irqreturn_t smsm_intr(int irq, void *data)
 	unsigned i;
 	int irq_pin;
 	u32 changed;
+	u32 old;
 	u32 val;
 
 	val = readl(entry->remote_state);
-	changed = val ^ xchg(&entry->last_value, val);
+	old = xchg(&entry->last_value, val);
+	changed = val ^ old;
+
+	trace_smsm_intr(irq, old, val, changed);
 
 	for_each_set_bit(i, entry->irq_enabled, 32) {
 		if (!(changed & BIT(i)))
@@ -226,11 +238,13 @@ static irqreturn_t smsm_intr(int irq, void *data)
 		if (val & BIT(i)) {
 			if (test_bit(i, entry->irq_rising)) {
 				irq_pin = irq_find_mapping(entry->domain, i);
+				trace_smsm_irq_cascade(irq_pin, i, true);
 				handle_nested_irq(irq_pin);
 			}
 		} else {
 			if (test_bit(i, entry->irq_falling)) {
 				irq_pin = irq_find_mapping(entry->domain, i);
+				trace_smsm_irq_cascade(irq_pin, i, false);
 				handle_nested_irq(irq_pin);
 			}
 		}
@@ -257,6 +271,7 @@ static void smsm_mask_irq(struct irq_data *irqd)
 		val = readl(entry->subscription + smsm->local_host);
 		val &= ~BIT(irq);
 		writel(val, entry->subscription + smsm->local_host);
+		trace_smsm_irq_mask(irq, true, val);
 	}
 
 	clear_bit(irq, entry->irq_enabled);
@@ -288,6 +303,7 @@ static void smsm_unmask_irq(struct irq_data *irqd)
 		val = readl(entry->subscription + smsm->local_host);
 		val |= BIT(irq);
 		writel(val, entry->subscription + smsm->local_host);
+		trace_smsm_irq_mask(irq, false, val);
 	}
 }
 

@@ -643,7 +643,7 @@ static void a6xx_set_hwcg(struct msm_gpu *gpu, bool state)
 		clock_cntl_on = 0x8aa8aa02;
 	else if (adreno_is_a610(adreno_gpu) || adreno_is_a612(adreno_gpu))
 		clock_cntl_on = 0xaaa8aa82;
-	else if (adreno_is_a702(adreno_gpu))
+	else if (adreno_is_a702(adreno_gpu) || adreno_is_a704(adreno_gpu))
 		clock_cntl_on = 0xaaaaaa82;
 	else
 		clock_cntl_on = 0x8aa8aa82;
@@ -793,7 +793,7 @@ static int a6xx_calc_ubwc_config(struct adreno_gpu *gpu)
 	if (adreno_is_7c3(gpu))
 		cfg->highest_bank_bit = 14;
 
-	if (adreno_is_a702(gpu))
+	if (adreno_is_a702(gpu) || adreno_is_a704(gpu))
 		cfg->highest_bank_bit = 14;
 
 	if (cfg->highest_bank_bit != common_cfg->highest_bank_bit)
@@ -832,7 +832,8 @@ static void a6xx_set_ubwc_config(struct msm_gpu *gpu)
 	if (adreno_is_a650_family(adreno_gpu) || adreno_is_a7xx(adreno_gpu))
 		uavflagprd_inv = 2;
 
-	if (adreno_is_a610(adreno_gpu) || adreno_is_a702(adreno_gpu))
+	if (adreno_is_a610(adreno_gpu) || adreno_is_a702(adreno_gpu) ||
+	    adreno_is_a704(adreno_gpu))
 		min_acc_len_64b = true;
 
 	gpu_write(gpu, REG_A6XX_RB_NC_MODE_CNTL,
@@ -1067,7 +1068,8 @@ static bool a6xx_ucode_check_version(struct a6xx_gpu *a6xx_gpu,
 		return false;
 
 	/* A7xx is safe! */
-	if (adreno_is_a7xx(adreno_gpu) || adreno_is_a702(adreno_gpu) || adreno_is_a8xx(adreno_gpu))
+	if (adreno_is_a7xx(adreno_gpu) || adreno_is_a702(adreno_gpu) ||
+	    adreno_is_a704(adreno_gpu) || adreno_is_a8xx(adreno_gpu))
 		return true;
 
 	/*
@@ -1350,6 +1352,7 @@ static int hw_init(struct msm_gpu *gpu)
 
 	if (!(adreno_is_a650_family(adreno_gpu) ||
 	      adreno_is_a702(adreno_gpu) ||
+	      adreno_is_a704(adreno_gpu) ||
 	      adreno_is_a730(adreno_gpu))) {
 		gmem_range_min = adreno_is_a740_family(adreno_gpu) ? SZ_16M : SZ_1M;
 
@@ -1385,7 +1388,7 @@ static int hw_init(struct msm_gpu *gpu)
 	if (adreno_is_a610(adreno_gpu) || adreno_is_a612(adreno_gpu)) {
 		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_SIZE, 48);
 		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_DBG_ADDR, 47);
-	} else if (adreno_is_a702(adreno_gpu)) {
+	} else if (adreno_is_a702(adreno_gpu) || adreno_is_a704(adreno_gpu)) {
 		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_SIZE, 64);
 		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_DBG_ADDR, 63);
 	} else if (!adreno_is_a7xx(adreno_gpu))
@@ -1423,7 +1426,8 @@ static int hw_init(struct msm_gpu *gpu)
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x4fffff);
 	else if (adreno_is_a619(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x3fffff);
-	else if (adreno_is_a610(adreno_gpu) || adreno_is_a702(adreno_gpu))
+	else if (adreno_is_a610(adreno_gpu) || adreno_is_a702(adreno_gpu) ||
+		 adreno_is_a704(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x3ffff);
 	else
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x1fffff);
@@ -1459,7 +1463,7 @@ static int hw_init(struct msm_gpu *gpu)
 		else
 			gpu_write(gpu, REG_A6XX_CP_CHICKEN_DBG, 0x1);
 		gpu_write(gpu, REG_A6XX_RBBM_GBIF_CLIENT_QOS_CNTL, 0x0);
-	} else if (adreno_is_a702(adreno_gpu)) {
+	} else if (adreno_is_a702(adreno_gpu) || adreno_is_a704(adreno_gpu)) {
 		/* Something to do with the HLSQ cluster */
 		gpu_write(gpu, REG_A6XX_CP_CHICKEN_DBG, BIT(24));
 	}
