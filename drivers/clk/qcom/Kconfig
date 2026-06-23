@@ -218,16 +218,27 @@ config CLK_NORD_GCC
 	  SPI, I2C, USB, SD/UFS, PCIe etc. The clock controller is a combination
 	  of GCC, SE_GCC, NE_GCC and NW_GCC.
 
-config CLK_SHIKRA_AUDIOCORECC
-	tristate "Shikra Audio Core Clock Controller"
+config CLK_NORD_GPUCC
+	tristate "Nord Graphics Clock Controller"
 	depends on ARM64 || COMPILE_TEST
-	select CLK_SHIKRA_GCC
+	select CLK_NORD_GCC
 	default m if ARCH_QCOM
 	help
-	  Support for the Audio Core clock controller on Qualcomm Technologies, Inc
-	  Shikra devices.
-	  Say Y if you want to use AudioCoreCC clocks required to support audio
-	  devices and it's functionality.
+	  Support for the graphics clock controllers on Nord devices. There are two
+	  graphics clock controllers on Nord SoC.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config CLK_SHIKRA_AUDIOCORECC
+        tristate "Shikra Audio Core Clock Controller"
+        depends on ARM64 || COMPILE_TEST
+        select CLK_SHIKRA_GCC
+        default m if ARCH_QCOM
+        help
+          Support for the Audio Core clock controller on Qualcomm Technologies, Inc
+          Shikra devices.
+          Say Y if you want to use AudioCoreCC clocks required to support audio
+          devices and it's functionality.
 
 config CLK_SHIKRA_GCC
 	tristate "Shikra Global Clock Controller"
