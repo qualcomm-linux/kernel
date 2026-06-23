@@ -539,8 +539,8 @@
 
 	ethernet1_defaults: ethernet1-defaults-state {
 		rgmii-rx-pins {
-			pins = "gpio137", "gpio138", "gpio139",
-			       "gpio140", "gpio141", "gpio142";
+			pins = "gpio137", "gpio139", "gpio140",
+			       "gpio141", "gpio142";
 			function = "rgmii";
 			bias-disable;
 			drive-strength = <16>;
