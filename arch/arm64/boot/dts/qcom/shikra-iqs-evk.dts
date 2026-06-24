@@ -584,7 +584,7 @@
 };
 
 &remoteproc_mpss {
-        firmware-name = "qcom/shikra/qdsp6sw.mbn";
+        firmware-name = "qcom/shikra/cqs/qdsp6sw.mbn";
 
         status = "okay";
 };
