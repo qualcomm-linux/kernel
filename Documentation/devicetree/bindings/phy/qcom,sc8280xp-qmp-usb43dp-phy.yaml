@@ -24,6 +24,10 @@ properties:
           - enum:
               - qcom,kaanapali-qmp-usb3-dp-phy
           - const: qcom,sm8750-qmp-usb3-dp-phy
+      - items:
+          - enum:
+              - qcom,nord-qmp-usb3-dp-phy
+          - const: qcom,x1e80100-qmp-usb3-dp-phy
       - enum:
           - qcom,glymur-qmp-usb3-dp-phy
           - qcom,sar2130p-qmp-usb3-dp-phy
