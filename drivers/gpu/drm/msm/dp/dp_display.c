@@ -1441,6 +1441,15 @@ static void msm_dp_display_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 }
 
+static void msm_dp_display_shutdown(struct platform_device *pdev)
+{
+	struct msm_dp_display_private *dp = dev_get_dp_display_private(&pdev->dev);
+
+	disable_irq(dp->irq);
+	synchronize_irq(dp->irq);
+	pm_runtime_disable(&pdev->dev);
+}
+
 static int msm_dp_pm_runtime_suspend(struct device *dev)
 {
 	struct msm_dp_display_private *dp = dev_get_dp_display_private(dev);
@@ -1487,6 +1496,7 @@ static const struct dev_pm_ops msm_dp_pm_ops = {
 static struct platform_driver msm_dp_display_driver = {
 	.probe  = msm_dp_display_probe,
 	.remove = msm_dp_display_remove,
+	.shutdown = msm_dp_display_shutdown,
 	.driver = {
 		.name = "msm-dp-display",
 		.of_match_table = msm_dp_dt_match,
