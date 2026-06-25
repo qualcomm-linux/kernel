@@ -253,10 +253,11 @@
 #define GCC_USB20_BCR						16
 #define GCC_USB30_PRIM_BCR					17
 #define GCC_USB3PHY_PHY_PRIM_SP0_BCR				18
-#define GCC_USB3_PHY_PRIM_SP0_BCR				19
-#define GCC_USB_PHY_CFG_AHB2PHY_BCR				20
-#define GCC_VCODEC0_BCR						21
-#define GCC_VENUS_BCR						22
-#define GCC_VIDEO_INTERFACE_BCR					23
+#define GCC_USB3_DP_PHY_PRIM_BCR				19
+#define GCC_USB3_PHY_PRIM_SP0_BCR				20
+#define GCC_USB_PHY_CFG_AHB2PHY_BCR				21
+#define GCC_VCODEC0_BCR						22
+#define GCC_VENUS_BCR						23
+#define GCC_VIDEO_INTERFACE_BCR					24
 
 #endif

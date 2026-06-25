@@ -46,6 +46,7 @@ static int iris_wait_for_system_response(struct iris_core *core)
 
 int iris_core_init(struct iris_core *core)
 {
+	const struct vpu_ops *vpu_ops = core->iris_platform_data->vpu_ops;
 	int ret;
 
 	mutex_lock(&core->lock);
@@ -78,6 +79,9 @@ int iris_core_init(struct iris_core *core)
 	ret = iris_vpu_boot_firmware(core);
 	if (ret)
 		goto error_unload_fw;
+
+	if (vpu_ops->disable_arp)
+		vpu_ops->disable_arp(core);
 
 	core->iris_firmware_data->init_hfi_ops(core);
 

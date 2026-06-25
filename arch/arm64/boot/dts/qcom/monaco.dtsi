@@ -2935,14 +2935,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				port@0 {
-					reg = <0>;
-
-					swao_rep_out0: endpoint {
-						remote-endpoint = <&qdss_rep_in>;
-					};
-				};
-
 				port@1 {
 					reg = <1>;
 
@@ -3651,6 +3643,14 @@
 			out-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					swao_rep_out0: endpoint {
+						remote-endpoint = <&qdss_rep_in>;
+					};
+				};
 
 				port@1 {
 					reg = <1>;
@@ -4801,6 +4801,20 @@
 					required-opps = <&rpmhpd_opp_nom>;
 				};
 			};
+		};
+
+		gp_mn: clock-controller@88d3000 {
+			compatible = "qcom,clk-gp-mnd";
+			reg = <0x0 0x088d3000 0x0 0xc>;
+			clocks = <&gcc GCC_PDM_XO4_CLK>,
+				 <&gcc GCC_PDM_AHB_CLK>;
+			clock-names = "pdm_clk", "ahb_clk";
+			clock-output-names = "gp_mn_clk";
+			#clock-cells = <0>;
+			pinctrl-names = "active";
+			pinctrl-0 = <&gp_mn_active>;
+			assigned-clocks = <&gcc GCC_PDM_XO4_CLK>;
+			assigned-clock-rates = <4800000>;
 		};
 
 		usb_1_hsphy: phy@8904000 {
@@ -6266,6 +6280,13 @@
 			dp_hot_plug_det: dp-hot-plug-det-state {
 				pins = "gpio94";
 				function = "edp0_hot";
+				bias-disable;
+			};
+
+			gp_mn_active: gp_mn_active-state {
+				pins = "gpio32";
+				function = "gp_mn";
+				drive-strength = <2>;
 				bias-disable;
 			};
 

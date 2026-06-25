@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
+#include <linux/pm_wakeirq.h>
 
 #include <linux/rpmsg/qcom_glink.h>
 
@@ -306,8 +307,7 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 
 	smem->irq = of_irq_get(smem->dev.of_node, 0);
 	ret = devm_request_irq(&smem->dev, smem->irq, qcom_glink_smem_intr,
-			       IRQF_NO_SUSPEND | IRQF_NO_AUTOEN,
-			       "glink-smem", smem);
+			       IRQF_NO_AUTOEN, "glink-smem", smem);
 	if (ret) {
 		dev_err(&smem->dev, "failed to request IRQ\n");
 		goto err_put_dev;
@@ -346,6 +346,8 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 
 	smem->glink = glink;
 
+	device_init_wakeup(dev, true);
+	dev_pm_set_wake_irq(dev, smem->irq);
 	enable_irq(smem->irq);
 
 	return smem;
@@ -365,6 +367,8 @@ void qcom_glink_smem_unregister(struct qcom_glink_smem *smem)
 	struct qcom_glink *glink = smem->glink;
 
 	disable_irq(smem->irq);
+	dev_pm_clear_wake_irq(&smem->dev);
+	device_init_wakeup(&smem->dev, false);
 
 	qcom_glink_native_remove(glink);
 

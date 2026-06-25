@@ -18,6 +18,7 @@
 #include <linux/reset.h>
 #include <linux/iopoll.h>
 #include <linux/usb/hcd.h>
+#include <linux/pm_domain.h>
 #include <linux/usb.h>
 #include "core.h"
 #include "glue.h"
@@ -46,9 +47,9 @@
 #define USB_MEMORY_AVG_HS_BW MBps_to_icc(240)
 #define USB_MEMORY_PEAK_HS_BW MBps_to_icc(700)
 #define USB_MEMORY_AVG_SS_BW  MBps_to_icc(1000)
-#define USB_MEMORY_PEAK_SS_BW MBps_to_icc(2500)
-#define APPS_USB_AVG_BW 0
-#define APPS_USB_PEAK_BW MBps_to_icc(40)
+#define USB_MEMORY_PEAK_SS_BW MBps_to_icc(5500)
+#define APPS_USB_AVG_BW 40
+#define APPS_USB_PEAK_BW MBps_to_icc(80)
 
 /* Qualcomm SoCs with multiport support has up to 4 ports */
 #define DWC3_QCOM_MAX_PORTS	4
@@ -362,6 +363,8 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
 		for (i = 0; i < qcom->num_ports; i++)
 			qcom->ports[i].usb2_speed = dwc3_qcom_read_usb2_speed(qcom, i);
 		dwc3_qcom_enable_interrupts(qcom);
+	} else {
+		dev_pm_genpd_synced_poweroff(qcom->dev);
 	}
 
 	qcom->is_suspended = true;

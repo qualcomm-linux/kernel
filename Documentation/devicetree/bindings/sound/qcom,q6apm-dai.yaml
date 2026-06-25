@@ -10,7 +10,11 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 description: |
-  This binding describes the Qualcomm APM DAIs in DSP
+  This binding describes the Qualcomm APM DAIs in DSP.
+  When qcom,vmid is present, the driver performs SCM memory
+  assignment for PCM DMA buffers and any reserved-memory regions
+  listed in memory-region, granting the specified VMIDs RW access
+  while retaining HLOS as a co-owner.
 
 properties:
   compatible:
@@ -20,9 +24,34 @@ properties:
     minItems: 1
     maxItems: 2
 
+  memory-region:
+    description:
+      List of phandles to reserved-memory regions (shared-dma-pool,
+      no-map) that must be SCM-assigned to the VMIDs in qcom,vmid.
+      The first entry is the control-path buffer; subsequent entries
+      are data-path buffers. Only meaningful when qcom,vmid is present.
+    minItems: 1
+    maxItems: 8
+
+  qcom,vmid:
+    description:
+      Optional list of destination VMIDs to grant RW access to PCM DMA
+      buffers and any memory-region carveouts. HLOS retains RW access
+      as source owner and must not be listed. When present,
+      qcom_scm_is_available() must return true at probe time.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      minimum: 1
+      maximum: 31
+    minItems: 1
+    maxItems: 8
+
 required:
   - compatible
-  - iommus
+
+dependentRequired:
+  memory-region:
+    - qcom,vmid
 
 additionalProperties: false
 
@@ -31,4 +60,13 @@ examples:
     dais {
         compatible = "qcom,q6apm-dais";
         iommus = <&apps_smmu 0x1801 0x0>;
+    };
+  - |
+    #include <dt-bindings/firmware/qcom,scm.h>
+    dais {
+        compatible = "qcom,q6apm-dais";
+        iommus = <&apps_smmu 0x0c01 0x0>;
+        /* index 0: control path, index 1: data path */
+        memory-region = <&audio_heap_mem &audio_mdsp_carveout_mem>;
+        qcom,vmid = <QCOM_SCM_VMID_MSS_MSA QCOM_SCM_VMID_LPASS>;
     };

@@ -63,15 +63,15 @@ config CLK_KAANAPALI_TCSRCC
 	  Support for the TCSR clock controller on Kaanapali devices.
 	  Say Y if you want to use peripheral devices such as PCIe, USB, UFS.
 
-config CLK_SHIKRA_DISPCC
-	tristate "Shikra Display Clock Controller"
+config CLK_SHIKRA_AUDIOCORECC
+	tristate "Shikra Audio Core Clock Controller"
 	depends on ARM64 || COMPILE_TEST
 	select CLK_SHIKRA_GCC
 	default m if ARCH_QCOM
 	help
-	  Support for the display clock controller on Qualcomm Shikra SoCs.
-	  Say Y if you want to support display devices and functionality such as
-	  splash screen.
+	  Support for the Audio Core clock controller on Qualcomm Shikra devices.
+	  Say Y if you want to use AudioCoreCC clocks required to support audio
+	  devices and it's functionality.
 
 config CLK_SHIKRA_GCC
 	tristate "Shikra Global Clock Controller"
@@ -82,16 +82,6 @@ config CLK_SHIKRA_GCC
 	  Support for the global clock controller on Shikra devices.
 	  Say Y if you want to use multimedia devices or peripheral
 	  devices such as Camera, Video, UART, SPI, I2C, USB, SD/eMMC etc.
-
-config CLK_SHIKRA_GPUCC
-	tristate "Shikra Graphics Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	select CLK_SHIKRA_GCC
-	default m if ARCH_QCOM
-	help
-	  Support for the graphics clock controller on Qualcomm Shikra SoCs.
-	  Say Y if you want to support graphics controller devices and
-	  functionality such as 3D graphics.
 
 config CLK_X1E80100_CAMCC
 	tristate "X1E80100 Camera Clock Controller"
@@ -1635,4 +1625,19 @@ config SM_VIDEOCC_8450
 	  SM8450 or SM8475 devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
+
+config QCOM_CLK_GP_MND
+	tristate "Qualcomm PDM GP_MN clock divider"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Support for the Qualcomm PDM GP_MN clock divider found in PDM
+	  (Pulse Density Modulation) hardware blocks.
+	  Given an input clock of frequency Fin (TCXO4), the output
+	  frequency is Fout = Fin * (M / N).  For every N input cycles
+	  the divider produces M output cycles.  D controls the duty
+	  cycle: it is the number of native clock cycles in which the
+	  GP_MN output is low, counted over 8192 native clock cycles.
+
+	  Say Y or M if you want to support GP_MN-based frequency and
+	  duty-cycle configuration on Qualcomm SoCs.
 endif

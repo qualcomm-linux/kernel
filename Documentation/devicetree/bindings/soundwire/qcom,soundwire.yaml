@@ -23,6 +23,7 @@ properties:
           - qcom,soundwire-v1.6.0
           - qcom,soundwire-v1.7.0
           - qcom,soundwire-v2.0.0
+          - qcom,soundwire-v3.1.0
       - items:
           - enum:
               - qcom,soundwire-v2.1.0
@@ -210,6 +211,12 @@ properties:
         - minimum: 0
           maximum: 4
         - const: 0xff
+
+  qcom,swr-master-ee-val:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description:
+      Execution-environment value used to route SoundWire master
+      interrupts to CPU0 or CPU1.
 
   label:
     maxItems: 1

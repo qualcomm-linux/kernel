@@ -26,6 +26,9 @@ properties:
   reg:
     maxItems: 1
 
+  '#gpio-cells':
+        const: 2
+
   resx-gpios:
     maxItems: 1
     description:
@@ -68,6 +71,17 @@ $defs:
     type: object
 
     properties:
+      ep-reset-gpio:
+        description:
+          Specify the TC9563 GPIO used to reset the endpoint
+          connected to the particular TC9563 downstream port.
+
+      ep-pwr-en-gpio:
+        description:
+          Specify the TC9563 GPIO used for enabling power to
+          the endpoint connected to the particular TC9563
+          downstream port.
+
       toshiba,tx-amplitude-microvolt:
         description:
           Change Tx Margin setting for low power consumption.
@@ -103,7 +117,7 @@ examples:
         #address-cells = <3>;
         #size-cells = <2>;
 
-        pcie@0 {
+      tc9563: pcie@0 {
             device_type = "pci";
             reg = <0x0 0x0 0x0 0x0 0x0>;
 
@@ -119,6 +133,7 @@ examples:
                 device_type = "pci";
                 #address-cells = <3>;
                 #size-cells = <2>;
+                #gpio-cells = <2>;
                 ranges;
                 bus-range = <0x02 0xff>;
 
@@ -153,6 +168,9 @@ examples:
                     device_type = "pci";
                     ranges;
                     bus-range = <0x04 0xff>;
+
+                    ep-pwr-en-gpio = <&tc9563 2 GPIO_ACTIVE_HIGH>;
+                    ep-reset-gpio = <&tc9563 5 GPIO_ACTIVE_HIGH>;
                 };
 
                 pcie@3,0 {

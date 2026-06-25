@@ -6,6 +6,63 @@
 #include <dt-bindings/camera/msm-camera.h>
 
 &cam_cci {
+	/* GMSL deserializer 0 - max9296a */
+	qcom,cam-gmsl-deserializer0 {
+		cell-index = <2>;
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_mclk2_active>;
+		pinctrl-1 = <&cam_sensor_mclk2_suspend>;
+		gpios = <&tlmm 29 0>;
+		gpio-reset = <0>;
+		gpio-req-tbl-num = <0>;
+		gpio-req-tbl-flags = <0>;
+		gpio-req-tbl-label = "CAM_RESET0";
+		cci-master = <1>;
+		clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		status = "ok";
+
+		ranges;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			deser0_port0: endpoint {
+				remote-endpoint = <&gmsl_sensor0_ep>;
+			};
+		};
+	};
+
+	/* GMSL deserializer 0 sensor 0 */
+	qcom,cam-gmsl-sensor0 {
+		cell-index = <3>;
+		compatible = "qcom,cam-gmsl-sensor";
+
+		csiphy-sd-index = <1>;
+		status = "ok";
+
+		ranges;
+		port {
+			gmsl_sensor0_ep: endpoint {
+				remote-endpoint = <&deser0_port0>;
+			};
+		};
+	};
 	/*cam0-imx577*/
 	tl_slot0: qcom,cam-sensor0 {
 		compatible = "qcom,cam-sensor";

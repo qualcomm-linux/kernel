@@ -838,7 +838,7 @@ static int msm_dp_display_disable(struct msm_dp_display_private *dp,
 
 int msm_dp_display_set_stream_info(struct msm_dp *msm_dp_display, struct msm_dp_panel *panel,
 				   enum msm_dp_stream_id stream_id, u32 start_slot,
-				   u32 num_slots, u32 pbn)
+				   u32 num_slots, u32 pbn, int vcpi)
 {
 	int rc = 0;
 	struct msm_dp_display_private *dp;
@@ -859,9 +859,11 @@ int msm_dp_display_set_stream_info(struct msm_dp *msm_dp_display, struct msm_dp_
 
 	msm_dp_ctrl_set_mst_channel_info(dp->ctrl, stream_id, start_slot, num_slots);
 
-	panel->stream_id = stream_id;
-	panel->pbn = pbn;
-	msm_dp_panel_set_pixel_base(panel, dp->pixel_base[stream_id]);
+	if (panel) {
+		panel->stream_id = stream_id;
+		panel->pbn = pbn;
+		msm_dp_panel_set_pixel_base(panel, dp->pixel_base[stream_id]);
+	}
 
 	return rc;
 }
@@ -1657,7 +1659,7 @@ void msm_dp_display_atomic_enable(struct msm_dp *msm_dp_display)
 
 	dp = container_of(msm_dp_display, struct msm_dp_display_private, msm_dp_display);
 
-	msm_dp_display_set_stream_info(msm_dp_display, dp->panel, 0, 0, 0, 0);
+	msm_dp_display_set_stream_info(msm_dp_display, dp->panel, 0, 0, 0, 0, 0);
 
 	msm_dp_display_enable_helper(msm_dp_display, dp->panel);
 }
