@@ -1173,7 +1173,7 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	for (i = 0; i < DP_REO_DST_RING_MAX; i++) {
 		len += scnprintf(buf + len, size - len, "Ring%d:", i + 1);
 
-		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+		for (j = 0; j < ab->ag->num_devices; j++) {
 			len += scnprintf(buf + len, size - len,
 					"\t%d:%u", j,
 					 device_stats->reo_rx[i][j]);
@@ -1190,7 +1190,7 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	for (i = 0; i < HAL_WBM_REL_SRC_MODULE_MAX; i++) {
 		len += scnprintf(buf + len, size - len, "%s:", wbm_rel_src[i]);
 
-		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+		for (j = 0; j < ab->ag->num_devices; j++) {
 			len += scnprintf(buf + len,
 					 size - len,
 					 "\t%d:%u", j,
