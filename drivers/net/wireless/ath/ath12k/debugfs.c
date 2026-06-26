@@ -1082,6 +1082,9 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
+	len += scnprintf(buf + len, size - len,
+			 "DEVICE DP STATS (timestamp: %lldms):\n\n",
+			 ktime_to_ms(ktime_get()));
 	len += scnprintf(buf + len, size - len, "DEVICE RX STATS:\n\n");
 	len += scnprintf(buf + len, size - len, "err ring pkts: %u\n",
 			 device_stats->err_ring_pkts);
