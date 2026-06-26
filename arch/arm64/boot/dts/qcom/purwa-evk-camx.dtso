@@ -20,6 +20,7 @@
 
 #include "hamoa-camera-regulators.dtsi"
 #include "purwa-camera.dtsi"
+#include "purwa-camera-sensor.dtsi"
 
 &camss {
 	status = "disabled";
