@@ -1470,7 +1470,7 @@ static int fastrpc_init_create_static_process(struct fastrpc_user *fl,
 
 	if (!cctx->remote_heap_addr || !cctx->remote_heap_size) {
 		err = -ENOMEM;
-		dev_err(fl->sctx->dev,
+		dev_dbg(fl->sctx->dev,
 			"remote heap memory region is not added\n");
 		return err;
 	}
