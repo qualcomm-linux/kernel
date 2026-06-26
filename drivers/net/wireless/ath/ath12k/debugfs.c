@@ -1031,6 +1031,7 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	struct ath12k_device_dp_stats *device_stats = &dp->device_stats;
 	int len = 0, i, j, ret;
 	struct ath12k *ar;
+	u32 center_freq;
 	const int size = 4096;
 	static const char *rxdma_err[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX] = {
 		[HAL_REO_ENTR_RING_RXDMA_ECODE_OVERFLOW_ERR] = "Overflow",
@@ -1164,6 +1165,12 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	for (i = 0; i < ab->num_radios; i++) {
 		ar = ath12k_mac_get_ar_by_pdev_id(ab, DP_SW2HW_MACID(i));
 		if (ar) {
+			spin_lock_bh(&ar->data_lock);
+			center_freq = ar->rx_channel ? ar->rx_channel->center_freq : 0;
+			spin_unlock_bh(&ar->data_lock);
+			len += scnprintf(buf + len, size - len,
+					 "\nradio%d center_freq: %u\n",
+					 i, center_freq);
 			len += scnprintf(buf + len, size - len,
 					"\nradio%d tx_pending: %u\n", i,
 					atomic_read(&ar->dp.num_tx_pending));
