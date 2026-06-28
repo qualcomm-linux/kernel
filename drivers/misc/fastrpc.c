@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <uapi/misc/fastrpc.h>
+#include <linux/iommu.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/bitops.h>
 #include <linux/compiler.h>
@@ -300,6 +301,8 @@ struct fastrpc_channel_ctx {
 	struct fastrpc_buf *remote_heap;
 	bool secure;
 	bool unsigned_support;
+	/* set when remoteproc has an IOMMU; use iommu_map instead of hyp_assign */
+	bool has_iommu;
 	bool poll_mode_supported;
 	u64 dma_mask;
 };
@@ -2538,10 +2541,65 @@ static const char *const fastrpc_poll_supported_machines[] = {
 	"qcom,x1e80100", "qcom,x1p42100", NULL,
 };
 
+static int fastrpc_remote_heap_map(struct device *rdev,
+				   struct device_node *rproc_node,
+				   struct fastrpc_buf *heap)
+{
+	struct platform_device *rproc_pdev;
+	struct iommu_domain *domain;
+	int ret;
+
+	rproc_pdev = of_find_device_by_node(rproc_node);
+	if (!rproc_pdev) {
+		dev_err(rdev, "failed to find remoteproc platform device\n");
+		return -ENODEV;
+	}
+
+	domain = iommu_get_domain_for_dev(&rproc_pdev->dev);
+	if (!domain) {
+		put_device(&rproc_pdev->dev);
+		dev_err(rdev, "no IOMMU domain for remoteproc\n");
+		return -ENODEV;
+	}
+
+	ret = iommu_map(domain, heap->phys, heap->phys, heap->size,
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+	if (ret)
+		dev_err(rdev, "failed to map remote heap phys=0x%llx size=0x%llx err=%d\n",
+			heap->phys, heap->size, ret);
+
+	put_device(&rproc_pdev->dev);
+	return ret;
+}
+
+static void fastrpc_remote_heap_unmap(struct rpmsg_device *rpdev,
+				      struct fastrpc_buf *heap)
+{
+	struct device_node *rproc_node;
+	struct platform_device *rproc_pdev;
+	struct iommu_domain *domain;
+
+	rproc_node = of_get_parent(of_get_parent(rpdev->dev.of_node));
+	if (!rproc_node)
+		return;
+
+	rproc_pdev = of_find_device_by_node(rproc_node);
+	of_node_put(rproc_node);
+	if (!rproc_pdev)
+		return;
+
+	domain = iommu_get_domain_for_dev(&rproc_pdev->dev);
+	if (domain)
+		iommu_unmap(domain, heap->phys, heap->size);
+
+	put_device(&rproc_pdev->dev);
+}
+
 static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 {
 	struct device *rdev = &rpdev->dev;
 	struct fastrpc_channel_ctx *data;
+	struct device_node *rproc_node;
 	int i, err, domain_id = -1, vmcount;
 	const char *domain;
 	bool secure_dsp;
@@ -2582,29 +2640,54 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 		}
 	}
 
+	rproc_node = of_get_parent(of_get_parent(rdev->of_node));
+	if (rproc_node)
+		data->has_iommu = of_property_present(rproc_node, "iommus");
+
 	if (domain_id == SDSP_DOMAIN_ID || domain_id == ADSP_DOMAIN_ID) {
 		struct resource res;
-		u64 src_perms;
 
 		err = of_reserved_mem_region_to_resource(rdev->of_node, 0, &res);
 		if (!err) {
 			if (domain_id == ADSP_DOMAIN_ID) {
 				data->remote_heap =
 					kzalloc(sizeof(*data->remote_heap), GFP_KERNEL);
-				if (!data->remote_heap)
-					return -ENOMEM;
+				if (!data->remote_heap) {
+					err = -ENOMEM;
+					goto err_put_node;
+				}
 
 				data->remote_heap->phys = res.start;
 				data->remote_heap->size = resource_size(&res);
-			}
-			src_perms = BIT(QCOM_SCM_VMID_HLOS);
 
-			err = qcom_scm_assign_mem(res.start, resource_size(&res), &src_perms,
-				    data->vmperms, data->vmcount);
-			if (err)
-				goto err_free_data;
+				if (data->has_iommu) {
+					err = fastrpc_remote_heap_map(rdev,
+								      rproc_node,
+								      data->remote_heap);
+					if (err) {
+						kfree(data->remote_heap);
+						data->remote_heap = NULL;
+						goto err_put_node;
+					}
+				}
+			}
+
+			if (!data->has_iommu) {
+				u64 src_perms = BIT(QCOM_SCM_VMID_HLOS);
+
+				err = qcom_scm_assign_mem(res.start,
+							  resource_size(&res),
+							  &src_perms,
+							  data->vmperms,
+							  data->vmcount);
+				if (err)
+					goto err_put_node;
+			}
 		}
 	}
+
+	of_node_put(rproc_node);
+	rproc_node = NULL;
 
 	secure_dsp = !(of_property_read_bool(rdev->of_node, "qcom,non-secure-domain"));
 	data->secure = secure_dsp;
@@ -2662,6 +2745,9 @@ err_deregister_fdev:
 	if (data->secure_fdevice)
 		misc_deregister(&data->secure_fdevice->miscdev);
 
+err_put_node:
+	of_node_put(rproc_node);
+
 err_free_data:
 	kfree(data);
 	return err;
@@ -2703,21 +2789,27 @@ static void fastrpc_rpmsg_remove(struct rpmsg_device *rpdev)
 	if (cctx->secure_fdevice)
 		misc_deregister(&cctx->secure_fdevice->miscdev);
 
-	if (cctx->remote_heap && cctx->vmcount) {
-		u64 src_perms = 0;
-		struct qcom_scm_vmperm dst_perms;
-
-		for (u32 i = 0; i < cctx->vmcount; i++)
-			src_perms |= BIT(cctx->vmperms[i].vmid);
-
-		dst_perms.vmid = QCOM_SCM_VMID_HLOS;
-		dst_perms.perm = QCOM_SCM_PERM_RWX;
-
-		err = qcom_scm_assign_mem(cctx->remote_heap->phys,
-					  cctx->remote_heap->size, &src_perms,
-					  &dst_perms, 1);
-		if (!err)
+	if (cctx->remote_heap) {
+		if (cctx->has_iommu) {
+			fastrpc_remote_heap_unmap(rpdev, cctx->remote_heap);
 			kfree(cctx->remote_heap);
+			cctx->remote_heap = NULL;
+		} else if (cctx->vmcount) {
+			u64 src_perms = 0;
+			struct qcom_scm_vmperm dst_perms;
+
+			for (u32 i = 0; i < cctx->vmcount; i++)
+				src_perms |= BIT(cctx->vmperms[i].vmid);
+
+			dst_perms.vmid = QCOM_SCM_VMID_HLOS;
+			dst_perms.perm = QCOM_SCM_PERM_RWX;
+
+			err = qcom_scm_assign_mem(cctx->remote_heap->phys,
+						  cctx->remote_heap->size,
+						  &src_perms, &dst_perms, 1);
+			if (!err)
+				kfree(cctx->remote_heap);
+		}
 	}
 
 	of_platform_depopulate(&rpdev->dev);

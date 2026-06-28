@@ -35,12 +35,3 @@
 
 	status = "okay";
 };
-
-&ufs_mem_hc {
-	status = "disabled";
-};
-
-&vreg_l8a {
-	regulator-min-microvolt = <2960000>;
-	regulator-max-microvolt = <2960000>;
-};
