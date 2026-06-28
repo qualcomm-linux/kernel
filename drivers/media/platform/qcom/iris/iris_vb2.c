@@ -129,7 +129,7 @@ int iris_vb2_queue_setup(struct vb2_queue *q,
 	if (!inst->once_per_session_set) {
 		inst->once_per_session_set = true;
 
-		ret = core->hfi_ops->session_open(inst);
+		ret = inst->hfi_session_ops->session_open(inst);
 		if (ret) {
 			ret = -EINVAL;
 			dev_err(core->dev, "session open failed\n");
@@ -173,6 +173,10 @@ int iris_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
 	iris_scale_power(inst);
 
 	ret = iris_check_session_supported(inst);
+	if (ret)
+		goto error;
+
+	ret = iris_set_core_id(inst);
 	if (ret)
 		goto error;
 

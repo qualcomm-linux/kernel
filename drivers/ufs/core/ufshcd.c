@@ -120,7 +120,7 @@ static bool is_mcq_supported(struct ufs_hba *hba)
 module_param(use_mcq_mode, bool, 0644);
 MODULE_PARM_DESC(use_mcq_mode, "Control MCQ mode for controllers starting from UFSHCI 4.0. 1 - enable MCQ, 0 - disable MCQ. MCQ is enabled by default");
 
-static unsigned int uic_cmd_timeout = UIC_CMD_TIMEOUT_DEFAULT;
+static unsigned int uic_cmd_timeout = UIC_CMD_TIMEOUT_MAX;
 
 static int uic_cmd_timeout_set(const char *val, const struct kernel_param *kp)
 {

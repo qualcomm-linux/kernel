@@ -597,10 +597,17 @@ int geni_se_resources_off(struct geni_se *se)
 
 	if (has_acpi_companion(se->dev))
 		return 0;
-
-	ret = pinctrl_pm_select_sleep_state(se->dev);
-	if (ret)
-		return ret;
+	/*
+	 * Select the "sleep" pinctrl state only when the serial engine is
+	 * exclusively owned by this system processor. For shared controller
+	 * configurations, another system processor may still be using the pins,
+	 * and switching them to "sleep" can disrupt ongoing transfers.
+	 */
+	if (!se->multi_owner) {
+		ret = pinctrl_pm_select_sleep_state(se->dev);
+		if (ret)
+			return ret;
+	}
 
 	geni_se_clks_off(se);
 	return 0;

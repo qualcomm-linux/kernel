@@ -71,6 +71,16 @@ config SND_SOC_QCOM_COMMON
 config SND_SOC_QCOM_SDW
 	tristate
 
+config SND_SOC_QCOM_QAIF
+	tristate "Qualcomm QAIF audio interface support"
+	depends on COMMON_CLK
+	select REGMAP_MMIO
+	help
+	  Say Y or M to enable Qualcomm Audio Interface (QAIF) support
+	  used on Shikra audio platforms. QAIF provides DMA-based audio
+	  data transfer between the application processor and the audio
+	  hardware interfaces (AIF and CIF).
+
 config SND_SOC_QDSP6_COMMON
 	tristate
 
@@ -101,6 +111,7 @@ config SND_SOC_QDSP6_ASM_DAI
 
 config SND_SOC_QDSP6_APM_DAI
 	tristate
+	select QCOM_SCM
 	select SND_SOC_COMPRESS
 
 config SND_SOC_QDSP6_APM_LPASS_DAI
@@ -202,6 +213,7 @@ config SND_SOC_SC8280XP
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_QCOM_SDW
+	select SND_SOC_QCOM_QAIF
 	help
 	  To add support for audio on Qualcomm Technologies Inc.
 	  SC8280XP SoC-based systems.

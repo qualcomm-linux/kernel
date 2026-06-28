@@ -24,3 +24,14 @@ config ACPI_APMT
 
 config ACPI_MPAM
 	bool
+
+config ACPI_AEST
+	bool "ARM Error Source Table Support"
+	depends on ARM64_RAS_EXTN
+
+	help
+	  The Arm Error Source Table (AEST) provides details on ACPI
+	  extensions that enable kernel-first handling of errors in a
+	  system that supports the Armv8 RAS extensions.
+
+	  If set, the kernel will report and log hardware errors.

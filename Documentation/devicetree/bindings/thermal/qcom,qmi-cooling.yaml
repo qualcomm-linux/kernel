@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2023 (c), Linaro Limited
+
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/qcom,qmi-cooling.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm QMI based thermal mitigation (TMD) cooling devices.
+
+maintainers:
+  - Caleb Connolly <caleb.connolly@linaro.org>
+  - Gaurav Kohli <gaurav.kohli@oss.qualcomm.com>
+
+description:
+  Qualcomm QMI-based TMD cooling devices are used to mitigate thermal conditions
+  across multiple remote subsystems. These devices operate based on junction temperature
+  sensors (TSENS) associated with thermal zones for each subsystem.
+
+  Each subnode corresponds to a control interface for a single instance of the TMD
+  service running on a remote subsystem.
+
+definitions:
+  tmd:
+    type: object
+    description: |
+      A single Thermal Mitigation Device exposed by a remote subsystem.
+    properties:
+      label:
+        maxItems: 1
+      "#cooling-cells":
+        $ref: /schemas/thermal/thermal-cooling-devices.yaml#/properties/#cooling-cells
+      phandle: true
+
+    required:
+      - label
+      - "#cooling-cells"
+
+    additionalProperties: false
+
+properties:
+  compatible:
+    enum:
+      - qcom,qmi-cooling-modem
+      - qcom,qmi-cooling-cdsp
+
+  vdd:
+    $ref: "#/definitions/tmd"
+    description:
+      Modem processor temperature TMD
+    properties:
+      label:
+        const: modem
+
+required:
+  - compatible
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,qmi-cooling-cdsp
+    then:
+      properties:
+        cdsp_sw:
+          $ref: "#/definitions/tmd"
+          description:
+            CDSP software TMD
+          properties:
+            label:
+              const: cdsp_sw
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    remoteproc-cdsp {
+        cooling {
+            compatible = "qcom,qmi-cooling-cdsp";
+
+            cdsp_sw0: cdsp_sw {
+              label = "cdsp_sw";
+              #cooling-cells = <2>;
+            };
+        };
+    };
+
+    remoteproc-cdsp1 {
+        cooling {
+            compatible = "qcom,qmi-cooling-cdsp1";
+
+            cdsp_sw1: cdsp_sw {
+              label = "cdsp_sw";
+              #cooling-cells = <2>;
+            };
+        };
+    };
+...

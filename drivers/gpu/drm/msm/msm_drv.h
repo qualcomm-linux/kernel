@@ -355,6 +355,9 @@ bool msm_dp_is_yuv_420_enabled(const struct msm_dp *dp_display,
 bool msm_dp_needs_periph_flush(const struct msm_dp *dp_display,
 			       const struct drm_display_mode *mode);
 bool msm_dp_wide_bus_available(const struct msm_dp *dp_display);
+int msm_dp_get_mst_max_stream(struct msm_dp *dp_display);
+int msm_dp_mst_register(struct msm_dp *dp_display);
+int msm_dp_mst_attach_encoder(struct msm_dp *dp_display, struct drm_encoder *encoder);
 
 #else
 static inline int __init msm_dp_register(void)
@@ -368,6 +371,21 @@ static inline int msm_dp_modeset_init(struct msm_dp *dp_display,
 				       struct drm_device *dev,
 				       struct drm_encoder *encoder,
 				       bool yuv_supported)
+{
+	return -EINVAL;
+}
+
+static inline int msm_dp_get_mst_max_stream(struct msm_dp *dp_display)
+{
+	return -EINVAL;
+}
+
+static inline int msm_dp_mst_register(struct msm_dp *dp_display)
+{
+	return -EINVAL;
+}
+
+static inline int msm_dp_mst_attach_encoder(struct msm_dp *dp_display, struct drm_encoder *encoder)
 {
 	return -EINVAL;
 }

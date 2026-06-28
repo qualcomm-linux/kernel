@@ -514,6 +514,23 @@
 		regulator-boot-on;
 	};
 
+	vreg_wcn_bt_en: regulator-wcn-bt-en {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VREG_WCN_BT_EN";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 116 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&wcn_bt_en>;
+		pinctrl-names = "default";
+
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vreg_wwan: regulator-wwan {
 		compatible = "regulator-fixed";
 
@@ -679,10 +696,9 @@
 		vddrfa1p2-supply = <&vreg_wcn_1p9>;
 		vddrfa1p8-supply = <&vreg_wcn_1p9>;
 
-		bt-enable-gpios = <&tlmm 116 GPIO_ACTIVE_HIGH>;
 		wlan-enable-gpios = <&tlmm 117 GPIO_ACTIVE_HIGH>;
 
-		pinctrl-0 = <&wcn_bt_en>, <&wcn_wlan_en>;
+		pinctrl-0 = <&wcn_wlan_en>;
 		pinctrl-names = "default";
 
 		regulators {
@@ -829,6 +845,16 @@
 		reset-gpios = <&tlmm 184 GPIO_ACTIVE_LOW>;
 
 		pinctrl-0 = <&eusb6_reset_n>;
+		pinctrl-names = "default";
+	};
+
+	embedded-controller@76 {
+		compatible = "qcom,hamoa-iot-evk-ec", "qcom,hamoa-crd-ec";
+		reg = <0x76>;
+
+		interrupts-extended = <&tlmm 66 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&ec_int_n_default>;
 		pinctrl-names = "default";
 	};
 };
@@ -1320,6 +1346,28 @@
 };
 
 &tlmm {
+	cam1_default: cam1-default-state {
+		mclk-pins {
+			pins = "gpio97";
+			function = "cam_mclk";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		rst-pins {
+			pins = "gpio110";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	ec_int_n_default: ec-int-n-state {
+		pins = "gpio66";
+		function = "gpio";
+		bias-disable;
+	};
+
 	edp_reg_en: edp-reg-en-state {
 		pins = "gpio70";
 		function = "gpio";
@@ -1498,13 +1546,13 @@
 		compatible = "qcom,wcn7850-bt";
 		max-speed = <3200000>;
 
-		vddaon-supply = <&vreg_pmu_aon_0p59>;
-		vddwlcx-supply = <&vreg_pmu_wlcx_0p8>;
-		vddwlmx-supply = <&vreg_pmu_wlmx_0p85>;
-		vddrfacmn-supply = <&vreg_pmu_rfa_cmn>;
-		vddrfa0p8-supply = <&vreg_pmu_rfa_0p8>;
-		vddrfa1p2-supply = <&vreg_pmu_rfa_1p2>;
-		vddrfa1p8-supply = <&vreg_pmu_rfa_1p8>;
+		vddrfacmn-supply = <&vreg_wcn_3p3>;
+		vddaon-supply = <&vreg_wcn_3p3>;
+		vddwlcx-supply = <&vreg_wcn_3p3>;
+		vddwlmx-supply = <&vreg_wcn_3p3>;
+		vddrfa0p8-supply = <&vreg_wcn_3p3>;
+		vddrfa1p2-supply = <&vreg_wcn_3p3>;
+		vddrfa1p8-supply = <&vreg_wcn_3p3>;
 	};
 };
 

@@ -41,6 +41,15 @@
 			#pwm-cells = <2>;
 			status = "disabled";
 		};
+
+		sensor@4700 {
+			compatible = "qcom,pm8350c-bcl", "qcom,bcl-v2";
+			reg = <0x4700>;
+			interrupts = <0x2 0x47 0x0 IRQ_TYPE_EDGE_RISING>,
+				     <0x2 0x47 0x1 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "bcl-max-min",
+					  "bcl-critical";
+		};
 	};
 };
 

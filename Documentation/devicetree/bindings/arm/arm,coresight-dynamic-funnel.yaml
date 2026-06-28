@@ -57,6 +57,11 @@ properties:
   power-domains:
     maxItems: 1
 
+  qcom,cpu-bound-components:
+    type: boolean
+    description:
+      Indicates whether the funnel is located physically within cpu cluster.
+
   label:
     description:
       Description of a coresight device.

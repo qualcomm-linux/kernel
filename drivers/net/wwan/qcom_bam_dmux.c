@@ -22,6 +22,9 @@
 #include <linux/workqueue.h>
 #include <net/pkt_sched.h>
 
+#define CREATE_TRACE_POINTS
+#include "trace-bam-dmux.h"
+
 #define BAM_DMUX_BUFFER_SIZE		SZ_2K
 #define BAM_DMUX_HDR_SIZE		sizeof(struct bam_dmux_hdr)
 #define BAM_DMUX_MAX_DATA_SIZE		(BAM_DMUX_BUFFER_SIZE - BAM_DMUX_HDR_SIZE)
@@ -278,6 +281,7 @@ static int bam_dmux_netdev_open(struct net_device *netdev)
 	struct bam_dmux_netdev *bndev = netdev_priv(netdev);
 	int ret;
 
+	trace_bam_dmux_channel(bndev->dmux->dev, bndev->ch, "local_open");
 	ret = bam_dmux_send_cmd(bndev, BAM_DMUX_CMD_OPEN);
 	if (ret)
 		return ret;
@@ -290,6 +294,7 @@ static int bam_dmux_netdev_stop(struct net_device *netdev)
 {
 	struct bam_dmux_netdev *bndev = netdev_priv(netdev);
 
+	trace_bam_dmux_channel(bndev->dmux->dev, bndev->ch, "local_close");
 	netif_stop_queue(netdev);
 	bam_dmux_send_cmd(bndev, BAM_DMUX_CMD_CLOSE);
 	return 0;
@@ -542,6 +547,7 @@ static void bam_dmux_cmd_open(struct bam_dmux *dmux, struct bam_dmux_hdr *hdr)
 	struct net_device *netdev = dmux->netdevs[hdr->ch];
 
 	dev_dbg(dmux->dev, "open channel: %u\n", hdr->ch);
+	trace_bam_dmux_channel(dmux->dev, hdr->ch, "remote_open");
 
 	if (__test_and_set_bit(hdr->ch, dmux->remote_channels)) {
 		dev_warn(dmux->dev, "Channel already open: %u\n", hdr->ch);
@@ -561,6 +567,7 @@ static void bam_dmux_cmd_close(struct bam_dmux *dmux, struct bam_dmux_hdr *hdr)
 	struct net_device *netdev = dmux->netdevs[hdr->ch];
 
 	dev_dbg(dmux->dev, "close channel: %u\n", hdr->ch);
+	trace_bam_dmux_channel(dmux->dev, hdr->ch, "remote_close");
 
 	if (!__test_and_clear_bit(hdr->ch, dmux->remote_channels)) {
 		dev_err(dmux->dev, "Channel not open: %u\n", hdr->ch);
@@ -589,6 +596,8 @@ static void bam_dmux_rx_callback(void *data)
 		dev_dbg(dmux->dev, "Unsupported channel: %u\n", hdr->ch);
 		goto out;
 	}
+
+	trace_bam_dmux_rx(dmux->dev, hdr->ch, hdr->cmd, hdr->len);
 
 	switch (hdr->cmd) {
 	case BAM_DMUX_CMD_DATA:
@@ -624,16 +633,20 @@ static bool bam_dmux_power_on(struct bam_dmux *dmux)
 	if (IS_ERR(dmux->rx)) {
 		dev_err(dev, "Failed to request RX DMA channel: %pe\n", dmux->rx);
 		dmux->rx = NULL;
+		trace_bam_dmux_power(dev, true, false);
 		return false;
 	}
 	dmaengine_slave_config(dmux->rx, &dma_rx_conf);
 
 	for (i = 0; i < BAM_DMUX_NUM_SKB; i++) {
-		if (!bam_dmux_skb_dma_queue_rx(&dmux->rx_skbs[i], GFP_KERNEL))
+		if (!bam_dmux_skb_dma_queue_rx(&dmux->rx_skbs[i], GFP_KERNEL)) {
+			trace_bam_dmux_power(dev, true, false);
 			return false;
+		}
 	}
 	dma_async_issue_pending(dmux->rx);
 
+	trace_bam_dmux_power(dev, true, true);
 	return true;
 }
 
@@ -669,6 +682,7 @@ static void bam_dmux_power_off(struct bam_dmux *dmux)
 	}
 
 	bam_dmux_free_skbs(dmux->rx_skbs, DMA_FROM_DEVICE);
+	trace_bam_dmux_power(dmux->dev, false, true);
 }
 
 static irqreturn_t bam_dmux_pc_irq(int irq, void *data)
@@ -677,6 +691,7 @@ static irqreturn_t bam_dmux_pc_irq(int irq, void *data)
 	bool new_state = !dmux->pc_state;
 
 	dev_dbg(dmux->dev, "pc: %u\n", new_state);
+	trace_bam_dmux_pc(dmux->dev, dmux->pc_state, new_state);
 
 	if (new_state) {
 		if (bam_dmux_power_on(dmux))
@@ -722,8 +737,11 @@ static int __maybe_unused bam_dmux_runtime_resume(struct device *dev)
 
 	/* Wait until previous power down was acked */
 	if (!wait_for_completion_timeout(&dmux->pc_ack_completion,
-					 BAM_DMUX_REMOTE_TIMEOUT))
+					 BAM_DMUX_REMOTE_TIMEOUT)) {
+		trace_bam_dmux_resume_step(dev, "prev_ack", -ETIMEDOUT);
 		return -ETIMEDOUT;
+	}
+	trace_bam_dmux_resume_step(dev, "prev_ack", 0);
 
 	/* Vote for power state */
 	bam_dmux_pc_vote(dmux, true);
@@ -732,33 +750,42 @@ static int __maybe_unused bam_dmux_runtime_resume(struct device *dev)
 	if (!wait_for_completion_timeout(&dmux->pc_ack_completion,
 					 BAM_DMUX_REMOTE_TIMEOUT)) {
 		bam_dmux_pc_vote(dmux, false);
+		trace_bam_dmux_resume_step(dev, "ack", -ETIMEDOUT);
 		return -ETIMEDOUT;
 	}
+	trace_bam_dmux_resume_step(dev, "ack", 0);
 
 	/* Wait until we're up */
 	if (!wait_event_timeout(dmux->pc_wait, dmux->pc_state,
 				BAM_DMUX_REMOTE_TIMEOUT)) {
 		bam_dmux_pc_vote(dmux, false);
+		trace_bam_dmux_resume_step(dev, "bam_up", -ETIMEDOUT);
 		return -ETIMEDOUT;
 	}
+	trace_bam_dmux_resume_step(dev, "bam_up", 0);
 
 	/* Ensure that we actually initialized successfully */
 	if (!dmux->rx) {
 		bam_dmux_pc_vote(dmux, false);
+		trace_bam_dmux_resume_step(dev, "bam_up", -ENXIO);
 		return -ENXIO;
 	}
 
 	/* Request TX channel if necessary */
-	if (dmux->tx)
+	if (dmux->tx) {
+		trace_bam_dmux_resume_step(dev, "tx_chan", 0);
 		return 0;
+	}
 
 	dmux->tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dmux->tx)) {
 		dev_err(dev, "Failed to request TX DMA channel: %pe\n", dmux->tx);
 		dmux->tx = NULL;
 		bam_dmux_runtime_suspend(dev);
+		trace_bam_dmux_resume_step(dev, "tx_chan", -ENXIO);
 		return -ENXIO;
 	}
+	trace_bam_dmux_resume_step(dev, "tx_chan", 0);
 
 	return 0;
 }

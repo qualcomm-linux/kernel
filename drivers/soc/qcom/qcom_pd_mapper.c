@@ -305,6 +305,18 @@ static const struct qcom_pdm_domain_data cdsp_root_pd = {
 	.services = { NULL },
 };
 
+static const struct qcom_pdm_domain_data gpdsp_root_pd = {
+	.domain = "msm/gpdsp/root_pd",
+	.instance_id = 192,
+	.services = { NULL },
+};
+
+static const struct qcom_pdm_domain_data gpdsp1_root_pd = {
+	.domain = "msm/gpdsp1/root_pd",
+	.instance_id = 241,
+	.services = { NULL },
+};
+
 static const struct qcom_pdm_domain_data slpi_root_pd = {
 	.domain = "msm/slpi/root_pd",
 	.instance_id = 90,
@@ -419,6 +431,22 @@ static const struct qcom_pdm_domain_data *qcs615_domains[] = {
 	NULL,
 };
 
+static const struct qcom_pdm_domain_data *qcs8300_domains[] = {
+	&adsp_audio_pd,
+	&adsp_root_pd,
+	&cdsp_root_pd,
+	NULL,
+};
+
+static const struct qcom_pdm_domain_data *sa8775p_domains[] = {
+	&adsp_audio_pd,
+	&adsp_root_pd,
+	&cdsp_root_pd,
+	&gpdsp_root_pd,
+	&gpdsp1_root_pd,
+	NULL,
+};
+
 static const struct qcom_pdm_domain_data *sc7180_domains[] = {
 	&adsp_audio_pd,
 	&adsp_root_pd_pdr,
@@ -453,6 +481,11 @@ static const struct qcom_pdm_domain_data *sc8280xp_domains[] = {
 	&adsp_root_pd_pdr,
 	&adsp_charger_pd,
 	&cdsp_root_pd,
+	NULL,
+};
+
+static const struct qcom_pdm_domain_data *shikra_cqm_domains[] = {
+	&mpss_wlan_pd,
 	NULL,
 };
 
@@ -595,10 +628,15 @@ static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
 	{ .compatible = "qcom,qcm6490", .data = sc7280_domains, },
 	{ .compatible = "qcom,qcs404", .data = qcs404_domains, },
 	{ .compatible = "qcom,qcs615", .data = qcs615_domains, },
+	{ .compatible = "qcom,qcs8300", .data = qcs8300_domains, },
+	{ .compatible = "qcom,sa8775p", .data = sa8775p_domains, },
 	{ .compatible = "qcom,sc7180", .data = sc7180_domains, },
 	{ .compatible = "qcom,sc7280", .data = sc7280_domains, },
 	{ .compatible = "qcom,sc8180x", .data = sc8180x_domains, },
 	{ .compatible = "qcom,sc8280xp", .data = sc8280xp_domains, },
+	{ .compatible = "qcom,shikra-cqm-som", .data = shikra_cqm_domains, },
+	{ .compatible = "qcom,shikra-cqs-som", .data = shikra_cqm_domains, },
+	{ .compatible = "qcom,shikra-iqs-som", .data = shikra_cqm_domains, },
 	{ .compatible = "qcom,sdm630", .data = sdm630_domains, },
 	{ .compatible = "qcom,sdm636", .data = sdm630_domains, },
 	{ .compatible = "qcom,sda660", .data = sdm660_domains, },

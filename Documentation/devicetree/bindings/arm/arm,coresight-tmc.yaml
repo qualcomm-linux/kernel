@@ -86,6 +86,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 15
 
+  qcom,cpu-bound-components:
+    type: boolean
+    description:
+      indicates whether the TMC-ETF is located physically within cpu cluster.
+
   in-ports:
     $ref: /schemas/graph.yaml#/properties/ports
     additionalProperties: false

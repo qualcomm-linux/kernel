@@ -796,19 +796,22 @@ static int of_check_msi_parent(struct device_node *dev_node, struct device_node 
 /**
  * of_msi_xlate - map a MSI ID and find relevant MSI controller node
  * @dev: device for which the mapping is to be done.
- * @msi_np: Pointer to target MSI controller node
+ * @msi_np: Pointer to target MSI controller node, or NULL if the caller
+ *           only needs the translated ID without receiving the controller node.
+ *           If non-NULL and pointing to a non-NULL node, only entries targeting
+ *           that node will be matched. If non-NULL and pointing to NULL, it will
+ *           receive the first matching target node with a reference held.
  * @id_in: Device ID.
  *
  * Walk up the device hierarchy looking for devices with a "msi-map"
  * or "msi-parent" property. If found, apply the mapping to @id_in.
- * If @msi_np points to a non-NULL device node pointer, only entries targeting
- * that node will be matched; if it points to a NULL value, it will receive the
- * device node of the first matching target phandle, with a reference held.
  *
  * Returns: The mapped MSI id.
  */
 u32 of_msi_xlate(struct device *dev, struct device_node **msi_np, u32 id_in)
 {
+	struct device_node *local_np = NULL;
+	struct device_node **np = msi_np ?: &local_np;
 	struct device *parent_dev;
 	u32 id_out = id_in;
 
@@ -817,12 +820,26 @@ u32 of_msi_xlate(struct device *dev, struct device_node **msi_np, u32 id_in)
 	 * "msi-map" or an "msi-parent" property.
 	 */
 	for (parent_dev = dev; parent_dev; parent_dev = parent_dev->parent) {
-		if (!of_map_id(parent_dev->of_node, id_in, "msi-map",
-				"msi-map-mask", msi_np, &id_out))
+		struct of_phandle_args msi_spec = {};
+
+		if (!of_map_msi_id(parent_dev->of_node, id_in, *np, &msi_spec)) {
+			/*
+			 * Pass-through result: no msi-map on this node (or no
+			 * matching entry). Keep walking up the hierarchy.
+			 */
+			if (!msi_spec.np)
+				continue;
+			id_out = msi_spec.args[0];
+			if (!*np)
+				*np = msi_spec.np;
+			else
+				of_node_put(msi_spec.np);
 			break;
-		if (!of_check_msi_parent(parent_dev->of_node, msi_np))
+		}
+		if (!of_check_msi_parent(parent_dev->of_node, np))
 			break;
 	}
+	of_node_put(local_np);
 	return id_out;
 }
 EXPORT_SYMBOL_GPL(of_msi_xlate);

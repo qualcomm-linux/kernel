@@ -188,7 +188,15 @@ static const char *const pmic_models[] = {
 	[80] = "PM7550",
 	[82] = "PMC8380",
 	[83] = "SMB2360",
+	[86] = "PM8750B",
+	[87] = "PMD8028",
 	[91] = "PMIV0108",
+	[92] = "PMK8850",
+	[93] = "PMH0101",
+	[95] = "SMB2370",
+	[96] = "PMH0104",
+	[97] = "PMH0110",
+	[98] = "PMCX0102",
 };
 
 struct socinfo_params {
@@ -528,6 +536,9 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(QCS615) },
 	{ qcom_board_id(CQ7790M) },
 	{ qcom_board_id(CQ7790S) },
+	{ qcom_board_id(CQ2390M) },
+	{ qcom_board_id(CQ2390S) },
+	{ qcom_board_id(IQ2390S) },
 	{ qcom_board_id(IPQ5200) },
 	{ qcom_board_id(IPQ5210) },
 	{ qcom_board_id(QCF2200) },

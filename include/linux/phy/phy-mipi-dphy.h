@@ -6,6 +6,8 @@
 #ifndef __PHY_MIPI_DPHY_H_
 #define __PHY_MIPI_DPHY_H_
 
+#define PHY_MIPI_DPHY_MAX_DATA_LANES    4
+
 /**
  * struct phy_configure_opts_mipi_dphy - MIPI D-PHY configuration set
  *
@@ -269,10 +271,41 @@ struct phy_configure_opts_mipi_dphy {
 	/**
 	 * @lanes:
 	 *
-	 * Number of active, consecutive, data lanes, starting from
-	 * lane 0, used for the transmissions.
+	 * Number of active data lanes used for the transmission.
+	 * When @lane_positions is not populated, lanes are consecutive
+	 * starting from lane 0.
 	 */
 	unsigned char		lanes;
+
+	/**
+	 * @lane_positions:
+	 *
+	 * Array representing the physical positions of the data-lanes.
+	 * Indexed by logical lane number.
+	 */
+	unsigned char		lane_positions[PHY_MIPI_DPHY_MAX_DATA_LANES];
+
+	/**
+	 * @lane_polarities:
+	 *
+	 * Array representing data-lane polarities. True means inverted.
+	 * Indexed by logical lane number.
+	 */
+	bool			lane_polarities[PHY_MIPI_DPHY_MAX_DATA_LANES];
+
+	/**
+	 * @clock_lane_position:
+	 *
+	 * Physical lane number used as the clock lane.
+	 */
+	unsigned char		clock_lane_position;
+
+	/**
+	 * @clock_lane_polarity:
+	 *
+	 * Clock lane polarity. True means inverted.
+	 */
+	bool			clock_lane_polarity;
 };
 
 int phy_mipi_dphy_get_default_config(unsigned long pixel_clock,
