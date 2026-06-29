@@ -624,7 +624,8 @@ static int gpi_config_interrupts(struct gpii *gpii, enum gpii_irq_settings setti
 
 	if (!gpii->configured_irq) {
 		ret = devm_request_irq(gpii->gpi_dev->dev, gpii->irq,
-				       gpi_handle_irq, IRQF_TRIGGER_HIGH,
+				       gpi_handle_irq,
+				       IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND | IRQF_EARLY_RESUME,
 				       "gpi-dma", gpii);
 		if (ret < 0) {
 			dev_err(gpii->gpi_dev->dev, "error request irq:%d ret:%d\n",
