@@ -11,6 +11,11 @@
 #include "eliza.dtsi"
 
 #include "pm7550ba-eliza.dtsi"
+#include "pm7550-eliza.dtsi"
+#include "pm8550vs-d-eliza.dtsi"
+#include "pm8550vs-g-eliza.dtsi"
+#include "pmr735d-eliza.dtsi"
+#include "pmk8550-eliza.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. Eliza MTP";
