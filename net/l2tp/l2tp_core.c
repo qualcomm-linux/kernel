@@ -441,12 +441,13 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 	idr_for_each_entry_ul(&pn->l2tp_tunnel_idr, tunnel, tmp, tunnel_id) {
 		if (tunnel) {
 			list_for_each_entry_rcu(session, &tunnel->session_list, list) {
-				if (!strcmp(session->ifname, ifname)) {
-					refcount_inc(&session->ref_count);
-					rcu_read_unlock_bh();
+				if (strcmp(session->ifname, ifname))
+					continue;
+				if (!refcount_inc_not_zero(&session->ref_count))
+					continue;
+				rcu_read_unlock_bh();
 
-					return session;
-				}
+				return session;
 			}
 		}
 	}
@@ -1683,7 +1684,7 @@ int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
 			.encap_destroy = l2tp_udp_encap_destroy,
 		};
 
-		setup_udp_tunnel_sock(net, sock, &udp_cfg);
+		setup_udp_tunnel_sock(net, sock->sk, &udp_cfg);
 	}
 
 	sk->sk_allocation = GFP_ATOMIC;
