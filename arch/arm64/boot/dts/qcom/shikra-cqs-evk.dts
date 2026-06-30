@@ -98,6 +98,13 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	vdda-phy-supply = <&pm4125_l13>;
+	vdda-pll-supply = <&pm4125_l9>;
+
+	status = "okay";
+};
+
 &pm4125_l5 {
 	/* DSI VDDA - must be at NOM voltage for PHY PLL lock */
 	regulator-min-microvolt = <1232000>;
