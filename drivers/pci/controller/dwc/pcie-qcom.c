@@ -290,6 +290,7 @@ struct qcom_pcie {
 	const struct qcom_pcie_cfg *cfg;
 	struct dentry *debugfs;
 	struct list_head ports;
+	struct gpio_desc *reset;
 	bool use_pm_opp;
 };
 
@@ -1780,6 +1781,11 @@ static int qcom_pcie_parse_perst(struct qcom_pcie *pcie,
 	struct gpio_desc *reset;
 	int ret;
 
+	if (pcie->reset) {
+		reset = pcie->reset;
+		goto skip_perst_parsing;
+	}
+
 	if (!of_find_property(np, "reset-gpios", NULL))
 		goto parse_child_node;
 
@@ -1798,6 +1804,7 @@ static int qcom_pcie_parse_perst(struct qcom_pcie *pcie,
 		return PTR_ERR(reset);
 	}
 
+skip_perst_parsing:
 	perst = devm_kzalloc(dev, sizeof(*perst), GFP_KERNEL);
 	if (!perst)
 		return -ENOMEM;
@@ -1854,6 +1861,14 @@ static int qcom_pcie_parse_ports(struct qcom_pcie *pcie)
 	struct qcom_pcie_port *port, *tmp_port;
 	struct device *dev = pcie->pci->dev;
 	int ret = -ENODEV;
+
+	if (of_find_property(dev->of_node, "perst-gpios", NULL)) {
+		pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
+		if (IS_ERR(pcie->reset))
+			return PTR_ERR(pcie->reset);
+
+		dev_warn(dev, "Reusing PERST# from Root Complex node. DT needs to be fixed!\n");
+	}
 
 	for_each_available_child_of_node_scoped(dev->of_node, of_port) {
 		if (!of_node_is_type(of_port, "pci"))
