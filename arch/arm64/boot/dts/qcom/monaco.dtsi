@@ -4847,7 +4847,6 @@
 			qcom,dll-config = <0x000f64ee>;
 			qcom,ddr-config = <0x80040868>;
 			bus-width = <8>;
-			supports-cqe;
 			dma-coherent;
 
 			qcom,ice = <&sdhc_ice>;
