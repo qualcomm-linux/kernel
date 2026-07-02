@@ -12,6 +12,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
+#include <linux/firmware/qcom/qcom_pas.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/sizes.h>
 #include <linux/soc/qcom/mdt_loader.h>
@@ -59,7 +60,7 @@ int venus_set_hw_state(struct venus_core *core, bool resume)
 	int ret;
 
 	if (core->use_tz) {
-		ret = qcom_scm_set_remote_state(resume, 0);
+		ret = qcom_pas_set_remote_state(resume, 0);
 		if (resume && ret == -EINVAL)
 			ret = 0;
 		return ret;
@@ -124,12 +125,12 @@ static int venus_load_fw(struct venus_core *core,
 			 const struct firmware *mdt, const char *fwname,
 			 phys_addr_t mem_phys, size_t res_size)
 {
-	struct qcom_scm_pas_context *ctx;
+	struct qcom_pas_context *ctx;
 	struct device *dev;
 	int ret;
 
 	dev = core->fw.dev ? core->fw.dev : core->dev;
-	ctx = devm_qcom_scm_pas_context_alloc(dev, VENUS_PAS_ID, mem_phys, res_size);
+	ctx = devm_qcom_pas_context_alloc(dev, VENUS_PAS_ID, mem_phys, res_size);
 	if (!ctx) {
 		dev_err(core->dev, "%s: ctx is null\n", __func__);
 		return -ENOMEM;
@@ -138,7 +139,7 @@ static int venus_load_fw(struct venus_core *core,
 	ctx->use_tzmem = !!core->fw.dev;
 
 	ret = qcom_mdt_pas_load(ctx, mdt, fwname, NULL);
-	qcom_scm_pas_metadata_release(ctx);
+	qcom_pas_metadata_release(ctx);
 	if (ret) {
 		dev_err(core->dev, "%s: qcom_mdt_pas_load: %d\n", __func__, ret);
 		return ret;
@@ -155,7 +156,7 @@ static int venus_load_fw(struct venus_core *core,
 
 	core->fw.mapped_mem_size = res_size;
 
-	ret = qcom_scm_pas_prepare_and_auth_reset(ctx);
+	ret = qcom_pas_prepare_and_auth_reset(ctx);
 	if (ret) {
 		dev_err(core->dev, "%s: qcom_scm_pas_prepare_and_auth_reset: %d\n", __func__, ret);
 		if (core->fw.iommu_domain)
@@ -311,7 +312,7 @@ int venus_shutdown(struct venus_core *core)
 	int ret;
 
 	if (core->use_tz) {
-		ret = qcom_scm_pas_shutdown(VENUS_PAS_ID);
+		ret = qcom_pas_shutdown(VENUS_PAS_ID);
 		if (core->fw.iommu_domain && core->fw.mapped_mem_size) {
 			iommu_unmap(core->fw.iommu_domain, 0, core->fw.mapped_mem_size);
 			core->fw.mapped_mem_size = 0;
@@ -411,7 +412,7 @@ static int venus_firmware_init_auto_detect(struct venus_core *core)
 
 	core->use_tz = false;
 	if (qcom_scm_is_available()) {
-		if (qcom_scm_pas_supported(VENUS_PAS_ID))
+		if (qcom_pas_supported(VENUS_PAS_ID))
 			core->use_tz = true;
 	} else {
 		ret = driver_deferred_probe_check_state(core->dev);
