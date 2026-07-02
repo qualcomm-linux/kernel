@@ -15,8 +15,10 @@ config QCOM_PAS
 	  TEE bus based PAS service implementation.
 
 config QCOM_SCM
+	tristate "Qualcomm PAS SCM interface driver"
+	select QCOM_PAS
 	select QCOM_TZMEM
-	tristate
+	default y if ARCH_QCOM
 
 config QCOM_TZMEM
 	tristate
