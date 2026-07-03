@@ -147,8 +147,8 @@
 			     &cam_sensor_suspend_rst0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 67 0>,
-			<&tlmm 73 0>,
-			<&expander2 0 0>;
+			<&expander2 0 0>,
+			<&tlmm 73 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -187,8 +187,8 @@
 		             &cam_sensor_suspend_rst0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 67 0>,
-			<&tlmm 73 0>,
-			<&expander2 0 0>;
+			<&expander2 0 0>,
+			<&tlmm 73 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -221,8 +221,8 @@
 			     &cam_sensor_suspend_rst0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 67 0>,
-			<&tlmm 73 0>,
-			<&expander2 0 0>;
+			<&expander2 0 0>,
+			<&tlmm 73 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -382,8 +382,8 @@
 			     &cam_sensor_suspend_rst1>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 68 0>,
-			<&tlmm 74 0>,
-			<&expander2 1 0>;
+			<&expander2 1 0>,
+			<&tlmm 74 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -422,8 +422,8 @@
 			     &cam_sensor_suspend_rst1>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 68 0>,
-			<&tlmm 74 0>,
-			<&expander2 1 0>;
+			<&expander2 1 0>,
+			<&tlmm 74 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -456,8 +456,8 @@
 			     &cam_sensor_suspend_rst1>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 68 0>,
-			<&tlmm 74 0>,
-			<&expander2 1 0>;
+			<&expander2 1 0>,
+			<&tlmm 74 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -617,8 +617,8 @@
 			     &cam_sensor_suspend_rst2>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 69 0>,
-			<&tlmm 75 0>,
-			<&expander2 2 0>;
+			<&expander2 2 0>,
+			<&tlmm 75 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -657,8 +657,8 @@
 			     &cam_sensor_suspend_rst2>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 69 0>,
-			<&tlmm 75 0>,
-			<&expander2 2 0>;
+			<&expander2 2 0>,
+			<&tlmm 75 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
@@ -691,8 +691,8 @@
 			     &cam_sensor_suspend_rst2>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		gpios = <&tlmm 69 0>,
-			<&tlmm 75 0>,
-			<&expander2 2 0>;
+			<&expander2 2 0>,
+			<&tlmm 75 0>;
 		gpio-reset = <1>;
 		gpio-custom1 = <2>;
 		gpio-req-tbl-num = <0 1 2>;
