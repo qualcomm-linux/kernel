@@ -400,46 +400,6 @@
 	};
 
 	/*cam0-imx577*/
-	qcom,cam-sensor19 {
-		compatible = "qcom,cam-sensor";
-		cell-index = <19>;
-		csiphy-sd-index = <1>;
-		sensor-position-roll = <0>;
-		sensor-position-pitch = <0>;
-		sensor-position-yaw = <180>;
-		eeprom-src = <&eeprom_cam19>;
-		regulator-names = "cam_vio";
-		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
-		rgltr-cntrl-support;
-		pwm-switch;
-		rgltr-min-voltage = <1800000>;
-		rgltr-max-voltage = <1800000>;
-		rgltr-load-current = <120000>;
-		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk1_active
-			     &cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_mclk1_suspend
-			     &cam_sensor_suspend_rst1>;
-		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 68 0>,
-			<&tlmm 74 0>,
-			<&expander2 1 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK1",
-				     "CAMIF_RESET1",
-				     "CAM_CUSTOM1";
-		cci-master = <0>;
-		clocks = <&camcc CAM_CC_MCLK1_CLK>;
-		clock-names = "cam_clk";
-		clock-cntl-level = "nominal";
-		clock-rates = <24000000>;
-		status = "ok";
-	};
-
-	/*cam0-imx577*/
 	qcom,cam-sensor21 {
 		compatible = "qcom,cam-sensor";
 		cell-index = <21>;
@@ -471,41 +431,6 @@
 		gpio-req-tbl-label = "CAM_MCLK1",
 				     "CAMIF_RESET1",
 				     "CAM_CUSTOM1";
-		cci-master = <0>;
-		clocks = <&camcc CAM_CC_MCLK1_CLK>;
-		clock-names = "cam_clk";
-		clock-cntl-level = "nominal";
-		clock-rates = <24000000>;
-		status = "ok";
-	};
-
-	eeprom_cam19: qcom,eeprom19 {
-		compatible = "qcom,eeprom";
-		cell-index = <19>;
-		regulator-names = "cam_vio";
-		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
-		rgltr-cntrl-support;
-		pwm-switch;
-		rgltr-min-voltage = <1800000>;
-		rgltr-max-voltage = <1800000>;
-		rgltr-load-current = <120000>;
-		gpio-no-mux = <0>;
-		pinctrl-0 = <&cam_sensor_mclk1_active
-			     &cam_sensor_active_rst1>;
-		pinctrl-1 = <&cam_sensor_mclk1_suspend
-			     &cam_sensor_suspend_rst1>;
-		pinctrl-names = "cam_default", "cam_suspend";
-		gpios = <&tlmm 68 0>,
-			<&tlmm 74 0>,
-			<&expander2 1 0>;
-		gpio-reset = <1>;
-		gpio-custom1 = <2>;
-		gpio-req-tbl-num = <0 1 2>;
-		gpio-req-tbl-flags = <1 0 0>;
-		gpio-req-tbl-label = "CAM_MCLK1",
-				     "CAMIF_RESET1",
-				     "CAM_CUSTOM1";
-		sensor-mode = <0>;
 		cci-master = <0>;
 		clocks = <&camcc CAM_CC_MCLK1_CLK>;
 		clock-names = "cam_clk";
