@@ -657,3 +657,5 @@ dtb-$(CONFIG_ARCH_QCOM)	+= purwa-staging.dtbo
 dtb-$(CONFIG_ARCH_QCOM) += sm8750-staging.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += kaanapali-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += shikra-staging.dtbo
