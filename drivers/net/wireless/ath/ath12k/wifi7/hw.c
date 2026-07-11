@@ -1034,18 +1034,22 @@ static void ath12k_wifi7_mac_op_tx(struct ieee80211_hw *hw,
 
 			if (cb_flags & ATH12K_SKB_HW_80211_ENCAP) {
 				/*
-				 * skb->data may be modified for the iova_mask devices.
-				 * It is better to use skb_copy() for such devices
-				 * to avoid any potential skb corruption related issues.
+				 * skb->data may be modified for the
+				 * iova_mask devices. It is better to
+				 * use skb_copy() for such devices to
+				 * avoid any potential skb corruption
+				 * related issues.
 				 */
-				if (tmp_dp->hw_params->iova_mask)
+				if (tmp_dp->hw_params->iova_mask) {
 					msdu_copied = skb_copy(skb, GFP_ATOMIC);
-				else
+				} else {
 					/*
-					 * ath12k_wifi7_dp_tx() should treat cloned HW-encap
-					 * Ethernet multicast frames as read-only.
+					 * ath12k_wifi7_dp_tx() should
+					 * treat cloned HW-encap Ethernet
+					 * multicast frames as read-only.
 					 */
 					msdu_copied = skb_clone(skb, GFP_ATOMIC);
+				}
 				if (!msdu_copied) {
 					ath12k_err(ar->ab,
 						   "skb copy/clone failure link_id 0x%X vdevid 0x%X\n",
