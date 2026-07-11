@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -118,6 +119,7 @@ struct qcom_pas {
 	struct qcom_rproc_pdm pdm_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
 	struct qcom_sysmon *sysmon;
+	struct platform_device *bam_dmux;
 
 	struct qcom_scm_pas_context *pas_ctx;
 	struct qcom_scm_pas_context *dtb_pas_ctx;
@@ -799,6 +801,7 @@ static int qcom_pas_probe(struct platform_device *pdev)
 	const struct qcom_pas_data *desc;
 	struct qcom_pas *pas;
 	struct rproc *rproc;
+	struct device_node *node;
 	const char *fw_name, *dtb_fw_name = NULL;
 	const struct rproc_ops *ops = &qcom_pas_ops;
 	int ret;
@@ -903,6 +906,10 @@ static int qcom_pas_probe(struct platform_device *pdev)
 	if (ret)
 		goto remove_ssr_sysmon;
 
+	node = of_get_compatible_child(pdev->dev.of_node, "qcom,bam-dmux");
+	pas->bam_dmux = of_platform_device_create(node, NULL, &pdev->dev);
+	of_node_put(node);
+
 	return 0;
 
 remove_ssr_sysmon:
@@ -926,6 +933,9 @@ free_rproc:
 static void qcom_pas_remove(struct platform_device *pdev)
 {
 	struct qcom_pas *pas = platform_get_drvdata(pdev);
+
+	if (pas->bam_dmux)
+		of_platform_device_destroy(&pas->bam_dmux->dev, NULL);
 
 	rproc_del(pas->rproc);
 
