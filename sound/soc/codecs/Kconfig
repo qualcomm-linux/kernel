@@ -2470,6 +2470,18 @@ config SND_SOC_WCD937X_SDW
 	  via soundwire.
 	  To compile this codec driver say Y or m.
 
+config SND_SOC_WCD9378_SDCA
+	tristate "Qualcomm Tambora (WCD9378) SDCA codec"
+	depends on SOUNDWIRE
+	depends on SND_SOC_SDCA_CLASS
+	default m if ARCH_QCOM
+	help
+	  This enables support for the Qualcomm Tambora (WCD9378) headset
+	  codec when driven via the SDCA class driver on ARM platforms
+	  without ACPI/DisCo tables. It provides the static SDCA topology
+	  and SoundWire data port properties transcribed from the factory
+	  ACPI tables.
+
 config SND_SOC_WCD938X
 	depends on SND_SOC_WCD938X_SDW
 	tristate
