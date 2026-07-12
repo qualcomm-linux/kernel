@@ -10,6 +10,7 @@
 #include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
+#include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/sprintf.h>
@@ -227,8 +228,20 @@ int sdca_jack_set_jack(struct sdca_interrupt_info *info, struct snd_soc_jack *ja
 
 			jack_state->jack = jack;
 
-			/* Report initial state in case IRQ was already handled */
-			ret = sdca_jack_report(interrupt);
+			/*
+			 * Read DETECTED_MODE from hardware to pick up the
+			 * current jack state (headphone may have been connected
+			 * before the interrupt handler was registered). The
+			 * register is volatile so we need pm_runtime active.
+			 */
+			ret = pm_runtime_resume_and_get(interrupt->dev);
+			if (ret < 0) {
+				dev_err(interrupt->dev,
+					"failed to resume for jack init: %d\n", ret);
+				return ret;
+			}
+			ret = sdca_jack_process(interrupt);
+			pm_runtime_put(interrupt->dev);
 			if (ret)
 				return ret;
 			break;
