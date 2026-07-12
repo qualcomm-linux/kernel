@@ -1584,6 +1584,13 @@ static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 					i, &pcfg->blk_group_count);
 
 		of_property_read_u8_index(np, "qcom,ports-lane-control", i, &pcfg->lane_control);
+
+		if (!of_property_read_u8_index(np, "qcom,ports-ch-mask", i,
+					       &pcfg->rx_ch_mask)) {
+			pcfg->tx_ch_mask = pcfg->rx_ch_mask;
+			pcfg->rx_ch_map_valid = true;
+			pcfg->tx_ch_map_valid = true;
+		}
 	}
 
 	return 0;
