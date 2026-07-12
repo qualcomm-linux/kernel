@@ -1676,7 +1676,16 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		goto io_err;
 	}
 
-	if (slave->id.class_id) {
+	/*
+	 * Read DP0_INT to detect an SDCA cascade if either the slave declares
+	 * an SDCA class_id (per SDCA amendment) or a driver has registered
+	 * for nested-IRQ dispatch via prop->use_domain_irq.  The latter
+	 * catches SDCA-capable slaves whose hardware still reports
+	 * class_id=0 (e.g. the WCD9378 SDCA "SimpleJack" function), where
+	 * the sdca_class driver sets use_domain_irq=true so the SDCA
+	 * regmap-irq framework can be woken from handle_nested_irq().
+	 */
+	if (slave->id.class_id || slave->prop.use_domain_irq) {
 		ret = sdw_read_no_pm(slave, SDW_DP0_INT);
 		if (ret < 0) {
 			dev_err(&slave->dev,
@@ -1794,6 +1803,25 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			goto io_err;
 		}
 
+		/*
+		 * Some peripherals (e.g. WCD9378) latch the SDCA_CASCADE
+		 * status in DP0_INT and require an explicit write-1-to-clear
+		 * after the cascaded SDCA interrupt sources have been
+		 * serviced.  Without this the cascade bit stays asserted
+		 * even when all SCP_SDCA_INTSTAT registers read zero, the
+		 * peripheral never leaves the ALERT state and the bus is
+		 * flooded with alert handling until MAX_RETRY.
+		 */
+		if (sdca_cascade) {
+			ret = sdw_write_no_pm(slave, SDW_DP0_INT,
+					      SDW_DP0_SDCA_CASCADE);
+			if (ret < 0) {
+				dev_err(&slave->dev,
+					"SDW_DP0_INT cascade clear failed:%d\n", ret);
+				goto io_err;
+			}
+		}
+
 		/* at this point all initial interrupt sources were handled */
 		slave->first_interrupt_done = true;
 
@@ -1816,7 +1844,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			goto io_err;
 		}
 
-		if (slave->id.class_id) {
+		if (slave->id.class_id || slave->prop.use_domain_irq) {
 			ret = sdw_read_no_pm(slave, SDW_DP0_INT);
 			if (ret < 0) {
 				dev_err(&slave->dev,
