@@ -361,7 +361,9 @@ static void ufs_qcom_disable_lane_clks(struct ufs_qcom_host *host)
 	if (!host->is_lane_clks_enabled)
 		return;
 
-	clk_bulk_disable_unprepare(host->num_clks, host->clks);
+	clk_disable_unprepare(host->rx_lane1_sync_clk);
+	clk_disable_unprepare(host->rx_lane0_sync_clk);
+	clk_disable_unprepare(host->tx_lane0_sync_clk);
 
 	host->is_lane_clks_enabled = false;
 }
@@ -370,18 +372,35 @@ static int ufs_qcom_enable_lane_clks(struct ufs_qcom_host *host)
 {
 	int err;
 
-	err = clk_bulk_prepare_enable(host->num_clks, host->clks);
+	if (host->is_lane_clks_enabled)
+		return 0;
+
+	err = clk_prepare_enable(host->tx_lane0_sync_clk);
 	if (err)
-		return err;
+		goto out;
+
+	err = clk_prepare_enable(host->rx_lane0_sync_clk);
+	if (err)
+		goto out_disable_tx_lane0;
+
+	err = clk_prepare_enable(host->rx_lane1_sync_clk);
+	if (err)
+		goto out_disable_rx_lane0;
 
 	host->is_lane_clks_enabled = true;
-
 	return 0;
+
+out_disable_rx_lane0:
+	clk_disable_unprepare(host->rx_lane0_sync_clk);
+out_disable_tx_lane0:
+	clk_disable_unprepare(host->tx_lane0_sync_clk);
+out:
+	return err;
 }
 
 static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 {
-	int err;
+	int err, i;
 	struct device *dev = host->hba->dev;
 
 	if (has_acpi_companion(dev))
@@ -392,6 +411,18 @@ static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 		return err;
 
 	host->num_clks = err;
+
+	for (i = 0; i < host->num_clks; i++) {
+		if (!host->clks[i].id)
+			continue;
+		if (!strcmp(host->clks[i].id, "tx_lane0_sync_clk"))
+			host->tx_lane0_sync_clk = host->clks[i].clk;
+		else if (!strcmp(host->clks[i].id, "rx_lane0_sync_clk"))
+			host->rx_lane0_sync_clk = host->clks[i].clk;
+		else if (!strcmp(host->clks[i].id, "rx_lane1_sync_clk"))
+			if (host->hba->lanes_per_direction > 1)
+				host->rx_lane1_sync_clk = host->clks[i].clk;
+	}
 
 	return 0;
 }
