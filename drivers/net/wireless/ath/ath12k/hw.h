@@ -217,6 +217,7 @@ struct ath12k_hw_params {
 
 	/* setup REO queue, frag etc only for primary link peer */
 	bool dp_primary_link_only:1;
+	bool host_alloc_ml_id;
 };
 
 struct ath12k_hw_ops {

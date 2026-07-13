@@ -425,6 +425,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = false,
 
 		.dp_primary_link_only = true,
+		.host_alloc_ml_id = true,
 	},
 	{
 		.name = "wcn7850 hw2.0",
@@ -511,6 +512,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = true,
 
 		.dp_primary_link_only = false,
+		.host_alloc_ml_id = false,
 	},
 	{
 		.name = "qcn9274 hw2.0",
@@ -593,6 +595,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = false,
 
 		.dp_primary_link_only = true,
+		.host_alloc_ml_id = true,
 	},
 	{
 		.name = "ipq5332 hw1.0",
@@ -668,6 +671,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.bdf_addr_offset = 0xC00000,
 
 		.dp_primary_link_only = true,
+		.host_alloc_ml_id = true,
 	},
 	{
 		.name = "qcc2072 hw1.0",
@@ -755,6 +759,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = true,
 
 		.dp_primary_link_only = false,
+		.host_alloc_ml_id = false,
 	},
 };
 
