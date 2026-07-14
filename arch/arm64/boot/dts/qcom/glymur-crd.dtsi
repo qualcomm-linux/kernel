@@ -10,9 +10,7 @@
 #include "pmk8850.dtsi"         /* SPMI0: SID-0                  */
 #include "smb2370.dtsi"         /* SPMI2: SID-9/10/11            */
 
-#include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
-#include "qcom-adc5-gen4.h"
 
 / {
 	model = "Qualcomm Technologies, Inc. Glymur CRD";
@@ -48,7 +46,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		pinctrl-0 = <&key_vol_up_default>, <&hall_int_n_default>;
+		pinctrl-0 = <&key_vol_up_default>;
 		pinctrl-names = "default";
 
 		key-volume-up {
@@ -58,63 +56,6 @@
 			debounce-interval = <15>;
 			linux,can-disable;
 			wakeup-source;
-		};
-
-		switch-lid {
-			label = "lid";
-			gpios = <&tlmm 92 GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			wakeup-source;
-			wakeup-event-action = <EV_ACT_DEASSERTED>;
-		};
-	};
-
-	sound {
-		compatible = "qcom,glymur-sndcard";
-		model = "GLYMUR-CRD";
-		audio-routing = "WooferLeft IN", "WSA WSA_SPK1 OUT",
-				"TweeterLeft IN", "WSA WSA_SPK2 OUT",
-				"WooferRight IN", "WSA2 WSA_SPK1 OUT",
-				"TweeterRight IN", "WSA2 WSA_SPK2 OUT",
-				"VA DMIC0", "vdd-micb",
-				"VA DMIC1", "vdd-micb",
-				"VA DMIC2", "vdd-micb",
-				"VA DMIC3", "vdd-micb";
-
-		wsa-dai-link {
-			link-name = "WSA Playback";
-
-			cpu {
-				sound-dai = <&q6apmbedai WSA_CODEC_DMA_RX_0>;
-			};
-
-			codec {
-				sound-dai = <&left_woofer>, <&left_tweeter>,
-					    <&swr0 0>, <&lpass_wsamacro 0>,
-					    <&right_woofer>, <&right_tweeter>,
-					    <&swr3 0>, <&lpass_wsa2macro 0>;
-			};
-
-			platform {
-				sound-dai = <&q6apm>;
-			};
-		};
-
-		va-dai-link {
-			link-name = "VA Capture";
-
-			cpu {
-				sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
-			};
-
-			codec {
-				sound-dai = <&lpass_vamacro 0>;
-			};
-
-			platform {
-				sound-dai = <&q6apm>;
-			};
 		};
 	};
 
@@ -213,26 +154,6 @@
 		regulator-boot-on;
 	};
 
-	thermal-zones {
-		sys-0-thermal {
-			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX1_THM_100K_PU(0, 0)>;
-
-			trips {
-				trip0 {
-					temperature = <70000>;
-					hysteresis = <2000>;
-					type = "hot";
-				};
-
-				trip1 {
-					temperature = <90000>;
-					hysteresis = <2000>;
-					type = "hot";
-				};
-			};
-		};
-	};
-
 	vreg_nvme: regulator-nvme {
 		compatible = "regulator-fixed";
 
@@ -303,6 +224,89 @@
 
 		pinctrl-0 = <&wwan_reg_en>;
 		pinctrl-names = "default";
+	};
+
+	sound {
+		compatible = "qcom,glymur-sndcard";
+		model = "GLYMUR-CRD";
+		audio-routing = "WooferLeft IN", "WSA WSA_SPK1 OUT",
+				"TweeterLeft IN", "WSA WSA_SPK2 OUT",
+				"WooferRight IN", "WSA2 WSA_SPK1 OUT",
+				"TweeterRight IN", "WSA2 WSA_SPK2 OUT",
+				"VA DMIC0", "vdd-micb",
+				"VA DMIC1", "vdd-micb",
+				"VA DMIC2", "vdd-micb",
+				"VA DMIC3", "vdd-micb",
+				"IT 41 Playback", "HPHL_OUT",
+				"IT 41 Playback", "HPHR_OUT",
+				"TX SWR_INPUT1", "OT 36 Capture";
+
+		wsa-dai-link {
+			link-name = "WSA Playback";
+
+			cpu {
+				sound-dai = <&q6apmbedai WSA_CODEC_DMA_RX_0>;
+			};
+
+			codec {
+				sound-dai = <&left_woofer>, <&left_tweeter>,
+					    <&swr0 0>, <&lpass_wsamacro 0>,
+					    <&right_woofer>, <&right_tweeter>,
+					    <&swr3 0>, <&lpass_wsa2macro 0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		wcd-playback-dai-link {
+			link-name = "WCD Playback";
+
+			cpu {
+				sound-dai = <&q6apmbedai RX_CODEC_DMA_RX_0>;
+			};
+
+			codec {
+				sound-dai = <&wcd9378c 0>, <&swr_compute 0>, <&lpass_rxmacro 0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		wcd-capture-dai-link {
+			link-name = "WCD Capture";
+
+			cpu {
+				sound-dai = <&q6apmbedai TX_CODEC_DMA_TX_3>;
+			};
+
+			codec {
+				sound-dai = <&wcd9378c 18>, <&swr_compute 1>, <&lpass_txmacro 0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		va-dai-link {
+			link-name = "VA Capture";
+
+			codec {
+				sound-dai = <&lpass_vamacro 0>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
 	};
 
 	wcn7850-pmu {
@@ -393,7 +397,7 @@
 
 		vreg_l2b_e0_2p9: ldo2 {
 			regulator-name = "vreg_l2b_e0_2p9";
-			regulator-min-microvolt = <1804000>;
+			regulator-min-microvolt = <2904000>;
 			regulator-max-microvolt = <2904000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
@@ -412,10 +416,10 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l9b_e0_2p9: ldo9 {
-			regulator-name = "vreg_l9b_e0_2p9";
-			regulator-min-microvolt = <2960000>;
-			regulator-max-microvolt = <2960000>;
+		vreg_l9b_e0_2p7: ldo9 {
+			regulator-name = "vreg_l9b_e0_2p7";
+			regulator-min-microvolt = <2704000>;
+			regulator-max-microvolt = <2704000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -609,6 +613,73 @@
 	};
 };
 
+&camss {
+	vdd-csiphy-0p8-supply = <&vreg_l1f_e1_0p82>;
+	vdd-csiphy-1p2-supply = <&vreg_l4f_e1_1p08>;
+
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		/*
+		 * port0 => csiphy0
+		 * port1 => csiphy1
+		 * port2 => csiphy4
+		 */
+		port@2 {
+			reg = <2>;
+
+			csiphy4_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&ov08x40_ep>;
+			};
+		};
+	};
+};
+
+&cci1 {
+	pinctrl-0 = <&cci1_1_default>;
+	pinctrl-1 = <&cci1_1_sleep>;
+
+	status = "okay";
+};
+
+&cci1_i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera@36 {
+		compatible = "ovti,ov08x40";
+		reg = <0x36>;
+
+		reset-gpios = <&tlmm 239 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&cam_mclk4_default &cam_reset4_default>;
+		pinctrl-names = "default";
+
+		clocks = <&camcc CAM_CC_MCLK4_CLK>;
+		assigned-clocks = <&camcc CAM_CC_MCLK4_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		avdd-supply = <&vreg_l7p>;
+		dovdd-supply = <&vreg_l4p>;
+
+		port {
+			ov08x40_ep: endpoint {
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <400000000>;
+				remote-endpoint = <&csiphy4_ep>;
+			};
+		};
+	};
+};
+
+&lpass_vamacro {
+	pinctrl-0 = <&dmic01_default>, <&dmic23_default>;
+	pinctrl-names = "default";
+	qcom,dmic-sample-rate = <4800000>;
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 
@@ -657,6 +728,18 @@
 		reg = <0x43>;
 
 		reset-gpios = <&tlmm 8 GPIO_ACTIVE_LOW>;
+
+		vdd3v3-supply = <&vreg_l8b_e0_1p50>;
+		vdd1v8-supply = <&vreg_l15b_e0_1p8>;
+
+		#phy-cells = <0>;
+	};
+
+	ptn3222_1: redriver@47 {
+		compatible = "nxp,ptn3222";
+		reg = <0x47>;
+
+		reset-gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
 
 		vdd3v3-supply = <&vreg_l8b_e0_1p50>;
 		vdd1v8-supply = <&vreg_l15b_e0_1p8>;
@@ -741,7 +824,7 @@
 	status = "okay";
 
 	touchscreen@38 {
-		compatible = "focaltech,ft3d81", "focaltech,ft8112";
+		compatible = "focaltech,ft8112";
 		reg = <0x38>;
 
 		interrupts-extended = <&tlmm 51 IRQ_TYPE_LEVEL_LOW>;
@@ -756,8 +839,40 @@
 	};
 };
 
+&i2c9 {
+	clock-frequency = <400000>;
+
+	status = "okay";
+
+	embedded-controller@76 {
+		compatible = "qcom,glymur-crd-ec", "qcom,hamoa-crd-ec";
+		reg = <0x76>;
+
+		interrupts-extended = <&tlmm 66 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&ec_int_n_default>;
+		pinctrl-names = "default";
+	};
+};
+
 &mdss {
 	status = "okay";
+};
+
+&mdss_dp0 {
+	status = "okay";
+};
+
+&mdss_dp0_out {
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
+};
+
+&mdss_dp1 {
+	status = "okay";
+};
+
+&mdss_dp1_out {
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
 };
 
 &mdss_dp3 {
@@ -797,97 +912,11 @@
 	status = "okay";
 };
 
-&camss {
-	vdd-csiphy-0p8-supply = <&vreg_l1f_e1_0p82>;
-	vdd-csiphy-1p2-supply = <&vreg_l4f_e1_1p08>;
-
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		/*
-		 * port0 => csiphy0
-		 * port1 => csiphy1
-		 * port2 => csiphy4
-		 */
-		port@2 {
-			reg = <2>;
-
-			csiphy4_ep: endpoint {
-				data-lanes = <0 1 2 3>;
-				remote-endpoint = <&ov08x40_ep>;
-			};
-		};
-	};
-};
-
-&cci1 {
-	pinctrl-0 = <&cci1_1_default>;
-	pinctrl-1 = <&cci1_1_sleep>;
-
-	status = "okay";
-};
-
-&cci1_i2c1 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera@36 {
-		compatible = "ovti,ov08x40";
-		reg = <0x36>;
-
-		reset-gpios = <&tlmm 239 GPIO_ACTIVE_LOW>;
-		pinctrl-0 = <&cam_mclk4_default &cam_reset4_default>;
-		pinctrl-names = "default";
-
-		clocks = <&camcc CAM_CC_MCLK4_CLK>;
-		assigned-clocks = <&camcc CAM_CC_MCLK4_CLK>;
-		assigned-clock-rates = <19200000>;
-
-		avdd-supply = <&vreg_l7p>;
-		dovdd-supply = <&vreg_l4p>;
-
-		port {
-			ov08x40_ep: endpoint {
-				data-lanes = <1 2 3 4>;
-				link-frequencies = /bits/ 64 <400000000>;
-				remote-endpoint = <&csiphy4_ep>;
-			};
-		};
-	};
-};
-
 &iris {
-	firmware-name = "qcom/vpu/vpu36_p4_s7.mbn";
-
-	status = "okay";
-
-	video-firmware {
-		iommus = <&apps_smmu 0x19e2 0x0>;
-	};
-};
-
-&lpass_vamacro {
-	pinctrl-0 = <&dmic01_default>, <&dmic23_default>;
-	pinctrl-names = "default";
-	qcom,dmic-sample-rate = <4800000>;
-};
-
-&i2c9 {
-	clock-frequency = <400000>;
-
-	status = "okay";
-
-	embedded-controller@76 {
-		compatible = "qcom,glymur-crd-ec", "qcom,hamoa-crd-ec";
-		reg = <0x76>;
-
-		interrupts-extended = <&tlmm 66 IRQ_TYPE_EDGE_FALLING>;
-
-		pinctrl-0 = <&ec_int_n_default>;
-		pinctrl-names = "default";
-	};
+    status = "okay";
+    video-firmware {
+    iommus = <&apps_smmu 0x19e2 0x0>;
+    };
 };
 
 &pcie3b {
@@ -895,6 +924,15 @@
 
 	pinctrl-0 = <&pcie3b_default>;
 	pinctrl-names = "default";
+};
+
+&pcie3b_phy {
+	vdda-phy-supply = <&vreg_l3c_e1_0p89>;
+	vdda-pll-supply = <&vreg_l2c_e1_1p14>;
+	vdda-qref-supply = <&vreg_l1f_e1_0p82>;
+	vdda-qref2-supply = <&vreg_l2f_e1_0p83>;
+	vdda-refgen0p9-supply = <&vreg_l1c_e1_0p82>;
+	vdda-refgen1p2-supply = <&vreg_l4f_e1_1p08>;
 };
 
 &pcie3b_port0 {
@@ -912,8 +950,8 @@
 &pcie4_phy {
 	vdda-phy-supply = <&vreg_l1c_e1_0p82>;
 	vdda-pll-supply = <&vreg_l4f_e1_1p08>;
-	vdda-refgen0p9-supply = <&vreg_l1c_e1_0p82>;
-	vdda-refgen1p2-supply = <&vreg_l4f_e1_1p08>;
+	vdda-qref-supply = <&vreg_l1f_e1_0p82>;
+	vdda-qref2-supply = <&vreg_l2f_e1_0p83>;
 
 	status = "okay";
 };
@@ -950,8 +988,7 @@
 &pcie5_phy {
 	vdda-phy-supply = <&vreg_l2f_e0_0p82>;
 	vdda-pll-supply = <&vreg_l4h_e0_1p2>;
-	vdda-refgen0p9-supply = <&vreg_l2f_e0_0p82>;
-	vdda-refgen1p2-supply = <&vreg_l4h_e0_1p2>;
+	vdda-qref-supply = <&vreg_l3f_e0_0p72>;
 
 	status = "okay";
 };
@@ -967,41 +1004,21 @@
 	pinctrl-0 = <&pcie6_default>;
 	pinctrl-names = "default";
 
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie6_phy {
 	vdda-phy-supply = <&vreg_l1c_e1_0p82>;
 	vdda-pll-supply = <&vreg_l4f_e1_1p08>;
-	vdda-refgen0p9-supply = <&vreg_l1c_e1_0p82>;
-	vdda-refgen1p2-supply = <&vreg_l4f_e1_1p08>;
+	vdda-qref-supply = <&vreg_l1f_e1_0p82>;
+	vdda-qref2-supply = <&vreg_l2f_e1_0p83>;
 
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie6_port0 {
 	reset-gpios = <&tlmm 149 GPIO_ACTIVE_LOW>;
 	wake-gpios = <&tlmm 151 GPIO_ACTIVE_LOW>;
-};
-
-&pmcx0102_c_e0_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 2)>;
-	io-channel-names = "thermal";
-};
-
-&pmcx0102_c_e1_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(1, 2)>;
-	io-channel-names = "thermal";
-};
-
-&pmcx0102_d_e0_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 3)>;
-	io-channel-names = "thermal";
-};
-
-&pmcx0102_d_e1_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(1, 3)>;
-	io-channel-names = "thermal";
 };
 
 &pmh0101_gpios {
@@ -1010,11 +1027,6 @@
 		function = "normal";
 		bias-disable;
 	};
-};
-
-&pmh0101_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 1)>;
-	io-channel-names = "thermal";
 };
 
 &pmh0110_f_e1_gpios {
@@ -1047,110 +1059,23 @@
 	};
 };
 
-&pmh0110_f_e0_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 5)>;
-	io-channel-names = "thermal";
-};
-
-&pmh0110_f_e1_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(1, 5)>;
-	io-channel-names = "thermal";
-};
-
-&pmh0110_h_e0_temp_alarm {
-	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 7)>;
-	io-channel-names = "thermal";
-};
-
 &pmk8850_rtc {
 	qcom,no-alarm;
-};
-
-&pmk8850_vadc {
-	channel@103 {
-		reg = <ADC5_GEN4_DIE_TEMP(0, 1)>;
-		label = "pmh0101_die_temp";
-	};
-
-	channel@18e {
-		reg = <ADC5_GEN4_VPH_PWR(0, 1)>;
-		label = "pmh0101_vph_pwr";
-	};
-
-	channel@203 {
-		reg = <ADC5_GEN4_DIE_TEMP(0, 2)>;
-		label = "pmcx0102_c_e0_die_temp";
-	};
-
-	channel@28e {
-		reg = <ADC5_GEN4_VPH_PWR(0, 2)>;
-		label = "pmcx0102_c_e0_vph_pwr";
-	};
-
-	channel@303 {
-		reg = <ADC5_GEN4_DIE_TEMP(0, 3)>;
-		label = "pmcx0102_d_e0_die_temp";
-	};
-
-	channel@38e {
-		reg = <ADC5_GEN4_VPH_PWR(0, 3)>;
-		label = "pmcx0102_d_e0_vph_pwr";
-	};
-
-	channel@503 {
-		reg = <ADC5_GEN4_DIE_TEMP(0, 5)>;
-		label = "pmh0110_f_e0_die_temp";
-	};
-
-	channel@58e {
-		reg = <ADC5_GEN4_VPH_PWR(0, 5)>;
-		label = "pmh0110_f_e0_vph_pwr";
-	};
-
-	channel@703 {
-		reg = <ADC5_GEN4_DIE_TEMP(0, 7)>;
-		label = "pmh0110_h_e0_die_temp";
-	};
-
-	channel@78e {
-		reg = <ADC5_GEN4_VPH_PWR(0, 7)>;
-		label = "pmh0110_h_e0_vph_pwr";
-	};
-
-	channel@2203 {
-		reg = <ADC5_GEN4_DIE_TEMP(1, 2)>;
-		label = "pmcx0102_c_e1_die_temp";
-	};
-
-	channel@228e {
-		reg = <ADC5_GEN4_VPH_PWR(1, 2)>;
-		label = "pmcx0102_c_e1_vph_pwr";
-	};
-
-	channel@2303 {
-		reg = <ADC5_GEN4_DIE_TEMP(1, 3)>;
-		label = "pmcx0102_d_e1_die_temp";
-	};
-
-	channel@238e {
-		reg = <ADC5_GEN4_VPH_PWR(1, 3)>;
-		label = "pmcx0102_d_e1_vph_pwr";
-	};
-
-	channel@2503 {
-		reg = <ADC5_GEN4_DIE_TEMP(1, 5)>;
-		label = "pmh0110_f_e1_die_temp";
-	};
-
-	channel@258e {
-		reg = <ADC5_GEN4_VPH_PWR(1, 5)>;
-		label = "pmh0110_f_e1_vph_pwr";
-	};
 };
 
 &pon_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
 	status = "okay";
+};
+
+&smb2370_j_e2_eusb2_repeater {
+	vdd18-supply = <&vreg_l15b_e0_1p8>;
+	vdd3-supply = <&vreg_l7b_e0_2p79>;
+};
+
+&smb2370_k_e2_eusb2_repeater {
+	vdd18-supply = <&vreg_l15b_e0_1p8>;
+	vdd3-supply = <&vreg_l7b_e0_2p79>;
 };
 
 &swr0 {
@@ -1178,6 +1103,28 @@
 		vdd-1p8-supply = <&vreg_l15b_e0_1p8>;
 		vdd-io-supply = <&vreg_l18b_e0_1p2>;
 		qcom,port-mapping = <4 5 6 7 13 15>;
+	};
+};
+
+&swr_compute {
+	status = "okay";
+
+	wcd9378c: codec@3,0 {
+		compatible = "sdw20217011000";
+		reg = <0 3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wcd_default>;
+
+		reset-gpios = <&tlmm 191 GPIO_ACTIVE_LOW>;
+
+		vdd-buck-supply = <&vreg_l15b_e0_1p8>;
+		vdd-rxtx-supply = <&vreg_l15b_e0_1p8>;
+		vdd-io-supply = <&vreg_l18b_e0_1p2>;
+		vdd-mic-bias-supply = <&vreg_bob1_e0>;
+
+		#sound-dai-cells = <1>;
+		qcom,port-mapping = <2 2 3 4 5 6 7 8>;
 	};
 };
 
@@ -1223,16 +1170,6 @@
 	status = "okay";
 };
 
-&smb2370_j_e2_eusb2_repeater {
-	vdd18-supply = <&vreg_l15b_e0_1p8>;
-	vdd3-supply = <&vreg_l7b_e0_2p79>;
-};
-
-&smb2370_k_e2_eusb2_repeater {
-	vdd18-supply = <&vreg_l15b_e0_1p8>;
-	vdd3-supply = <&vreg_l7b_e0_2p79>;
-};
-
 &remoteproc_soccp {
 	firmware-name = "qcom/glymur/soccp.mbn",
 			"qcom/glymur/soccp_dtb.mbn";
@@ -1243,7 +1180,6 @@
 &psci {
 	reboot-mode {
 		mode-edl = <0x80000000 0x1>;
-		mode-bootloader = <0x80010001 0x2>;
 	};
 };
 
@@ -1294,12 +1230,6 @@
 		bias-disable;
 	};
 
-	hall_int_n_default: hall-int-n-state {
-		pins = "gpio92";
-		function = "gpio";
-		bias-disable;
-	};
-
 	kybd_default: kybd-default-state {
 		pins = "gpio67";
 		function = "gpio";
@@ -1310,6 +1240,14 @@
 		pins = "gpio66";
 		function = "gpio";
 		bias-disable;
+	};
+
+	wcd_default: wcd-reset-n-active-state {
+		pins = "gpio191";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
+		output-low;
 	};
 
 	pcie4_default: pcie4-default-state {
@@ -1536,6 +1474,19 @@
 
 &usb_1_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss_in1>;
+};
+
+&usb_hs {
+	status = "okay";
+};
+
+&usb_hs_phy {
+	vdd-supply = <&vreg_l2h_e0_0p72>;
+	vdda12-supply = <&vreg_l4h_e0_1p2>;
+
+	phys = <&ptn3222_1>;
+
+	status = "okay";
 };
 
 &usb_mp {
