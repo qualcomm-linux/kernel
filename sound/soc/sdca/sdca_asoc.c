@@ -1726,6 +1726,51 @@ static int set_usage(struct device *dev, struct regmap *regmap,
 	return -EINVAL;
 }
 
+/*
+ * For a capture stream the ASoC DAI is the Output Terminal, so hw_params
+ * only programs the OT itself.  The upstream Input Terminal(s) that
+ * actually source the audio (e.g. a mic input behind a power-domain entity)
+ * never get their Usage / ClusterIndex / clock programmed and stay inactive,
+ * so the power domain comes up but no samples are produced.  Walk the source
+ * graph from the OT and program every Input Terminal we reach.
+ */
+static int set_input_terminal_sources(struct device *dev, struct regmap *regmap,
+				      struct sdca_function_data *function,
+				      struct sdca_entity *entity,
+				      int channels, int rate, int width)
+{
+	int i, ret;
+
+	for (i = 0; i < entity->num_sources; i++) {
+		struct sdca_entity *src = entity->sources[i];
+
+		if (src->type == SDCA_ENTITY_TYPE_IT) {
+			ret = set_cluster(dev, regmap, function, src, channels);
+			if (ret)
+				return ret;
+
+			if (src->iot.clock) {
+				ret = set_clock(dev, regmap, function,
+						src->iot.clock, rate);
+				if (ret)
+					return ret;
+			}
+
+			ret = set_usage(dev, regmap, function, src,
+					SDCA_CTL_IT_USAGE, rate, width);
+			if (ret)
+				return ret;
+		}
+
+		ret = set_input_terminal_sources(dev, regmap, function, src,
+						 channels, rate, width);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 /**
  * sdca_asoc_hw_params - set SDCA channels, sample rate and bit depth
  * @dev: Pointer to the device, used for error messages.
@@ -1762,6 +1807,12 @@ int sdca_asoc_hw_params(struct device *dev, struct regmap *regmap,
 		break;
 	case SDCA_ENTITY_TYPE_OT:
 		usage_sel = SDCA_CTL_OT_USAGE;
+
+		/* Program the upstream Input Terminal(s) that source this OT. */
+		ret = set_input_terminal_sources(dev, regmap, function, entity,
+						 channels, rate, width);
+		if (ret)
+			return ret;
 		break;
 	default:
 		dev_err(dev, "%s: hw_params on non-terminal entity\n", entity->label);
