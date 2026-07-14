@@ -252,9 +252,44 @@ static int class_function_set_jack(struct snd_soc_component *component,
 	return sdca_jack_set_jack(core->irq_info, jack);
 }
 
+/*
+ * Map a "sound-dai" phandle cell to a DAI.  The cell value is the SDCA entity
+ * array index (matching dais[].id assigned in sdca_asoc_populate_dais()), not
+ * the positional order of the dataport DAIs, so the default positional xlate
+ * cannot be used.
+ */
+static int class_function_of_xlate_dai_name(struct snd_soc_component *component,
+					    const struct of_phandle_args *args,
+					    const char **dai_name)
+{
+	struct class_function_drv *drv = snd_soc_component_get_drvdata(component);
+	struct sdca_function_data *function = drv->function;
+	int target = args->args[0];
+	int i;
+
+	for (i = 0; i < function->num_entities - 1; i++) {
+		struct sdca_entity *entity = &function->entities[i];
+
+		if (entity->type != SDCA_ENTITY_TYPE_IT &&
+		    entity->type != SDCA_ENTITY_TYPE_OT)
+			continue;
+		if (!entity->iot.is_dataport)
+			continue;
+		if (i == target) {
+			*dai_name = entity->label;
+			return 0;
+		}
+	}
+
+	dev_err(component->dev, "xlate: no dataport entity at index %d (num_entities=%d)\n",
+		target, function->num_entities);
+	return -EINVAL;
+}
+
 static const struct snd_soc_component_driver class_function_component_drv = {
 	.fixup_controls		= class_function_component_fixup_controls,
 	.remove			= class_function_component_remove,
+	.of_xlate_dai_name	= class_function_of_xlate_dai_name,
 	.endianness		= 1,
 };
 
