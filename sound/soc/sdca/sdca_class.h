@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 
 struct device;
+struct dev_pm_ops;
 struct regmap;
 struct sdw_port_config;
 struct sdw_slave;
@@ -46,7 +47,11 @@ struct snd_soc_dai;
  *             are registered; use to enable hardware detection (e.g. MBHC
  *             comparator) that must not fire earlier; may be NULL
  *
- * Pass a pointer to this struct via the driver_data field of sdw_device_id.
+ * Codec-specific SoundWire drivers pass a pointer to this struct to
+ * sdca_class_probe() from their sdw_driver.probe.  Codec-specific
+ * SoundWire slave property overrides live directly in the codec's
+ * sdw_slave_ops.read_prop, which should call sdca_class_read_prop() to
+ * fill the SDCA-common bits first.
  */
 struct sdca_class_hw_ops {
 	int  (*hw_init)(struct sdw_slave *slave);
@@ -78,5 +83,11 @@ struct sdca_class_drv {
 	struct mutex init_lock;
 	struct work_struct boot_work;
 };
+
+/* Library helpers used by codec-specific SDCA SoundWire drivers. */
+int sdca_class_read_prop(struct sdw_slave *sdw);
+int sdca_class_probe(struct sdw_slave *sdw,
+		     const struct sdca_class_hw_ops *hw_ops);
+extern const struct dev_pm_ops sdca_class_pm_ops;
 
 #endif /* __SDCA_CLASS_H__ */
