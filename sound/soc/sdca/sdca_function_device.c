@@ -46,7 +46,7 @@ static struct sdca_dev *sdca_dev_register(struct device *parent,
 	auxdev = &sdev->auxdev;
 	auxdev->name = function_desc->name;
 	auxdev->dev.parent = parent;
-	auxdev->dev.fwnode = function_desc->node;
+	auxdev->dev.fwnode = function_desc->node ?: dev_fwnode(parent);
 	auxdev->dev.release = sdca_dev_release;
 
 	sdev->function.desc = function_desc;

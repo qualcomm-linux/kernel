@@ -148,6 +148,7 @@ static void class_dev_remove(void *data)
 static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id)
 {
 	struct device *dev = &sdw->dev;
+	struct sdca_device_data *data = &sdw->sdca_data;
 	struct regmap_config *dev_config;
 	struct sdca_class_drv *drv;
 	int ret;
@@ -165,10 +166,39 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
 
 	drv->dev = dev;
 	drv->sdw = sdw;
+	drv->hw_ops = (const struct sdca_class_hw_ops *)id->driver_data;
 	mutex_init(&drv->regmap_lock);
 	mutex_init(&drv->init_lock);
 
 	dev_set_drvdata(drv->dev, drv);
+
+	/*
+	 * On ARM platforms without ACPI/DisCo tables, sdca_lookup_functions()
+	 * is a no-op and num_functions stays 0. Inject the function descriptor
+	 * from the device-specific static data so sdca_dev_register_functions()
+	 * can create the auxiliary device.
+	 */
+	if (data->num_functions == 0 && drv->hw_ops &&
+	    drv->hw_ops->get_function_data) {
+		struct sdca_function_data *fdata = drv->hw_ops->get_function_data();
+
+		if (!fdata || !fdata->desc)
+			return -EINVAL;
+
+		dev_info(dev, "no DisCo/ACPI functions found, injecting %s descriptor\n",
+			 fdata->desc->name);
+		data->function[0].type = fdata->desc->type;
+		data->function[0].adr  = fdata->desc->adr;
+		data->function[0].name = fdata->desc->name;
+		data->function[0].node = NULL;
+		data->num_functions    = 1;
+	}
+
+	if (drv->hw_ops && drv->hw_ops->hw_init) {
+		ret = drv->hw_ops->hw_init(sdw);
+		if (ret)
+			return dev_err_probe(dev, ret, "hw_init failed\n");
+	}
 
 	INIT_WORK(&drv->boot_work, class_boot_work);
 
