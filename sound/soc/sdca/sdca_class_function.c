@@ -126,6 +126,8 @@ static int class_function_startup(struct snd_pcm_substream *substream,
 					 substream, dai);
 }
 
+#define SDCA_MAX_PORTS_PER_STREAM	4
+
 static int class_function_sdw_add_peripheral(struct snd_pcm_substream *substream,
 					     struct snd_pcm_hw_params *params,
 					     struct snd_soc_dai *dai)
@@ -133,26 +135,39 @@ static int class_function_sdw_add_peripheral(struct snd_pcm_substream *substream
 	struct class_function_drv *drv = snd_soc_component_get_drvdata(dai->component);
 	struct sdw_stream_runtime *sdw_stream = snd_soc_dai_get_dma_data(dai, substream);
 	struct sdw_slave *sdw = dev_to_sdw_dev(drv->dev->parent);
+	const struct sdca_class_hw_ops *hw_ops = drv->core->hw_ops;
 	struct sdw_stream_config sconfig = {0};
-	struct sdw_port_config pconfig = {0};
+	struct sdw_port_config pconfigs[SDCA_MAX_PORTS_PER_STREAM] = {0};
+	int nports = 1;
 	int ret;
 
 	if (!sdw_stream)
 		return -EINVAL;
 
-	snd_sdw_params_to_config(substream, params, &sconfig, &pconfig);
+	snd_sdw_params_to_config(substream, params, &sconfig, &pconfigs[0]);
 
 	/*
-	 * FIXME: As also noted in sdca_asoc_get_port(), currently only
-	 * a single unshared port is supported for each DAI.
+	 * The DAI's main dataport (from sdca_asoc_get_port()) is always
+	 * present.  A codec whose SDCA topology carries more than one
+	 * dataport per DAI (WCD9378 HPH: DP6 audio + DP7 envelope) can
+	 * contribute the extra ports through get_aux_port_configs() so
+	 * they are all added to the stream in one call.
 	 */
 	ret = sdca_asoc_get_port(drv->dev, drv->regmap, drv->function, dai);
 	if (ret < 0)
 		return ret;
 
-	pconfig.num = ret;
+	pconfigs[0].num = ret;
 
-	ret = sdw_stream_add_slave(sdw, &sconfig, &pconfig, 1, sdw_stream);
+	if (hw_ops && hw_ops->get_aux_port_configs) {
+		ret = hw_ops->get_aux_port_configs(sdw, dai, &pconfigs[nports],
+						   ARRAY_SIZE(pconfigs) - nports);
+		if (ret < 0)
+			return ret;
+		nports += ret;
+	}
+
+	ret = sdw_stream_add_slave(sdw, &sconfig, pconfigs, nports, sdw_stream);
 	if (ret) {
 		dev_err(drv->dev, "failed to add sdw stream: %d\n", ret);
 		return ret;
@@ -183,12 +198,26 @@ static int class_function_sdw_set_stream(struct snd_soc_dai *dai, void *sdw_stre
 	return 0;
 }
 
+static int class_function_prepare(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct class_function_drv *drv = snd_soc_component_get_drvdata(dai->component);
+	const struct sdca_class_hw_ops *hw_ops = drv->core->hw_ops;
+	struct sdw_slave *sdw = dev_to_sdw_dev(drv->dev->parent);
+
+	if (hw_ops && hw_ops->prepare)
+		return hw_ops->prepare(sdw, substream, dai);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops class_function_sdw_ops = {
 	.startup	= class_function_startup,
 	.shutdown	= sdca_asoc_free_constraints,
 	.set_stream	= class_function_sdw_set_stream,
 	.hw_params	= class_function_sdw_add_peripheral,
 	.hw_free	= class_function_sdw_remove_peripheral,
+	.prepare	= class_function_prepare,
 };
 
 static int class_function_component_fixup_controls(struct snd_soc_component *component)
@@ -212,6 +241,13 @@ static int class_function_set_jack(struct snd_soc_component *component,
 {
 	struct class_function_drv *drv = snd_soc_component_get_drvdata(component);
 	struct sdca_class_drv *core = drv->core;
+	int ret;
+
+	if (jack && core->hw_ops && core->hw_ops->set_jack) {
+		ret = core->hw_ops->set_jack(core->sdw, core->dev_regmap);
+		if (ret)
+			dev_warn(component->dev, "hw set_jack failed: %d\n", ret);
+	}
 
 	return sdca_jack_set_jack(core->irq_info, jack);
 }

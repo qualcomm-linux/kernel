@@ -32,6 +32,7 @@
 #include <sound/soc-dai.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
+#include "sdca_class.h"
 
 static bool exported_control(struct sdca_entity *entity, struct sdca_control *control)
 {
@@ -432,6 +433,8 @@ static int entity_pde_event(struct snd_soc_dapm_widget *widget,
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
 	struct sdca_entity *entity = widget->priv;
+	struct sdca_class_drv *core;
+	unsigned int fn;
 	int from, to;
 	int ret;
 
@@ -439,6 +442,19 @@ static int entity_pde_event(struct snd_soc_dapm_widget *widget,
 		return -EIO;
 
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		core = dev_get_drvdata(component->dev->parent);
+		if (core && core->hw_ops && core->hw_ops->pde_pre_pmu) {
+			fn = SDW_SDCA_CTL_FUNC(widget->reg);
+			ret = core->hw_ops->pde_pre_pmu(core->sdw,
+							component->regmap, fn,
+							SDW_SDCA_CTL_ENT(widget->reg));
+			if (ret)
+				dev_warn(component->dev,
+					 "%s: pde_pre_pmu failed: %d\n",
+					 entity->label, ret);
+		}
+		return 0;
 	case SND_SOC_DAPM_POST_PMD:
 		from = widget->on_val;
 		to = widget->off_val;
@@ -451,6 +467,20 @@ static int entity_pde_event(struct snd_soc_dapm_widget *widget,
 		return 0;
 	}
 
+	if (event == SND_SOC_DAPM_POST_PMU) {
+		core = dev_get_drvdata(component->dev->parent);
+		if (core && core->hw_ops && core->hw_ops->pde_post_pmu) {
+			fn = SDW_SDCA_CTL_FUNC(widget->reg);
+			ret = core->hw_ops->pde_post_pmu(core->sdw,
+							 component->regmap, fn,
+							 SDW_SDCA_CTL_ENT(widget->reg));
+			if (ret)
+				dev_warn(component->dev,
+					 "%s: pde_post_pmu failed: %d\n",
+					 entity->label, ret);
+		}
+	}
+
 	ret = sdca_asoc_pde_poll_actual_ps(component->dev, component->regmap,
 					   SDW_SDCA_CTL_FUNC(widget->reg),
 					   SDW_SDCA_CTL_ENT(widget->reg),
@@ -458,7 +488,7 @@ static int entity_pde_event(struct snd_soc_dapm_widget *widget,
 					   entity->pde.max_delay,
 					   entity->pde.num_max_delay);
 	if (ret)
-		dev_err(component->dev, "%s: PDE transition %x -> %x failed, err=%d\n",
+		dev_err(component->dev, "%s: PDE PS%d -> PS%d failed: %d\n",
 			entity->label, from, to, ret);
 
 	return ret;
@@ -502,7 +532,8 @@ static int entity_parse_pde(struct device *dev,
 	(*widget)->mask = GENMASK(control->nbits - 1, 0);
 	(*widget)->on_val = SDCA_PDE_PS0;
 	(*widget)->off_val = SDCA_PDE_PS3;
-	(*widget)->event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD;
+	(*widget)->event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+				 SND_SOC_DAPM_POST_PMD;
 	(*widget)->event = entity_pde_event;
 	(*widget)->priv = entity;
 	(*widget)++;
