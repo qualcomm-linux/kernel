@@ -157,6 +157,7 @@ static int class_function_sdw_add_peripheral(struct snd_pcm_substream *substream
 	if (ret < 0)
 		return ret;
 
+	sconfig.bps = 0;
 	pconfigs[0].num = ret;
 
 	if (hw_ops && hw_ops->get_aux_port_configs) {

@@ -1442,6 +1442,12 @@ static int qcom_swrm_compute_params(struct sdw_bus *bus, struct sdw_stream_runti
 		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
 			pcfg = &ctrl->pconfig[p_rt->num];
 			p_rt->transport_params.port_num = p_rt->num;
+			/*
+			 * Always set port_params.num so the master port_params
+			 * callback (qcom_swrm_port_params) receives the right
+			 * port number even for ports without a DT word_length.
+			 */
+			p_rt->port_params.num = p_rt->num;
 			if (pcfg->word_length != SWR_INVALID_PARAM) {
 				sdw_fill_port_params(&p_rt->port_params,
 					     p_rt->num,  pcfg->word_length + 1,
@@ -1471,6 +1477,8 @@ static int qcom_swrm_compute_params(struct sdw_bus *bus, struct sdw_stream_runti
 				p_rt->transport_params.hstart = pcfg->hstart;
 				p_rt->transport_params.hstop = pcfg->hstop;
 				p_rt->transport_params.lane_ctrl = pcfg->lane_control;
+				/* See comment above the master loop. */
+				p_rt->port_params.num = p_rt->num;
 				if (pcfg->word_length != SWR_INVALID_PARAM) {
 					sdw_fill_port_params(&p_rt->port_params,
 						     p_rt->num,
@@ -1550,7 +1558,17 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 	sconfig.ch_count = 1;
 	sconfig.frame_rate = params_rate(params);
 	sconfig.type = stream->type;
-	sconfig.bps = 1;
+	/*
+	 * Codecs on the same stream disagree on the stream-wide BPS
+	 * convention (WSA codecs hardcode 1; SDCA codecs derive from
+	 * PCM format width via snd_sdw_params_to_config()).  The master
+	 * doesn't know which codec is on the other side, so match
+	 * whatever the codec's add_slave already stored on the stream;
+	 * fall back to 1 if this is the first call.  The actual wire
+	 * BPS is per-port and set by compute_params() from
+	 * qcom,ports-word-length, not from this value.
+	 */
+	sconfig.bps = stream->params.bps ?: 1;
 
 	guard(mutex)(&ctrl->port_lock);
 
@@ -1584,22 +1602,6 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 				set_bit(pn, port_mask);
 				pconfig[nports].num = pn;
 				pconfig[nports].ch_mask = p_rt->ch_mask;
-
-				/*
-				 * The SoundWire core stamps every port's
-				 * port_params.bps from stream->params.bps
-				 * (stream.c:sdw_program_port_params), so any
-				 * per-port bps set later by compute_params()
-				 * would be clobbered.  Take BPS for the stream
-				 * from the wire word-length of the first port
-				 * with a configured value.  This is a temporary
-				 * limitation — a stream mixing ports with
-				 * different BPS on the same qcom bus is not
-				 * currently supported.
-				 */
-				if (nports == 0 &&
-				    ctrl->pconfig[pn].word_length != SWR_INVALID_PARAM)
-					sconfig.bps = ctrl->pconfig[pn].word_length + 1;
 
 				nports++;
 			}
