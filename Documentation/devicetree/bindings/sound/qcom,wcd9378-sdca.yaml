@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/qcom,wcd9378-sdca.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm WCD9378 (Tambora) SDCA-mode SoundWire audio codec
+
+maintainers:
+  - Srinivas Kandagatla <srinivas.kandagatla@oss.qualcomm.com>
+
+description:
+  The Qualcomm Tambora (WCD9378) is a headset audio codec that supports
+  MIPI SDCA operation over SoundWire.  In SDCA mode a single SoundWire
+  peripheral exposes headphone playback, headset mic capture and
+  jack detection through the SimpleJack SDCA function type.  This
+  binding covers the peripheral node driven by the wcd9378-sdca
+  codec driver.
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: sdw20217011000
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    description:
+      GPIO used to release the codec from reset.  Active-low.
+    maxItems: 1
+
+  vdd-buck-supply:
+    description: 1.8 V analog buck supply.
+
+  vdd-rxtx-supply:
+    description: 1.8 V RX/TX supply.
+
+  vdd-io-supply:
+    description: 1.2 V digital I/O supply.
+
+  vdd-mic-bias-supply:
+    description: Mic bias supply.
+
+  qcom,port-mapping:
+    description:
+      Static mapping from the codec's SoundWire peripheral ports
+      (indices 1..7) to master ports on the SoundWire bus.  Follows
+      the order DP1, DP2, DP3, DP4, DP5, DP6, DP7 (index 0 unused).
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 7
+    maxItems: 8
+
+  '#sound-dai-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - vdd-buck-supply
+  - vdd-rxtx-supply
+  - vdd-io-supply
+  - vdd-mic-bias-supply
+  - '#sound-dai-cells'
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    soundwire@7630000 {
+        #address-cells = <2>;
+        #size-cells = <0>;
+        reg = <0x07630000 0x10000>;
+
+        codec@3,0 {
+            compatible = "sdw20217011000";
+            reg = <0 3>;
+
+            reset-gpios = <&tlmm 191 GPIO_ACTIVE_LOW>;
+
+            vdd-buck-supply = <&vreg_l15b_1p8>;
+            vdd-rxtx-supply = <&vreg_l15b_1p8>;
+            vdd-io-supply = <&vreg_l18b_1p2>;
+            vdd-mic-bias-supply = <&vreg_bob1>;
+
+            qcom,port-mapping = <2 2 3 4 5 6 7 8>;
+
+            #sound-dai-cells = <1>;
+        };
+    };
+
+...
