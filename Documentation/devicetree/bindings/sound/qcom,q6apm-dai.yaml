@@ -49,10 +49,6 @@ properties:
 required:
   - compatible
 
-dependentRequired:
-  memory-region:
-    - qcom,vmid
-
 additionalProperties: false
 
 examples:
