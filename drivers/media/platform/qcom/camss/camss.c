@@ -5557,7 +5557,9 @@ static int camss_parse_endpoint_node(struct device *dev,
 {
 	struct csiphy_lanes_cfg *lncfg = &csd->interface.csi2.lane_cfg;
 	struct v4l2_mbus_config_mipi_csi2 *mipi_csi2;
-	struct v4l2_fwnode_endpoint vep = { { 0 } };
+	struct v4l2_fwnode_endpoint vep = { .bus_type = V4L2_MBUS_UNKNOWN };
+	struct v4l2_fwnode_endpoint remote_vep = { .bus_type = V4L2_MBUS_UNKNOWN };
+	struct fwnode_handle *remote_ep;
 	unsigned int i;
 	int ret;
 
@@ -5573,6 +5575,30 @@ static int camss_parse_endpoint_node(struct device *dev,
 		dev_err(dev, "Unsupported bus type %d\n", vep.bus_type);
 		return -EINVAL;
 	}
+
+	/* Get the remote (sensor) endpoint handle, e.g. imx686_ep1 */
+	remote_ep = fwnode_graph_get_remote_endpoint(ep);
+	if (!remote_ep) {
+		dev_dbg(dev, "No remote endpoint found for %pfw\n", ep);
+		return -ENODEV;
+	}
+
+	/* Parse the remote bus type and release the handle */
+	ret = v4l2_fwnode_endpoint_parse(remote_ep, &remote_vep);
+	fwnode_handle_put(remote_ep);
+	if (ret) {
+		dev_dbg(dev, "Failed to parse remote endpoint\n");
+		return ret;
+	}
+
+	/* The local (CSIPHY) and remote (sensor) ends must agree */
+	if (vep.bus_type != remote_vep.bus_type) {
+		dev_dbg(dev, "Bus type mismatch! Local (CSI-PHY): %u, Remote (Sensor): %u\n",
+			vep.bus_type, remote_vep.bus_type);
+		return -EINVAL;
+	}
+
+	dev_dbg(dev, "Verified link: both ends use bus-type %u\n", vep.bus_type);
 
 	csd->interface.csiphy_id = vep.base.port;
 
