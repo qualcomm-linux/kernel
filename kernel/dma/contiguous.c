@@ -53,6 +53,27 @@
 #endif
 
 struct cma *dma_contiguous_default_area;
+static struct cma *dma_contiguous_areas[MAX_CMA_AREAS];
+static unsigned int dma_contiguous_areas_num;
+
+static int dma_contiguous_insert_area(struct cma *cma)
+{
+	if (dma_contiguous_areas_num >= ARRAY_SIZE(dma_contiguous_areas))
+		return -EINVAL;
+
+	dma_contiguous_areas[dma_contiguous_areas_num++] = cma;
+
+	return 0;
+}
+
+struct cma *dma_contiguous_get_area_by_idx(unsigned int idx)
+{
+	if (idx >= dma_contiguous_areas_num)
+		return NULL;
+
+	return dma_contiguous_areas[idx];
+}
+EXPORT_SYMBOL_GPL(dma_contiguous_get_area_by_idx);
 
 /*
  * Default global CMA area size can be defined in kernel's .config.
@@ -251,13 +272,21 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	}
 
 	if (selected_size && !dma_contiguous_default_area) {
+		int ret;
+
 		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
 
-		dma_contiguous_reserve_area(selected_size, selected_base,
-					    selected_limit,
-					    &dma_contiguous_default_area,
-					    fixed);
+		ret = dma_contiguous_reserve_area(selected_size, selected_base,
+						  selected_limit,
+						  &dma_contiguous_default_area,
+						  fixed);
+		if (ret)
+			return;
+
+		ret = dma_contiguous_insert_area(dma_contiguous_default_area);
+		if (ret)
+			pr_warn("Couldn't queue default CMA region for heap creation.\n");
 	}
 }
 
@@ -496,6 +525,10 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 
 	pr_info("Reserved memory: created CMA memory pool at %pa, size %ld MiB\n",
 		&rmem->base, (unsigned long)rmem->size / SZ_1M);
+
+	err = dma_contiguous_insert_area(cma);
+	if (err)
+		pr_warn("Couldn't store CMA reserved area.\n");
 
 	return 0;
 }
