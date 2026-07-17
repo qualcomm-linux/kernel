@@ -4778,7 +4778,7 @@
 			clock-output-names = "mclk";
 			#sound-dai-cells = <1>;
 		};
-	
+
 		swr1: soundwire@6a80000 {
 			compatible = "qcom,soundwire-v3.1.0";
 			reg = <0 0x06a80000 0 0x10000>;
