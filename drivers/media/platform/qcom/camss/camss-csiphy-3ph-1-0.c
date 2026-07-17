@@ -1540,15 +1540,6 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 			regs->lane_array_size = 0;
 		}
 		break;
-	case CAMSS_8300:
-		if (c->phy_cfg == V4L2_MBUS_CSI2_DPHY) {
-			regs->lane_regs = &lane_regs_sa8775p[0];
-			regs->lane_array_size = ARRAY_SIZE(lane_regs_sa8775p);
-		} else if (c->phy_cfg == V4L2_MBUS_CSI2_CPHY) {
-			regs->lane_regs = NULL;
-			regs->lane_array_size = 0;
-		}
-		break;
 	case CAMSS_8750:
 	case CAMSS_KAANAPALI:
 		if (c->phy_cfg == V4L2_MBUS_CSI2_DPHY) {
@@ -1559,6 +1550,7 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 			regs->lane_array_size = 0;
 		}
 		break;
+	case CAMSS_8300:
 	case CAMSS_8775P:
 		if (c->phy_cfg == V4L2_MBUS_CSI2_CPHY) {
 			regs->lane_regs = &lane_regs_sa8775p_3ph[0];
