@@ -31,6 +31,14 @@ static const struct nla_policy ath10k_tm_policy[ATH10K_TM_ATTR_MAX + 1] = {
 	[ATH10K_TM_ATTR_VERSION_MINOR]	= { .type = NLA_U32 },
 };
 
+static bool ath10k_tm_is_utf_event(u32 cmd_id)
+{
+	return cmd_id == WMI_10X_PDEV_UTF_EVENTID ||
+	       cmd_id == WMI_10_2_PDEV_UTF_EVENTID ||
+	       cmd_id == WMI_10_4_PDEV_UTF_EVENTID ||
+	       cmd_id == WMI_TLV_PDEV_UTF_EVENTID;
+}
+
 static void ath10k_tm_event_unsegmented(struct ath10k *ar, u32 cmd_id,
 					struct sk_buff *skb)
 {
@@ -181,6 +189,12 @@ bool ath10k_tm_event_wmi(struct ath10k *ar, u32 cmd_id, struct sk_buff *skb)
 	 * are not initialised.
 	 */
 	consumed = true;
+
+	if (!ath10k_tm_is_utf_event(cmd_id)) {
+		ath10k_dbg(ar, ATH10K_DBG_TESTMODE,
+			   "testmode drop non-utf event cmd_id %u\n", cmd_id);
+		goto out;
+	}
 
 	if (ar->testmode.expected_seq != ATH10K_FTM_SEG_NONE)
 		ath10k_tm_event_segmented(ar, cmd_id, skb);
