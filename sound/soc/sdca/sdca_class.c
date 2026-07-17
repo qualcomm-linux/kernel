@@ -136,6 +136,15 @@ err:
 	pm_runtime_put_sync(drv->dev);
 }
 
+static void class_dev_remove(void *data)
+{
+	struct sdca_class_drv *drv = data;
+
+	cancel_work_sync(&drv->boot_work);
+
+	sdca_dev_unregister_functions(drv->sdw);
+}
+
 static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id)
 {
 	struct device *dev = &sdw->dev;
@@ -181,6 +190,10 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(dev, class_dev_remove, drv);
+	if (ret)
+		return ret;
+
 	queue_work(system_long_wq, &drv->boot_work);
 
 	return 0;
@@ -188,10 +201,7 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
 
 static void class_sdw_remove(struct sdw_slave *sdw)
 {
-	struct device *dev = &sdw->dev;
-	struct sdca_class_drv *drv = dev_get_drvdata(dev);
-
-	cancel_work_sync(&drv->boot_work);
+	/* class_dev_remove devm action handles cancel_work_sync */
 }
 
 static int class_suspend(struct device *dev)
