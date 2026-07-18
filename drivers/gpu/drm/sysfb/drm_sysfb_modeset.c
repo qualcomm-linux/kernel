@@ -186,7 +186,7 @@ size_t drm_sysfb_build_fourcc_list(struct drm_device *dev,
 EXPORT_SYMBOL(drm_sysfb_build_fourcc_list);
 
 int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
-					struct drm_atomic_state *new_state)
+					struct drm_atomic_commit *new_state)
 {
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(new_state, plane);
@@ -229,7 +229,7 @@ int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_sysfb_plane_helper_atomic_check);
 
-void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane, struct drm_atomic_state *state)
+void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane, struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
@@ -272,7 +272,7 @@ out_drm_gem_fb_end_cpu_access:
 EXPORT_SYMBOL(drm_sysfb_plane_helper_atomic_update);
 
 void drm_sysfb_plane_helper_atomic_disable(struct drm_plane *plane,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
@@ -341,7 +341,7 @@ enum drm_mode_status drm_sysfb_crtc_helper_mode_valid(struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drm_sysfb_crtc_helper_mode_valid);
 
-int drm_sysfb_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *new_state)
+int drm_sysfb_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *new_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);

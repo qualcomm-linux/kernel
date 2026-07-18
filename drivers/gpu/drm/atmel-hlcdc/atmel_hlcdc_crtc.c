@@ -199,7 +199,7 @@ atmel_hlcdc_crtc_mode_valid(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_disable(struct drm_crtc *c,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = c->dev;
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
@@ -251,7 +251,7 @@ static void atmel_hlcdc_crtc_atomic_disable(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_enable(struct drm_crtc *c,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = c->dev;
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
@@ -457,7 +457,7 @@ static int atmel_hlcdc_crtc_select_output_mode(struct drm_crtc_state *state)
 }
 
 static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *s = drm_atomic_get_new_crtc_state(state, c);
 	int ret;
@@ -474,13 +474,13 @@ static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	drm_crtc_vblank_on(c);
 }
 
 static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *c,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
 	unsigned long flags;

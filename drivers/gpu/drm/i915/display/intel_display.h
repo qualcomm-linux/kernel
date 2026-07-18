@@ -30,7 +30,7 @@
 #include "i915_reg_defs.h"
 #include "intel_display_limits.h"
 
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_device;
 struct drm_display_mode;
 struct drm_encoder;
@@ -393,7 +393,7 @@ enum phy_fia {
 				       _intel_modeset_secondary_pipes(crtc_state), \
 				       i)
 
-int intel_atomic_check(struct drm_device *dev, struct drm_atomic_state *state);
+int intel_atomic_check(struct drm_device *dev, struct drm_atomic_commit *state);
 u8 intel_calc_active_pipes(struct intel_atomic_state *state,
 			   u8 active_pipes);
 void intel_link_compute_m_n(u16 bpp, int nlanes,
@@ -531,7 +531,7 @@ void intel_panel_sanitize_ssc(struct intel_display *display);
 void intel_update_czclk(struct intel_display *display);
 enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 				      const struct drm_display_mode *mode);
-int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
+int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_commit *_state,
 			bool nonblock);
 
 /* modesetting asserts */

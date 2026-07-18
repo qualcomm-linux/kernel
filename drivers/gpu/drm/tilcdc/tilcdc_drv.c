@@ -62,7 +62,7 @@ void tilcdc_module_cleanup(struct tilcdc_module *mod)
 }
 
 static int tilcdc_atomic_check(struct drm_device *dev,
-			       struct drm_atomic_state *state)
+			       struct drm_atomic_commit *state)
 {
 	int ret;
 

@@ -97,7 +97,7 @@ static const struct drm_private_state_funcs msm_dp_mst_bridge_state_funcs = {
 	.atomic_destroy_state = msm_dp_mst_destroy_bridge_state,
 };
 
-static struct msm_dp_mst_bridge_state *msm_dp_mst_br_priv_state(struct drm_atomic_state *st,
+static struct msm_dp_mst_bridge_state *msm_dp_mst_br_priv_state(struct drm_atomic_commit *st,
 								struct msm_dp_mst_bridge *bridge)
 {
 	struct drm_device *dev = bridge->base.dev;
@@ -156,7 +156,7 @@ static void msm_dp_mst_update_timeslots(struct msm_dp_mst *mst,
 }
 
 static int msm_dp_mst_bridge_pre_enable_part1(struct msm_dp_mst_bridge *dp_bridge,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct msm_dp *dp_display = dp_bridge->display;
 	struct msm_dp_mst *mst = dp_display->msm_dp_mst;
@@ -197,7 +197,7 @@ static int msm_dp_mst_bridge_pre_enable_part1(struct msm_dp_mst_bridge *dp_bridg
 }
 
 static void _msm_dp_mst_bridge_pre_enable_part2(struct msm_dp_mst_bridge *dp_bridge,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct msm_dp *dp_display = dp_bridge->display;
 	struct msm_dp_mst *mst = dp_display->msm_dp_mst;
@@ -218,7 +218,7 @@ static void _msm_dp_mst_bridge_pre_enable_part2(struct msm_dp_mst_bridge *dp_bri
 }
 
 static void msm_dp_mst_bridge_pre_disable_part1(struct msm_dp_mst_bridge *dp_bridge,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct msm_dp *dp_display = dp_bridge->display;
 	struct msm_dp_mst *mst = dp_display->msm_dp_mst;
@@ -251,7 +251,7 @@ static void msm_dp_mst_bridge_pre_disable_part1(struct msm_dp_mst_bridge *dp_bri
 }
 
 static void msm_dp_mst_bridge_atomic_pre_enable(struct drm_bridge *drm_bridge,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	int rc = 0;
 	struct msm_dp_mst_bridge *bridge;
@@ -316,7 +316,7 @@ static void msm_dp_mst_bridge_atomic_pre_enable(struct drm_bridge *drm_bridge,
 }
 
 static void msm_dp_mst_bridge_atomic_disable(struct drm_bridge *drm_bridge,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct msm_dp_mst_bridge *bridge;
 	struct msm_dp *dp_display;
@@ -350,7 +350,7 @@ static void msm_dp_mst_bridge_atomic_disable(struct drm_bridge *drm_bridge,
 }
 
 static void msm_dp_mst_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-						  struct drm_atomic_state *state)
+						  struct drm_atomic_commit *state)
 {
 	struct msm_dp_mst_bridge *bridge;
 	struct msm_dp *dp_display;
@@ -391,7 +391,7 @@ static int msm_dp_mst_bridge_atomic_check(struct drm_bridge *drm_bridge,
 					  struct drm_crtc_state *crtc_state,
 					  struct drm_connector_state *conn_state)
 {
-	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_atomic_commit *state = crtc_state->state;
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_dp_mst_topology_state *mst_state;
 	struct msm_dp_mst_connector *mst_conn;
@@ -628,7 +628,7 @@ static enum drm_mode_status msm_dp_mst_connector_mode_valid(struct drm_connector
 }
 
 static struct drm_encoder *
-msm_dp_mst_atomic_best_encoder(struct drm_connector *connector, struct drm_atomic_state *state)
+msm_dp_mst_atomic_best_encoder(struct drm_connector *connector, struct drm_atomic_commit *state)
 {
 	struct msm_dp_mst_connector *mst_conn = to_dp_mst_connector(connector);
 	struct msm_dp_mst *mst = mst_conn->dp_mst;
@@ -676,7 +676,7 @@ end:
 }
 
 static int msm_dp_mst_connector_atomic_check(struct drm_connector *connector,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	int rc = 0, slots;
 	struct drm_connector_state *old_conn_state;
