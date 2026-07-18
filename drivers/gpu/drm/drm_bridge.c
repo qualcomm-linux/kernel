@@ -206,6 +206,9 @@ static void __drm_bridge_free(struct kref *kref)
 
 	if (bridge->funcs->destroy)
 		bridge->funcs->destroy(bridge);
+
+	drm_bridge_put(bridge->next_bridge);
+
 	kfree(bridge->container);
 }
 
