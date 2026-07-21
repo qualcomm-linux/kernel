@@ -385,6 +385,12 @@ properties:
           - const: swir,wp8548
           - const: qcom,mdm9615
 
+      - items:
+          - enum:
+              - qcom,iq10-rrd
+              - qcom,sa8797p-ride
+          - const: qcom,nord
+
       - description: Qualcomm Technologies, Inc. Robotics RB1
         items:
           - enum:
