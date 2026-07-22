@@ -74,4 +74,28 @@ config QCOM_QSEECOM_UEFISECAPP
 	  Select Y here to provide access to EFI variables on the aforementioned
 	  platforms.
 
+config QCOM_TEE_UEFISECAPP
+	tristate "Qualcomm TEE UEFI Secure App client driver"
+	depends on QCOMTEE
+	depends on EFI
+	depends on !QCOM_QSEECOM_UEFISECAPP
+	help
+	  On Qualcomm SoC based platforms without emulated RPMB support,
+	  specifically platforms where RPMB is not present within SPI-NOR storage
+	  and instead located on UFS/EMMC storage, non-volatile EFI variables can
+	  only be set via a callback request from the UEFI Secure Application to
+	  the RPMB service running in user-space (within the QTEE supplicant:
+	  github.com/qualcomm/minkipc). Unlike the QCOMTEE driver, the QSEECOM
+	  driver used by the QSEECOM based uefisecapp does not support callback
+	  requests. And so on these platforms, the TEE based uefisecapp client
+	  driver must be used to ensure persistence of non-volatile EFI variables
+	  via writes through the RPMB service hosted in the QTEE supplicant.
+
+	  This module provides a TEE client driver for uefisecapp, installing efivar
+	  operations to allow the kernel and user-space access to EFI variables.
+
+	  Select m here to provide access to EFI variables on the aforementioned
+	  platforms if your Linux distribution has QTEE supplicant installed and
+	  running.
+
 endmenu
