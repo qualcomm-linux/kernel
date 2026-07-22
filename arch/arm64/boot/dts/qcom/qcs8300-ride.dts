@@ -637,7 +637,7 @@
 
 &pcie0_phy {
 	vdda-phy-supply = <&vreg_l6a>;
-	vdda-pll-supply = <&vreg_l5a>;
+	vdda-pll-supply = <&vreg_l4a>;
 
 	status = "okay";
 };
@@ -719,6 +719,7 @@
 	vmmc-supply = <&vreg_l8a>;
 	vqmmc-supply = <&vreg_s4a>;
 
+	supports-cqe;
 	non-removable;
 	no-sd;
 	no-sdio;
