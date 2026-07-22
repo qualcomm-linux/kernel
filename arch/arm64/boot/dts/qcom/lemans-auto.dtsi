@@ -102,3 +102,7 @@
 		};
 	};
 };
+
+&iris {
+	firmware-name = "qcom/vpu/vpu30_p4_s6.mbn";
+};
