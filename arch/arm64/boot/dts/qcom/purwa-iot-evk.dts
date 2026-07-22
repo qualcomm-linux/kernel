@@ -734,6 +734,10 @@
 	};
 };
 
+&camss {
+	status = "okay";
+};
+
 &i2c3 {
 	clock-frequency = <400000>;
 
@@ -835,6 +839,16 @@
 		reset-gpios = <&tlmm 184 GPIO_ACTIVE_LOW>;
 
 		pinctrl-0 = <&eusb6_reset_n>;
+		pinctrl-names = "default";
+	};
+
+	embedded-controller@76 {
+		compatible = "qcom,purwa-iot-evk-ec", "qcom,hamoa-crd-ec";
+		reg = <0x76>;
+
+		interrupts-extended = <&tlmm 66 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&ec_int_n_default>;
 		pinctrl-names = "default";
 	};
 };
@@ -1325,7 +1339,45 @@
 	};
 };
 
+&thermal_gpuss_0 {
+	trips {
+		trip-point0 {
+			temperature = <105000>;
+		};
+	};
+};
+
+&thermal_gpuss_1 {
+	trips {
+		trip-point0 {
+			temperature = <105000>;
+		};
+	};
+};
+
+&thermal_gpuss_2 {
+	trips {
+		trip-point0 {
+			temperature = <105000>;
+		};
+	};
+};
+
+&thermal_gpuss_3 {
+	trips {
+		trip-point0 {
+			temperature = <105000>;
+		};
+	};
+};
+
 &tlmm {
+	ec_int_n_default: ec-int-n-state {
+		pins = "gpio66";
+		function = "gpio";
+		bias-disable;
+	};
+
 	edp_reg_en: edp-reg-en-state {
 		pins = "gpio70";
 		function = "gpio";
