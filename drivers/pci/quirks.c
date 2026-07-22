@@ -6415,3 +6415,13 @@ static void pci_mask_replay_timer_timeout(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_GLI, 0x9750, pci_mask_replay_timer_timeout);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_GLI, 0x9755, pci_mask_replay_timer_timeout);
 #endif
+
+/*
+ * Renesas PCIe-to-USB bridge UPD720201 does not advertise D3cold
+ * capability by default until firmware is loaded post-enumeration.
+ */
+static void quirk_enable_d3cold(struct pci_dev *dev)
+{
+	dev->pme_support = dev->pme_support | (1 << PCI_D3cold);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_RENESAS, 0x0014, quirk_enable_d3cold);
