@@ -294,13 +294,26 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 			return 0;
 
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
-			rval = snd_soc_dai_set_channel_map(codec_dai,
-							  ARRAY_SIZE(tx_ch),
-							  tx_ch,
-							  ARRAY_SIZE(rx_ch),
-							  rx_ch);
-			if (rval != 0 && rval != -ENOTSUPP)
-				return rval;
+			component = codec_dai->component;
+
+			if (!component || !component->dev)
+				continue;
+
+			/*
+			 * Only wcd934x (SLIM codec) needs these static channel maps.
+			 * DAIs that own an SDW stream — the qcom SWR master and SWR
+			 * slave speaker codecs — implement .set_stream; skip them.
+			 */
+			if (!codec_dai->driver || !codec_dai->driver->ops ||
+			    !codec_dai->driver->ops->set_stream) {
+				rval = snd_soc_dai_set_channel_map(codec_dai,
+								   ARRAY_SIZE(tx_ch),
+								   tx_ch,
+								   ARRAY_SIZE(rx_ch),
+								   rx_ch);
+				if (rval != 0 && rval != -ENOTSUPP)
+					return rval;
+			}
 
 			snd_soc_dai_set_sysclk(codec_dai, 0,
 					       WCD934X_DEFAULT_MCLK_RATE,
