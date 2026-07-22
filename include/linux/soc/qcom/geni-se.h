@@ -66,6 +66,7 @@ struct geni_icc_path {
  * @icc_paths:		Array of ICC paths for SE
  * @pd_list:		Power domain list for managing power domains
  * @has_opp:		Indicates if OPP is supported
+ * @multi_owner:	True if SE is shared between multiprocessors.
  */
 struct geni_se {
 	void __iomem *base;
@@ -78,6 +79,7 @@ struct geni_se {
 	struct geni_icc_path icc_paths[3];
 	struct dev_pm_domain_list *pd_list;
 	bool has_opp;
+	bool multi_owner;
 };
 
 /* Common SE registers */
