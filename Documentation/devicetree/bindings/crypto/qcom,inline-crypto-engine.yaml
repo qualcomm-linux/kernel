@@ -23,6 +23,7 @@ properties:
           - qcom,sm8550-inline-crypto-engine
           - qcom,sm8650-inline-crypto-engine
           - qcom,sm8750-inline-crypto-engine
+          - qcom,x1e80100-inline-crypto-engine
       - const: qcom,inline-crypto-engine
 
   reg:
@@ -55,12 +56,12 @@ additionalProperties: false
 
 allOf:
   - if:
-    properties:
-      compatible:
-        contains:
-          enum:
-            - qcom,eliza-inline-crypto-engine
-            - qcom,milos-inline-crypto-engine
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,eliza-inline-crypto-engine
+              - qcom,milos-inline-crypto-engine
 
     then:
       required:
