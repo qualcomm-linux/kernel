@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/pm_wakeup.h>
 #include <linux/property.h>
 #include <linux/soc/qcom/pdr.h>
 #include <linux/usb/typec_mux.h>
@@ -25,6 +26,12 @@
 #define UC_UCSI_READ_BUF_REQ            0x11
 #define UC_UCSI_WRITE_BUF_REQ           0x12
 #define UC_UCSI_USBC_NOTIFY_IND         0x13
+
+/*
+ * Wakeup timeout to allow USB event notification processing to
+ * complete before device suspends.
+ */
+#define UCSI_GLINK_WAKEUP_TIMEOUT_MS	50
 
 struct ucsi_read_buf_req_msg {
 	struct pmic_glink_hdr   hdr;
@@ -342,6 +349,8 @@ static void pmic_glink_ucsi_callback(const void *data, size_t len, void *priv)
 		pmic_glink_ucsi_write_ack(ucsi, data, len);
 		break;
 	case UC_UCSI_USBC_NOTIFY_IND:
+		pm_wakeup_ws_event(ucsi->dev->power.wakeup,
+				   UCSI_GLINK_WAKEUP_TIMEOUT_MS, true);
 		schedule_work(&ucsi->notify_work);
 		break;
 	}
@@ -400,6 +409,8 @@ static int pmic_glink_ucsi_probe(struct auxiliary_device *adev,
 
 	ucsi->dev = dev;
 	dev_set_drvdata(dev, ucsi);
+
+	device_init_wakeup(dev, true);
 
 	INIT_WORK(&ucsi->notify_work, pmic_glink_ucsi_notify);
 	INIT_WORK(&ucsi->register_work, pmic_glink_ucsi_register);
