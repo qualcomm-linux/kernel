@@ -20,6 +20,16 @@ properties:
     minItems: 1
     maxItems: 2
 
+  qcom,vmid:
+    description: Optional list of destination VMIDs to share PCM DMA buffers with.
+      HLOS retains RW access as source owner and must not be listed.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      minimum: 1
+      maximum: 31
+    minItems: 1
+    maxItems: 8
+
 required:
   - compatible
   - iommus
