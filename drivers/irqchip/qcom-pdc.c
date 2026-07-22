@@ -3,7 +3,6 @@
  * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  */
 
-#include <linux/bitfield.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -20,32 +19,31 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/firmware/qcom/qcom_scm.h>
+#include <linux/soc/qcom/qcom_aoss.h>
 
 #define PDC_MAX_GPIO_IRQS	256
-#define PDC_DRV_SIZE		0x10000
+#define PDC_DRV_OFFSET		0x10000
 
 /* Valid only on HW version < 3.2 */
 #define IRQ_ENABLE_BANK		0x10
 #define IRQ_ENABLE_BANK_MAX	(IRQ_ENABLE_BANK + BITS_TO_BYTES(PDC_MAX_GPIO_IRQS))
-#define IRQ_ENABLE_BANK_INDEX_MASK	GENMASK(31, 5)
-#define IRQ_ENABLE_BANK_BIT_MASK	GENMASK(4, 0)
+#define IRQ_i_CFG_IRQ_MASK_3_0	3
 #define IRQ_i_CFG		0x110
 
 /* Valid only on HW version >= 3.2 */
+#define IRQ_i_CFG_IRQ_MASK_3_2	4
 #define IRQ_i_CFG_IRQ_ENABLE	3
 
-#define IRQ_i_CFG_TYPE_MASK		GENMASK(2, 0)
+#define IRQ_i_CFG_TYPE_MASK	GENMASK(2, 0)
 
-#define PDC_VERSION_REG			0x1000
-#define PDC_VERSION_MAJOR		GENMASK(23, 16)
-#define PDC_VERSION_MINOR		GENMASK(15, 8)
-#define PDC_VERSION_STEP		GENMASK(7, 0)
-#define PDC_VERSION(maj, min, step)	(FIELD_PREP(PDC_VERSION_MAJOR, (maj)) | \
-					 FIELD_PREP(PDC_VERSION_MINOR, (min)) | \
-					 FIELD_PREP(PDC_VERSION_STEP,  (step)))
+#define PDC_VERSION_REG		0x1000
 
 /* Notable PDC versions */
-#define PDC_VERSION_3_2			PDC_VERSION(3, 2, 0)
+#define PDC_VERSION_3_0		0x30000
+#define PDC_VERSION_3_2		0x30200
+
+#define PDC_PASS_THROUGH_MODE	0
 
 struct pdc_pin_region {
 	u32 pin_base;
@@ -106,37 +104,55 @@ static void pdc_x1e_irq_enable_write(u32 bank, u32 enable)
 	pdc_base_reg_write(base, IRQ_ENABLE_BANK, bank, enable);
 }
 
-static void pdc_enable_intr_bank(int pin_out, bool on)
+/*
+ * The new mask bit controls whether the interrupt is to be forwarded to the
+ * parent GIC in secondary controller mode. Writing the mask is do not care
+ * when the PDC is set to pass through mode.
+ *
+ * As linux only makes so far make use of pass through mode set all IRQs
+ * masked during probe.
+ */
+static void __pdc_mask_intr(int pin_out, bool mask)
 {
-	unsigned long enable;
-	u32 index, mask;
+	unsigned long irq_cfg;
+	int mask_bit;
 
-	index = FIELD_GET(IRQ_ENABLE_BANK_INDEX_MASK, pin_out);
-	mask = FIELD_GET(IRQ_ENABLE_BANK_BIT_MASK, pin_out);
+	/* Mask bit available from v3.0 */
+	if (pdc_version < PDC_VERSION_3_0)
+		return;
 
-	enable = pdc_reg_read(IRQ_ENABLE_BANK, index);
-	__assign_bit(mask, &enable, on);
-
-	if (pdc_x1e_quirk)
-		pdc_x1e_irq_enable_write(index, enable);
+	if (pdc_version < PDC_VERSION_3_2)
+		mask_bit = IRQ_i_CFG_IRQ_MASK_3_0;
 	else
-		pdc_reg_write(IRQ_ENABLE_BANK, index, enable);
-}
+		mask_bit = IRQ_i_CFG_IRQ_MASK_3_2;
 
-static void pdc_enable_intr_cfg(int pin_out, bool on)
-{
-	unsigned long enable = pdc_reg_read(IRQ_i_CFG, pin_out);
-
-	__assign_bit(IRQ_i_CFG_IRQ_ENABLE, &enable, on);
-	pdc_reg_write(IRQ_i_CFG, pin_out, enable);
+	irq_cfg = pdc_reg_read(IRQ_i_CFG, pin_out);
+	__assign_bit(mask_bit, &irq_cfg, mask);
+	pdc_reg_write(IRQ_i_CFG, pin_out, irq_cfg);
 }
 
 static void __pdc_enable_intr(int pin_out, bool on)
 {
-	if (pdc_version < PDC_VERSION_3_2)
-		pdc_enable_intr_bank(pin_out, on);
-	else
-		pdc_enable_intr_cfg(pin_out, on);
+	unsigned long enable;
+
+	if (pdc_version < PDC_VERSION_3_2) {
+		u32 index, mask;
+
+		index = pin_out / 32;
+		mask = pin_out % 32;
+
+		enable = pdc_reg_read(IRQ_ENABLE_BANK, index);
+		__assign_bit(mask, &enable, on);
+
+		if (pdc_x1e_quirk)
+			pdc_x1e_irq_enable_write(index, enable);
+		else
+			pdc_reg_write(IRQ_ENABLE_BANK, index, enable);
+	} else {
+		enable = pdc_reg_read(IRQ_i_CFG, pin_out);
+		__assign_bit(IRQ_i_CFG_IRQ_ENABLE, &enable, on);
+		pdc_reg_write(IRQ_i_CFG, pin_out, enable);
+	}
 }
 
 static void pdc_enable_intr(struct irq_data *d, bool on)
@@ -330,7 +346,6 @@ static const struct irq_domain_ops qcom_pdc_ops = {
 static int pdc_setup_pin_mapping(struct device_node *np)
 {
 	int ret, n, i;
-
 	n = of_property_count_elems_of_size(np, "qcom,pdc-ranges", sizeof(u32));
 	if (n <= 0 || n % 3)
 		return -EINVAL;
@@ -359,29 +374,42 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 		if (ret)
 			return ret;
 
-		for (i = 0; i < pdc_region[n].cnt; i++)
+		for (i = 0; i < pdc_region[n].cnt; i++) {
 			__pdc_enable_intr(i + pdc_region[n].pin_base, 0);
+			__pdc_mask_intr(i + pdc_region[n].pin_base, true);
+		}
 	}
 
 	return 0;
 }
 
+#define QCOM_PDC_SIZE 0x10000
 
 static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *parent)
 {
+	static const char buf[64] = "{class: cx_mol, res: cx, val: mol}";
+	unsigned int domain_flag = IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP;
 	struct irq_domain *parent_domain, *pdc_domain;
 	struct device_node *node = pdev->dev.of_node;
 	resource_size_t res_size;
 	struct resource res;
+	struct qmp *pdc_qmp;
 	int ret;
 
 	/* compat with old sm8150 DT which had very small region for PDC */
 	if (of_address_to_resource(node, 0, &res))
 		return -EINVAL;
 
-	res_size = max_t(resource_size_t, resource_size(&res), PDC_DRV_SIZE);
+	res_size = max_t(resource_size_t, resource_size(&res), QCOM_PDC_SIZE);
 	if (res_size > resource_size(&res))
 		pr_warn("%pOF: invalid reg size, please fix DT\n", node);
+
+	pdc_base = ioremap(res.start, res_size);
+	if (!pdc_base) {
+		pr_err("%pOF: unable to map PDC registers\n", node);
+		ret = -ENXIO;
+		goto fail;
+	}
 
 	/*
 	 * PDC has multiple DRV regions, each one provides the same set of
@@ -392,22 +420,78 @@ static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *pare
 	 * region with the expected offset to preserve support for old DTs.
 	 */
 	if (of_device_is_compatible(node, "qcom,x1e80100-pdc")) {
-		pdc_prev_base = ioremap(res.start - PDC_DRV_SIZE, IRQ_ENABLE_BANK_MAX);
+		pdc_prev_base = ioremap(res.start - PDC_DRV_OFFSET, IRQ_ENABLE_BANK_MAX);
 		if (!pdc_prev_base) {
 			pr_err("%pOF: unable to map previous PDC DRV region\n", node);
 			return -ENXIO;
 		}
 
 		pdc_x1e_quirk = true;
+
+		/*
+		 * There are two modes PDC irqchip can work in
+		 *	- pass through mode
+		 *	- secondary controller mode
+		 *
+		 * All PDC irqchip supports pass through mode in which both
+		 * Direct SPIs and GPIO IRQs (as SPIs) are sent to GIC
+		 * without latching at PDC.
+		 *
+		 * Newer PDCs (v3.0 onwards) also support additional
+		 * secondary controller mode where PDC latches GPIO IRQs
+		 * and sends to GIC as level type IRQ. Direct SPIs still
+		 * works same as pass through mode without latching at PDC
+		 * even in secondary controller mode.
+		 *
+		 * All the SoCs so far default uses pass through mode with
+		 * the exception of x1e.
+		 *
+		 * x1e modes:
+		 *
+		 * x1e PDC may be set to secondary controller mode for
+		 * builds on CRD boards whereas it may be set to pass
+		 * through mode for IoT-EVK boards.
+		 *
+		 * There is no way to read which current mode it is set to
+		 * and make PDC work in respective mode as the read access
+		 * is not opened up for non secure world. There is though
+		 * write access opened up via SCM write API to set the mode.
+		 *
+		 * Configure PDC mode to pass through mode for all x1e based
+		 * boards.
+		 *
+		 * For successful write:
+		 *	- Nothing more to be done
+		 *
+		 * For unsuccessful write:
+		 *	- Inform TLMM to monitor GPIO IRQs (same as MPM)
+		 *	- Prevent SoC low power mode (CxPC) as PDC is not
+		 *	  monitoring GPIO IRQs which may be needed to wake
+		 *	  the SoC from low power mode.
+		 */
+		ret = of_address_to_resource(node, 2, &res);
+		if (ret) {
+			domain_flag = IRQ_DOMAIN_FLAG_QCOM_MPM_WAKEUP;
+			goto skip_scm_write;
+		}
+
+		ret = qcom_scm_io_writel(res.start, PDC_PASS_THROUGH_MODE);
+		if (ret) {
+			pdc_qmp = qmp_get(&pdev->dev);
+			if (IS_ERR(pdc_qmp)) {
+				ret = PTR_ERR(pdc_qmp);
+				goto fail;
+			} else {
+				ret = qmp_send(pdc_qmp, buf, sizeof(buf));
+				qmp_put(pdc_qmp);
+				if (ret)
+					goto fail;
+			}
+			domain_flag = IRQ_DOMAIN_FLAG_QCOM_MPM_WAKEUP;
+		}
 	}
 
-	pdc_base = ioremap(res.start, res_size);
-	if (!pdc_base) {
-		pr_err("%pOF: unable to map PDC registers\n", node);
-		ret = -ENXIO;
-		goto fail;
-	}
-
+skip_scm_write:
 	pdc_version = pdc_reg_read(PDC_VERSION_REG, 0);
 
 	parent_domain = irq_find_host(parent);
@@ -424,7 +508,7 @@ static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *pare
 	}
 
 	pdc_domain = irq_domain_create_hierarchy(parent_domain,
-					IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP,
+					domain_flag,
 					PDC_MAX_GPIO_IRQS,
 					of_fwnode_handle(node),
 					&qcom_pdc_ops, NULL);
