@@ -28,6 +28,7 @@
  * @h_tile_instance:    Controller instance used per tile. Number of elements is
  *                      based on num_of_h_tiles
  * @is_cmd_mode		Boolean to indicate if the CMD mode is requested
+ * @stream_id		stream id for which the interface needs to be acquired
  * @vsync_source:	Source of the TE signal for DSI CMD devices
  */
 struct msm_display_info {
@@ -35,6 +36,7 @@ struct msm_display_info {
 	uint32_t num_of_h_tiles;
 	uint32_t h_tile_instance[MAX_H_TILES_PER_DISPLAY];
 	bool is_cmd_mode;
+	int stream_id;
 	enum dpu_vsync_source vsync_source;
 };
 
@@ -98,4 +100,10 @@ void dpu_encoder_cleanup_wb_job(struct drm_encoder *drm_enc,
 bool dpu_encoder_is_valid_for_commit(struct drm_encoder *drm_enc);
 
 void dpu_encoder_start_frame_done_timer(struct drm_encoder *drm_enc);
+
+void dpu_encoder_phys_enable(struct drm_encoder *enc, struct drm_atomic_commit *state);
+void dpu_encoder_phys_disable(struct drm_encoder *enc, struct drm_atomic_commit *state);
+void dpu_encoder_atomic_mode_set(struct drm_encoder *enc,
+				 struct drm_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state);
 #endif /* __DPU_ENCODER_H__ */
