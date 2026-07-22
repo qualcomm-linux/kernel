@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ptp/qcom,tsc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Timestamp Counter Subsystem (TSCSS)
+
+maintainers:
+  - Imran Shaik <imran.shaik@oss.qualcomm.com>
+  - Taniya Das <taniya.das@oss.qualcomm.com>
+
+description:
+  Qualcomm TSCSS is a time synchronization subsystem composed of two main
+  blocks - the Time Stamp Counter (TSC) and the Event Timestamp Unit (ETU).
+
+  The TSC block is a timestamp generator that maintains a running counter used
+  for system timekeeping. The ETU block captures timestamps for external events
+  using one of the available timestamp sources.
+
+properties:
+  compatible:
+    enum:
+      - qcom,tsc
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: tsc
+      - const: etu
+
+  clocks:
+    items:
+      - description: TSC AHB clock
+      - description: TSC cntr clock
+      - description: TSC ETU clock
+
+  clock-names:
+    items:
+      - const: cfg_ahb
+      - const: cntr
+      - const: etu
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: etu_summary_irq
+
+  qcom,tsc-nsec-update:
+    description:
+      Indicates the TSC counters have values in nanoseconds, rather than
+      in secs and nanoseconds.
+    type: boolean
+
+  qcom,etu-slice:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      Array of ETU slice numbers corresponding to the ETU sel.
+      In case this property is not defined the sel number will be
+      considered as the slice number for ETU offset calculation.
+
+  qcom,etu-event-sel:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      Array of ETU event sel numbers for the corresponding ETU slice
+      numbers.
+
+  qcom,etu-event-names:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description:
+      ETU event sel names for the corresponding event sel numbers.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    tsc: tsc@1c80000 {
+      compatible = "qcom,tsc";
+      reg = <0x01c80000 0x2000>,
+            <0x01ca0000 0x20000>;
+      reg-names = "tsc", "etu";
+      clocks = <&tscss_ahb_clock>, <&tscss_cntr_clock>,
+               <&tscss_cntr_clock>;
+      clock-names = "cfg_ahb", "cntr", "etu";
+      interrupts = <GIC_SPI 766 IRQ_TYPE_EDGE_RISING>;
+      interrupt-names = "etu_summary_irq";
+      qcom,etu-slice = <10 11>;
+      qcom,etu-event-sel = <10 11>;
+      qcom,etu-event-names = "gps_pps", "tod_pps";
+      qcom,tsc-nsec-update;
+    };

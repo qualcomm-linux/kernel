@@ -753,6 +753,80 @@ static int audioreach_widget_i2s_module_load(struct audioreach_module *mod,
 	return 0;
 }
 
+static int audioreach_widget_audio_if_module_load(struct audioreach_module *mod,
+						  const struct snd_soc_tplg_vendor_array *mod_array)
+{
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	int tkn_count = 0;
+
+	mod_elem = mod_array->value;
+
+	while (tkn_count < le32_to_cpu(mod_array->num_elems)) {
+		switch (le32_to_cpu(mod_elem->token)) {
+		case AR_TKN_U32_MODULE_HW_IF_IDX:
+			mod->hw_interface_idx = le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_FMT_DATA:
+			mod->data_format = le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_HW_IF_TYPE:
+			mod->hw_interface_type = le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_SYNC_SRC:
+			mod->sync_src = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_CTRL_DATA_OUT_ENABLE:
+			mod->ctrl_data_out_enable = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_SLOT_MASK:
+			mod->slot_mask = le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_NSLOTS_PER_FRAME:
+			mod->nslots_per_frame = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_SLOT_WIDTH:
+			mod->slot_width = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_INTF_MODE:
+			mod->intf_mode = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_SYNC_MODE:
+			mod->sync_mode = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_CTRL_INVERT_SYNC_PULSE:
+			mod->ctrl_invert_sync_pulse = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_CTRL_SYNC_DATA_DELAY:
+			mod->ctrl_sync_data_delay = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_QAIF_TYPE:
+			mod->qaif_type = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_ACTIVE_LANE_MASK:
+			mod->active_lane_mask = le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_FRAME_SYNC_RATE:
+			mod->frame_sync_rate = le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_BIT_CLK_TYPE:
+			mod->bit_clk_type = (u16)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_INV_INT_BIT_CLK:
+			mod->inv_int_bit_clk = (u8)le32_to_cpu(mod_elem->value);
+			break;
+		case AR_TKN_U32_MODULE_INV_EXT_BIT_CLK:
+			mod->inv_ext_bit_clk = (u8)le32_to_cpu(mod_elem->value);
+			break;
+		default:
+			break;
+		}
+		tkn_count++;
+		mod_elem++;
+	}
+
+	return 0;
+}
+
 static int audioreach_widget_dp_module_load(struct audioreach_module *mod,
 					    const struct snd_soc_tplg_vendor_array *mod_array)
 {
@@ -805,6 +879,10 @@ static int audioreach_widget_load_buffer(struct snd_soc_component *component,
 	case MODULE_ID_I2S_SINK:
 	case MODULE_ID_I2S_SOURCE:
 		audioreach_widget_i2s_module_load(mod, mod_array);
+		break;
+	case MODULE_ID_AUDIO_IF_SINK:
+	case MODULE_ID_AUDIO_IF_SOURCE:
+		audioreach_widget_audio_if_module_load(mod, mod_array);
 		break;
 	case MODULE_ID_DISPLAY_PORT_SINK:
 		audioreach_widget_dp_module_load(mod, mod_array);

@@ -3,6 +3,14 @@
 #ifndef __Q6PRM_H__
 #define __Q6PRM_H__
 
+#define LPAIF_MI2S_TDM_MCLK 1
+#define LPAIF_MI2S_TDM_BCLK 2
+#define LPAIF_MI2S_TDM_ECLK 3
+
+#define LPAIF_MI2S_MCLK LPAIF_MI2S_TDM_MCLK
+#define LPAIF_MI2S_BCLK LPAIF_MI2S_TDM_BCLK
+#define LPAIF_MI2S_ECLK LPAIF_MI2S_TDM_ECLK
+
 /* Clock ID for Primary I2S IBIT */
 #define Q6PRM_LPASS_CLK_ID_PRI_MI2S_IBIT                          0x100
 /* Clock ID for Primary I2S EBIT */
@@ -52,6 +60,17 @@
 /* Clock ID for QUINARY MI2S OSR CLK  */
 #define Q6PRM_LPASS_CLK_ID_QUI_MI2S_OSR                         0x116
 
+/* Clock ID for MCLK1 */
+#define Q6PRM_LPASS_CLK_ID_MCLK_1                               0x300
+/* Clock ID for MCLK2 */
+#define Q6PRM_LPASS_CLK_ID_MCLK_2                               0x301
+/* Clock ID for MCLK3 */
+#define Q6PRM_LPASS_CLK_ID_MCLK_3                               0x302
+/* Clock ID for MCLK4 */
+#define Q6PRM_LPASS_CLK_ID_MCLK_4                               0x303
+/* Clock ID for MCLK5 */
+#define Q6PRM_LPASS_CLK_ID_MCLK_5                               0x304
+
 #define Q6PRM_LPASS_CLK_ID_WSA_CORE_MCLK			0x305
 #define Q6PRM_LPASS_CLK_ID_WSA_CORE_NPL_MCLK			0x306
 
@@ -82,6 +101,63 @@
 #define Q6PRM_LPASS_CLK_ID_WSA2_CORE_TX_2X_MCLK 0x317
 /* Clock ID for RX CORE MCLK2 2X  MCLK */
 #define Q6PRM_LPASS_CLK_ID_RX_CORE_MCLK2_2X_MCLK 0x318
+
+/** Clock ID of the Audio Intf 0 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF0_IBIT 0x500
+/** Clock ID of the Audio Intf 0 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF0_EBIT 0x501
+/** Clock ID of the Audio Intf 1 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF1_IBIT 0x502
+/** Clock ID of the Audio Intf 1 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF1_EBIT 0x503
+/** Clock ID of the Audio Intf 2 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF2_IBIT 0x504
+/** Clock ID of the Audio Intf 2 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF2_EBIT 0x505
+/** Clock ID of the Audio Intf 3 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF3_IBIT 0x506
+/** Clock ID of the Audio Intf 3 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF3_EBIT 0x507
+/** Clock ID of the Audio Intf 4 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF4_IBIT 0x508
+/** Clock ID of the Audio Intf 4 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF4_EBIT 0x509
+/** Clock ID of the Audio Intf 5 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF5_IBIT 0x50A
+/** Clock ID of the Audio Intf 5 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF5_EBIT 0x50B
+/** Clock ID of the Audio Intf 6 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF6_IBIT 0x50C
+/** Clock ID of the Audio Intf 6 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF6_EBIT 0x50D
+/** Clock ID of the Audio Intf 7 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF7_IBIT 0x50E
+/** Clock ID of the Audio Intf 7 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF7_EBIT 0x50F
+/** Clock ID of the Audio Intf 8 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF8_IBIT 0x510
+/** Clock ID of the Audio Intf 8 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF8_EBIT 0x511
+/** Clock ID of the Audio Intf 9 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF9_IBIT 0x512
+/** Clock ID of the Audio Intf 9 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF9_EBIT 0x513
+/** Clock ID of the Audio Intf 10 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF10_IBIT 0x514
+/** Clock ID of the Audio Intf 10 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF10_EBIT 0x515
+/** Clock ID of the Audio Intf 11 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF11_IBIT 0x516
+/** Clock ID of the Audio Intf 11 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF11_EBIT 0x517
+/** Clock ID of the Audio Intf 12 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF12_IBIT 0x518
+/** Clock ID of the Audio Intf 12 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_INTF12_EBIT 0x519
+/** Clock ID of the Audio VA Intf 0 internal bit clock (IBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_VA_INTF0_IBIT 0x550
+/** Clock ID of the Audio VA Intf 0 external bit clock (EBIT). */
+#define Q6PRM_LPASS_CLK_ID_AUD_VA_INTF0_EBIT 0x551
 
 #define Q6PRM_LPASS_CLK_SRC_INTERNAL	1
 #define Q6PRM_LPASS_CLK_ROOT_DEFAULT	0

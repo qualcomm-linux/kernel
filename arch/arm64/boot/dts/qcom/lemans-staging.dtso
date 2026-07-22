@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Lemans staging overlay - add staging-specific device tree modifications here.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&soc {
+	tgu@4b0e000 {
+		compatible = "qcom,tgu", "arm,primecell";
+		reg = <0x0 0x4b0e000 0x0 0x1000>;
+
+		clocks = <&aoss_qmp>;
+		clock-names = "apb_pclk";
+	};
+
+	tgu@4b0f000 {
+		compatible = "qcom,tgu", "arm,primecell";
+		reg = <0x0 0x4b0f000 0x0 0x1000>;
+
+		clocks = <&aoss_qmp>;
+		clock-names = "apb_pclk";
+	};
+};
