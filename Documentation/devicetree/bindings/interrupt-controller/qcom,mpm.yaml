@@ -68,8 +68,8 @@ properties:
         - description: MPM pin number
         - description: GIC SPI number for the MPM pin
 
-  '#power-domain-cells':
-    const: 0
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -113,6 +113,6 @@ examples:
                                <24 79>,
                                <86 183>,
                                <91 260>;
-            #power-domain-cells = <0>;
+            power-domains = <&cluster_pd>;
         };
     };

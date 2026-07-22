@@ -45,6 +45,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #include "../dmaengine.h"
 #include "../virt-dma.h"
@@ -422,6 +423,9 @@ struct bam_chan {
 	struct bam_desc_hw *fifo_virt;
 	dma_addr_t fifo_phys;
 
+	/* SCM source-VMID bitmask of the FIFO, 0 if not SCM-assigned */
+	u64 fifo_src_perms;
+
 	/* fifo markers */
 	unsigned short head;		/* start of active descriptor entries */
 	unsigned short tail;		/* end of active descriptor entries */
@@ -460,6 +464,10 @@ struct bam_device {
 	u32 active_channels;
 
 	const struct bam_device_data *dev_data;
+
+	/* destination VMIDs for SCM assignment of descriptor FIFOs */
+	u32 *vmids;
+	int num_vmids;
 
 	struct clk *bamclk;
 	int irq;
@@ -598,6 +606,126 @@ static void bam_chan_init_hw(struct bam_chan *bchan,
 }
 
 /**
+ * bam_parse_vmids - Parse the optional qcom,vmid property
+ * @bdev: bam device
+ *
+ * Reads the list of destination VMIDs from qcom,vmid, if present. HLOS is
+ * always the source owner and must not be listed. Absent property leaves
+ * num_vmids 0.
+ */
+static int bam_parse_vmids(struct bam_device *bdev)
+{
+	struct device *dev = bdev->dev;
+	int n, i, ret;
+
+	n = of_property_count_u32_elems(dev->of_node, "qcom,vmid");
+	if (n == -EINVAL)
+		return 0;
+
+	if (n < 0)
+		return n;
+
+	if (!qcom_scm_is_available())
+		return -EPROBE_DEFER;
+
+	bdev->vmids = devm_kcalloc(dev, n, sizeof(*bdev->vmids), GFP_KERNEL);
+	if (!bdev->vmids)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(dev->of_node, "qcom,vmid",
+					 bdev->vmids, n);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < n; i++) {
+		if (bdev->vmids[i] == QCOM_SCM_VMID_HLOS) {
+			dev_err(dev, "qcom,vmid must not include HLOS (%u)\n",
+				QCOM_SCM_VMID_HLOS);
+			return -EINVAL;
+		}
+	}
+
+	bdev->num_vmids = n;
+
+	return 0;
+}
+
+/**
+ * bam_assign_fifo - SCM-assign a channel's descriptor FIFO to the remote VMIDs
+ * @bdev: bam device
+ * @bchan: bam channel
+ *
+ * Grants HLOS plus the configured qcom,vmid VMIDs access to the FIFO, so
+ * the remote EE can read it. The updated source-VMID bitmask is stored in
+ * bchan->fifo_src_perms for bam_fifo_can_free() to reverse.
+ */
+static int bam_assign_fifo(struct bam_device *bdev, struct bam_chan *bchan)
+{
+	struct qcom_scm_vmperm *dst __free(kfree) = NULL;
+	u64 src = BIT_ULL(QCOM_SCM_VMID_HLOS);
+	int i, ret;
+
+	if (!bdev->num_vmids)
+		return 0;
+
+	dst = kcalloc(bdev->num_vmids + 1, sizeof(*dst), GFP_KERNEL);
+	if (!dst)
+		return -ENOMEM;
+
+	dst[0].vmid = QCOM_SCM_VMID_HLOS;
+	dst[0].perm = QCOM_SCM_PERM_RW;
+
+	for (i = 0; i < bdev->num_vmids; i++) {
+		dst[i + 1].vmid = bdev->vmids[i];
+		dst[i + 1].perm = QCOM_SCM_PERM_RW;
+	}
+
+	ret = qcom_scm_assign_mem(bchan->fifo_phys, BAM_DESC_FIFO_SIZE,
+				  &src, dst, bdev->num_vmids + 1);
+	if (ret) {
+		dev_err(bdev->dev, "SCM assign fifo chan %u failed: %d\n",
+			bchan->id, ret);
+		return ret;
+	}
+
+	bchan->fifo_src_perms = src;
+
+	return 0;
+}
+
+/**
+ * bam_fifo_can_free - Reclaim a channel's descriptor FIFO to HLOS
+ * @bdev: bam device
+ * @bchan: bam channel
+ *
+ * Returns true if the FIFO may now be freed. On SCM failure the remote VMID
+ * still has access, so the caller must leak the buffer instead of freeing it.
+ */
+static bool bam_fifo_can_free(struct bam_device *bdev, struct bam_chan *bchan)
+{
+	struct qcom_scm_vmperm hlos = {
+		.vmid = QCOM_SCM_VMID_HLOS,
+		.perm = QCOM_SCM_PERM_RW,
+	};
+	int ret;
+
+	if (!bchan->fifo_src_perms)
+		return true;
+
+	ret = qcom_scm_assign_mem(bchan->fifo_phys, BAM_DESC_FIFO_SIZE,
+				  &bchan->fifo_src_perms, &hlos, 1);
+	if (ret) {
+		dev_err(bdev->dev, "SCM reclaim fifo chan %u failed: %d; leaking\n",
+			bchan->id, ret);
+		return false;
+	}
+
+	bchan->fifo_src_perms = 0;
+
+	return true;
+}
+
+/**
  * bam_alloc_chan - Allocate channel resources for DMA channel.
  * @chan: specified channel
  *
@@ -608,16 +736,29 @@ static int bam_alloc_chan(struct dma_chan *chan)
 	struct bam_chan *bchan = to_bam_chan(chan);
 	struct bam_device *bdev = bchan->bdev;
 
-	if (bchan->fifo_virt)
-		return 0;
-
-	/* allocate FIFO descriptor space, but only if necessary */
-	bchan->fifo_virt = dma_alloc_wc(bdev->dev, BAM_DESC_FIFO_SIZE,
-					&bchan->fifo_phys, GFP_KERNEL);
-
+	/*
+	 * Remote-owned BAMs keep the FIFO allocated and SCM-assigned to the
+	 * remote VMID across power cycles (see bam_free_chan), so allocate and
+	 * assign it only once; the block and pipe are still re-initialised on
+	 * every power-on below.
+	 */
 	if (!bchan->fifo_virt) {
-		dev_err(bdev->dev, "Failed to allocate desc fifo\n");
-		return -ENOMEM;
+		/* allocate FIFO descriptor space, but only if necessary */
+		bchan->fifo_virt = dma_alloc_wc(bdev->dev, BAM_DESC_FIFO_SIZE,
+						&bchan->fifo_phys, GFP_KERNEL);
+		if (!bchan->fifo_virt) {
+			dev_err(bdev->dev, "Failed to allocate desc fifo\n");
+			return -ENOMEM;
+		}
+
+		if (bam_assign_fifo(bdev, bchan)) {
+			dma_free_wc(bdev->dev, BAM_DESC_FIFO_SIZE,
+				    bchan->fifo_virt, bchan->fifo_phys);
+			bchan->fifo_virt = NULL;
+			return -EIO;
+		}
+	} else if (!bdev->num_vmids) {
+		return 0;
 	}
 
 	if (bdev->active_channels++ == 0 && bdev->powered_remotely)
@@ -651,14 +792,29 @@ static void bam_free_chan(struct dma_chan *chan)
 		goto err;
 	}
 
-	scoped_guard(spinlock_irqsave, &bchan->vc.lock) {
-		bam_reset_channel(bchan);
-		bchan->bam_locked = false;
+	/*
+	 * Remote-owned BAMs (qcom,vmid) keep the descriptor FIFO allocated and
+	 * SCM-assigned across power cycles: the remote may already have cut
+	 * power, so pipe-register access would fault, and TZ still holds the
+	 * grant for the next restart (the FIFO is reclaimed and freed once in
+	 * bam_dma_remove). Only drop local channel state here so the block and
+	 * pipe are re-initialised on the next power-on; skip all MMIO.
+	 */
+	if (bdev->num_vmids) {
+		scoped_guard(spinlock_irqsave, &bchan->vc.lock)
+			bchan->initialized = 0;
+		bdev->active_channels--;
+		goto err;
 	}
 
-	dma_free_wc(bdev->dev, BAM_DESC_FIFO_SIZE, bchan->fifo_virt,
-		    bchan->fifo_phys);
+	scoped_guard(spinlock_irqsave, &bchan->vc.lock)
+		bam_reset_channel(bchan);
+
+	if (bam_fifo_can_free(bdev, bchan))
+		dma_free_wc(bdev->dev, BAM_DESC_FIFO_SIZE,
+			    bchan->fifo_virt, bchan->fifo_phys);
 	bchan->fifo_virt = NULL;
+	bdev->active_channels--;
 
 	/* mask irq for pipe/channel */
 	val = readl_relaxed(bam_addr(bdev, 0, BAM_IRQ_SRCS_MSK_EE));
@@ -668,7 +824,7 @@ static void bam_free_chan(struct dma_chan *chan)
 	/* disable irq */
 	writel_relaxed(0, bam_addr(bdev, bchan->id, BAM_P_IRQ_EN));
 
-	if (--bdev->active_channels == 0 && bdev->powered_remotely) {
+	if (bdev->active_channels == 0 && bdev->powered_remotely) {
 		/* s/w reset bam */
 		val = readl_relaxed(bam_addr(bdev, 0, BAM_CTRL));
 		val |= BAM_SW_RST;
@@ -840,7 +996,9 @@ static int bam_dma_terminate_all(struct dma_chan *chan)
 		if (!list_empty(&bchan->desc_list)) {
 			async_desc = list_first_entry(&bchan->desc_list,
 						      struct bam_async_desc, desc_node);
-			bam_chan_init_hw(bchan, async_desc->dir);
+			/* Remote-owned BAM: pipe reset may fault, skip it. */
+			if (!bchan->bdev->num_vmids)
+				bam_chan_init_hw(bchan, async_desc->dir);
 		}
 
 		list_for_each_entry_safe(async_desc, tmp,
@@ -1480,6 +1638,10 @@ static int bam_dma_probe(struct platform_device *pdev)
 	bdev->powered_remotely = of_property_read_bool(pdev->dev.of_node,
 						"qcom,powered-remotely");
 
+	ret = bam_parse_vmids(bdev);
+	if (ret)
+		return ret;
+
 	if (bdev->controlled_remotely || bdev->powered_remotely)
 		bdev->bamclk = devm_clk_get_optional(bdev->dev, "bam_clk");
 	else
@@ -1530,7 +1692,8 @@ static int bam_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < bdev->num_channels; i++)
 		bam_channel_init(bdev, &bdev->channels[i], i);
 
-	ret = request_irq(bdev->irq, bam_dma_irq, IRQF_TRIGGER_HIGH, "bam_dma", bdev);
+	ret = devm_request_irq(bdev->dev, bdev->irq, bam_dma_irq,
+			IRQF_TRIGGER_NONE, "bam_dma", bdev);
 	if (ret)
 		goto err_bam_channel_exit;
 
@@ -1618,9 +1781,10 @@ static void bam_dma_remove(struct platform_device *pdev)
 		if (!bdev->channels[i].fifo_virt)
 			continue;
 
-		dma_free_wc(bdev->dev, BAM_DESC_FIFO_SIZE,
-			    bdev->channels[i].fifo_virt,
-			    bdev->channels[i].fifo_phys);
+		if (bam_fifo_can_free(bdev, &bdev->channels[i]))
+			dma_free_wc(bdev->dev, BAM_DESC_FIFO_SIZE,
+				    bdev->channels[i].fifo_virt,
+				    bdev->channels[i].fifo_phys);
 	}
 
 	cancel_work_sync(&bdev->work);
