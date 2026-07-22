@@ -197,6 +197,18 @@ static void qcom_pas_pds_disable(struct qcom_pas *pas, struct device **pds,
 	int i;
 
 	for (i = 0; i < pd_count; i++) {
+		/*
+		 * There is a race condition which occurs sometimes for RB8 platform when APPS
+		 * removes it's vote on handover INT from fw - ADSP F/W side vote is not yet
+		 * applied on the lcx and lmx rails because of which PMIC shutdowns shut and device
+		 * goes into hung state. Carry this WA until a proper fix is finalized.
+		 */
+		if (of_device_is_compatible(dev_of_node(pas->dev), "qcom,sa8775p-adsp-pas")) {
+			/* Apply SVS_L1 vote to keep lcx and lmx rails ON */
+			dev_pm_genpd_set_performance_state(pds[i], 192);
+			return;
+		}
+
 		dev_pm_genpd_set_performance_state(pds[i], 0);
 		pm_runtime_put(pds[i]);
 	}
