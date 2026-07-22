@@ -286,6 +286,7 @@ struct sdhci_msm_host {
 	/* core, iface, cal and sleep clocks */
 	struct clk_bulk_data bulk_clks[4];
 #ifdef CONFIG_MMC_CRYPTO
+	struct clk *ice_clk;	/* ICE clock */
 	struct qcom_ice *ice;
 #endif
 	unsigned long clk_rate;
@@ -2708,6 +2709,17 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
+
+#ifdef CONFIG_MMC_CRYPTO
+	/* Setup ICE clock */
+	msm_host->ice_clk = devm_clk_get(&pdev->dev, "ice");
+	if (!IS_ERR(msm_host->ice_clk)) {
+		/* Vote for max. clk rate for max. performance */
+		ret = clk_set_rate(msm_host->ice_clk, INT_MAX);
+		if (ret)
+			dev_err(&pdev->dev, "ice clk set rate failed (%d)\n", ret);
+	}
+#endif
 
 	/* Setup main peripheral bus clock */
 	clk = devm_clk_get(&pdev->dev, "iface");
