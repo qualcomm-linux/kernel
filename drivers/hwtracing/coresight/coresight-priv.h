@@ -58,6 +58,7 @@ struct cs_pair_attribute {
 struct cs_off_attribute {
 	struct device_attribute attr;
 	u32 off;
+	u32 index;
 };
 
 ssize_t coresight_simple_show32(struct device *_dev, struct device_attribute *attr, char *buf);
@@ -67,7 +68,8 @@ ssize_t coresight_simple_show_pair(struct device *_dev, struct device_attribute 
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
 		__ATTR(name, 0444, coresight_simple_show32, NULL),	\
-		offset							\
+		offset,							\
+		0							\
 	   }								\
 	})[0].attr.attr)
 
@@ -155,6 +157,8 @@ void coresight_remove_links(struct coresight_device *orig,
 u32 coresight_get_sink_id(struct coresight_device *csdev);
 int coresight_path_assign_trace_id(struct coresight_path *path,
 				   enum cs_mode mode);
+int coresight_get_in_port(struct coresight_device *csdev,
+			  struct coresight_device *remote);
 
 #if IS_ENABLED(CONFIG_CORESIGHT_SOURCE_ETM3X)
 int etm_readl_cp14(u32 off, unsigned int *val);
