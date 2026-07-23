@@ -28,11 +28,13 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma/qcom_bam_dma.h>
 #include <linux/dmaengine.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_dma.h>
@@ -60,6 +62,10 @@ struct bam_desc_hw {
 #define DESC_FLAG_EOB BIT(13)
 #define DESC_FLAG_NWD BIT(12)
 #define DESC_FLAG_CMD BIT(11)
+#define DESC_FLAG_LOCK BIT(10)
+#define DESC_FLAG_UNLOCK BIT(9)
+
+#define DESC_FLAG_LOCK_MASK (DESC_FLAG_LOCK | DESC_FLAG_UNLOCK)
 
 struct bam_async_desc {
 	struct virt_dma_desc vd;
@@ -425,6 +431,12 @@ struct bam_chan {
 	struct list_head desc_list;
 
 	struct list_head node;
+
+	/* BAM locking infrastructure */
+	struct bam_cmd_element *lock_ce;
+	dma_addr_t lock_ce_phys;
+	bool locking_enabled;
+	bool bam_locked;
 };
 
 static inline struct bam_chan *to_bam_chan(struct dma_chan *common)
@@ -638,12 +650,21 @@ static void bam_free_chan(struct dma_chan *chan)
 		goto err;
 	}
 
-	scoped_guard(spinlock_irqsave, &bchan->vc.lock)
+	scoped_guard(spinlock_irqsave, &bchan->vc.lock) {
 		bam_reset_channel(bchan);
+		bchan->bam_locked = false;
+	}
 
 	dma_free_wc(bdev->dev, BAM_DESC_FIFO_SIZE, bchan->fifo_virt,
 		    bchan->fifo_phys);
 	bchan->fifo_virt = NULL;
+
+	if (bchan->lock_ce) {
+		dma_unmap_single(bdev->dev, bchan->lock_ce_phys,
+				 sizeof(*bchan->lock_ce), DMA_TO_DEVICE);
+		kfree(bchan->lock_ce);
+		bchan->lock_ce = NULL;
+	}
 
 	/* mask irq for pipe/channel */
 	val = readl_relaxed(bam_addr(bdev, 0, BAM_IRQ_SRCS_MSK_EE));
@@ -676,9 +697,50 @@ err:
 static int bam_slave_config(struct dma_chan *chan,
 			    struct dma_slave_config *cfg)
 {
+	struct bam_config *peripheral_cfg = cfg->peripheral_config;
 	struct bam_chan *bchan = to_bam_chan(chan);
+	const struct bam_device_data *bdata = bchan->bdev->dev_data;
+
+	if (peripheral_cfg && cfg->peripheral_size != sizeof(*peripheral_cfg))
+		return -EINVAL;
 
 	guard(spinlock_irqsave)(&bchan->vc.lock);
+
+	/*
+	 * This is required to setup the pipe locking and must be done even
+	 * before the first call to bam_start_dma().
+	 */
+	if (bdata->pipe_lock_supported && peripheral_cfg) {
+		if (cfg->direction != DMA_MEM_TO_DEV)
+			return -EINVAL;
+
+		if (bchan->bam_locked)
+			return -EBUSY;
+
+		if (!bchan->lock_ce) {
+			bchan->lock_ce = kmalloc_obj(*bchan->lock_ce, GFP_ATOMIC);
+			if (!bchan->lock_ce)
+				return -ENOMEM;
+
+			bchan->lock_ce_phys = dma_map_single(bchan->bdev->dev, bchan->lock_ce,
+							     sizeof(*bchan->lock_ce),
+							     DMA_TO_DEVICE);
+			if (dma_mapping_error(bchan->bdev->dev, bchan->lock_ce_phys)) {
+				kfree(bchan->lock_ce);
+				bchan->lock_ce = NULL;
+				return -ENOMEM;
+			}
+		}
+
+		bam_prep_ce_le32(bchan->lock_ce, peripheral_cfg->lock_scratchpad_addr,
+				 BAM_WRITE_COMMAND, 0);
+		dma_sync_single_for_device(bchan->bdev->dev, bchan->lock_ce_phys,
+					   sizeof(*bchan->lock_ce), DMA_TO_DEVICE);
+		bchan->locking_enabled = true;
+	} else {
+		/* Don't touch lock_ce here, it might still be used by issued descriptors */
+		bchan->locking_enabled = false;
+	}
 
 	memcpy(&bchan->slave, cfg, sizeof(*cfg));
 	bchan->reconfigure = 1;
@@ -802,6 +864,7 @@ static int bam_dma_terminate_all(struct dma_chan *chan)
 		}
 
 		vchan_get_all_descriptors(&bchan->vc, &head);
+		bchan->bam_locked = false;
 	}
 
 	vchan_dma_desc_free_list(&bchan->vc, &head);
@@ -869,7 +932,7 @@ static int bam_resume(struct dma_chan *chan)
 static u32 process_channel_irqs(struct bam_device *bdev)
 {
 	u32 i, srcs, pipe_stts, offset, avail;
-	struct bam_async_desc *async_desc, *tmp;
+	struct bam_async_desc *async_desc;
 
 	srcs = readl_relaxed(bam_addr(bdev, 0, BAM_IRQ_SRCS_EE));
 
@@ -879,6 +942,8 @@ static u32 process_channel_irqs(struct bam_device *bdev)
 
 	for (i = 0; i < bdev->num_channels; i++) {
 		struct bam_chan *bchan = &bdev->channels[i];
+		struct bam_desc_hw *fifo = PTR_ALIGN(bchan->fifo_virt,
+						sizeof(struct bam_desc_hw));
 
 		if (!(srcs & BIT(i)))
 			continue;
@@ -900,10 +965,17 @@ static u32 process_channel_irqs(struct bam_device *bdev)
 		if (offset < bchan->head)
 			avail--;
 
-		list_for_each_entry_safe(async_desc, tmp,
-					 &bchan->desc_list, desc_node) {
-			/* Not enough data to read */
-			if (avail < async_desc->xfer_len)
+		for (;;) {
+			/* Skip over lock descriptors in the FIFO */
+			while (avail > 0 && (le16_to_cpu(fifo[bchan->head].flags) &
+					      DESC_FLAG_LOCK_MASK)) {
+				bchan->head = (bchan->head + 1) % MAX_DESCRIPTORS;
+				avail--;
+			}
+
+			async_desc = list_first_entry_or_null(&bchan->desc_list,
+							struct bam_async_desc, desc_node);
+			if (!async_desc || avail < async_desc->xfer_len)
 				break;
 
 			/* manage FIFO */
@@ -919,13 +991,12 @@ static u32 process_channel_irqs(struct bam_device *bdev)
 			 * push back to front of desc_issued so that
 			 * it gets restarted by the work queue.
 			 */
-			if (!async_desc->num_desc) {
+			list_del(&async_desc->desc_node);
+			if (!async_desc->num_desc)
 				vchan_cookie_complete(&async_desc->vd);
-			} else {
+			else
 				list_add(&async_desc->vd.node,
 					 &bchan->vc.desc_issued);
-			}
-			list_del(&async_desc->desc_node);
 		}
 	}
 
@@ -1046,13 +1117,23 @@ static void bam_apply_new_config(struct bam_chan *bchan,
 	bchan->reconfigure = 0;
 }
 
+static void bam_fifo_write_lock(struct bam_chan *bchan, u16 flags)
+{
+	struct bam_desc_hw *fifo = PTR_ALIGN(bchan->fifo_virt, sizeof(struct bam_desc_hw));
+
+	fifo[bchan->tail].addr = cpu_to_le32(bchan->lock_ce_phys);
+	fifo[bchan->tail].size = cpu_to_le16(sizeof(struct bam_cmd_element));
+	fifo[bchan->tail].flags = cpu_to_le16(DESC_FLAG_CMD | flags);
+	bchan->tail = (bchan->tail + 1) % MAX_DESCRIPTORS;
+}
+
 /**
  * bam_start_dma - start next transaction
  * @bchan: bam dma channel
  */
 static void bam_start_dma(struct bam_chan *bchan)
 {
-	struct virt_dma_desc *vd = vchan_next_desc(&bchan->vc);
+	struct virt_dma_desc *vd;
 	struct bam_device *bdev = bchan->bdev;
 	struct bam_async_desc *async_desc = NULL;
 	struct bam_desc_hw *desc;
@@ -1064,21 +1145,33 @@ static void bam_start_dma(struct bam_chan *bchan)
 
 	lockdep_assert_held(&bchan->vc.lock);
 
-	if (!vd)
+	vd = vchan_next_desc(&bchan->vc);
+	if (IS_BUSY(bchan) || (!vd && !bchan->bam_locked))
 		return;
 
 	ret = pm_runtime_get_sync(bdev->dev);
 	if (ret < 0)
 		return;
 
+	if (!bchan->initialized)
+		bam_chan_init_hw(bchan, container_of(vd, struct bam_async_desc, vd)->dir);
+
+	if (bchan->locking_enabled && !bchan->bam_locked) {
+		/* Defer locking until we also have space for a data descriptor */
+		avail = CIRC_SPACE(bchan->tail, bchan->head, MAX_DESCRIPTORS + 1);
+		if (avail < 2) {
+			queue_work(system_bh_highpri_wq, &bdev->work);
+			goto out;
+		}
+
+		bam_fifo_write_lock(bchan, DESC_FLAG_LOCK);
+		bchan->bam_locked = true;
+	}
+
 	while (vd && !IS_BUSY(bchan)) {
 		list_del(&vd->node);
 
 		async_desc = container_of(vd, struct bam_async_desc, vd);
-
-		/* on first use, initialize the channel hardware */
-		if (!bchan->initialized)
-			bam_chan_init_hw(bchan, async_desc->dir);
 
 		/* apply new slave config changes, if necessary */
 		if (bchan->reconfigure)
@@ -1135,11 +1228,24 @@ static void bam_start_dma(struct bam_chan *bchan)
 		list_add_tail(&async_desc->desc_node, &bchan->desc_list);
 	}
 
+	/*
+	 * Close the bracket once there is no more client work queued. The
+	 * UNLOCK is flagged for an interrupt so process_channel_irqs() is
+	 * guaranteed to observe its completion and retire it from the FIFO
+	 * promptly, instead of leaving bchan->head to lag until a later
+	 * bracket's skip-loop catches up with it.
+	 */
+	if (bchan->bam_locked && !vd && !IS_BUSY(bchan)) {
+		bam_fifo_write_lock(bchan, DESC_FLAG_UNLOCK | DESC_FLAG_INT);
+		bchan->bam_locked = false;
+	}
+
 	/* ensure descriptor writes and dma start not reordered */
 	wmb();
 	writel_relaxed(bchan->tail * sizeof(struct bam_desc_hw),
 			bam_addr(bdev, bchan->id, BAM_P_EVNT_REG));
 
+out:
 	pm_runtime_mark_last_busy(bdev->dev);
 	pm_runtime_put_autosuspend(bdev->dev);
 }
@@ -1162,7 +1268,13 @@ static void bam_dma_work(struct work_struct *work)
 
 		guard(spinlock_irqsave)(&bchan->vc.lock);
 
-		if (!list_empty(&bchan->vc.desc_issued) && !IS_BUSY(bchan))
+		/*
+		 * A channel also needs kicking if a bracket is still open
+		 * (bam_locked) with no further client work queued: closing
+		 * the UNLOCK requires a fresh call into bam_start_dma().
+		 */
+		if ((!list_empty(&bchan->vc.desc_issued) || bchan->bam_locked) &&
+		    !IS_BUSY(bchan))
 			bam_start_dma(bchan);
 	}
 }
