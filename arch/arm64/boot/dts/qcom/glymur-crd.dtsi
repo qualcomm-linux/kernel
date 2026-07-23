@@ -636,18 +636,6 @@
 		#phy-cells = <0>;
 	};
 
-	ptn3222_1: redriver@47 {
-		compatible = "nxp,ptn3222";
-		reg = <0x47>;
-
-		reset-gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
-
-		vdd3v3-supply = <&vreg_l8b0>;
-		vdd1v8-supply = <&vreg_l15b0>;
-
-		#phy-cells = <0>;
-	};
-
 	pm8010: pmic@8 {
 		compatible = "qcom,pm8010-i2c";
 		reg = <0x8>;
@@ -1547,18 +1535,6 @@
 
 &usb_1_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss_in1>;
-};
-
-&usb_hs {
-	dr_mode = "host";
-
-	status = "okay";
-};
-
-&usb_hs_phy {
-	phys = <&ptn3222_1>;
-
-	status = "okay";
 };
 
 &usb_mp {
