@@ -9,6 +9,8 @@
 
 #include "dma.h"
 
+#define QCE_IGNORE_BUF_SZ		(2 * QCE_BAM_BURST_SIZE)
+
 static void qce_dma_release(void *data)
 {
 	struct qce_dma_data *dma = data;
@@ -42,8 +44,6 @@ int devm_qce_dma_request(struct device *dev, struct qce_dma_data *dma)
 		ret = -ENOMEM;
 		goto error_nomem;
 	}
-
-	dma->ignore_buf = dma->result_buf + QCE_RESULT_BUF_SZ;
 
 	return devm_add_action_or_reset(dev, qce_dma_release, dma);
 
