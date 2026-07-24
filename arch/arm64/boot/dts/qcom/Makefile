@@ -640,6 +640,9 @@ talos-evk-camx-dtbs	:= talos-evk.dtb talos-evk-camx.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtbo
 
+talos-lyra-evk-camx-dtbs := talos-lyra-evk.dtb talos-lyra-evk-camx.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= talos-lyra-evk-camx.dtb
+
 dtb-$(CONFIG_ARCH_QCOM) += talos-staging.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM) += talos-evk-staging.dtbo
