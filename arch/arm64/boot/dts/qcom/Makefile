@@ -561,6 +561,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-evk-camx.dtbo
 hamoa-camx-el2-dtbs  := hamoa-iot-evk-el2.dtb hamoa-evk-camx.dtbo hamoa-camx-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camx-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camx-el2.dtbo
 
 lemans-evk-camx-dtbs	:= lemans-evk.dtb lemans-evk-camx.dtbo
 
@@ -593,10 +594,12 @@ dtb-$(CONFIG_ARCH_QCOM)	+= monaco-staging.dtbo
 purwa-evk-camx-dtbs     := purwa-iot-evk.dtb purwa-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= purwa-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-evk-camx.dtbo
 
 purwa-camx-el2-dtbs  := purwa-iot-evk-el2.dtb purwa-evk-camx.dtbo purwa-camx-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= purwa-camx-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-camx-el2.dtbo
 
 qcs5430-fps-camx-dtbs   := qcs6490-rb3gen2.dtb qcs5430-fps-camx.dtbo
 
