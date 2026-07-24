@@ -29,7 +29,7 @@ properties:
 
 # Digital Audio Interfaces
 patternProperties:
-  '^dai@[0-9]+$':
+  '^dai@[0-9a-f]+$':
     type: object
     description:
       Q6DSP Digital Audio Interfaces.
@@ -42,20 +42,16 @@ patternProperties:
 
       clocks:
         minItems: 1
-        items:
-          - description: MI2S master clock
-          - description: MI2S bit clock
-          - description: MI2S external bit clock
+        maxItems: 2
 
       clock-names:
         minItems: 1
-        maxItems: 3
         items:
-          enum: [mclk, bclk, eclk]
+          - enum: [bclk, mclk]
+          - const: mclk
 
     dependencies:
       clocks: [clock-names]
-      clock-names: [clocks]
 
     required:
       - reg
@@ -78,14 +74,12 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        dai@16 {
+        dai@10 {
            reg = <PRIMARY_MI2S_RX>;
-           clocks = <&q6prmcc LPASS_CLK_ID_MCLK_1
+           clocks = <&q6prmcc LPASS_CLK_ID_PRI_MI2S_IBIT
                               LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-                    <&q6prmcc LPASS_CLK_ID_PRI_MI2S_IBIT
-                              LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-                    <&q6prmcc LPASS_CLK_ID_PRI_MI2S_EBIT
+                    <&q6prmcc LPASS_CLK_ID_MCLK_1
                               LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-           clock-names = "mclk", "bclk", "eclk";
+           clock-names = "bclk", "mclk";
         };
     };
