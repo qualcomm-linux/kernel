@@ -325,7 +325,7 @@
 		regulator-enable-ramp-delay = <10000>;
 	};
 
-	wcn6750-pmu {
+	wcn6750_pmu: wcn6750-pmu {
 		compatible = "qcom,wcn6750-pmu";
 		pinctrl-0 = <&bt_en>;
 		pinctrl-names = "default";
@@ -901,7 +901,7 @@
 			bus-range = <0x3 0xff>;
 		};
 
-		pcie@2,0 {
+		pcie0_m2_e: pcie@2,0 {
 			reg = <0x21000 0x0 0x0 0x0 0x0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
