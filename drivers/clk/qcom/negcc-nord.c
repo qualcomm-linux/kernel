@@ -813,6 +813,13 @@ static struct clk_branch ne_gcc_ahb2phy_clk = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "ne_gcc_ahb2phy_clk",
 			.ops = &clk_branch2_ops,
+			/*
+			 * The eUSB2 PHY register space sits behind this AHB2PHY
+			 * bridge. No driver claims this clock as a consumer, so
+			 * keep clk_disable_unused() from gating it and leaving
+			 * the PHY registers unreachable.
+			 */
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -1936,7 +1943,23 @@ MODULE_DEVICE_TABLE(of, ne_gcc_nord_match_table);
 
 static int ne_gcc_nord_probe(struct platform_device *pdev)
 {
-	return qcom_cc_probe(pdev, &ne_gcc_nord_desc);
+	struct regmap *regmap;
+
+	regmap = qcom_cc_map(pdev, &ne_gcc_nord_desc);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	/*
+	 * The eUSB2 PHY register space is reached through an AHB2PHY bridge
+	 * that is left in reset with its clock gated. Take the bridge out of
+	 * reset (NE_GCC_AHB2PHY_USB_TILE_BCR, active-high) and set the enable
+	 * bit of its hardware-gated clock, otherwise the first access to the
+	 * PHY config registers aborts.
+	 */
+	regmap_update_bits(regmap, 0x30000, BIT(0), 0);
+	qcom_branch_set_clk_en(regmap, 0x30004);
+
+	return qcom_cc_really_probe(&pdev->dev, &ne_gcc_nord_desc, regmap);
 }
 
 static struct platform_driver ne_gcc_nord_driver = {
