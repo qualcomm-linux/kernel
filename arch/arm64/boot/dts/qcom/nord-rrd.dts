@@ -562,6 +562,20 @@
 	status = "okay";
 };
 
+&remoteproc_adsp1 {
+	firmware-name = "qcom/nord/adsp1.mbn",
+			"qcom/nord/adsp1_dtbs.elf";
+
+	status = "okay";
+};
+
+&remoteproc_adsp2 {
+	firmware-name = "qcom/nord/adsp2.mbn",
+			"qcom/nord/adsp2_dtbs.elf";
+
+	status = "okay";
+};
+
 &remoteproc_cdsp0 {
 	firmware-name = "qcom/nord/cdsp.mbn",
 			"qcom/nord/cdsp_dtbs.elf";
