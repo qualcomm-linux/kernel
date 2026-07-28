@@ -2972,6 +2972,11 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_sa8255p_vops = {
 	.resume                 = ufs_qcom_fw_managed_resume,
 	.dbg_register_dump      = ufs_qcom_dump_dbg_regs,
 	.device_reset           = ufs_qcom_fw_managed_device_reset,
+	.mcq_config_resource	= ufs_qcom_mcq_config_resource,
+	.get_hba_mac		= ufs_qcom_get_hba_mac,
+	.op_runtime_config	= ufs_qcom_op_runtime_config,
+	.get_outstanding_cqs	= ufs_qcom_get_outstanding_cqs,
+	.config_esi		= ufs_qcom_config_esi,
 };
 
 /**
