@@ -991,6 +991,52 @@
 		};
 	};
 
+	smp2p-adsp1 {
+		compatible = "qcom,smp2p";
+		interrupts-extended = <&ipcc IPCC_MPROC_ADSP1
+					     IPCC_MPROC_SIGNAL_SMP2P
+					     IRQ_TYPE_EDGE_RISING>;
+		mboxes = <&ipcc IPCC_MPROC_ADSP1
+				IPCC_MPROC_SIGNAL_SMP2P>;
+		qcom,smem = <617>, <616>;
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <66>;
+
+		smp2p_adsp1_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		smp2p_adsp1_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	smp2p-adsp2 {
+		compatible = "qcom,smp2p";
+		interrupts-extended = <&ipcc IPCC_MPROC_ADSP2
+					     IPCC_MPROC_SIGNAL_SMP2P
+					     IRQ_TYPE_EDGE_RISING>;
+		mboxes = <&ipcc IPCC_MPROC_ADSP2
+				IPCC_MPROC_SIGNAL_SMP2P>;
+		qcom,smem = <617>, <616>;
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <130>;
+
+		smp2p_adsp2_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		smp2p_adsp2_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	smp2p-cdsp0 {
 		compatible = "qcom,smp2p";
 		qcom,smem = <94>, <432>;
@@ -1798,6 +1844,8 @@
 			memory-region = <&hpass_dsp0_mem>,
 					<&hpass_dsp0_dtb_mem>;
 
+			qcom,cluster-root = <&remoteproc_adsp>;
+
 			qcom,qmp = <&aoss_qmp>;
 
 			qcom,smem-states = <&smp2p_adsp_out 0>;
@@ -1859,6 +1907,184 @@
 							 <&apps_smmu_0 0x0a46 0x0020>,
 							 <&apps_smmu_0 0x0a66 0x0020>,
 							 <&apps_smmu_0 0x0a86 0x0000>;
+						dma-coherent;
+					};
+				};
+			};
+		};
+
+		remoteproc_adsp1: remoteproc@6000000 {
+			compatible = "qcom,nord-adsp1-pas";
+			reg = <0x0 0x06000000 0x0 0x10000>;
+
+			interrupts-extended = <&intc GIC_SPI 155 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp1_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp1_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp1_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp1_in 3 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp1_in 7 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog",
+					  "fatal",
+					  "ready",
+					  "handover",
+					  "stop-ack",
+					  "shutdown-ack";
+
+			memory-region = <&hpass_dsp1_mem>,
+					<&hpass_dsp1_dtb_mem>;
+
+			qcom,cluster-root = <&remoteproc_adsp>;
+
+			qcom,qmp = <&aoss_qmp>;
+
+			qcom,smem-states = <&smp2p_adsp1_out 0>;
+			qcom,smem-state-names = "stop";
+
+			status = "disabled";
+
+			glink-edge {
+				interrupts-extended = <&ipcc IPCC_MPROC_ADSP1
+							     IPCC_MPROC_SIGNAL_GLINK_QMP
+							     IRQ_TYPE_EDGE_RISING>;
+				mboxes = <&ipcc IPCC_MPROC_ADSP1
+						IPCC_MPROC_SIGNAL_GLINK_QMP>;
+				qcom,remote-pid = <66>;
+				label = "adsp1";
+
+				fastrpc {
+					compatible = "qcom,nord-fastrpc",
+						     "qcom,kaanapali-fastrpc";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					label = "adsp1";
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					compute-cb@11 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <11>;
+						iommus = <&apps_smmu_0 0x0a0b 0x0040>,
+							 <&apps_smmu_0 0x0a4b 0x0040>,
+							 <&apps_smmu_0 0x0a6b 0x0000>,
+							 <&apps_smmu_0 0x0a8b 0x0000>;
+						dma-coherent;
+					};
+
+					compute-cb@12 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <12>;
+						iommus = <&apps_smmu_0 0x0a0c 0x0080>,
+							 <&apps_smmu_0 0x0a4c 0x0020>,
+							 <&apps_smmu_0 0x0a6c 0x0020>,
+							 <&apps_smmu_0 0x0a8c 0x0080>;
+						dma-coherent;
+					};
+
+					compute-cb@13 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <13>;
+						iommus = <&apps_smmu_0 0x0a0d 0x0080>,
+							 <&apps_smmu_0 0x0a4d 0x0020>,
+							 <&apps_smmu_0 0x0a6d 0x0020>,
+							 <&apps_smmu_0 0x0a8d 0x0080>;
+						dma-coherent;
+					};
+
+					compute-cb@14 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <14>;
+						iommus = <&apps_smmu_0 0x0a0e 0x0080>,
+							 <&apps_smmu_0 0x0a4e 0x0020>,
+							 <&apps_smmu_0 0x0a6e 0x0020>,
+							 <&apps_smmu_0 0x0a8e 0x0080>;
+						dma-coherent;
+					};
+				};
+			};
+		};
+
+		remoteproc_adsp2: remoteproc@6100000 {
+			compatible = "qcom,nord-adsp2-pas";
+			reg = <0x0 0x06100000 0x0 0x10000>;
+
+			interrupts-extended = <&intc GIC_SPI 178 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp2_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp2_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp2_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp2_in 3 IRQ_TYPE_EDGE_RISING>,
+					      <&smp2p_adsp2_in 7 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog",
+					  "fatal",
+					  "ready",
+					  "handover",
+					  "stop-ack",
+					  "shutdown-ack";
+
+			memory-region = <&hpass_dsp2_mem>,
+					<&hpass_dsp2_dtb_mem>;
+
+			qcom,cluster-root = <&remoteproc_adsp>;
+
+			qcom,qmp = <&aoss_qmp>;
+
+			qcom,smem-states = <&smp2p_adsp2_out 0>;
+			qcom,smem-state-names = "stop";
+
+			status = "disabled";
+
+			glink-edge {
+				interrupts-extended = <&ipcc IPCC_MPROC_ADSP2
+							     IPCC_MPROC_SIGNAL_GLINK_QMP
+							     IRQ_TYPE_EDGE_RISING>;
+				mboxes = <&ipcc IPCC_MPROC_ADSP2
+						IPCC_MPROC_SIGNAL_GLINK_QMP>;
+				qcom,remote-pid = <130>;
+				label = "adsp2";
+
+				fastrpc {
+					compatible = "qcom,nord-fastrpc",
+						     "qcom,kaanapali-fastrpc";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					label = "adsp2";
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					compute-cb@3 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <3>;
+						iommus = <&apps_smmu_0 0x0a33 0x0040>,
+							 <&apps_smmu_0 0x0a53 0x0000>,
+							 <&apps_smmu_0 0x0a73 0x0040>,
+							 <&apps_smmu_0 0x0a93 0x0000>;
+						dma-coherent;
+					};
+
+					compute-cb@4 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <4>;
+						iommus = <&apps_smmu_0 0x0a34 0x0040>,
+							 <&apps_smmu_0 0x0a54 0x0000>,
+							 <&apps_smmu_0 0x0a74 0x0040>,
+							 <&apps_smmu_0 0x0a94 0x0000>;
+						dma-coherent;
+					};
+
+					compute-cb@5 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <5>;
+						iommus = <&apps_smmu_0 0x0a35 0x0000>,
+							 <&apps_smmu_0 0x0a55 0x0020>,
+							 <&apps_smmu_0 0x0a75 0x0020>,
+							 <&apps_smmu_0 0x0a95 0x0000>;
+						dma-coherent;
+					};
+
+					compute-cb@6 {
+						compatible = "qcom,fastrpc-compute-cb";
+						reg = <6>;
+						iommus = <&apps_smmu_0 0x0a36 0x0000>,
+							 <&apps_smmu_0 0x0a56 0x0020>,
+							 <&apps_smmu_0 0x0a76 0x0020>,
+							 <&apps_smmu_0 0x0a96 0x0000>;
 						dma-coherent;
 					};
 				};
