@@ -17,12 +17,49 @@ properties:
     const: qcom,q6apm-dais
 
   iommus:
+    description:
+      IOMMU mappings for the PCM DMA window. Required on platforms where
+      audio buffers are HLOS-allocated and mapped through an IOMMU (ADSP/
+      LPASS path). Omit on platforms where buffers are allocated from a
+      reserved memory carveout with no IOMMU mapping.
     minItems: 1
     maxItems: 2
 
+  memory-region:
+    description:
+      Optional reserved DMA pool for PCM buffers on platforms where the q6apm
+      DMA buffer must come from a predefined carveout.
+    maxItems: 1
+
+  qcom,src-vmid:
+    description:
+      Optional VMID that TrustZone currently tracks as the owner of the PCM
+      DMA buffer before qcom_scm_assign_mem() is called. When absent the
+      driver defaults to QCOM_SCM_VMID_HLOS (0x3), which is correct for
+      normal HLOS-allocated memory. Platforms where the buffer resides in
+      S2-only memory pre-owned by a non-HLOS VMID (e.g. QCOM_SCM_VMID_LPASS
+      on the mDSP audio path) must set this so the srcvm argument matches
+      what TZ tracks, otherwise the SCM call is rejected with -EINVAL.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 31
+
+  qcom,vmid:
+    description:
+      Optional list of destination VMIDs to share PCM DMA buffers with when
+      SCM memory reassignment is required. For reserved memory regions the
+      full region is reassigned to this destination VMID list. For non-reserved
+      DMA buffers, HLOS is also kept as a destination so the CPU retains RW
+      access. Do not list HLOS here.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      minimum: 1
+      maximum: 31
+    minItems: 1
+    maxItems: 8
+
 required:
   - compatible
-  - iommus
 
 additionalProperties: false
 
@@ -31,4 +68,23 @@ examples:
     dais {
         compatible = "qcom,q6apm-dais";
         iommus = <&apps_smmu 0x1801 0x0>;
+    };
+  - |
+    /* Reserved-memory mDSP path: no IOMMU, carveout shared with DSP VMIDs */
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        audio_carveout_mem: audio-carveout@86200000 {
+            compatible = "shared-dma-pool";
+            no-map;
+            reg = <0x0 0x86200000 0x0 0x40000>;
+        };
+    };
+
+    dais {
+        compatible = "qcom,q6apm-dais";
+        memory-region = <&audio_carveout_mem>;
+        qcom,vmid = <0xf 0x16>;
     };

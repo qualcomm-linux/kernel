@@ -32,10 +32,18 @@ enum domain_type {
 
 struct qcom_ubwc_cfg_data;
 
+enum iris_vcodec_core_id {
+	IRIS_VCODEC0 = 1,
+	IRIS_VCODEC1,
+};
+
 /**
  * struct iris_core - holds core parameters valid for all instances
  *
  * @dev: reference to device structure
+ * @dev_np: reference to non-pixel context bank device structure
+ * @dev_p: reference to pixel context bank device structure
+ * @dev_bs: reference to bitstream context bank device structure
  * @reg_base: IO memory base address
  * @irq: iris irq
  * @v4l2_dev: a holder for v4l2 device structure
@@ -81,11 +89,19 @@ struct qcom_ubwc_cfg_data;
 
 struct iris_core {
 	struct device				*dev;
+	struct device				*dev_np;
+	struct device				*dev_p;
+	struct device				*dev_bs;
 	void __iomem				*reg_base;
 	int					irq;
 	struct v4l2_device			v4l2_dev;
 	struct video_device			*vdev_dec;
 	struct video_device			*vdev_enc;
+	struct video_firmware {
+		struct device *dev;
+		struct qcom_scm_pas_context *ctx;
+		struct iommu_domain *iommu_domain;
+	} fw;
 	const struct v4l2_file_operations	*iris_v4l2_file_ops;
 	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops_dec;
 	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops_enc;

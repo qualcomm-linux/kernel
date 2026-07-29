@@ -501,6 +501,11 @@ static int hd3ss3220_probe(struct i2c_client *client)
 	if (hd3ss3220->poll)
 		schedule_delayed_work(&hd3ss3220->output_poll_work, HZ);
 
+	if (client->irq && device_property_read_bool(hd3ss3220->dev, "wakeup-source")) {
+		device_init_wakeup(&client->dev, true);
+		enable_irq_wake(client->irq);
+	}
+
 	dev_info(&client->dev, "probed revision=0x%x\n", ret);
 
 	return 0;
@@ -525,6 +530,35 @@ static void hd3ss3220_remove(struct i2c_client *client)
 	usb_role_switch_put(hd3ss3220->role_sw);
 }
 
+static int __maybe_unused hd3ss3220_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(client->irq);
+	else
+		disable_irq(client->irq);
+
+	return 0;
+}
+
+static int __maybe_unused hd3ss3220_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(client->irq);
+	else
+		enable_irq(client->irq);
+
+	return 0;
+}
+
+static const struct dev_pm_ops hd3ss3220_pm_ops = {
+	.suspend = hd3ss3220_suspend,
+	.resume = hd3ss3220_resume,
+};
+
 static const struct of_device_id dev_ids[] = {
 	{ .compatible = "ti,hd3ss3220"},
 	{}
@@ -535,6 +569,7 @@ static struct i2c_driver hd3ss3220_driver = {
 	.driver = {
 		.name = "hd3ss3220",
 		.of_match_table = dev_ids,
+		.pm	= &hd3ss3220_pm_ops,
 	},
 	.probe = hd3ss3220_probe,
 	.remove = hd3ss3220_remove,

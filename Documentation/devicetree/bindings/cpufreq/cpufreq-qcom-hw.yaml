@@ -54,6 +54,12 @@ properties:
               - qcom,sm8650-cpufreq-epss
           - const: qcom,cpufreq-epss
 
+      - description: RIMPS CPUFREQ HW
+        items:
+          - enum:
+              - qcom,shikra-cpufreq-rimps
+          - const: qcom,cpufreq-rimps
+
   reg:
     minItems: 1
     items:
@@ -144,6 +150,7 @@ allOf:
               - qcom,sc8280xp-cpufreq-epss
               - qcom,sdm670-cpufreq-hw
               - qcom,sdm845-cpufreq-hw
+              - qcom,shikra-cpufreq-rimps
               - qcom,sm4450-cpufreq-epss
               - qcom,sm6115-cpufreq-hw
               - qcom,sm6350-cpufreq-hw

@@ -11,6 +11,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_clock.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <sound/soc.h>
@@ -81,6 +82,14 @@
 #define CDC_VA_SWR_MIC_CLK_SEL_0_1_MASK		(0xEE)
 #define CDC_VA_SWR_MIC_CLK_SEL_0_1_DIV1		(0xCC)
 #define CDC_VA_TOP_CSR_SWR_CTRL			(0x00DC)
+
+#define CDC_VA_TOP_CSR_SWR_GPIN_CH0			(0x00E0)
+#define CDC_VA_TOP_CSR_SWR_GPIN_CH1			(0x00E4)
+#define CDC_VA_TOP_CSR_TOP_CFG2				(0x00EC)
+#define CDC_VA_TOP_CSR_TOP_CFG3				(0x00F0)
+#define CDC_VA_TOP_CSR_SWR_GPOUT_CH0		(0x00F8)
+#define CDC_VA_TOP_CSR_SWR_GPOUT_CH1		(0x00FC)
+
 #define CDC_VA_INP_MUX_ADC_MUX0_CFG0		(0x0100)
 #define CDC_VA_INP_MUX_ADC_MUX0_CFG1		(0x0104)
 #define CDC_VA_INP_MUX_ADC_MUX1_CFG0		(0x0108)
@@ -89,6 +98,40 @@
 #define CDC_VA_INP_MUX_ADC_MUX2_CFG1		(0x0114)
 #define CDC_VA_INP_MUX_ADC_MUX3_CFG0		(0x0118)
 #define CDC_VA_INP_MUX_ADC_MUX3_CFG1		(0x011C)
+
+/* ADC MUX4-7 CFG0/1 - Bolero V4 extended decimator mux (up to 8 DMICs) */
+#define CDC_VA_INP_MUX_ADC_MUX4_CFG0		(0x0120)
+#define CDC_VA_INP_MUX_ADC_MUX4_CFG1		(0x0124)
+#define CDC_VA_INP_MUX_ADC_MUX5_CFG0		(0x0128)
+#define CDC_VA_INP_MUX_ADC_MUX5_CFG1		(0x012C)
+#define CDC_VA_INP_MUX_ADC_MUX6_CFG0		(0x0130)
+#define CDC_VA_INP_MUX_ADC_MUX6_CFG1		(0x0134)
+#define CDC_VA_INP_MUX_ADC_MUX7_CFG0		(0x0138)
+#define CDC_VA_INP_MUX_ADC_MUX7_CFG1		(0x013C)
+
+/* ADC MUXx CFG2 - Bolero V4 CFG2 extension for all 8 MUXes */
+#define CDC_VA_INP_MUX_ADC_MUX0_CFG2		(0x0140)
+#define CDC_VA_INP_MUX_ADC_MUX1_CFG2		(0x0144)
+#define CDC_VA_INP_MUX_ADC_MUX2_CFG2		(0x0148)
+#define CDC_VA_INP_MUX_ADC_MUX3_CFG2		(0x014C)
+#define CDC_VA_INP_MUX_ADC_MUX4_CFG2		(0x0150)
+#define CDC_VA_INP_MUX_ADC_MUX5_CFG2		(0x0154)
+#define CDC_VA_INP_MUX_ADC_MUX6_CFG2		(0x0158)
+#define CDC_VA_INP_MUX_ADC_MUX7_CFG2		(0x015C)
+
+/* INTR_CTRL registers - SWR interrupt controller (VA macro owns SWR0 on QCM2290) */
+#define CDC_VA_MACRO_INTR_CTRL_CFG		(0x0340)
+#define CDC_VA_MACRO_INTR_CTRL_CLR_COMMIT	(0x0344)
+#define CDC_VA_MACRO_INTR_CTRL_PIN1_MASK0	(0x0360)
+#define CDC_VA_MACRO_INTR_CTRL_PIN1_STATUS0	(0x0368)
+#define CDC_VA_MACRO_INTR_CTRL_PIN1_CLEAR0	(0x0370)
+#define CDC_VA_MACRO_INTR_CTRL_PIN2_MASK0	(0x0380)
+#define CDC_VA_MACRO_INTR_CTRL_PIN2_STATUS0	(0x0388)
+#define CDC_VA_MACRO_INTR_CTRL_PIN2_CLEAR0	(0x0390)
+#define CDC_VA_MACRO_INTR_CTRL_LEVEL0		(0x03C0)
+#define CDC_VA_MACRO_INTR_CTRL_BYPASS0		(0x03C8)
+#define CDC_VA_MACRO_INTR_CTRL_SET0		(0x03D0)
+
 #define CDC_VA_TX0_TX_PATH_CTL			(0x0400)
 #define CDC_VA_TX_PATH_CLK_EN_MASK		BIT(5)
 #define CDC_VA_TX_PATH_CLK_EN			BIT(5)
@@ -118,6 +161,9 @@
 #define CDC_VA_TX0_TX_PATH_SEC5			(0x0424)
 #define CDC_VA_TX0_TX_PATH_SEC6			(0x0428)
 #define CDC_VA_TX0_TX_PATH_SEC7			(0x042C)
+
+#define CDC_VA_TX0_TX_PATH_CFG2			(0x0430)
+
 #define CDC_VA_TX1_TX_PATH_CTL			(0x0480)
 #define CDC_VA_TX1_TX_PATH_CFG0			(0x0484)
 #define CDC_VA_TX1_TX_PATH_CFG1			(0x0488)
@@ -129,6 +175,9 @@
 #define CDC_VA_TX1_TX_PATH_SEC4			(0x04A0)
 #define CDC_VA_TX1_TX_PATH_SEC5			(0x04A4)
 #define CDC_VA_TX1_TX_PATH_SEC6			(0x04A8)
+
+#define CDC_VA_TX1_TX_PATH_CFG2			(0x04B0)
+
 #define CDC_VA_TX2_TX_PATH_CTL			(0x0500)
 #define CDC_VA_TX2_TX_PATH_CFG0			(0x0504)
 #define CDC_VA_TX2_TX_PATH_CFG1			(0x0508)
@@ -140,6 +189,9 @@
 #define CDC_VA_TX2_TX_PATH_SEC4			(0x0520)
 #define CDC_VA_TX2_TX_PATH_SEC5			(0x0524)
 #define CDC_VA_TX2_TX_PATH_SEC6			(0x0528)
+
+#define CDC_VA_TX2_TX_PATH_CFG2			(0x0530)
+
 #define CDC_VA_TX3_TX_PATH_CTL			(0x0580)
 #define CDC_VA_TX3_TX_PATH_CFG0			(0x0584)
 #define CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK	BIT(7)
@@ -155,7 +207,66 @@
 #define CDC_VA_TX3_TX_PATH_SEC5			(0x05A4)
 #define CDC_VA_TX3_TX_PATH_SEC6			(0x05A8)
 
-#define VA_MAX_OFFSET				(0x07A8)
+#define CDC_VA_TX3_TX_PATH_CFG2			(0x05B0)
+
+#define CDC_VA_CDC_ADPT0_ADPT_CTRL			(0x0800)
+#define CDC_VA_CDC_ADPT0_ADPT_GAIN_0		(0x0804)
+#define CDC_VA_CDC_ADPT0_ADPT_GAIN_1		(0x0808)
+#define CDC_VA_CDC_ADPT0_DH_FSM_CTRL		(0x080C)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_0	(0x0810)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_1	(0x0814)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_2	(0x0818)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_3	(0x081C)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_4	(0x0820)
+#define CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_5	(0x0824)
+
+#define CDC_VA_CDC_ADPT1_ADPT_CTRL			(0x0880)
+#define CDC_VA_CDC_ADPT1_ADPT_GAIN_0		(0x0884)
+#define CDC_VA_CDC_ADPT1_ADPT_GAIN_1		(0x0888)
+#define CDC_VA_CDC_ADPT1_DH_FSM_CTRL		(0x088C)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_0	(0x0890)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_1	(0x0894)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_2	(0x0898)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_3	(0x089C)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_4	(0x08A0)
+#define CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_5	(0x08A4)
+#define CDC_VA_CDC_ADPT1_DBG_CTRL				(0x08B0)
+#define CDC_VA_CDC_ADPT1_DBG_PDM_RATE_CTRL_0	(0x08B2)
+#define CDC_VA_CDC_ADPT1_DBG_PDM_RATE_CTRL_1	(0x08B4)
+#define CDC_VA_CDC_ADPT1_SPARE0					(0x08B8)
+
+#define CDC_VA_CDC_ADPT2_ADPT_CTRL			(0x0900)
+#define CDC_VA_CDC_ADPT2_ADPT_GAIN_0		(0x0904)
+#define CDC_VA_CDC_ADPT2_ADPT_GAIN_1		(0x0908)
+#define CDC_VA_CDC_ADPT2_DH_FSM_CTRL		(0x090C)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_0	(0x0910)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_1	(0x0914)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_2	(0x0918)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_3	(0x091C)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_4	(0x0920)
+#define CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_5	(0x0924)
+
+#define CDC_VA_CDC_ADPT3_ADPT_CTRL			(0x0980)
+#define CDC_VA_CDC_ADPT3_ADPT_GAIN_0		(0x0984)
+#define CDC_VA_CDC_ADPT3_ADPT_GAIN_1		(0x0988)
+#define CDC_VA_CDC_ADPT3_DH_FSM_CTRL		(0x098C)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_0	(0x0990)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_1	(0x0994)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_2	(0x0998)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_3	(0x099C)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_4	(0x09A0)
+#define CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_5	(0x09A4)
+
+/* VA ALT TOP registers - Bolero V4 alternate top config */
+#define CDC_VA_ALT_TOP_VA_CFG0			0x1000
+#define CDC_VA_ALT_TOP_RX_CFG0			0x1040
+#define CDC_VA_ALT_TOP_WSA1_CFG0		0x1080
+#define CDC_VA_ALT_TOP_WSA2_CFG0		0x10C0
+#define CDC_VA_ALT_TOP_WSA3_CFG0		0x1100
+#define CDC_VA_ALT_TOP_WSA4_CFG0		0x1140
+
+#define VA_MAX_OFFSET				(0x1240)
+#define VA_MAX_OFFSET_PRE_4_0			(0x07A8)
 
 #define VA_MACRO_NUM_DECIMATORS 4
 #define VA_MACRO_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
@@ -200,6 +311,11 @@ enum {
 	VA_MACRO_CLK_DIV_16,
 };
 
+enum {
+	MSM_DMIC,
+	SWR_MIC,
+};
+
 #define VA_NUM_CLKS_MAX		3
 
 struct va_macro {
@@ -209,6 +325,8 @@ struct va_macro {
 	u16 dmic_clk_div;
 	bool has_swr_master;
 	bool has_npl_clk;
+	bool bypass_fs_control;
+	enum lpass_codec_version codec_version;
 
 	int dec_mode[VA_MACRO_NUM_DECIMATORS];
 	struct regmap *regmap;
@@ -235,6 +353,7 @@ struct va_macro {
 struct va_macro_data {
 	bool has_swr_master;
 	bool has_npl_clk;
+	bool bypass_fs_control;
 	int version;
 };
 
@@ -254,6 +373,13 @@ static const struct va_macro_data sm8450_va_data = {
 	.has_npl_clk = true,
 };
 
+static const struct va_macro_data shikra_va_data = {
+	.has_swr_master = true,
+	.has_npl_clk = true,
+	.bypass_fs_control = true,
+	.version = LPASS_CODEC_VERSION_4_0,
+};
+
 static const struct va_macro_data sm8550_va_data = {
 	.has_swr_master = true,
 	.has_npl_clk = false,
@@ -271,7 +397,23 @@ static bool va_is_volatile_register(struct device *dev, unsigned int reg)
 	case CDC_VA_TOP_CSR_DMIC2_CTL:
 	case CDC_VA_TOP_CSR_DMIC3_CTL:
 		return true;
+	default:
+		break;
 	}
+
+	if (lpass_macro_get_codec_version() == LPASS_CODEC_VERSION_4_0) {
+		switch (reg) {
+		case CDC_VA_MACRO_INTR_CTRL_PIN1_STATUS0:
+		case CDC_VA_MACRO_INTR_CTRL_PIN1_CLEAR0:
+		case CDC_VA_MACRO_INTR_CTRL_PIN2_STATUS0:
+		case CDC_VA_MACRO_INTR_CTRL_PIN2_CLEAR0:
+		case CDC_VA_MACRO_INTR_CTRL_CLR_COMMIT:
+			return true;
+		default:
+			break;
+		}
+	}
+
 	return false;
 }
 
@@ -309,6 +451,7 @@ static const struct reg_default va_defaults[] = {
 	{ CDC_VA_INP_MUX_ADC_MUX2_CFG1, 0x00},
 	{ CDC_VA_INP_MUX_ADC_MUX3_CFG0, 0x00},
 	{ CDC_VA_INP_MUX_ADC_MUX3_CFG1, 0x00},
+
 	{ CDC_VA_TX0_TX_PATH_CTL, 0x04},
 	{ CDC_VA_TX0_TX_PATH_CFG0, 0x10},
 	{ CDC_VA_TX0_TX_PATH_CFG1, 0x0B},
@@ -354,6 +497,101 @@ static const struct reg_default va_defaults[] = {
 	{ CDC_VA_TX3_TX_PATH_SEC4, 0x20},
 	{ CDC_VA_TX3_TX_PATH_SEC5, 0x00},
 	{ CDC_VA_TX3_TX_PATH_SEC6, 0x00},
+};
+
+/* Register defaults specific to LPASS codec v4.0 (Shikra) */
+static const struct reg_default va_4_0_defaults[] = {
+	/* ADC MUX4-7 CFG0/1 - 8-DMIC support */
+	{ CDC_VA_INP_MUX_ADC_MUX4_CFG0,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX4_CFG1,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX5_CFG0,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX5_CFG1,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX6_CFG0,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX6_CFG1,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX7_CFG0,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX7_CFG1,		0x00 },
+
+	/* ADC MUXx CFG2 extension */
+	{ CDC_VA_INP_MUX_ADC_MUX0_CFG2,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX1_CFG2,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX2_CFG2,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX3_CFG2,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX4_CFG2,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX5_CFG2,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX6_CFG2,		0x00 },
+	{ CDC_VA_INP_MUX_ADC_MUX7_CFG2,		0x00 },
+
+	/* INTR_CTRL: SWR interrupt masking registers */
+	{ CDC_VA_MACRO_INTR_CTRL_CFG,			0x00 },
+	{ CDC_VA_MACRO_INTR_CTRL_PIN1_MASK0,		0xFF },
+	{ CDC_VA_MACRO_INTR_CTRL_PIN1_STATUS0,		0x00 },
+	{ CDC_VA_MACRO_INTR_CTRL_PIN2_MASK0,		0xFF },
+	{ CDC_VA_MACRO_INTR_CTRL_PIN2_STATUS0,		0x00 },
+	{ CDC_VA_MACRO_INTR_CTRL_LEVEL0,		0x00 },
+	{ CDC_VA_MACRO_INTR_CTRL_BYPASS0,		0x00 },
+	{ CDC_VA_MACRO_INTR_CTRL_SET0,			0x00 },
+
+	/* TX PATH CFG2 per decimator */
+	{ CDC_VA_TX0_TX_PATH_CFG2,			0x03 },
+	{ CDC_VA_TX1_TX_PATH_CFG2,			0x03 },
+	{ CDC_VA_TX2_TX_PATH_CFG2,			0x03 },
+	{ CDC_VA_TX3_TX_PATH_CFG2,			0x03 },
+
+	/* CDC ADPT0 - adaptive filter */
+	{ CDC_VA_CDC_ADPT0_ADPT_CTRL,			0x51 },
+	{ CDC_VA_CDC_ADPT0_ADPT_GAIN_0,			0x11 },
+	{ CDC_VA_CDC_ADPT0_ADPT_GAIN_1,			0x01 },
+	{ CDC_VA_CDC_ADPT0_DH_FSM_CTRL,			0x02 },
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_0,		0x77 },
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_1,		0x64 },
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_2,		0x00 },
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_3,		0x41 },
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_4,		0x04 },
+	{ CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_5,		0x01 },
+
+	/* CDC ADPT1 */
+	{ CDC_VA_CDC_ADPT1_ADPT_CTRL,			0x51 },
+	{ CDC_VA_CDC_ADPT1_ADPT_GAIN_0,			0x11 },
+	{ CDC_VA_CDC_ADPT1_ADPT_GAIN_1,			0x01 },
+	{ CDC_VA_CDC_ADPT1_DH_FSM_CTRL,			0x02 },
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_0,		0x77 },
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_1,		0x64 },
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_2,		0x00 },
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_3,		0x41 },
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_4,		0x04 },
+	{ CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_5,		0x01 },
+
+	/* CDC ADPT2 */
+	{ CDC_VA_CDC_ADPT2_ADPT_CTRL,			0x51 },
+	{ CDC_VA_CDC_ADPT2_ADPT_GAIN_0,			0x11 },
+	{ CDC_VA_CDC_ADPT2_ADPT_GAIN_1,			0x01 },
+	{ CDC_VA_CDC_ADPT2_DH_FSM_CTRL,			0x02 },
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_0,		0x77 },
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_1,		0x64 },
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_2,		0x00 },
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_3,		0x41 },
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_4,		0x04 },
+	{ CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_5,		0x01 },
+
+	/* CDC ADPT3 */
+	{ CDC_VA_CDC_ADPT3_ADPT_CTRL,			0x51 },
+	{ CDC_VA_CDC_ADPT3_ADPT_GAIN_0,			0x11 },
+	{ CDC_VA_CDC_ADPT3_ADPT_GAIN_1,			0x01 },
+	{ CDC_VA_CDC_ADPT3_DH_FSM_CTRL,			0x02 },
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_0,		0x77 },
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_1,		0x64 },
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_2,		0x00 },
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_3,		0x41 },
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_4,		0x04 },
+	{ CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_5,		0x01 },
+
+	/* VA ALT TOP */
+	{ CDC_VA_ALT_TOP_VA_CFG0,			0x00 },
+	{ CDC_VA_ALT_TOP_RX_CFG0,			0x00 },
+	{ CDC_VA_ALT_TOP_WSA1_CFG0,			0x00 },
+	{ CDC_VA_ALT_TOP_WSA2_CFG0,			0x00 },
+	{ CDC_VA_ALT_TOP_WSA3_CFG0,			0x00 },
+	{ CDC_VA_ALT_TOP_WSA4_CFG0,			0x00 },
 };
 
 static bool va_is_rw_register(struct device *dev, unsigned int reg)
@@ -430,6 +668,41 @@ static bool va_is_rw_register(struct device *dev, unsigned int reg)
 	case CDC_VA_TX3_TX_PATH_SEC5:
 	case CDC_VA_TX3_TX_PATH_SEC6:
 		return true;
+	default:
+		break;
+	}
+
+	if (lpass_macro_get_codec_version() == LPASS_CODEC_VERSION_4_0) {
+		switch (reg) {
+		case CDC_VA_MACRO_INTR_CTRL_CFG:
+		case CDC_VA_MACRO_INTR_CTRL_CLR_COMMIT:
+		case CDC_VA_MACRO_INTR_CTRL_PIN1_MASK0:
+		case CDC_VA_MACRO_INTR_CTRL_PIN1_CLEAR0:
+		case CDC_VA_MACRO_INTR_CTRL_PIN2_MASK0:
+		case CDC_VA_MACRO_INTR_CTRL_PIN2_CLEAR0:
+		case CDC_VA_MACRO_INTR_CTRL_LEVEL0:
+		case CDC_VA_MACRO_INTR_CTRL_BYPASS0:
+		case CDC_VA_MACRO_INTR_CTRL_SET0:
+		case CDC_VA_INP_MUX_ADC_MUX4_CFG0 ... CDC_VA_INP_MUX_ADC_MUX7_CFG1:
+		case CDC_VA_INP_MUX_ADC_MUX0_CFG2 ... CDC_VA_INP_MUX_ADC_MUX7_CFG2:
+		case CDC_VA_TX0_TX_PATH_CFG2:
+		case CDC_VA_TX1_TX_PATH_CFG2:
+		case CDC_VA_TX2_TX_PATH_CFG2:
+		case CDC_VA_TX3_TX_PATH_CFG2:
+		case CDC_VA_ALT_TOP_VA_CFG0:
+		case CDC_VA_ALT_TOP_RX_CFG0:
+		case CDC_VA_ALT_TOP_WSA1_CFG0:
+		case CDC_VA_ALT_TOP_WSA2_CFG0:
+		case CDC_VA_ALT_TOP_WSA3_CFG0:
+		case CDC_VA_ALT_TOP_WSA4_CFG0:
+		case CDC_VA_CDC_ADPT0_ADPT_CTRL ... CDC_VA_CDC_ADPT0_CUTOFF_FSM_CTRL_5:
+		case CDC_VA_CDC_ADPT1_ADPT_CTRL ... CDC_VA_CDC_ADPT1_CUTOFF_FSM_CTRL_5:
+		case CDC_VA_CDC_ADPT2_ADPT_CTRL ... CDC_VA_CDC_ADPT2_CUTOFF_FSM_CTRL_5:
+		case CDC_VA_CDC_ADPT3_ADPT_CTRL ... CDC_VA_CDC_ADPT3_CUTOFF_FSM_CTRL_5:
+			return true;
+		default:
+			break;
+		}
 	}
 
 	return false;
@@ -454,9 +727,6 @@ static const struct regmap_config va_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.cache_type = REGCACHE_FLAT,
-	.reg_defaults = va_defaults,
-	.num_reg_defaults = ARRAY_SIZE(va_defaults),
-	.max_register = VA_MAX_OFFSET,
 	.volatile_reg = va_is_volatile_register,
 	.readable_reg = va_is_readable_register,
 	.writeable_reg = va_is_rw_register,
@@ -474,6 +744,10 @@ static int va_clk_rsc_fs_gen_request(struct va_macro *va, bool enable)
 		regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_FS_CNT_CONTROL,
 				   CDC_VA_FS_CONTROL_EN | CDC_VA_FS_COUNTER_CLR,
 				   CDC_VA_FS_CONTROL_EN | CDC_VA_FS_COUNTER_CLR);
+
+		if (va->bypass_fs_control)
+			regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_FS_CNT_CONTROL,
+					   0x80, 0x80);
 		regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_FS_CNT_CONTROL,
 				   CDC_VA_FS_CONTROL_EN | CDC_VA_FS_COUNTER_CLR,
 				   CDC_VA_FS_CONTROL_EN);
@@ -557,12 +831,30 @@ static int va_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (val != 0)
-		snd_soc_component_update_bits(component, mic_sel_reg,
-					      CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK,
-					      CDC_VA_TX_PATH_ADC_DMIC_SEL_DMIC);
+	if (val != 0) {
+		if (strnstr(widget->name, "SMIC", strlen(widget->name)))
+			snd_soc_component_update_bits(component, mic_sel_reg,
+						      CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK, 0);
+		else
+			snd_soc_component_update_bits(component, mic_sel_reg,
+						      CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK,
+						      CDC_VA_TX_PATH_ADC_DMIC_SEL_DMIC);
+	}
 
 	return snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+}
+
+static bool is_amic_enabled(struct snd_soc_component *comp, int decimator)
+{
+	u16 adc_mux_reg = 0;
+	bool ret = false;
+
+	adc_mux_reg = CDC_VA_INP_MUX_ADC_MUX0_CFG1 +
+		      VA_MACRO_ADC_MUX_CFG_OFFSET * decimator;
+	if (snd_soc_component_read(comp, adc_mux_reg) & SWR_MIC)
+		return true;
+
+	return ret;
 }
 
 static int va_macro_tx_mixer_get(struct snd_kcontrol *kcontrol,
@@ -749,6 +1041,8 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 	u16 tx_vol_ctl_reg, dec_cfg_reg, hpf_gate_reg;
 	u16 tx_gain_ctl_reg;
 	u8 hpf_cut_off_freq;
+	u16 adc_mux0_reg = 0;
+	u16 adapt_ctrl = 0;
 
 	struct va_macro *va = snd_soc_component_get_drvdata(comp);
 
@@ -762,6 +1056,10 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				VA_MACRO_TX_PATH_OFFSET * decimator;
 	tx_gain_ctl_reg = CDC_VA_TX0_TX_VOL_CTL +
 				VA_MACRO_TX_PATH_OFFSET * decimator;
+	adc_mux0_reg = CDC_VA_INP_MUX_ADC_MUX0_CFG0 +
+				VA_MACRO_ADC_MUX_CFG_OFFSET * decimator;
+	adapt_ctrl = CDC_VA_CDC_ADPT0_ADPT_CTRL +
+				VA_MACRO_TX_PATH_OFFSET *decimator;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -771,6 +1069,9 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		/* Enable TX PGA Mute */
 		break;
 	case SND_SOC_DAPM_POST_PMU:
+		if (va->codec_version == LPASS_CODEC_VERSION_4_0)
+			snd_soc_component_update_bits(comp, adapt_ctrl, 0xFF, 0x00);
+
 		/* Enable TX CLK */
 		snd_soc_component_update_bits(comp, tx_vol_ctl_reg,
 					      CDC_VA_TX_PATH_CLK_EN_MASK,
@@ -779,7 +1080,13 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 					      CDC_VA_TX_HPF_ZERO_GATE_MASK,
 					      CDC_VA_TX_HPF_ZERO_GATE);
 
-		usleep_range(1000, 1010);
+		if (!is_amic_enabled(comp, decimator)) {
+			snd_soc_component_update_bits(comp, hpf_gate_reg,
+						      CDC_VA_TX_HPF_ZERO_GATE_MASK,
+						      CDC_VA_TX_HPF_ZERO_GATE);
+			usleep_range(1000, 1010);
+		}
+
 		hpf_cut_off_freq = (snd_soc_component_read(comp, dec_cfg_reg) &
 				    TX_HPF_CUT_OFF_FREQ_MASK) >> 5;
 
@@ -787,22 +1094,24 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			snd_soc_component_update_bits(comp, dec_cfg_reg,
 						      TX_HPF_CUT_OFF_FREQ_MASK,
 						      CF_MIN_3DB_150HZ << 5);
-
-			snd_soc_component_update_bits(comp, hpf_gate_reg,
-				      CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_MASK,
-				      CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_REQ);
-
-			/*
-			 * Minimum 1 clk cycle delay is required as per HW spec
-			 */
-			usleep_range(1000, 1010);
-
-			snd_soc_component_update_bits(comp,
-				hpf_gate_reg,
-				CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_MASK,
-				0x0);
 		}
 
+		snd_soc_component_update_bits(comp, hpf_gate_reg,
+					      CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_MASK,
+					      CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_REQ);
+
+		/*
+		 * Minimum 1 clk cycle delay is required as per HW spec
+		 */
+
+		usleep_range(1000, 1010);
+
+		if (!is_amic_enabled(comp, decimator)) {
+			snd_soc_component_update_bits(comp,
+						      hpf_gate_reg,
+						      CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_MASK,
+						      0x0);
+		}
 
 		usleep_range(1000, 1010);
 		snd_soc_component_update_bits(comp, hpf_gate_reg,
@@ -1282,6 +1591,12 @@ static const struct snd_soc_dapm_route va_audio_map[] = {
 	{"VA DMIC MUX3", "DMIC6", "VA DMIC6"},
 	{"VA DMIC MUX3", "DMIC7", "VA DMIC7"},
 
+	/* SWR_MIC routes: connect each VA DECx MUX to its SWR_MIC input */
+	{"VA DEC0 MUX", "SWR_MIC", "VA SWR_MIC0"},
+	{"VA DEC1 MUX", "SWR_MIC", "VA SWR_MIC1"},
+	{"VA DEC2 MUX", "SWR_MIC", "VA SWR_MIC2"},
+	{"VA DEC3 MUX", "SWR_MIC", "VA SWR_MIC3"},
+
 	{ "VA DMIC0", NULL, "DMIC0 Pin" },
 	{ "VA DMIC1", NULL, "DMIC1 Pin" },
 	{ "VA DMIC2", NULL, "DMIC2 Pin" },
@@ -1353,18 +1668,22 @@ static int fsgen_gate_enable(struct clk_hw *hw)
 	struct regmap *regmap = va->regmap;
 	int ret;
 
-	if (va->has_swr_master) {
-		ret = clk_prepare_enable(va->mclk);
-		if (ret)
-			return ret;
+	ret = pm_runtime_get_sync(va->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(va->dev);
+		return ret;
 	}
 
 	ret = va_macro_mclk_enable(va, true);
+	if (ret) {
+		pm_runtime_put_noidle(va->dev);
+		return ret;
+	}
 	if (va->has_swr_master)
 		regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_SWR_CONTROL,
 				   CDC_VA_SWR_CLK_EN_MASK, CDC_VA_SWR_CLK_ENABLE);
 
-	return ret;
+	return 0;
 }
 
 static void fsgen_gate_disable(struct clk_hw *hw)
@@ -1377,8 +1696,24 @@ static void fsgen_gate_disable(struct clk_hw *hw)
 			   CDC_VA_SWR_CLK_EN_MASK, 0x0);
 
 	va_macro_mclk_enable(va, false);
-	if (va->has_swr_master)
-		clk_disable_unprepare(va->mclk);
+
+	pm_runtime_mark_last_busy(va->dev);
+	pm_runtime_put_autosuspend(va->dev);
+}
+
+static int va_macro_setup_pm_clocks(struct device *dev, struct va_macro *va)
+{
+	int ret;
+
+	ret = devm_pm_clk_create(dev);
+	if (ret)
+		return ret;
+
+	ret = of_pm_clk_add_clks(dev);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int fsgen_gate_is_enabled(struct clk_hw *hw)
@@ -1391,10 +1726,23 @@ static int fsgen_gate_is_enabled(struct clk_hw *hw)
 	return  !!(val & CDC_VA_FS_BROADCAST_EN);
 }
 
+static unsigned long fsgen_recalc_rate(struct clk_hw *hw,
+				       unsigned long parent_rate)
+{
+	return parent_rate / 2;
+}
+
 static const struct clk_ops fsgen_gate_ops = {
 	.prepare = fsgen_gate_enable,
 	.unprepare = fsgen_gate_disable,
 	.is_enabled = fsgen_gate_is_enabled,
+};
+
+static const struct clk_ops fsgen_gate_ops_4_0 = {
+	.prepare = fsgen_gate_enable,
+	.unprepare = fsgen_gate_disable,
+	.is_enabled = fsgen_gate_is_enabled,
+	.recalc_rate = fsgen_recalc_rate,
 };
 
 static int va_macro_register_fsgen_output(struct va_macro *va)
@@ -1415,7 +1763,8 @@ static int va_macro_register_fsgen_output(struct va_macro *va)
 	of_property_read_string(np, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
-	init.ops = &fsgen_gate_ops;
+	init.ops = (va->codec_version == LPASS_CODEC_VERSION_4_0)
+			? &fsgen_gate_ops_4_0 : &fsgen_gate_ops;
 	init.flags = 0;
 	init.parent_names = &parent_clk_name;
 	init.num_parents = 1;
@@ -1516,6 +1865,14 @@ static int va_macro_set_lpass_codec_version(struct va_macro *va)
 		default:
 			break;
 		}
+	} else if (maj == 4) {
+		switch (min) {
+		case 0:
+			version = LPASS_CODEC_VERSION_4_0;
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (version == LPASS_CODEC_VERSION_UNKNOWN) {
@@ -1525,6 +1882,7 @@ static int va_macro_set_lpass_codec_version(struct va_macro *va)
 	}
 
 	lpass_macro_set_codec_version(version);
+	va->codec_version = version;
 
 	dev_dbg(va->dev, "LPASS Codec Version %s\n", lpass_macro_get_codec_version_string(version));
 
@@ -1539,6 +1897,7 @@ static int va_macro_probe(struct platform_device *pdev)
 	void __iomem *base;
 	u32 sample_rate = 0;
 	int ret;
+	int rpm_ret;
 
 	va = devm_kzalloc(dev, sizeof(*va), GFP_KERNEL);
 	if (!va)
@@ -1581,17 +1940,60 @@ static int va_macro_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	va->regmap = devm_regmap_init_mmio(dev, base,  &va_regmap_config);
+	data = of_device_get_match_data(dev);
+	va->has_swr_master = data->has_swr_master;
+	va->has_npl_clk = data->has_npl_clk;
+	va->bypass_fs_control = data->bypass_fs_control;
+
+	/*
+	 * Use the version from match data if available; for platforms that
+	 * detect version from registers, clocks must be enabled first, so
+	 * the full detection is deferred to after clk_prepare_enable below.
+	 */
+	va->codec_version = data->version ? data->version : LPASS_CODEC_VERSION_UNKNOWN;
+
+	int def_count;
+	struct reg_default *reg_defaults_buf __free(kfree) = NULL;
+
+	if (va->codec_version == LPASS_CODEC_VERSION_4_0) {
+		def_count = ARRAY_SIZE(va_defaults) + ARRAY_SIZE(va_4_0_defaults);
+		reg_defaults_buf = kmalloc_objs(struct reg_default, def_count);
+		if (!reg_defaults_buf) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		memcpy(&reg_defaults_buf[0], va_defaults, sizeof(va_defaults));
+		memcpy(&reg_defaults_buf[ARRAY_SIZE(va_defaults)],
+		       va_4_0_defaults, sizeof(va_4_0_defaults));
+	} else {
+		def_count = ARRAY_SIZE(va_defaults);
+		reg_defaults_buf = kmalloc_objs(struct reg_default, def_count);
+		if (!reg_defaults_buf) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		memcpy(reg_defaults_buf, va_defaults, sizeof(va_defaults));
+	}
+
+	struct regmap_config *reg_config __free(kfree) =
+		kmemdup(&va_regmap_config, sizeof(va_regmap_config), GFP_KERNEL);
+	if (!reg_config) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	reg_config->reg_defaults = reg_defaults_buf;
+	reg_config->num_reg_defaults = def_count;
+	reg_config->max_register = (va->codec_version == LPASS_CODEC_VERSION_4_0)
+					? VA_MAX_OFFSET : VA_MAX_OFFSET_PRE_4_0;
+
+	va->regmap = devm_regmap_init_mmio(dev, base, reg_config);
 	if (IS_ERR(va->regmap)) {
-		ret = -EINVAL;
+		ret = PTR_ERR(va->regmap);
 		goto err;
 	}
 
 	dev_set_drvdata(dev, va);
-
-	data = of_device_get_match_data(dev);
-	va->has_swr_master = data->has_swr_master;
-	va->has_npl_clk = data->has_npl_clk;
 
 	/* mclk rate */
 	clk_set_rate(va->mclk, 2 * VA_MACRO_MCLK_FREQ);
@@ -1606,22 +2008,18 @@ static int va_macro_probe(struct platform_device *pdev)
 		clk_set_rate(va->npl, 2 * VA_MACRO_MCLK_FREQ);
 	}
 
-	ret = clk_prepare_enable(va->macro);
+	ret = va_macro_setup_pm_clocks(dev, va);
 	if (ret)
-		goto err;
+		goto err_rpm_disable;
 
-	ret = clk_prepare_enable(va->dcodec);
-	if (ret)
-		goto err_dcodec;
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_enable(dev);
 
-	ret = clk_prepare_enable(va->mclk);
-	if (ret)
-		goto err_mclk;
-
-	if (va->has_npl_clk) {
-		ret = clk_prepare_enable(va->npl);
-		if (ret)
-			goto err_npl;
+	rpm_ret = pm_runtime_resume_and_get(dev);
+	if (rpm_ret < 0) {
+		ret = rpm_ret;
+		goto err_rpm_disable;
 	}
 
 	/**
@@ -1630,11 +2028,12 @@ static int va_macro_probe(struct platform_device *pdev)
 	 */
 	if (data->version) {
 		lpass_macro_set_codec_version(data->version);
+		va->codec_version = data->version;
 	} else {
 		/* read version from register */
 		ret = va_macro_set_lpass_codec_version(va);
 		if (ret)
-			goto err_clkout;
+			goto err_rpm_put;
 	}
 
 	if (va->has_swr_master) {
@@ -1664,35 +2063,27 @@ static int va_macro_probe(struct platform_device *pdev)
 					      va_macro_dais,
 					      ARRAY_SIZE(va_macro_dais));
 	if (ret)
-		goto err_clkout;
-
-	pm_runtime_set_autosuspend_delay(dev, 3000);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
+		goto err_rpm_put;
 
 	ret = va_macro_register_fsgen_output(va);
 	if (ret)
-		goto err_clkout;
+		goto err_rpm_put;
 
 	va->fsgen = devm_clk_hw_get_clk(dev, &va->hw, "fsgen");
 	if (IS_ERR(va->fsgen)) {
 		ret = PTR_ERR(va->fsgen);
-		goto err_clkout;
+		goto err_rpm_put;
 	}
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
-err_clkout:
-	if (va->has_npl_clk)
-		clk_disable_unprepare(va->npl);
-err_npl:
-	clk_disable_unprepare(va->mclk);
-err_mclk:
-	clk_disable_unprepare(va->dcodec);
-err_dcodec:
-	clk_disable_unprepare(va->macro);
+err_rpm_put:
+	pm_runtime_put_noidle(dev);
+err_rpm_disable:
+	 pm_runtime_disable(dev);
 err:
 	lpass_macro_pds_exit(va->pds);
 
@@ -1703,12 +2094,7 @@ static void va_macro_remove(struct platform_device *pdev)
 {
 	struct va_macro *va = dev_get_drvdata(&pdev->dev);
 
-	if (va->has_npl_clk)
-		clk_disable_unprepare(va->npl);
-
-	clk_disable_unprepare(va->mclk);
-	clk_disable_unprepare(va->dcodec);
-	clk_disable_unprepare(va->macro);
+	pm_runtime_disable(&pdev->dev);
 
 	lpass_macro_pds_exit(va->pds);
 }
@@ -1720,12 +2106,7 @@ static int va_macro_runtime_suspend(struct device *dev)
 	regcache_cache_only(va->regmap, true);
 	regcache_mark_dirty(va->regmap);
 
-	if (va->has_npl_clk)
-		clk_disable_unprepare(va->npl);
-
-	clk_disable_unprepare(va->mclk);
-
-	return 0;
+	return pm_clk_suspend(dev);
 }
 
 static int va_macro_runtime_resume(struct device *dev)
@@ -1733,25 +2114,13 @@ static int va_macro_runtime_resume(struct device *dev)
 	struct va_macro *va = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(va->mclk);
-	if (ret) {
-		dev_err(va->dev, "unable to prepare mclk\n");
+	ret = pm_clk_resume(dev);
+	if (ret)
 		return ret;
-	}
-
-	if (va->has_npl_clk) {
-		ret = clk_prepare_enable(va->npl);
-		if (ret) {
-			clk_disable_unprepare(va->mclk);
-			dev_err(va->dev, "unable to prepare npl\n");
-			return ret;
-		}
-	}
 
 	regcache_cache_only(va->regmap, false);
-	regcache_sync(va->regmap);
 
-	return 0;
+	return regcache_sync(va->regmap);
 }
 
 
@@ -1766,6 +2135,7 @@ static const struct of_device_id va_macro_dt_match[] = {
 	{ .compatible = "qcom,sm8450-lpass-va-macro", .data = &sm8450_va_data },
 	{ .compatible = "qcom,sm8550-lpass-va-macro", .data = &sm8550_va_data },
 	{ .compatible = "qcom,sc8280xp-lpass-va-macro", .data = &sm8450_va_data },
+	{ .compatible = "qcom,shikra-lpass-va-macro", .data = &shikra_va_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, va_macro_dt_match);

@@ -33,6 +33,7 @@ if RAS
 
 source "arch/x86/ras/Kconfig"
 source "drivers/ras/amd/atl/Kconfig"
+source "drivers/ras/aest/Kconfig"
 
 config RAS_FMPM
 	tristate "FRU Memory Poison Manager"

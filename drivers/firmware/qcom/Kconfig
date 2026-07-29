@@ -74,4 +74,20 @@ config QCOM_QSEECOM_UEFISECAPP
 	  Select Y here to provide access to EFI variables on the aforementioned
 	  platforms.
 
+config QCOM_MEMORY_DUMP_V2
+	tristate "QCOM Memory Dump V2 Support"
+	depends on QCOM_TZMEM
+	depends on CMA
+	help
+	  This enables memory dump feature. It allows various client
+	  subsystems to register respective dump regions. At the time
+	  of deadlocks or cpu hangs these dump regions are captured to
+	  give a snapshot of the system at the time of the crash.
+
+config QCOM_MEMORY_DUMP_DEV
+	tristate "QCOM Memory Dump V2 device stub"
+	depends on QCOM_MEMORY_DUMP_V2
+	help
+	  Device stub for memory dump V2 driver.
+
 endmenu
