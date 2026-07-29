@@ -651,8 +651,10 @@ void icc_set_tag(struct icc_path *path, u32 tag)
 
 	mutex_lock(&icc_lock);
 
-	for (i = 0; i < path->num_nodes; i++)
+	for (i = 0; i < path->num_nodes; i++) {
+		path->reqs[i].prev_tag =  path->reqs[i].tag;
 		path->reqs[i].tag = tag;
+	}
 
 	mutex_unlock(&icc_lock);
 }
@@ -708,6 +710,12 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 
 	old_avg = path->reqs[0].avg_bw;
 	old_peak = path->reqs[0].peak_bw;
+
+	if (path->reqs[0].prev_tag == path->reqs[0].tag &&
+	    (avg_bw == old_avg && peak_bw == old_peak)) {
+		mutex_unlock(&icc_bw_lock);
+		return 0;
+	}
 
 	for (i = 0; i < path->num_nodes; i++) {
 		node = path->reqs[i].node;

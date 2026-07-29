@@ -25,6 +25,7 @@ struct icc_req {
 	struct device *dev;
 	bool enabled;
 	u32 tag;
+	u32 prev_tag;
 	u32 avg_bw;
 	u32 peak_bw;
 };
