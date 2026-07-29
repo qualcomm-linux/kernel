@@ -795,14 +795,6 @@
 		#size-cells = <2>;
 		ranges;
 
-		audio_cma_mem: qcom,audio-ml {
-			compatible = "shared-dma-pool";
-			alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
-			reusable;
-			alignment = <0x0 0x400000>;
-			size = <0x0 0x1000000>;
-		};
-
 		aop_image_mem: aop-image-region@90800000 {
 			reg = <0x0 0x90800000 0x0 0x60000>;
 			no-map;
@@ -2929,7 +2921,6 @@
 						q6apmdai: dais {
 							compatible = "qcom,q6apm-dais";
 							iommus = <&apps_smmu 0x2001 0x0>;
-							memory-region = <&audio_cma_mem>;
 						};
 					};
 
