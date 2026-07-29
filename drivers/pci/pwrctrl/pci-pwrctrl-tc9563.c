@@ -115,7 +115,6 @@ struct pci_pwrctrl_tc9563 {
 	struct tc9563_pwrctrl_cfg ep_cfg;
 	struct gpio_desc *reset_gpio;
 	struct i2c_adapter *adapter;
-	struct i2c_client *client;
 	struct regmap *regmap;
 };
 
@@ -628,6 +627,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	enum tc9563_pwrctrl_ports port;
 	struct pci_pwrctrl_tc9563 *tc9563;
 	struct device_node *i2c_node;
+	struct i2c_client *client;
 	int ret, addr;
 
 	tc9563 = devm_kzalloc(dev, sizeof(*tc9563), GFP_KERNEL);
@@ -644,15 +644,14 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	if (!tc9563->adapter)
 		return dev_err_probe(dev, -EPROBE_DEFER, "Failed to find I2C adapter\n");
 
-	tc9563->client = i2c_new_dummy_device(tc9563->adapter, addr);
-	if (IS_ERR(tc9563->client)) {
+	client = devm_i2c_new_dummy_device(dev, tc9563->adapter, addr);
+	if (IS_ERR(client)) {
 		dev_err(dev, "Failed to create I2C client\n");
-		i2c_put_adapter(tc9563->adapter);
-		return PTR_ERR(tc9563->client);
+		ret = PTR_ERR(client);
+		goto remove_i2c;
 	}
 
-	tc9563->regmap = devm_regmap_init_i2c(tc9563->client,
-					      &tc9563_regmap_config);
+	tc9563->regmap = devm_regmap_init_i2c(client, &tc9563_regmap_config);
 	if (IS_ERR(tc9563->regmap)) {
 		ret = dev_err_probe(dev, PTR_ERR(tc9563->regmap),
 				    "Failed to allocate register map\n");
@@ -730,7 +729,6 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 power_off:
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 remove_i2c:
-	i2c_unregister_device(tc9563->client);
 	i2c_put_adapter(tc9563->adapter);
 	return ret;
 }
@@ -742,7 +740,6 @@ static void tc9563_pwrctrl_remove(struct platform_device *pdev)
 					struct pci_pwrctrl_tc9563, pwrctrl);
 
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
-	i2c_unregister_device(tc9563->client);
 	i2c_put_adapter(tc9563->adapter);
 }
 
