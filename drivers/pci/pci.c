@@ -3020,11 +3020,11 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 			return true;
 
 		/*
-		 * Hotplug ports handled natively by the OS were not validated
-		 * by vendors for runtime D3 at least until 2018 because there
-		 * was no OS support.
+		 * Do not allow D3 for native Hotplug ports on non-DT platforms
+		 * as they were not validated by vendors for runtime D3 at least
+		 * until 2018 because there was no OS support.
 		 */
-		if (bridge->is_pciehp)
+		if (bridge->is_pciehp && !of_have_populated_dt())
 			return false;
 
 		if (dmi_check_system(bridge_d3_blacklist))
