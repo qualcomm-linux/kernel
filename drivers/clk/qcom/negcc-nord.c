@@ -1566,7 +1566,12 @@ static struct clk_branch ne_gcc_usb31_sec_sleep_clk = {
 
 static struct clk_branch ne_gcc_usb3_prim_phy_aux_clk = {
 	.halt_reg = 0x2a06c,
-	.halt_check = BRANCH_HALT,
+	/*
+	 * This branch never reports CLK_OFF=0 even once its RCG root is
+	 * running, so clk_branch_wait() always times out; skip the check
+	 * as for the pipe clocks.
+	 */
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x2a06c,
 		.enable_mask = BIT(0),
@@ -1584,7 +1589,8 @@ static struct clk_branch ne_gcc_usb3_prim_phy_aux_clk = {
 
 static struct clk_branch ne_gcc_usb3_prim_phy_com_aux_clk = {
 	.halt_reg = 0x2a070,
-	.halt_check = BRANCH_HALT,
+	/* Same as ne_gcc_usb3_prim_phy_aux_clk above. */
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x2a070,
 		.enable_mask = BIT(0),
@@ -1622,7 +1628,8 @@ static struct clk_branch ne_gcc_usb3_prim_phy_pipe_clk = {
 
 static struct clk_branch ne_gcc_usb3_sec_phy_aux_clk = {
 	.halt_reg = 0x2c06c,
-	.halt_check = BRANCH_HALT,
+	/* Same as ne_gcc_usb3_prim_phy_aux_clk above. */
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x2c06c,
 		.enable_mask = BIT(0),
@@ -1640,7 +1647,8 @@ static struct clk_branch ne_gcc_usb3_sec_phy_aux_clk = {
 
 static struct clk_branch ne_gcc_usb3_sec_phy_com_aux_clk = {
 	.halt_reg = 0x2c070,
-	.halt_check = BRANCH_HALT,
+	/* Same as ne_gcc_usb3_prim_phy_aux_clk above. */
+	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x2c070,
 		.enable_mask = BIT(0),
