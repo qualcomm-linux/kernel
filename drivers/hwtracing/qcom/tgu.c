@@ -228,6 +228,18 @@ static ssize_t tgu_write_all_hw_regs(struct tgu_drvdata *drvdata)
 	int i, j, k, index = 0;
 
 	TGU_UNLOCK(drvdata->base);
+
+	/*
+	 * Quiesce the detection engine before mutating any comparison input.
+	 * This function is also reached from reset_tgu_store() while the TGU is
+	 * already running (TGU_CONTROL == 1); rewriting the priority/condition/
+	 * timer/counter registers register-by-register on a live engine could
+	 * feed a transient, half-updated match into CTI/interrupt consumers.
+	 * Programming with CONTROL == 0 and only re-enabling at the end keeps the
+	 * program-then-enable ordering for every caller.
+	 */
+	writel(0, drvdata->base + TGU_CONTROL);
+
 	for (i = 0; i < drvdata->num_step; i++) {
 		for (j = 0; j < MAX_PRIORITY; j++) {
 			for (k = 0; k < drvdata->num_reg; k++) {
@@ -459,8 +471,80 @@ static ssize_t enable_tgu_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(enable_tgu);
 
+static ssize_t reset_tgu_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t size)
+{
+	struct tgu_drvdata *drvdata = dev_get_drvdata(dev);
+	struct value_table *vt = drvdata->value_table;
+	unsigned long value;
+	int i, j, ret;
+
+	if (kstrtoul(buf, 0, &value) || value != 1)
+		return -EINVAL;
+
+	/*
+	 * Hold the mutex across the whole sequence so it cannot race with
+	 * enable_tgu_store()/tgu_dataset_store(): the enabled check and the
+	 * hardware access stay consistent. No PM reference is taken or dropped
+	 * here - the shadow tables are plain memory, and the hardware is only
+	 * touched when the device is already resumed via the enable reference.
+	 */
+	guard(mutex)(&drvdata->lock);
+
+	if (vt->priority) {
+		size_t bytes = MAX_PRIORITY * drvdata->num_step *
+				drvdata->num_reg * sizeof(unsigned int);
+		memset(vt->priority, 0, bytes);
+	}
+
+	if (vt->condition_decode) {
+		size_t bytes = drvdata->num_condition_decode *
+			       drvdata->num_step * sizeof(unsigned int);
+		memset(vt->condition_decode, 0, bytes);
+
+		/* Initialize all condition decode registers to NOT (0x1000000) */
+		for (i = 0; i < drvdata->num_step; i++)
+			for (j = 0; j < drvdata->num_condition_decode; j++)
+				vt->condition_decode[calculate_array_location(
+					drvdata, i, TGU_CONDITION_DECODE, j)] =
+					TGU_CONDITION_DECODE_NOT;
+	}
+
+	if (vt->condition_select) {
+		size_t bytes = drvdata->num_condition_select *
+			       drvdata->num_step * sizeof(unsigned int);
+		memset(vt->condition_select, 0, bytes);
+	}
+
+	if (vt->timer) {
+		size_t bytes = drvdata->num_step * drvdata->num_timer *
+				sizeof(unsigned int);
+		memset(vt->timer, 0, bytes);
+	}
+
+	if (vt->counter) {
+		size_t bytes = drvdata->num_step * drvdata->num_counter *
+			       sizeof(unsigned int);
+		memset(vt->counter, 0, bytes);
+	}
+
+	/* If the TGU is running, apply the cleared configuration immediately. */
+	if (drvdata->enabled) {
+		ret = tgu_write_all_hw_regs(drvdata);
+		if (ret)
+			return ret;
+	}
+
+	dev_dbg(dev, "Qualcomm-TGU reset complete\n");
+
+	return size;
+}
+static DEVICE_ATTR_WO(reset_tgu);
+
 static struct attribute *tgu_common_attrs[] = {
 	&dev_attr_enable_tgu.attr,
+	&dev_attr_reset_tgu.attr,
 	NULL,
 };
 
