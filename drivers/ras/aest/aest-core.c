@@ -110,17 +110,52 @@ static struct notifier_block aest_cpu_pm_nb = {
 	.notifier_call = aest_cpu_pm_notify,
 };
 
-static void aest_cpu_pm_init(void)
+/*
+ * aest_device_probe() runs once per AEST platform device, but all
+ * instances share this single, global CPU PM notifier. Refcount
+ * registration/teardown so it is added to the cpu_pm notifier chain
+ * exactly once no matter how many AEST devices this target exposes,
+ * and removed only once every probed device has been torn down.
+ * aest_cpu_pm_registered tracks whether the chain actually holds the
+ * notifier, so a failed registration is never mistakenly unregistered.
+ * Only the probe/remove call that crosses the 0->1 or 1->0 refcount
+ * boundary ever touches aest_cpu_pm_registered, so no separate lock
+ * is needed for it.
+ */
+static atomic_t aest_cpu_pm_refcount = ATOMIC_INIT(0);
+static bool aest_cpu_pm_registered;
+
+/*
+ * Failure is logged, not propagated to probe(): this notifier call has
+ * no real failure path today, and failing the whole AEST probe over
+ * this one errata-workaround registration would be a worse outcome
+ * than proceeding without it.
+ */
+static int aest_cpu_pm_init(void)
 {
-	cpu_pm_register_notifier(&aest_cpu_pm_nb);
+	int ret = 0;
+
+	if (atomic_inc_return(&aest_cpu_pm_refcount) == 1) {
+		ret = cpu_pm_register_notifier(&aest_cpu_pm_nb);
+		if (!ret)
+			aest_cpu_pm_registered = true;
+		else
+			pr_err("Failed to register cpu_pm notifier: %d\n", ret);
+	}
+
+	return ret;
 }
 
 static void aest_cpu_pm_exit(void)
 {
-	cpu_pm_unregister_notifier(&aest_cpu_pm_nb);
+	if (atomic_dec_return(&aest_cpu_pm_refcount) == 0 &&
+	    aest_cpu_pm_registered) {
+		cpu_pm_unregister_notifier(&aest_cpu_pm_nb);
+		aest_cpu_pm_registered = false;
+	}
 }
 #else
-static inline void aest_cpu_pm_init(void) { }
+static inline int aest_cpu_pm_init(void) { return 0; }
 static inline void aest_cpu_pm_exit(void) { }
 #endif /* CONFIG_CPU_PM */
 
@@ -831,8 +866,10 @@ static void aest_device_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	if (adev->type != ACPI_AEST_PROCESSOR_ERROR_NODE)
+	if (adev->type != ACPI_AEST_PROCESSOR_ERROR_NODE) {
+		aest_cpu_pm_exit();
 		return;
+	}
 
 	on_each_cpu(aest_offline_oncore_dev, adev->adev_oncore, 1);
 
@@ -840,6 +877,8 @@ static void aest_device_remove(struct platform_device *pdev)
 		if (adev->irq[i])
 			free_percpu_irq(adev->irq[i], adev->adev_oncore);
 	}
+
+	aest_cpu_pm_exit();
 }
 
 static char *alloc_aest_node_name(struct aest_node *node)
@@ -1197,7 +1236,13 @@ static void __exit aest_exit(void)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(aest_debugfs);
 #endif
-	aest_cpu_pm_exit();
+	/*
+	 * platform_driver_unregister() tears down every bound AEST
+	 * device, and each device's aest_device_remove() already
+	 * balances its aest_cpu_pm_init() with aest_cpu_pm_exit().
+	 * Do not call aest_cpu_pm_exit() here too - it would double
+	 * count against removes that have not happened yet.
+	 */
 	platform_driver_unregister(&aest_driver);
 }
 module_exit(aest_exit);
