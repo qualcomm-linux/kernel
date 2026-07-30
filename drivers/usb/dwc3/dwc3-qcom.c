@@ -63,8 +63,18 @@ static const u32 pwr_evnt_irq_stat_reg[DWC3_QCOM_MAX_PORTS] = {
 	0x238,
 };
 
+/**
+ * struct dwc3_qcom_platform_data - Device-specific driver data
+ * @uses_eusb2_phy: the platform uses an eUSB2 PHY, which inverts the polarity
+ *                  of the DP/DM wakeup interrupts.
+ * @defer_utmi_clk_sel: on this platform the QSCRATCH register interface is
+ *                      clocked by the eUSB2 PHY's UTMI clock, so the
+ *                      select-utmi-as-pipe-clk configuration must be written
+ *                      only after the PHY has been initialized.
+ */
 struct dwc3_qcom_platform_data {
 	bool			uses_eusb2_phy;
+	bool			defer_utmi_clk_sel;
 };
 
 struct dwc3_qcom_port {
@@ -638,9 +648,22 @@ static void dwc3_qcom_run_stop_notifier(struct dwc3 *dwc, bool is_on)
 	pm_runtime_mark_last_busy(qcom->dev);
 }
 
+static void dwc3_qcom_post_phy_init(struct dwc3 *dwc)
+{
+	struct dwc3_qcom *qcom = to_dwc3_qcom(dwc);
+
+	/*
+	 * The QSCRATCH register interface is clocked by the HS PHY's UTMI
+	 * clock, which only runs once the PHY has been initialized. Select the
+	 * UTMI clock as pipe clock now, before the core touches its registers.
+	 */
+	dwc3_qcom_select_utmi_clk(qcom);
+}
+
 struct dwc3_glue_ops dwc3_qcom_glue_ops = {
 	.pre_set_role	= dwc3_qcom_set_role_notifier,
 	.pre_run_stop	= dwc3_qcom_run_stop_notifier,
+	.post_phy_init	= dwc3_qcom_post_phy_init,
 };
 
 static int dwc3_qcom_probe(struct platform_device *pdev)
@@ -721,7 +744,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	 */
 	ignore_pipe_clk = device_property_read_bool(dev,
 				"qcom,select-utmi-as-pipe-clk");
-	if (ignore_pipe_clk)
+	if (ignore_pipe_clk && !(pdata && pdata->defer_utmi_clk_sel))
 		dwc3_qcom_select_utmi_clk(qcom);
 
 	qcom->mode = usb_get_dr_mode(dev);
@@ -745,6 +768,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	probe_data.dwc = &qcom->dwc;
 	probe_data.res = &res;
 	probe_data.ignore_clocks_and_resets = true;
+	probe_data.early_phy_init = ignore_pipe_clk && pdata && pdata->defer_utmi_clk_sel;
 	probe_data.properties = DWC3_DEFAULT_PROPERTIES;
 	ret = dwc3_core_probe(&probe_data);
 	if (ret)  {
@@ -883,6 +907,10 @@ static const struct dwc3_qcom_platform_data dwc3_qcom_glymur_pdata = {
 	.uses_eusb2_phy = true,
 };
 
+static const struct dwc3_qcom_platform_data dwc3_qcom_nord_pdata = {
+	.defer_utmi_clk_sel = true,
+};
+
 static const struct of_device_id dwc3_qcom_of_match[] = {
 	{ .compatible = "qcom,snps-dwc3", },
 	{
@@ -904,6 +932,10 @@ static const struct of_device_id dwc3_qcom_of_match[] = {
 	{
 		.compatible = "qcom,milos-dwc3",
 		.data = &dwc3_qcom_glymur_pdata,
+	},
+	{
+		.compatible = "qcom,nord-dwc3",
+		.data = &dwc3_qcom_nord_pdata,
 	},
 	{
 		.compatible = "qcom,sm8550-dwc3",
