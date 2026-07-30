@@ -1380,9 +1380,11 @@ int dwc3_core_init(struct dwc3 *dwc)
 		dwc->phys_ready = true;
 	}
 
-	ret = dwc3_phy_init(dwc);
-	if (ret)
-		goto err_exit_ulpi;
+	if (!dwc->phys_preinit) {
+		ret = dwc3_phy_init(dwc);
+		if (ret)
+			goto err_exit_ulpi;
+	}
 
 	ret = dwc3_core_soft_reset(dwc);
 	if (ret)
@@ -1534,12 +1536,15 @@ int dwc3_core_init(struct dwc3 *dwc)
 		dwc3_writel(dwc, DWC3_GUCTL3, reg);
 	}
 
+	dwc->phys_preinit = false;
+
 	return 0;
 
 err_power_off_phy:
 	dwc3_phy_power_off(dwc);
 err_exit_phy:
-	dwc3_phy_exit(dwc);
+	if (!dwc->phys_preinit)
+		dwc3_phy_exit(dwc);
 err_exit_ulpi:
 	dwc3_ulpi_exit(dwc);
 
@@ -1612,6 +1617,45 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 							phy_name);
 		}
 	}
+
+	return 0;
+}
+
+/*
+ * On some designs the DWC3 core is clocked by the PHY's output clock which is
+ * only enabled when the PHY is initialized.
+ */
+static int dwc3_core_early_phy_init(struct dwc3 *dwc)
+{
+	int ret;
+
+	/*
+	 * REVISIT: All current users needing an early initialization are
+	 * single-port designs. The actual port number is calculated later.
+	 * This may need a better solution should we need it on a more complex
+	 * design. For now we disallow multiple HS ports.
+	 */
+	dwc->num_usb2_ports = 1;
+	dwc->num_usb3_ports = 1;
+
+	ret = dwc3_core_get_phy(dwc);
+	if (ret)
+		return ret;
+	dwc->phys_ready = true;
+
+	ret = dwc3_phy_init(dwc);
+	if (ret)
+		return ret;
+	dwc->phys_preinit = true;
+
+	/*
+	 * Let the glue complete any setup that depends on the PHY clock now
+	 * being live but must happen before the first core register access
+	 * phy_init() itself is what brings that clock up as part of the PHY's
+	 * own bring-up sequence, so it is already live by this point even
+	 * though the glue has not yet touched its own registers.
+	 */
+	dwc3_post_phy_init(dwc);
 
 	return 0;
 }
@@ -2141,6 +2185,13 @@ static int dwc3_get_num_ports(struct dwc3 *dwc)
 	if (!base)
 		return -ENOMEM;
 
+	/*
+	 * Start from a clean count in case these were set by
+	 * dwc3_core_early_phy_init().
+	 */
+	dwc->num_usb2_ports = 0;
+	dwc->num_usb3_ports = 0;
+
 	offset = 0;
 	do {
 		offset = xhci_find_next_ext_cap(base, offset,
@@ -2275,10 +2326,16 @@ int dwc3_core_probe(const struct dwc3_probe_data *data)
 	if (ret)
 		goto err_assert_reset;
 
+	if (data->early_phy_init) {
+		ret = dwc3_core_early_phy_init(dwc);
+		if (ret)
+			goto err_disable_clks;
+	}
+
 	if (!dwc3_core_is_valid(dwc)) {
 		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
 		ret = -ENODEV;
-		goto err_disable_clks;
+		goto err_exit_phy;
 	}
 
 	dev_set_drvdata(dev, dwc);
@@ -2288,7 +2345,7 @@ int dwc3_core_probe(const struct dwc3_probe_data *data)
 	    DWC3_GHWPARAMS0_AWIDTH(dwc->hwparams.hwparams0) == 64) {
 		ret = dma_set_mask_and_coherent(dwc->sysdev, DMA_BIT_MASK(64));
 		if (ret)
-			goto err_disable_clks;
+			goto err_exit_phy;
 	}
 
 	/*
@@ -2299,10 +2356,18 @@ int dwc3_core_probe(const struct dwc3_probe_data *data)
 	if (hw_mode == DWC3_GHWPARAMS0_MODE_HOST) {
 		ret = dwc3_get_num_ports(dwc);
 		if (ret)
-			goto err_disable_clks;
+			goto err_exit_phy;
 	} else {
 		dwc->num_usb2_ports = 1;
 		dwc->num_usb3_ports = 1;
+	}
+
+	if (data->early_phy_init && dwc->num_usb2_ports != 1) {
+		dev_err(dwc->dev,
+			"early_phy_init only supports a single HS port (found %u)\n",
+			dwc->num_usb2_ports);
+		ret = -EINVAL;
+		goto err_exit_phy;
 	}
 
 	spin_lock_init(&dwc->lock);
@@ -2368,6 +2433,10 @@ err_allow_rpm:
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_put_noidle(dev);
+	goto err_disable_clks;
+err_exit_phy:
+	if (data->early_phy_init)
+		dwc3_phy_exit(dwc);
 err_disable_clks:
 	dwc3_clk_disable(dwc);
 err_assert_reset:

@@ -32,6 +32,9 @@ struct dwc3_properties {
  *		be ignored by the DWC3 core, as they are managed by the glue
  * @skip_core_init_mode: Skip the finial initialization of the target mode, as
  *		it must be managed by the glue
+ * @early_phy_init: bring the HS generic PHY up (get + phy_init) before the
+ *		first core register access, for designs where that access is
+ *		clocked by the PHY itself and would otherwise fault
  * @properties: dwc3 software manage properties
  */
 struct dwc3_probe_data {
@@ -39,6 +42,7 @@ struct dwc3_probe_data {
 	struct resource *res;
 	bool ignore_clocks_and_resets;
 	bool skip_core_init_mode;
+	bool early_phy_init;
 	struct dwc3_properties properties;
 };
 

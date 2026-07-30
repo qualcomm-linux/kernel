@@ -996,10 +996,14 @@ struct dwc3_scratchpad_array {
  *				need to be passed on to glue layer
  * @pre_set_role: Notify glue of role switch notifications
  * @pre_run_stop: Notify run stop enable/disable information to glue
+ * @post_phy_init: Called after the PHYs are initialized but before the
+ *		   first core register access, so the glue can complete any
+ *		   PHY-clock-dependent controller setup
  */
 struct dwc3_glue_ops {
 	void	(*pre_set_role)(struct dwc3 *dwc, enum usb_role role);
 	void	(*pre_run_stop)(struct dwc3 *dwc, bool is_on);
+	void	(*post_phy_init)(struct dwc3 *dwc);
 };
 
 /**
@@ -1068,6 +1072,7 @@ struct dwc3_glue_ops {
  * @num_usb2_ports: number of USB2 ports
  * @num_usb3_ports: number of USB3 ports
  * @phys_ready: flag to indicate that PHYs are ready
+ * @phys_preinit: PHY init was already performed early by the glue layer
  * @ulpi: pointer to ulpi interface
  * @ulpi_ready: flag to indicate that ULPI is initialized
  * @u2sel: parameter from Set SEL request.
@@ -1234,6 +1239,7 @@ struct dwc3 {
 	u8			num_usb3_ports;
 
 	bool			phys_ready;
+	bool			phys_preinit;
 
 	struct ulpi		*ulpi;
 	bool			ulpi_ready;
@@ -1648,6 +1654,12 @@ static inline void dwc3_pre_run_stop(struct dwc3 *dwc, bool is_on)
 {
 	if (dwc->glue_ops && dwc->glue_ops->pre_run_stop)
 		dwc->glue_ops->pre_run_stop(dwc, is_on);
+}
+
+static inline void dwc3_post_phy_init(struct dwc3 *dwc)
+{
+	if (dwc->glue_ops && dwc->glue_ops->post_phy_init)
+		dwc->glue_ops->post_phy_init(dwc);
 }
 
 #if IS_ENABLED(CONFIG_USB_DWC3_HOST) || IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)
