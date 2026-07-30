@@ -85,7 +85,7 @@ int iris_core_init(struct iris_core *core)
 	if (ret)
 		goto error_unload_fw;
 
-		if (vpu_ops->disable_arp)
+	if (vpu_ops->disable_arp)
 		vpu_ops->disable_arp(core);
 
 	core->iris_firmware_data->init_hfi_ops(core);
