@@ -420,6 +420,204 @@ static const struct camss_subdev_resources tpg_res_nord[] = {
 	},
 };
 
+static const struct camss_subdev_resources csid_res_nord[] = {
+	/* CSID0 */
+	{
+		.clock = { "csid", "csid_csiphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid0" },
+		.interrupt = { "csid0" },
+		.csid = {
+			.is_lite = false,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID1 */
+	{
+		.clock = { "csid", "csid_csiphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid1" },
+		.interrupt = { "csid1" },
+		.csid = {
+			.is_lite = false,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID2 */
+	{
+		.clock = { "csid", "csid_csiphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid2" },
+		.interrupt = { "csid2" },
+		.csid = {
+			.is_lite = false,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE0 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite0" },
+		.interrupt = { "csid_lite0" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE1 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite1" },
+		.interrupt = { "csid_lite1" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE2 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite2" },
+		.interrupt = { "csid_lite2" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE3 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite3" },
+		.interrupt = { "csid_lite3" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE4 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite4" },
+		.interrupt = { "csid_lite4" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE5 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite5" },
+		.interrupt = { "csid_lite5" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE6 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite6" },
+		.interrupt = { "csid_lite6" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE7 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite7" },
+		.interrupt = { "csid_lite7" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE8 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite8" },
+		.interrupt = { "csid_lite8" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	},
+	/* CSID_LITE9 */
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx", "top_ahb" },
+		.clock_rate = { { 400000000, 480000000 },
+				{ 400000000, 480000000 },
+				{ 0 } },
+		.reg = { "csid_lite9" },
+		.interrupt = { "csid_lite9" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_900,
+			.formats = &csid_formats_gen2
+		}
+	}
+};
+
 static const struct resources_icc icc_res_nord[] = {
 	{
 		.name = "ahb",
@@ -6420,9 +6618,11 @@ static const struct camss_resources kaanapali_resources = {
 static const struct camss_resources nord_resources = {
 	.version = CAMSS_NORD,
 	.pd_name = "top",
+	.csid_res = csid_res_nord,
 	.tpg_res = tpg_res_nord,
 	.icc_res = icc_res_nord,
 	.icc_path_num = ARRAY_SIZE(icc_res_nord),
+	.csid_num = ARRAY_SIZE(csid_res_nord),
 	.tpg_num = ARRAY_SIZE(tpg_res_nord),
 };
 
