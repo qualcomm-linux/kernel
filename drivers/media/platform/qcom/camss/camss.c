@@ -381,6 +381,45 @@ static const struct resources_icc icc_res_kaanapali[] = {
 	},
 };
 
+static const struct camss_subdev_resources tpg_res_nord[] = {
+	/* TPG0 */
+	{
+		.clock = { "top_ahb", "tpg_csiphy_rx" },
+		.clock_rate = { { 0 },
+				{ 400000000, 480000000 } },
+		.reg = { "csitpg0" },
+		.tpg = {
+			.lane_cnt = 4,
+			.formats = &tpg_formats_gen1,
+			.hw_ops = &tpg_ops_gen1
+		}
+	},
+	/* TPG1 */
+	{
+		.clock = { "top_ahb", "tpg_csiphy_rx" },
+		.clock_rate = { { 0 },
+				{ 400000000, 480000000 } },
+		.reg = { "csitpg1" },
+		.tpg = {
+			.lane_cnt = 4,
+			.formats = &tpg_formats_gen1,
+			.hw_ops = &tpg_ops_gen1
+		}
+	},
+	/* TPG2 */
+	{
+		.clock = { "top_ahb", "tpg_csiphy_rx" },
+		.clock_rate = { { 0 },
+				{ 400000000, 480000000 } },
+		.reg = { "csitpg2" },
+		.tpg = {
+			.lane_cnt = 4,
+			.formats = &tpg_formats_gen1,
+			.hw_ops = &tpg_ops_gen1
+		}
+	},
+};
+
 static const struct resources_icc icc_res_nord[] = {
 	{
 		.name = "ahb",
@@ -6381,8 +6420,10 @@ static const struct camss_resources kaanapali_resources = {
 static const struct camss_resources nord_resources = {
 	.version = CAMSS_NORD,
 	.pd_name = "top",
+	.tpg_res = tpg_res_nord,
 	.icc_res = icc_res_nord,
 	.icc_path_num = ARRAY_SIZE(icc_res_nord),
+	.tpg_num = ARRAY_SIZE(tpg_res_nord),
 };
 
 static const struct camss_resources msm8916_resources = {
