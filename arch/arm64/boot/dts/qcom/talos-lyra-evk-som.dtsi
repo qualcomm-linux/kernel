@@ -31,6 +31,24 @@
 			#clock-cells = <0>;
 		};
 	};
+
+	vreg_0p9: regulator-0v9 {
+		compatible = "regulator-fixed";
+		regulator-name = "VREG_0P9";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vreg_1p8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VREG_1P8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &apps_rsc {
@@ -211,6 +229,35 @@
 };
 
 &qupv3_id_1 {
+	status = "okay";
+};
+
+&i2c5 {
+	clock-frequency = <100000>;
+
+	status = "okay";
+};
+
+&pcie {
+	wake-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
+
+	iommu-map = <0x0 &apps_smmu 0x400 0x1>,
+		    <0x100 &apps_smmu 0x401 0x1>,
+		    <0x208 &apps_smmu 0x402 0x1>,
+		    <0x210 &apps_smmu 0x403 0x1>,
+		    <0x218 &apps_smmu 0x404 0x1>,
+		    <0x300 &apps_smmu 0x405 0x1>,
+		    <0x400 &apps_smmu 0x406 0x1>,
+		    <0x500 &apps_smmu 0x407 0x1>,
+		    <0x501 &apps_smmu 0x408 0x1>;
+
+	status = "okay";
+};
+
+&pcie_phy {
+	vdda-phy-supply = <&vreg_l5a>;
+	vdda-pll-supply = <&vreg_l12a>;
+
 	status = "okay";
 };
 
