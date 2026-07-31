@@ -14,16 +14,24 @@
 #include "camss-vfe.h"
 
 #define IS_VFE_980(vfe)		((vfe)->camss->res->version == CAMSS_8750)
+#define IS_VFE_900(vfe)		((vfe)->camss->res->version == CAMSS_NORD)
 
+#define BUS_REG_BASE_900	(vfe_is_lite(vfe) ? 0x700 : 0xA00)
 #define BUS_REG_BASE_980	(vfe_is_lite(vfe) ? 0x200 : 0x800)
 #define BUS_REG_BASE_1080	(vfe_is_lite(vfe) ? 0x800 : 0x1000)
 #define BUS_REG_BASE \
-	    (IS_VFE_980(vfe) ? BUS_REG_BASE_980 : BUS_REG_BASE_1080)
+	    (IS_VFE_900(vfe) ? BUS_REG_BASE_900 : \
+	     IS_VFE_980(vfe) ? BUS_REG_BASE_980 : BUS_REG_BASE_1080)
 
 #define VFE_BUS_WM_CGC_OVERRIDE			(BUS_REG_BASE + 0x08)
 #define		WM_CGC_OVERRIDE_ALL			(0x7FFFFFF)
 
-#define VFE_BUS_WM_TEST_BUS_CTRL		(BUS_REG_BASE + 0x128)
+/*
+ * v900 relocates TEST_BUS_CTRL to the head of the BUS_WR sub-block, while
+ * v980/v1080 keep it at BUS_REG_BASE + 0x128.
+ */
+#define VFE_BUS_WM_TEST_BUS_CTRL \
+	    (IS_VFE_900(vfe) ? (BUS_REG_BASE - 0x1BC) : (BUS_REG_BASE + 0x128))
 
 #define VFE_BUS_WM_CFG(n)			(BUS_REG_BASE + 0x500 + (n) * 0x100)
 #define		WM_CFG_EN				BIT(0)
@@ -87,8 +95,26 @@
  * RDI3			3
  * GAMMA		4
  * STATES_BE		5
+ *
+ * v900 full IFE write master client map, RDI clients start at 28 after 28
+ * image/stats clients (0-27):
+ *
+ * MAIN C0/C1/C2/UV		0-3
+ * PIXEL_RAW			4
+ * W_IR				5
+ * AI_1 C0/C1/C2/UV		6-9
+ * AI_2 C0/C1/C2/UV		10-13
+ * HV_DS16 / HV_DS4		14-15
+ * STATS BG_IR..BLTM		16-27
+ * RDI0				28
+ * RDI1				29
+ * RDI2				30
+ * ... RDI11			39
+ *
+ * v900 IFE Lite matches the generic map above (RDI0 at client 0).
  */
-#define RDI_WM(n) ((vfe_is_lite(vfe) ? 0x0 : 0x17) + (n))
+#define RDI_WM(n) \
+	((vfe_is_lite(vfe) ? 0x0 : (IS_VFE_900(vfe) ? 0x1C : 0x17)) + (n))
 
 static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 {
@@ -97,8 +123,10 @@ static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 
 	wm = RDI_WM(wm);
 
-	/* no clock gating at bus input */
-	writel(WM_CGC_OVERRIDE_ALL, vfe->base + VFE_BUS_WM_CGC_OVERRIDE);
+	/* no clock gating at bus input; v900 has no such register */
+	if (!IS_VFE_900(vfe))
+		writel(WM_CGC_OVERRIDE_ALL,
+		       vfe->base + VFE_BUS_WM_CGC_OVERRIDE);
 
 	writel(0x0, vfe->base + VFE_BUS_WM_TEST_BUS_CTRL);
 
@@ -135,7 +163,14 @@ static void vfe_wm_update(struct vfe_device *vfe, u8 wm, u32 addr,
 			  struct vfe_line *line)
 {
 	wm = RDI_WM(wm);
-	writel(addr >> 8, vfe->base + VFE_BUS_WM_IMAGE_ADDR(wm));
+	/*
+	 * v900's ADDR_IMAGE register takes a full byte address, unlike
+	 * v980/v1080 which use a 256-byte-unit (addr >> 8) encoding.
+	 */
+	if (IS_VFE_900(vfe))
+		writel(addr, vfe->base + VFE_BUS_WM_IMAGE_ADDR(wm));
+	else
+		writel(addr >> 8, vfe->base + VFE_BUS_WM_IMAGE_ADDR(wm));
 
 	dev_dbg(vfe->camss->dev, "wm:%d, image buf addr:0x%x\n", wm, addr);
 }
