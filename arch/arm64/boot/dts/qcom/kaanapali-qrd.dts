@@ -8,8 +8,10 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "kaanapali.dtsi"
+#include "qcom-adc5-gen4.h"
 
 #include "pm8010-kaanapali.dtsi"     /* SPMI1: SID-12/13   */
 #include "pmd8028-kaanapali.dtsi"    /* SPMI1: SID-4       */
@@ -78,6 +80,152 @@
 			debounce-interval = <15>;
 			linux,can-disable;
 			wakeup-source;
+		};
+	};
+
+	thermal-zones {
+		sys-0-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX1_THM_100K_PU(0, 0)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		sys-1-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX1_THM_100K_PU(0, 1)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		sys-2-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX2_THM_100K_PU(0, 1)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		sys-3-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX3_THM_100K_PU(0, 1)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		sys-4-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX4_THM_100K_PU(0, 1)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		sys-5-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX6_THM_100K_PU(0, 1)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		sys-6-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX4_THM_100K_PU(1, 7)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		sys-7-thermal {
+			thermal-sensors = <&pmk8850_vadc ADC5_GEN4_AMUX4_GPIO_100K_PU(1, 7)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
 		};
 	};
 
@@ -768,6 +916,14 @@
 	};
 };
 
+&pmh0101_gpios {
+	sys_therm_5_gpio3: sys-therm-5-gpio3-state {
+		pins = "gpio3";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		bias-high-impedance;
+	};
+};
+
 &pmh0101_pwm {
 	status = "okay";
 
@@ -795,9 +951,165 @@
 	};
 };
 
+&pmh0101_temp_alarm {
+	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 1)>;
+	io-channel-names = "thermal";
+};
+
+&pmh0110_d_e0_temp_alarm {
+	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 3)>;
+	io-channel-names = "thermal";
+};
+
+&pmh0110_f_e0_temp_alarm {
+	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 5)>;
+	io-channel-names = "thermal";
+};
+
+&pmh0110_g_e0_temp_alarm {
+	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 6)>;
+	io-channel-names = "thermal";
+};
+
+&pmh0110_i_e0_temp_alarm {
+	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(0, 8)>;
+	io-channel-names = "thermal";
+};
+
 &pmih0108_e1_eusb2_repeater {
 	vdd18-supply = <&vreg_l15b_1p8>;
 	vdd3-supply = <&vreg_l5b_3p1>;
+};
+
+&pmih0108_e1_temp_alarm {
+	io-channels = <&pmk8850_vadc ADC5_GEN4_DIE_TEMP(1, 7)>;
+	io-channel-names = "thermal";
+};
+
+&pmk8850_vadc {
+	pinctrl-0 = <&sys_therm_5_gpio3>;
+	pinctrl-names = "default";
+
+	channel@103 {
+		reg = <ADC5_GEN4_DIE_TEMP(0, 1)>;
+		label = "pmh0101_die_temp";
+	};
+
+	channel@18e {
+		reg = <ADC5_GEN4_VPH_PWR(0, 1)>;
+		label = "pmh0101_vph_pwr";
+	};
+
+	channel@303 {
+		reg = <ADC5_GEN4_DIE_TEMP(0, 3)>;
+		label = "pmh0110_3_die_temp";
+	};
+
+	channel@38e {
+		reg = <ADC5_GEN4_VPH_PWR(0, 3)>;
+		label = "pmh0110_3_vph_pwr";
+	};
+
+	channel@503 {
+		reg = <ADC5_GEN4_DIE_TEMP(0, 5)>;
+		label = "pmh0110_5_die_temp";
+	};
+
+	channel@58e {
+		reg = <ADC5_GEN4_VPH_PWR(0, 5)>;
+		label = "pmh0110_5_vph_pwr";
+	};
+
+	channel@603 {
+		reg = <ADC5_GEN4_DIE_TEMP(0, 6)>;
+		label = "pmh0110_6_die_temp";
+	};
+
+	channel@68e {
+		reg = <ADC5_GEN4_VPH_PWR(0, 6)>;
+		label = "pmh0110_6_vph_pwr";
+	};
+
+	channel@803 {
+		reg = <ADC5_GEN4_DIE_TEMP(0, 8)>;
+		label = "pmh0110_8_die_temp";
+	};
+
+	channel@88e {
+		reg = <ADC5_GEN4_VPH_PWR(0, 8)>;
+		label = "pmh0110_8_vph_pwr";
+	};
+
+	channel@2703 {
+		reg = <ADC5_GEN4_DIE_TEMP(1, 7)>;
+		label = "pmih0108_e1_die_temp";
+	};
+
+	channel@278e {
+		reg = <ADC5_GEN4_VPH_PWR(1, 7)>;
+		label = "pmih0108_e1_vph_pwr";
+	};
+
+	channel@278f {
+		reg = <ADC5_GEN4_VBAT_SNS_QBG(1, 7)>;
+		label = "pmih0108_e1_vbat_sns_qbg";
+	};
+
+	channel@144 {
+		reg = <ADC5_GEN4_AMUX1_THM_100K_PU(0, 1)>;
+		label = "pmh0101_therm_1";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,adc-tm;
+	};
+
+	channel@145 {
+		reg = <ADC5_GEN4_AMUX2_THM_100K_PU(0, 1)>;
+		label = "pmh0101_therm_2";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,adc-tm;
+	};
+
+	channel@146 {
+		reg = <ADC5_GEN4_AMUX3_THM_100K_PU(0, 1)>;
+		label = "pmh0101_therm_3";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,adc-tm;
+	};
+
+	channel@147 {
+		reg = <ADC5_GEN4_AMUX4_THM_100K_PU(0, 1)>;
+		label = "pmh0101_therm_4";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,adc-tm;
+	};
+
+	channel@149 {
+		reg = <ADC5_GEN4_AMUX6_THM_100K_PU(0, 1)>;
+		label = "pmh0101_therm_5";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,adc-tm;
+	};
+
+	channel@2747 {
+		reg = <ADC5_GEN4_AMUX4_THM_100K_PU(1, 7)>;
+		label = "pmih0108_e1_therm_6";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,adc-tm;
+	};
+
+	channel@274d {
+		reg = <ADC5_GEN4_AMUX4_GPIO_100K_PU(1, 7)>;
+		label = "pmih0108_e1_therm_7";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,adc-tm;
+	};
 };
 
 &pon_resin {
