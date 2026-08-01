@@ -901,7 +901,7 @@
 			bus-range = <0x3 0xff>;
 		};
 
-		pcie0_m2_e: pcie@2,0 {
+		pcie@2,0 {
 			reg = <0x21000 0x0 0x0 0x0 0x0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
