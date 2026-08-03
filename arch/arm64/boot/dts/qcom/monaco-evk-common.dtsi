@@ -16,7 +16,6 @@
 		ethernet0 = &ethernet0;
 		i2c1 = &i2c1;
 		serial0 = &uart7;
-		serial1 = &uart2;
 		serial2 = &uart6;
 	};
 
@@ -207,29 +206,6 @@
 
 		pinctrl-0 = <&cam2_avdd_2v8_en_default>;
 		pinctrl-names = "default";
-	};
-
-	vreg_dcin_12v: regulator-dcin-12v {
-		compatible = "regulator-fixed";
-
-		regulator-name = "VREG_DCIN_12V";
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vreg_wcn_3p3: regulator-wcn-3p3 {
-		compatible = "regulator-fixed";
-
-		regulator-name = "VREG_WCN_3P3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-
-		vin-supply = <&vreg_dcin_12v>;
-
-		regulator-boot-on;
 	};
 };
 
@@ -964,24 +940,6 @@
 		pins = "gpio96";
 		function = "gpio";
 		bias-pull-up;
-	};
-};
-
-&uart2 {
-	status = "okay";
-
-	bluetooth: bluetooth {
-		compatible = "qcom,wcn6855-bt";
-		max-speed = <3200000>;
-
-		vddrfacmn-supply = <&vreg_wcn_3p3>;
-		vddaon-supply = <&vreg_wcn_3p3>;
-		vddwlcx-supply = <&vreg_wcn_3p3>;
-		vddwlmx-supply = <&vreg_wcn_3p3>;
-		vddbtcmx-supply = <&vreg_wcn_3p3>;
-		vddrfa0p8-supply = <&vreg_wcn_3p3>;
-		vddrfa1p2-supply = <&vreg_wcn_3p3>;
-		vddrfa1p8-supply = <&vreg_wcn_3p3>;
 	};
 };
 
