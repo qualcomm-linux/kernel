@@ -636,7 +636,8 @@
 &usb_1 {
 	dr_mode = "host";
 
-	status = "okay";
+	/* Disable to avoid SMMU error */
+	status = "disabled";
 };
 
 &usb_1_hsphy {
@@ -658,7 +659,8 @@
 &usb_2 {
 	dr_mode = "host";
 
-	status = "okay";
+	/* Disable to avoid SMMU error */
+	status = "disabled";
 };
 
 &usb_2_hsphy {
