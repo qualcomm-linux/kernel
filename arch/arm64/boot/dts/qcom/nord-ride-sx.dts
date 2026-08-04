@@ -77,6 +77,8 @@
 		gpio = <&pmic_h_gpios 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
+
+		status = "disabled";
 	};
 };
 
@@ -544,6 +546,8 @@
 		vdd1v8-supply = <&vreg_l3l_1p8>;
 
 		reset-gpios = <&pmic_i_gpios 10 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
 	};
 
 	usb2_repeater: redriver@47 {
@@ -554,7 +558,10 @@
 		vdd1v8-supply = <&vreg_l3l_1p8>;
 
 		reset-gpios = <&pmic_l_gpios 3 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
 	};
+
 };
 
 &i2c18 {
@@ -612,7 +619,7 @@
 };
 
 &usb_0 {
-	dr_mode = "host";
+	dr_mode = "peripheral";
 
 	status = "okay";
 };
@@ -635,8 +642,6 @@
 
 &usb_1 {
 	dr_mode = "host";
-
-	status = "okay";
 };
 
 &usb_1_hsphy {
@@ -644,21 +649,15 @@
 	vdda12-supply = <&vreg_l2i_1p2>;
 
 	phys = <&usb1_repeater>;
-
-	status = "okay";
 };
 
 &usb_1_qmpphy {
 	vdda-phy-supply = <&vreg_l1h_0p9>;
 	vdda-pll-supply = <&vreg_l2h_1p2>;
-
-	status = "okay";
 };
 
 &usb_2 {
 	dr_mode = "host";
-
-	status = "okay";
 };
 
 &usb_2_hsphy {
@@ -666,6 +665,4 @@
 	vdda12-supply = <&vreg_l2i_1p2>;
 
 	phys = <&usb2_repeater>;
-
-	status = "okay";
 };
