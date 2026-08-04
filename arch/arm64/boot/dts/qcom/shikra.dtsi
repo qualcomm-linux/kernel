@@ -192,33 +192,38 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		cpu0_opp_768mhz: opp-768000000 {
+		opp-768000000 {
 			opp-hz = /bits/ 64 <768000000>;
 			opp-peak-kBps = <1200000 17817600>;
 		};
 
-		cpu0_opp_1017mhz: opp-1017600000 {
+		opp-1017600000 {
 			opp-hz = /bits/ 64 <1017600000>;
 			opp-peak-kBps = <2188000 25804800>;
 		};
 
-		cpu0_opp_1094mhz: opp-1094400000 {
+		opp-1094400000 {
 			opp-hz = /bits/ 64 <1094400000>;
 			opp-peak-kBps = <3072000 30105600>;
 		};
 
-		cpu0_opp_1497mhz: opp-1497600000 {
+		opp-1497600000 {
 			opp-hz = /bits/ 64 <1497600000>;
 			opp-peak-kBps = <4068000 38707200>;
 		};
 
-		cpu0_opp_1612mhz: opp-1612800000 {
+		opp-1612800000 {
 			opp-hz = /bits/ 64 <1612800000>;
 			opp-peak-kBps = <6220000 43008000>;
 		};
 
-		cpu0_opp_1804mhz: opp-1804800000 {
+		opp-1804800000 {
 			opp-hz = /bits/ 64 <1804800000>;
+			opp-peak-kBps = <7216000 43622400>;
+		};
+
+		opp-2208000000 {
+			opp-hz = /bits/ 64 <2208000000>;
 			opp-peak-kBps = <7216000 43622400>;
 		};
 	};
@@ -227,28 +232,38 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		cpu3_opp_1017mhz: opp-1017600000 {
+		opp-768000000 {
+			opp-hz = /bits/ 64 <768000000>;
+			opp-peak-kBps = <1200000 17817600>;
+		};
+
+		opp-1017600000 {
 			opp-hz = /bits/ 64 <1017600000>;
 			opp-peak-kBps = <2188000 25804800>;
 		};
 
-		cpu3_opp_1190mhz: opp-1190400000 {
+		opp-1190400000 {
 			opp-hz = /bits/ 64 <1190400000>;
 			opp-peak-kBps = <3072000 30105600>;
 		};
 
-		cpu3_opp_1497mhz: opp-1497600000 {
+		opp-1497600000 {
 			opp-hz = /bits/ 64 <1497600000>;
 			opp-peak-kBps = <4068000 38707200>;
 		};
 
-		cpu3_opp_1708mhz: opp-1708800000 {
+		opp-1708800000 {
 			opp-hz = /bits/ 64 <1708800000>;
 			opp-peak-kBps = <6220000 43008000>;
 		};
 
-		cpu3_opp_1900mhz: opp-1900800000 {
+		opp-1900800000 {
 			opp-hz = /bits/ 64 <1900800000>;
+			opp-peak-kBps = <7216000 43622400>;
+		};
+
+		opp-2208000000 {
+			opp-hz = /bits/ 64 <2208000000>;
 			opp-peak-kBps = <7216000 43622400>;
 		};
 	};
@@ -2433,13 +2448,6 @@
 				pinctrl-names = "default";
 
 				status = "disabled";
-
-				bluetooth {
-					compatible = "qcom,wcn3988-bt";
-					enable-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
-					max-speed = <3200000>;
-				};
-
 			};
 
 			i2c9: i2c@4aa4000 {
@@ -2749,6 +2757,14 @@
 						iommus = <&apps_smmu 0x0209 0x0000>;
 					};
 				};
+			};
+
+			cooling {
+				compatible = "qcom,qmi-cooling-cdsp";
+					cdsp_sw: cdsp_sw {
+						label = "cdsp_sw";
+						#cooling-cells = <2>;
+					};
 			};
 		};
 
@@ -3847,10 +3863,24 @@
 					type = "hot";
 				};
 
-				nsp-critical {
+				nsp_alert1: nsp-alert1 {
 					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+
+				nsp-critical {
+					temperature = <118000>;
 					hysteresis = <0>;
 					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&nsp_alert1>;
+					cooling-device = <&cdsp_sw
+							THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};

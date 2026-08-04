@@ -11,6 +11,7 @@
 #include "qcom-dcc-lemans-config.h"
 #include "qcom-dcc-kodiak-config.h"
 #include "qcom-dcc-pakala-config.h"
+#include "qcom-dcc-shikra-config.h"
 
 #define DEV_NAME "qcom-dcc"
 
@@ -111,6 +112,13 @@ static int __init dcc_dev_init(void)
 		if (ret)
 			goto fail;
 
+		break;
+	case 756:
+	case 758:
+	case 759:
+		ret = platform_device_add_data(dcc_pdev, &shikra_pdata, sizeof(shikra_pdata));
+		if (ret)
+			goto fail;
 		break;
 	default:
 		pr_err("DCC: Invalid SoC ID\n");

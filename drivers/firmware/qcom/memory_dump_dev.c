@@ -355,6 +355,37 @@ static const struct dump_item hamoa_items[] = {
 	{ ETFSWAO_REG, 0x1000, "etfswao-reg" },
 };
 
+static const struct dump_item shikra_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c100-context" },
+	{ C200_CONTEXT, 0x800, "c200-context" },
+	{ C300_CONTEXT, 0x800, "c300-context" },
+	{ C0_SCANDUMP, 0x10000, "c0-scandump" },
+	{ C100_SCANDUMP, 0x10000, "c100-scandump" },
+	{ C200_SCANDUMP, 0x10000, "c200-scandump" },
+	{ C300_SCANDUMP, 0x40000, "c300-scandump" },
+	{ L1_ICACHE0, 0x8900, "l1-icache0" },
+	{ L1_ICACHE100, 0x8900, "l1-icache100" },
+	{ L1_ICACHE200, 0x8900, "l1-icache200" },
+	{ L1_ICACHE300, 0x8900, "l1-icache300" },
+	{ L1_DCACHE0, 0x9100, "l1-dcache0" },
+	{ L1_DCACHE100, 0x9100, "l1-dcache100" },
+	{ L1_DCACHE200, 0x9100, "l1-dcache200" },
+	{ L1_DCACHE300, 0x9100, "l1-dcache300" },
+	{ L2_TLB0, 0x2100, "l2-tlb0" },
+	{ L2_TLB100, 0x2100, "l2-tlb100" },
+	{ L2_TLB200, 0x2100, "l2-tlb200" },
+	{ L2_TLB300, 0x2100, "l2-tlb300" },
+	{ RPM_SW, 0x30000, "rpm-sw" },
+	{ PMIC, 0x40000, "pmic" },
+	{ FCM, 0x8400, "fcm" },
+	{ TMC_ETF, 0x8000, "tmc-etf" },
+	{ ETR_REG, 0x1000, "etr-reg" },
+	{ ETF_REG, 0x1000, "etf-reg" },
+	{ MISC_DATA, 0x1000, "misc-data" },
+	{ ETF_LPASS, 0x8000, "etf-lpass" },
+};
+
 static const struct dump_table lemans_dump_table = {
 	.items		= lemans_items,
 	.num_of_items	= ARRAY_SIZE(lemans_items),
@@ -394,6 +425,13 @@ static const struct dump_table hamoa_dump_table = {
 	.items		= hamoa_items,
 	.num_of_items	= ARRAY_SIZE(hamoa_items),
 	.imem_base	= 0x146aa010,
+	.imem_size	= 0x8,
+};
+
+static const struct dump_table shikra_dump_table = {
+	.items		= shikra_items,
+	.num_of_items	= ARRAY_SIZE(shikra_items),
+	.imem_base	= 0xc11e010,
 	.imem_size	= 0x8,
 };
 
@@ -478,6 +516,14 @@ static int __init mem_dump_dev_init(void)
 		if (ret)
 			goto fail;
 
+		break;
+	case 756:
+	case 758:
+	case 759:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&shikra_dump_table, sizeof(shikra_dump_table));
+		if (ret)
+			goto fail;
 		break;
 	default:
 		dev_err(&mem_dump_pdev->dev, "Invalid SoC ID\n");

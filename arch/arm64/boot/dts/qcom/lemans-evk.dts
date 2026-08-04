@@ -127,6 +127,38 @@
 		};
 	};
 
+	connector-3 {
+		compatible = "pcie-m2-e-connector";
+		vpcie3v3-supply = <&vreg_wcn_3p3>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				m2_e_pcie_ep: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&pcieport0_ep>;
+				};
+			};
+
+			port@3 {
+				reg = <3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				m2_e_uart_ep: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&uart17_ep>;
+				};
+			};
+		};
+	};
+
 	edp0-connector {
 		compatible = "dp-connector";
 		label = "EDP0";
@@ -250,8 +282,8 @@
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 
-		regulator-boot-on;
 		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	vreg_sdc: regulator-vreg-sdc {
@@ -277,6 +309,7 @@
 
 		vin-supply = <&vreg_dcin_12v>;
 
+		regulator-always-on;
 		regulator-boot-on;
 	};
 };
@@ -866,6 +899,14 @@
 	status = "okay";
 };
 
+&pcieport0 {
+	port {
+		pcieport0_ep: endpoint {
+			remote-endpoint = <&m2_e_pcie_ep>;
+		};
+	};
+};
+
 &psci {
 	reboot-mode {
 		mode-bootloader = <0x10001 0x2>;
@@ -1098,18 +1139,10 @@
 &uart17 {
 	status = "okay";
 
-	bluetooth: bluetooth {
-		compatible = "qcom,wcn6855-bt";
-		max-speed = <3200000>;
-
-		vddrfacmn-supply = <&vreg_wcn_3p3>;
-		vddaon-supply = <&vreg_wcn_3p3>;
-		vddwlcx-supply = <&vreg_wcn_3p3>;
-		vddwlmx-supply = <&vreg_wcn_3p3>;
-		vddbtcmx-supply = <&vreg_wcn_3p3>;
-		vddrfa0p8-supply = <&vreg_wcn_3p3>;
-		vddrfa1p2-supply = <&vreg_wcn_3p3>;
-		vddrfa1p8-supply = <&vreg_wcn_3p3>;
+	port {
+		uart17_ep: endpoint {
+			remote-endpoint = <&m2_e_uart_ep>;
+		};
 	};
 };
 
