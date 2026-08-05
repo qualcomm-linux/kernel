@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/clock/qcom,shikra-gcc.h>
+#include <dt-bindings/power/qcom-rpmpd.h>
+#include <dt-bindings/interconnect/qcom,icc.h>
+#include <dt-bindings/interconnect/qcom,shikra.h>
+
+#include "shikra-camera.dtsi"
+
+&cam_csiphy0 {
+	csi-vdd-1p2-supply = <&pm4125_l5>;
+	csi-vdd-1p8-supply = <&pm4125_l13>;
+};
+
+&cam_csiphy1 {
+	csi-vdd-1p2-supply = <&pm4125_l5>;
+	csi-vdd-1p8-supply = <&pm4125_l13>;
+};
+
+&camss {
+	status = "disabled";
+};
+
+&cci {
+	status = "disabled";
+};
+
+&cci_i2c1 {
+	status = "disabled";
+};

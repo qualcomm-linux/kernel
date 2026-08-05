@@ -535,6 +535,16 @@ sa8775p-ride-r3-camx-dtbs:= sa8775p-ride-r3.dtb sa8775p-ride-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-r3-camx.dtb
 
+shikra-cqs-evk-camx-dtbs	:= shikra-cqs-evk.dtb shikra-cqs-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqs-evk-camx.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqs-evk-camx.dtb
+
+shikra-iqs-evk-camx-dtbs	:= shikra-iqs-evk.dtb shikra-iqs-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-evk-camx.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-evk-camx.dtb
+
 talos-evk-camx-dtbs	:= talos-evk.dtb talos-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtb
