@@ -1740,6 +1740,13 @@
 		bias-disable;
 	};
 
+	qup_uart17_cts_rts: qup-uart17-cts-rts-state {
+		pins = "gpio150", "gpio151";
+		function = "qup2_se3";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
 	qup_uart18_default: qup-uart18-default-state {
 		pins = "gpio143", "gpio144";
 		function = "qup2_se4";
@@ -1962,7 +1969,7 @@
 			<&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
 			 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>;
 	interconnect-names = "qup-core", "qup-config";
-	pinctrl-0 = <&qup_uart17_default>;
+	pinctrl-0 = <&qup_uart17_default>, <&qup_uart17_cts_rts>;
 	pinctrl-names = "default";
 };
 
