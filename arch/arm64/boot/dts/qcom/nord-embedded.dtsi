@@ -2228,3 +2228,15 @@
 	maximum-speed = "high-speed";
 	qcom,select-utmi-as-pipe-clk;
 };
+
+&adreno_smmu_0 {
+	clocks = <&gpucc GPU_CC_GPU_SMMU_VOTE_CLK>;
+	clock-names = "hlos";
+	power-domains = <&gpucc GPU_CC_CX_GDSC>;
+};
+
+&adreno_smmu_1 {
+	clocks = <&gpucc GPU_CC_GPU_SMMU_VOTE_CLK>;
+	clock-names = "hlos";
+	power-domains = <&gpucc GPU_CC_CX_GDSC>;
+};
