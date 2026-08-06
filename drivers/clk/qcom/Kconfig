@@ -197,17 +197,6 @@ config CLK_KAANAPALI_VIDEOCC
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
-config CLK_NORD_CAMCC
-	tristate "Nord Camera Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	select CLK_NORD_GCC
-	default m if ARCH_QCOM
-	help
-	  Support for the camera clock controller on Qualcomm Technologies, Inc
-	  Nord devices.
-	  Say Y if you want to support camera devices and functionality such as
-	  capturing pictures.
-
 config CLK_NORD_DISPCC
 	tristate "Nord Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
