@@ -1266,6 +1266,115 @@
 		#power-domain-cells = <1>;
 	};
 
+	iris: video-codec@aa00000 {
+		compatible = "qcom,nord-iris", "qcom,glymur-iris";
+		reg = <0x0 0x0aa00000 0x0 0x000f0000>;
+
+		clocks = <&nwgcc NW_GCC_VIDEO_AXI0_CLK>,
+			 <&videocc VIDEO_CC_MVS0C_CLK>,
+			 <&videocc VIDEO_CC_MVS0_CLK>,
+			 <&nwgcc NW_GCC_VIDEO_AXI0C_CLK>,
+			 <&videocc VIDEO_CC_MVS0C_FREERUN_CLK>,
+			 <&videocc VIDEO_CC_MVS0_FREERUN_CLK>,
+			 <&nwgcc NW_GCC_VIDEO_AXI1_CLK>,
+			 <&videocc VIDEO_CC_MVS1_CLK>,
+			 <&videocc VIDEO_CC_MVS1_FREERUN_CLK>;
+		clock-names = "iface",
+			      "core",
+			      "vcodec0_core",
+			      "iface1",
+			      "core_freerun",
+			      "vcodec0_core_freerun",
+			      "iface2",
+			      "vcodec1_core",
+			      "vcodec1_core_freerun";
+
+		dma-coherent;
+
+		interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &config_noc SLAVE_VENUS_CFG QCOM_ICC_TAG_ACTIVE_ONLY>,
+				<&mmss_noc MASTER_VIDEO_MVP0 QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+		interconnect-names = "cpu-cfg",
+				     "video-mem";
+
+		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+
+		iommus = <&apps_smmu_1 0x0960 0x0020>,   /* Video VM0 XTENSA non-secure non-pixel  */
+			 <&apps_smmu_1 0x0943 0x0000>,   /* Video VM0 VCODEC non-secure pixel      */
+			 <&apps_smmu_1 0x0944 0x0000>,   /* Video VM0 VCODEC non-secure bitstream  */
+			 <&apps_smmu_1 0x0940 0x0020>;   /* Video VM0 VCODEC non-secure non-pixel  */
+
+		memory-region = <&video_mem>;
+
+		operating-points-v2 = <&iris_opp_table>;
+
+		power-domains = <&videocc VIDEO_CC_MVS0C_GDSC>,
+				<&videocc VIDEO_CC_MVS0_GDSC>,
+				<&rpmhpd RPMHPD_MXC>,
+				<&rpmhpd RPMHPD_MMCX>,
+				<&videocc VIDEO_CC_MVS1_GDSC>;
+		power-domain-names = "venus",
+				     "vcodec0",
+				     "mxc",
+				     "mmcx",
+				     "vcodec1";
+
+		resets = <&nwgcc NW_GCC_VIDEO_AXI0_CLK_ARES>,
+			 <&nwgcc NW_GCC_VIDEO_AXI0C_CLK_ARES>,
+			 <&videocc VIDEO_CC_MVS0C_FREERUN_CLK_ARES>,
+			 <&videocc VIDEO_CC_MVS0_FREERUN_CLK_ARES>,
+			 <&nwgcc NW_GCC_VIDEO_AXI1_CLK_ARES>,
+			 <&videocc VIDEO_CC_MVS1_FREERUN_CLK_ARES>;
+		reset-names = "bus0",
+			      "bus1",
+			      "core",
+			      "vcodec0_core",
+			      "bus2",
+			      "vcodec1_core";
+
+		/*
+		 * IRIS firmware is signed by vendors, only
+		 * enable on boards where the proper signed firmware
+		 * is available.
+		 */
+		status = "disabled";
+
+		iris_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-240000000 {
+				opp-hz = /bits/ 64 <240000000 240000000 360000000>;
+				required-opps = <&rpmhpd_opp_svs>,
+						<&rpmhpd_opp_svs>;
+			};
+
+			opp-435000000 {
+				opp-hz = /bits/ 64 <435000000 435000000 652500000>;
+				required-opps = <&rpmhpd_opp_svs_l1>,
+						<&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-480000000 {
+				opp-hz = /bits/ 64 <480000000 480000000 720000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>,
+						<&rpmhpd_opp_nom>;
+			};
+
+			opp-533333333 {
+				opp-hz = /bits/ 64 <533333333 533333333 800000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>,
+						<&rpmhpd_opp_turbo>;
+			};
+
+			opp-560000000 {
+				opp-hz = /bits/ 64 <560000000 560000000 840000000>;
+				required-opps = <&rpmhpd_opp_nom>,
+						<&rpmhpd_opp_turbo_l1>;
+			};
+		};
+	};
+
 	videocc: clock-controller@aaf0000 {
 		compatible = "qcom,nord-videocc";
 		reg = <0x0 0x0aaf0000 0x0 0x10000>;
