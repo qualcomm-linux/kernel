@@ -626,3 +626,38 @@
 
 	status = "okay";
 };
+
+&soc {
+	iommu_test_device {
+		compatible = "qcom,iommu-debug-test";
+
+		usecase0_apps {
+			compatible = "qcom,iommu-debug-usecase";
+			iommus = <&apps_smmu_0 0x0001 0x0>;
+		};
+
+		usecase1_apps_fastmap {
+			compatible = "qcom,iommu-debug-usecase";
+			iommus = <&apps_smmu_0 0x0001 0x0>;
+			qcom,iommu-dma = "fastmap";
+		};
+
+		usecase2_apps_atomic {
+			compatible = "qcom,iommu-debug-usecase";
+			iommus = <&apps_smmu_0 0x0001 0x0>;
+			qcom,iommu-dma = "atomic";
+		};
+
+		usecase3_apps_dma {
+			compatible = "qcom,iommu-debug-usecase";
+			iommus = <&apps_smmu_0 0x0001 0x0>;
+			dma-coherent;
+		};
+
+		sec_pix: secure-pixel {
+			compatible = "qcom,iommu-debug-usecase";
+			iommus = <&apps_smmu_0 0x0001 0x0>;
+			qcom,iommu-vmid = <0xa>; /* VMID_CP_PIXEL */
+		};
+	};
+};

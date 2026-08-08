@@ -1391,7 +1391,7 @@ static void arm_smmu_iotlb_sync(struct iommu_domain *domain,
 	arm_smmu_rpm_put(smmu);
 }
 
-static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
+phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 					      dma_addr_t iova)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);

@@ -354,8 +354,22 @@ static phys_addr_t qcom_smmu_iova_to_phys_hard(struct arm_smmu_domain *smmu_doma
 	frsynra = arm_smmu_gr1_read(smmu, ARM_SMMU_GR1_CBFRSYNRA(idx));
 	sid = FIELD_GET(ARM_SMMU_CBFRSYNRA_SID, frsynra);
 
+	/* 
+	 * This is hardcoded because there is junk in ARM_SMMU_CBFRSYNRA_SID.
+	 * This value is specific to target you're checking on.
+	 **/
+	sid = 0x00E0;
+	pr_err("Trying for SID: %x\n", sid);
 	return qcom_iova_to_phys(smmu_domain, iova, sid);
 }
+
+phys_addr_t qcom_smmu_itop_hard(struct iommu_domain *dom, dma_addr_t iova)
+{
+	struct arm_smmu_domain *smmu_domain = container_of(dom, struct arm_smmu_domain, domain);
+
+	return qcom_smmu_iova_to_phys_hard(smmu_domain, iova);
+}
+EXPORT_SYMBOL(qcom_smmu_itop_hard);
 
 static phys_addr_t qcom_smmu_verify_fault(struct arm_smmu_domain *smmu_domain, dma_addr_t iova, u32 fsr)
 {

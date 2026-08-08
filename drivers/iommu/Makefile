@@ -38,3 +38,5 @@ obj-$(CONFIG_SPRD_IOMMU) += sprd-iommu.o
 obj-$(CONFIG_APPLE_DART) += apple-dart.o
 obj-$(CONFIG_VSI_IOMMU) += vsi-iommu.o
 obj-$(CONFIG_IOMMU_DEBUG_PAGEALLOC) += iommu-debug-pagealloc.o
+obj-$(CONFIG_QCOM_IOMMU_DEBUG) += qcom_iommu_debug.o
+qcom_iommu_debug-y += qcom-iommu-debug.o qcom-iommu-debug-user.o
