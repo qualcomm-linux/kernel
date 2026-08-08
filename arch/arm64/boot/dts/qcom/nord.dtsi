@@ -2512,12 +2512,12 @@
 			};
 		};
 
-		watchdog@17821000 {
+		watchdog@17826000 {
 			compatible = "qcom,apss-wdt-nord",
 				     "qcom,kpss-wdt";
-			reg = <0x0 0x17821000 0x0 0x1000>;
+			reg = <0x0 0x17826000 0x0 0x1000>;
 			clocks = <&sleep_clk>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_ESPI 848 IRQ_TYPE_EDGE_RISING>;
 		};
 
 		remoteproc_cdsp0: remoteproc@1f300000 {
