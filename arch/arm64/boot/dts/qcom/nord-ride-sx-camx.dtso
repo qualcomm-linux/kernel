@@ -16,5 +16,4 @@
 #include <dt-bindings/power/qcom-rpmpd.h>
 
 #include "nord-camera.dtsi"
-
-
+#include "nord-camera-sensor.dtsi"

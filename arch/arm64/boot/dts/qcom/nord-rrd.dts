@@ -9,6 +9,7 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
 #include "nord-embedded.dtsi"
+#include "nord-pmics.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IQ10 RRD";
