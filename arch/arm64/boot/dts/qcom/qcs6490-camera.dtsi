@@ -858,6 +858,8 @@
 		clock-rates = <37500000 0>;
 		clock-cntl-level = "lowsvs";
 		src-clock-name = "cci_0_clk_src";
+		pctrl-idx-mapping = <CCI_MASTER_0 CCI_MASTER_1>;
+		pctrl-map-names = "m0", "m1";
 		pinctrl-0 = <&cci0_active &cci1_active>;
 		pinctrl-1 = <&cci0_suspend &cci1_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
@@ -960,6 +962,8 @@
 		clock-rates = <37500000 0>;
 		clock-cntl-level = "lowsvs";
 		src-clock-name = "cci_1_clk_src";
+		pctrl-idx-mapping = <CCI_MASTER_0 CCI_MASTER_1>;
+		pctrl-map-names = "m0", "m1";
 		pinctrl-0 = <&cci2_active &cci3_active>;
 		pinctrl-1 = <&cci2_suspend &cci3_suspend>;
 		pinctrl-names = "cam_default", "cam_suspend";
