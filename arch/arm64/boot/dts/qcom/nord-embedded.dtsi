@@ -657,10 +657,10 @@
 		reg = <0x0 0x00100000 0x0 0x1f4200>;
 		clocks = <&bi_tcxo_div2>,
 			 <&sleep_clk>,
-			 <0>,
-			 <0>,
-			 <0>,
-			 <0>;
+			 <&pcie_phy 0>,
+			 <&pcie_phy 1>,
+			 <&pcie_phy 2>,
+			 <&pcie_phy 3>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		#power-domain-cells = <1>;
@@ -1402,6 +1402,1111 @@
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
+
+	pcie_smmu: iommu@9980000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0x9980000 0x0 0x20000>;
+		interrupts = <GIC_SPI 898 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 900 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 902 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "eventq",
+				  "cmdq-sync",
+				  "gerror";
+		dma-coherent;
+		#iommu-cells = <1>;
+	};
+
+	pcie_phy: phy@1b00000 {
+		compatible = "qcom,nord-qmp-gen5x16-pcie-phy";
+
+		reg = <0x0 0x01b00000 0x0 0x10000>,
+		      <0x0 0x01b10000 0x0 0x10000>,
+		      <0x0 0x01b20000 0x0 0x10000>,
+		      <0x0 0x01b30000 0x0 0x10000>;
+		reg-names = "port_a",
+			    "port_b",
+			    "port_c",
+			    "port_d";
+
+		clocks = <&gcc GCC_PCIE_A_PHY_AUX_CLK>,
+			 <&gcc GCC_PCIE_A_PHY_RCHNG_CLK>,
+			 <&gcc GCC_PCIE_A_PIPE_CLK>,
+			 <&gcc GCC_PCIE_B_PHY_AUX_CLK>,
+			 <&gcc GCC_PCIE_B_PHY_RCHNG_CLK>,
+			 <&gcc GCC_PCIE_B_PIPE_CLK>,
+			 <&gcc GCC_PCIE_C_PHY_AUX_CLK>,
+			 <&gcc GCC_PCIE_C_PHY_RCHNG_CLK>,
+			 <&gcc GCC_PCIE_C_PIPE_CLK>,
+			 <&gcc GCC_PCIE_D_PHY_AUX_CLK>,
+			 <&gcc GCC_PCIE_D_PHY_RCHNG_CLK>,
+			 <&gcc GCC_PCIE_D_PIPE_CLK>,
+			 <&tcsrcc TCSR_PCIE_CLKREF_EN>;
+
+		clock-names = "aux_a",
+			      "rchng_a",
+			      "pipe_a",
+			      "aux_b",
+			      "rchng_b",
+			      "pipe_b",
+			      "aux_c",
+			      "rchng_c",
+			      "pipe_c",
+			      "aux_d",
+			      "rchng_d",
+			      "pipe_d",
+			      "ref";
+
+		assigned-clocks = <&gcc GCC_PCIE_A_PHY_RCHNG_CLK>,
+				  <&gcc GCC_PCIE_B_PHY_RCHNG_CLK>,
+				  <&gcc GCC_PCIE_C_PHY_RCHNG_CLK>,
+				  <&gcc GCC_PCIE_D_PHY_RCHNG_CLK>;
+		assigned-clock-rates = <100000000>, <100000000>,
+				       <100000000>, <100000000>;
+
+		power-domains = <&gcc GCC_PCIE_A_PHY_GDSC>,
+				<&gcc GCC_PCIE_B_PHY_GDSC>,
+				<&gcc GCC_PCIE_C_PHY_GDSC>,
+				<&gcc GCC_PCIE_D_PHY_GDSC>;
+		power-domain-names = "phy_a_gdsc",
+				     "phy_b_gdsc",
+				     "phy_c_gdsc",
+				     "phy_d_gdsc";
+
+		resets = <&gcc GCC_PCIE_A_PHY_COM_BCR>,
+			 <&gcc GCC_PCIE_A_NOCSR_COM_PHY_BCR>,
+			 <&gcc GCC_PCIE_B_PHY_COM_BCR>,
+			 <&gcc GCC_PCIE_B_NOCSR_COM_PHY_BCR>,
+			 <&gcc GCC_PCIE_C_PHY_COM_BCR>,
+			 <&gcc GCC_PCIE_C_NOCSR_COM_PHY_BCR>,
+			 <&gcc GCC_PCIE_D_PHY_COM_BCR>,
+			 <&gcc GCC_PCIE_D_NOCSR_COM_PHY_BCR>;
+		reset-names = "phy_a",
+			      "nocsr_a",
+			      "phy_b",
+			      "nocsr_b",
+			      "phy_c",
+			      "nocsr_c",
+			      "phy_d",
+			      "nocsr_d";
+
+		qcom,link-mode = <&tcsr 0x71050>;
+
+		#clock-cells = <1>;
+		clock-output-names = "pcie_a_pipe_clk",
+				     "pcie_b_pipe_clk",
+				     "pcie_c_pipe_clk",
+				     "pcie_d_pipe_clk";
+		#phy-cells = <1>;
+
+		status = "disabled";
+	};
+
+	pcie0: pci@1b80000 {
+		compatible = "qcom,pcie-nord", "qcom,pcie-sa8775p";
+
+		reg = <0x00 0x01b80000 0x00 0x00004000>,
+		      <0x00 0x40000000 0x00 0x00000f20>,
+		      <0x00 0x40000f20 0x00 0x000000a8>,
+		      <0x00 0x40010000 0x00 0x00020000>,
+		      <0x00 0x40100000 0x00 0x00100000>,
+		      <0x00 0x01b84000 0x00 0x00001000>;
+		reg-names = "parf",
+			    "dbi",
+			    "elbi",
+			    "atu",
+			    "config",
+			    "mhi";
+
+		ranges = <0x01000000 0x0 0x00000000 0x0 0x40200000 0x0 0x100000>,
+			 <0x02000000 0x0 0x40300000 0x0 0x40300000 0x0 0xfd00000>;
+
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		linux,pci-domain = <0>;
+		num-lanes = <8>;
+
+		operating-points-v2 = <&pcie0_opp_table>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		clocks = <&gcc GCC_PCIE_A_AUX_CLK>,
+			 <&gcc GCC_PCIE_A_CFG_AHB_CLK>,
+			 <&gcc GCC_PCIE_A_MSTR_AXI_CLK>,
+			 <&gcc GCC_PCIE_A_SLV_AXI_CLK>,
+			 <&gcc GCC_PCIE_A_SLV_Q2A_AXI_CLK>;
+		clock-names = "aux",
+			      "cfg",
+			      "bus_master",
+			      "bus_slave",
+			      "slave_q2a";
+
+		assigned-clocks = <&gcc GCC_PCIE_A_AUX_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		dma-coherent;
+
+		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi0",
+				  "msi1",
+				  "msi2",
+				  "msi3",
+				  "msi4",
+				  "msi5",
+				  "msi6",
+				  "msi7",
+				  "global";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc 0 0 0 149 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &intc 0 0 0 150 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &intc 0 0 0 151 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &intc 0 0 0 152 IRQ_TYPE_LEVEL_HIGH>;
+
+		interconnects = <&pcie_data_inbound MASTER_PCIE_0 QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+				<&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+				 &config_noc SLAVE_PCIE_0 QCOM_ICC_TAG_ALWAYS>;
+		interconnect-names = "pcie-mem",
+				     "cpu-pcie";
+
+		iommu-map = <0x0 &pcie_smmu 0x0000 0x10000>;
+
+		msi-map = <0x0 &gic_its 0x80000 0x10000>;
+
+		power-domains = <&gcc GCC_PCIE_A_GDSC>;
+
+		resets = <&gcc GCC_PCIE_A_BCR>,
+			 <&gcc GCC_PCIE_A_LINK_DOWN_BCR>;
+		reset-names = "pci",
+			      "link_down";
+
+		pinctrl-0 = <&pcie0_default>;
+		pinctrl-names = "default";
+
+		status = "disabled";
+
+		pcie0_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			/* GEN 1 x1 */
+			opp-2500000-1 {
+				opp-hz = /bits/ 64 <2500000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <250000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x2 */
+			opp-5000000-1 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x4 */
+			opp-10000000-1 {
+				opp-hz = /bits/ 64 <10000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1000000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x8 */
+			opp-20000000-1 {
+				opp-hz = /bits/ 64 <20000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <2000000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x16 */
+			opp-40000000-1 {
+				opp-hz = /bits/ 64 <40000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <4000000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 2 x1 */
+			opp-5000000-2 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x2 */
+			opp-10000000-2 {
+				opp-hz = /bits/ 64 <10000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x4 */
+			opp-20000000-2 {
+				opp-hz = /bits/ 64 <20000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <2000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x8 */
+			opp-40000000-2 {
+				opp-hz = /bits/ 64 <40000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <4000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x16 */
+			opp-80000000-2 {
+				opp-hz = /bits/ 64 <80000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <8000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 3 x1 */
+			opp-8000000-3 {
+				opp-hz = /bits/ 64 <8000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <984500 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x2 */
+			opp-16000000-3 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x4 */
+			opp-32000000-3 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x8 */
+			opp-64000000-3 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x16 */
+			opp-128000000-3 {
+				opp-hz = /bits/ 64 <128000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <15753000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 4 x1 */
+			opp-16000000-4 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x2 */
+			opp-32000000-4 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x4 */
+			opp-64000000-4 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x8 */
+			opp-128000000-4 {
+				opp-hz = /bits/ 64 <128000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <15753000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x16 */
+			opp-256000000-4 {
+				opp-hz = /bits/ 64 <256000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <31506000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 5 x1 */
+			opp-32000000-5 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x2 */
+			opp-64000000-5 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x4 */
+			opp-128000000-5 {
+				opp-hz = /bits/ 64 <128000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <15753000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x8 */
+			opp-256000000-5 {
+				opp-hz = /bits/ 64 <256000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <31506000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x16 */
+			opp-512000000-5 {
+				opp-hz = /bits/ 64 <512000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <63012000 1>;
+				opp-level = <5>;
+			};
+		};
+
+		pcie0_port0: pcie@0 {
+			compatible = "pciclass,0604";
+
+			reg = <0 0 0 0 0>;
+
+			bus-range = <0x01 0xff>;
+
+			device_type = "pci";
+
+			phys = <&pcie_phy QMP_PHY_SELECTOR_0>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+		};
+	};
+
+	pcie1: pci@1b88000 {
+		compatible = "qcom,pcie-nord", "qcom,pcie-sa8775p";
+
+		reg = <0x00 0x01b88000 0x00 0x00004000>,
+		      <0x00 0x50000000 0x00 0x00000f20>,
+		      <0x00 0x50000f20 0x00 0x000000a8>,
+		      <0x00 0x50010000 0x00 0x00010000>,
+		      <0x00 0x50100000 0x00 0x00100000>,
+		      <0x00 0x01b8c000 0x00 0x00001000>;
+		reg-names = "parf",
+			    "dbi",
+			    "elbi",
+			    "atu",
+			    "config",
+			    "mhi";
+
+		ranges = <0x01000000 0x0 0x00000000 0x0 0x50200000 0x0 0x100000>,
+			 <0x02000000 0x0 0x50300000 0x0 0x50300000 0x0 0xfd00000>;
+
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		linux,pci-domain = <1>;
+		num-lanes = <4>;
+
+		operating-points-v2 = <&pcie1_opp_table>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		clocks = <&gcc GCC_PCIE_B_AUX_CLK>,
+			 <&gcc GCC_PCIE_B_CFG_AHB_CLK>,
+			 <&gcc GCC_PCIE_B_MSTR_AXI_CLK>,
+			 <&gcc GCC_PCIE_B_SLV_AXI_CLK>,
+			 <&gcc GCC_PCIE_B_SLV_Q2A_AXI_CLK>;
+		clock-names = "aux",
+			      "cfg",
+			      "bus_master",
+			      "bus_slave",
+			      "slave_q2a";
+
+		assigned-clocks = <&gcc GCC_PCIE_B_AUX_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		dma-coherent;
+
+		interrupts = <GIC_SPI 834 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 833 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 845 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 842 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 824 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 949 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi0",
+				  "msi1",
+				  "msi2",
+				  "msi3",
+				  "msi4",
+				  "msi5",
+				  "msi6",
+				  "msi7",
+				  "global";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc 0 0 0 835 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &intc 0 0 0 351 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &intc 0 0 0 830 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &intc 0 0 0 348 IRQ_TYPE_LEVEL_HIGH>;
+
+		msi-map = <0x0 &gic_its 0x90000 0x10000>;
+
+		interconnects = <&pcie_data_inbound MASTER_PCIE_1 QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+				<&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+				 &config_noc SLAVE_PCIE_1 QCOM_ICC_TAG_ALWAYS>;
+		interconnect-names = "pcie-mem",
+				     "cpu-pcie";
+
+		iommu-map = <0x0 &pcie_smmu 0x10000 0x10000>;
+
+		power-domains = <&gcc GCC_PCIE_B_GDSC>;
+
+		resets = <&gcc GCC_PCIE_B_BCR>,
+			 <&gcc GCC_PCIE_B_LINK_DOWN_BCR>;
+		reset-names = "pci",
+			      "link_down";
+
+		pinctrl-0 = <&pcie1_default>;
+		pinctrl-names = "default";
+
+		status = "disabled";
+
+		pcie1_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			/* GEN 1 x1 */
+			opp-2500000-1 {
+				opp-hz = /bits/ 64 <2500000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <250000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x2 */
+			opp-5000000-1 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x4 */
+			opp-10000000-1 {
+				opp-hz = /bits/ 64 <10000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1000000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x8 */
+			opp-20000000-1 {
+				opp-hz = /bits/ 64 <20000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <2000000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 2 x1 */
+			opp-5000000-2 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x2 */
+			opp-10000000-2 {
+				opp-hz = /bits/ 64 <10000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x4 */
+			opp-20000000-2 {
+				opp-hz = /bits/ 64 <20000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <2000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x8 */
+			opp-40000000-2 {
+				opp-hz = /bits/ 64 <40000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <4000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 3 x1 */
+			opp-8000000-3 {
+				opp-hz = /bits/ 64 <8000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <984500 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x2 */
+			opp-16000000-3 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x4 */
+			opp-32000000-3 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x8 */
+			opp-64000000-3 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 4 x1 */
+			opp-16000000-4 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x2 */
+			opp-32000000-4 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x4 */
+			opp-64000000-4 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x8 */
+			opp-128000000-4 {
+				opp-hz = /bits/ 64 <128000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <15753000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 5 x1 */
+			opp-32000000-5 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x2 */
+			opp-64000000-5 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x4 */
+			opp-128000000-5 {
+				opp-hz = /bits/ 64 <128000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <15753000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x8 */
+			opp-256000000-5 {
+				opp-hz = /bits/ 64 <256000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <31506000 1>;
+				opp-level = <5>;
+			};
+		};
+
+		pcie1_port0: pcie@0 {
+			device_type = "pci";
+			compatible = "pciclass,0604";
+			reg = <0 0 0 0 0>;
+			bus-range = <0x01 0xff>;
+
+			phys = <&pcie_phy QMP_PHY_SELECTOR_1>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+		};
+	};
+
+	pcie2: pci@1b90000 {
+		compatible = "qcom,pcie-nord", "qcom,pcie-sa8775p";
+
+		reg = <0x00 0x01b90000 0x00 0x00004000>,
+		      <0x00 0x60000000 0x00 0x00000f20>,
+		      <0x00 0x60000f20 0x00 0x000000a8>,
+		      <0x00 0x60010000 0x00 0x00010000>,
+		      <0x00 0x60100000 0x00 0x00100000>,
+		      <0x00 0x01b94000 0x00 0x00001000>;
+		reg-names = "parf",
+			    "dbi",
+			    "elbi",
+			    "atu",
+			    "config",
+			    "mhi";
+
+		ranges = <0x01000000 0x0 0x00000000 0x0 0x60200000 0x0 0x100000>,
+			 <0x02000000 0x0 0x60300000 0x0 0x60300000 0x0 0xfd00000>;
+
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		linux,pci-domain = <2>;
+		num-lanes = <2>;
+
+		operating-points-v2 = <&pcie2_opp_table>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		clocks = <&gcc GCC_PCIE_C_AUX_CLK>,
+			 <&gcc GCC_PCIE_C_CFG_AHB_CLK>,
+			 <&gcc GCC_PCIE_C_MSTR_AXI_CLK>,
+			 <&gcc GCC_PCIE_C_SLV_AXI_CLK>,
+			 <&gcc GCC_PCIE_C_SLV_Q2A_AXI_CLK>;
+		clock-names = "aux",
+			      "cfg",
+			      "bus_master",
+			      "bus_slave",
+			      "slave_q2a";
+
+		assigned-clocks = <&gcc GCC_PCIE_C_AUX_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		dma-coherent;
+
+		interrupts = <GIC_SPI 844 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 838 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 825 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 846 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 837 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 464 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi0",
+				  "msi1",
+				  "msi2",
+				  "msi3",
+				  "msi4",
+				  "msi5",
+				  "msi6",
+				  "msi7",
+				  "global";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc 0 0 0 263 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &intc 0 0 0 154 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &intc 0 0 0 110 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &intc 0 0 0 258 IRQ_TYPE_LEVEL_HIGH>;
+
+		interconnects = <&pcie_data_inbound MASTER_PCIE_2 QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+				<&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+				 &config_noc SLAVE_PCIE_2 QCOM_ICC_TAG_ALWAYS>;
+		interconnect-names = "pcie-mem",
+				     "cpu-pcie";
+
+		iommu-map = <0x0 &pcie_smmu 0x20000 0x10000>;
+
+		msi-map = <0x0 &gic_its 0xa0000 0x10000>;
+
+		power-domains = <&gcc GCC_PCIE_C_GDSC>;
+
+		resets = <&gcc GCC_PCIE_C_BCR>,
+			 <&gcc GCC_PCIE_C_LINK_DOWN_BCR>;
+		reset-names = "pci",
+			      "link_down";
+
+		pinctrl-0 = <&pcie2_default>;
+		pinctrl-names = "default";
+
+		status = "disabled";
+
+		pcie2_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			/* GEN 1 x1 */
+			opp-2500000-1 {
+				opp-hz = /bits/ 64 <2500000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <250000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x2 */
+			opp-5000000-1 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x4 */
+			opp-10000000-1 {
+				opp-hz = /bits/ 64 <10000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1000000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 2 x1 */
+			opp-5000000-2 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x2 */
+			opp-10000000-2 {
+				opp-hz = /bits/ 64 <10000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x4 */
+			opp-20000000-2 {
+				opp-hz = /bits/ 64 <20000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <2000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 3 x1 */
+			opp-8000000-3 {
+				opp-hz = /bits/ 64 <8000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <984500 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x2 */
+			opp-16000000-3 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x4 */
+			opp-32000000-3 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 4 x1 */
+			opp-16000000-4 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x2 */
+			opp-32000000-4 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x4 */
+			opp-64000000-4 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 5 x1 */
+			opp-32000000-5 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x2 */
+			opp-64000000-5 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x4 */
+			opp-128000000-5 {
+				opp-hz = /bits/ 64 <128000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <15753000 1>;
+				opp-level = <5>;
+			};
+		};
+
+		pcie2_port0: pcie@0 {
+			device_type = "pci";
+			compatible = "pciclass,0604";
+			reg = <0 0 0 0 0>;
+			bus-range = <0x01 0xff>;
+
+			phys = <&pcie_phy QMP_PHY_SELECTOR_2>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+		};
+	};
+
+	pcie3: pci@1b98000 {
+		compatible = "qcom,pcie-nord", "qcom,pcie-sa8775p";
+
+		reg = <0x00 0x01b98000 0x00 0x00004000>,
+		      <0x00 0x70000000 0x00 0x00000f20>,
+		      <0x00 0x70000f20 0x00 0x000000a8>,
+		      <0x00 0x70010000 0x00 0x00010000>,
+		      <0x00 0x70100000 0x00 0x00100000>,
+		      <0x00 0x01b9c000 0x00 0x00001000>;
+		reg-names = "parf",
+			    "dbi",
+			    "elbi",
+			    "atu",
+			    "config",
+			    "mhi";
+
+		ranges = <0x01000000 0x0 0x00000000 0x0 0x70200000 0x0 0x100000>,
+			 <0x02000000 0x0 0x70300000 0x0 0x70300000 0x0 0xfd00000>;
+
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		linux,pci-domain = <3>;
+		num-lanes = <2>;
+
+		operating-points-v2 = <&pcie3_opp_table>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		clocks = <&gcc GCC_PCIE_D_AUX_CLK>,
+			 <&gcc GCC_PCIE_D_CFG_AHB_CLK>,
+			 <&gcc GCC_PCIE_D_MSTR_AXI_CLK>,
+			 <&gcc GCC_PCIE_D_SLV_AXI_CLK>,
+			 <&gcc GCC_PCIE_D_SLV_Q2A_AXI_CLK>;
+		clock-names = "aux",
+			      "cfg",
+			      "bus_master",
+			      "bus_slave",
+			      "slave_q2a";
+
+		assigned-clocks = <&gcc GCC_PCIE_D_AUX_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		dma-coherent;
+
+		interrupts = <GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 831 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 659 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 840 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 823 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi0",
+				  "msi1",
+				  "msi2",
+				  "msi3",
+				  "msi4",
+				  "msi5",
+				  "msi6",
+				  "msi7",
+				  "global";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc 0 0 0 111 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &intc 0 0 0 246 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &intc 0 0 0 239 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &intc 0 0 0 234 IRQ_TYPE_LEVEL_HIGH>;
+
+		interconnects = <&pcie_data_inbound MASTER_PCIE_3 QCOM_ICC_TAG_ALWAYS
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+				<&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+				 &config_noc SLAVE_PCIE_3 QCOM_ICC_TAG_ALWAYS>;
+		interconnect-names = "pcie-mem",
+				     "cpu-pcie";
+
+		msi-map = <0x0 &gic_its 0xb0000 0x10000>;
+
+		iommu-map = <0x0 &pcie_smmu 0x30000 0x10000>;
+
+		power-domains = <&gcc GCC_PCIE_D_GDSC>;
+
+		resets = <&gcc GCC_PCIE_D_BCR>,
+			 <&gcc GCC_PCIE_D_LINK_DOWN_BCR>;
+		reset-names = "pci",
+			      "link_down";
+
+		pinctrl-0 = <&pcie3_default>;
+		pinctrl-names = "default";
+
+		status = "disabled";
+
+		pcie3_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			/* GEN 1 x1 */
+			opp-2500000-1 {
+				opp-hz = /bits/ 64 <2500000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <250000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 1 x2 */
+			opp-5000000-1 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <1>;
+			};
+
+			/* GEN 2 x1 */
+			opp-5000000-2 {
+				opp-hz = /bits/ 64 <5000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <500000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 2 x2 */
+			opp-10000000-2 {
+				opp-hz = /bits/ 64 <10000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1000000 1>;
+				opp-level = <2>;
+			};
+
+			/* GEN 3 x1 */
+			opp-8000000-3 {
+				opp-hz = /bits/ 64 <8000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <984500 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 3 x2 */
+			opp-16000000-3 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_low_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <3>;
+			};
+
+			/* GEN 4 x1 */
+			opp-16000000-4 {
+				opp-hz = /bits/ 64 <16000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <1969000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 4 x2 */
+			opp-32000000-4 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_svs>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <4>;
+			};
+
+			/* GEN 5 x1 */
+			opp-32000000-5 {
+				opp-hz = /bits/ 64 <32000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <3938000 1>;
+				opp-level = <5>;
+			};
+
+			/* GEN 5 x2 */
+			opp-64000000-5 {
+				opp-hz = /bits/ 64 <64000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+				opp-peak-kBps = <7876000 1>;
+				opp-level = <5>;
+			};
+		};
+
+		pcie3_port0: pcie@0 {
+			device_type = "pci";
+			compatible = "pciclass,0604";
+			reg = <0 0 0 0 0>;
+			bus-range = <0x01 0xff>;
+
+			phys = <&pcie_phy QMP_PHY_SELECTOR_3>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+		};
+	};
 	nsp_data_noc_1: interconnect@1f600000 {
 		compatible = "qcom,nord-nsp-data-noc-1";
 		reg = <0x0 0x1f600000 0x0 0x2a200>;
@@ -1460,6 +2565,98 @@
 		function = "aud_mclk1_mira";
 		drive-strength = <8>;
 		bias-disable;
+	};
+
+	pcie0_default: pcie0-default-state {
+		wake-pins {
+			pins = "gpio0";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		clkreq-pins {
+			pins = "gpio1";
+			function = "pcie0_clk_req_n";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-pins {
+			pins = "gpio2";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie1_default: pcie1-default-state {
+		wake-pins {
+			pins = "gpio3";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		clkreq-pins {
+			pins = "gpio4";
+			function = "pcie1_clk_req_n";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-pins {
+			pins = "gpio5";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie2_default: pcie2-default-state {
+		wake-pins {
+			pins = "gpio6";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		clkreq-pins {
+			pins = "gpio7";
+			function = "pcie2_clk_req_n";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-pins {
+			pins = "gpio8";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie3_default: pcie3-default-state {
+		wake-pins {
+			pins = "gpio9";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		clkreq-pins {
+			pins = "gpio10";
+			function = "pcie3_clk_req_n";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-pins {
+			pins = "gpio11";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
 	};
 
 	qup_i2c0_default: qup-i2c0-default-state {
