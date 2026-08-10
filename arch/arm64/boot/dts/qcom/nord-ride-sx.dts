@@ -666,6 +666,12 @@
 	status = "okay";
 };
 
+&iris {
+	firmware-name = "qcom/vpu/vpu36_p4_s7.mbn";
+
+	status = "okay";
+};
+
 &q6apmbedai {
 	#address-cells = <1>;
 	#size-cells = <0>;
