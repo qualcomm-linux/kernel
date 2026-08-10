@@ -431,20 +431,6 @@ static int pwrseq_qcom_wcn_match_regulator(struct pwrseq_device *pwrseq,
 	    reg_node->parent->parent != ctx->of_node)
 		return PWRSEQ_NO_MATCH;
 
-	/*
-	 * If this is a Bluetooth consumer device but the bt-enable GPIO is not
-	 * configured in the power sequencer (e.g. BT_EN is tied high via a
-	 * hardware pull-up and therefore absent from the DT), don't match.
-	 * The consumer driver will fall back to its legacy power control path
-	 * and correctly set power_ctrl_enabled to false.
-	 *
-	 * BT device nodes are conventionally named "bluetooth" in the DT,
-	 * so use of_node_name_eq() as a generic check rather than enumerating
-	 * specific compatible strings.
-	 */
-	if (!ctx->bt_gpio && of_node_name_eq(dev_node, "bluetooth"))
-		return PWRSEQ_NO_MATCH;
-
 	return PWRSEQ_MATCH_OK;
 }
 
