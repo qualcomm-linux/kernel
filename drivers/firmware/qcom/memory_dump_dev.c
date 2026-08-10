@@ -369,6 +369,32 @@ static const struct dump_item hamoa_items[] = {
 	{ ETFSWAO_REG, 0x4000, "etfswao-reg" },
 };
 
+static const struct dump_item glymur_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c100-context" },
+	{ C200_CONTEXT, 0x800, "c200-context" },
+	{ C300_CONTEXT, 0x800, "c300-context" },
+	{ C400_CONTEXT, 0x800, "c400-context" },
+	{ C500_CONTEXT, 0x800, "c500-context" },
+	{ C600_CONTEXT, 0x800, "c600-context" },
+	{ C700_CONTEXT, 0x800, "c700-context" },
+	{ C800_CONTEXT, 0x800, "c800-context" },
+	{ C900_CONTEXT, 0x800, "c900-context" },
+	{ C1000_CONTEXT, 0x800, "c1000-context" },
+	{ C1100_CONTEXT, 0x800, "c1100-context" },
+	{ C1200_CONTEXT, 0x800, "c1200-context" },
+	{ C1300_CONTEXT, 0x800, "c1300-context" },
+	{ C1400_CONTEXT, 0x800, "c1400-context" },
+	{ C1500_CONTEXT, 0x800, "c1500-context" },
+	{ C1600_CONTEXT, 0x800, "c1600-context" },
+	{ C1700_CONTEXT, 0x800, "c1700-context" },
+	{ RPMH, 0xc10000, "rpmh" },
+	{ PMIC, 0x200000, "pmic" },
+	{ ETF_SWAO, 0x10000, "etf-swao" },
+	{ ETR_REG, 0x4000, "etr-reg" },
+	{ ETFSWAO_REG, 0x4000, "etfswao-reg" },
+};
+
 static const struct dump_item shikra_items[] = {
 	{ C0_CONTEXT, 0x800, "c0-context" },
 	{ C100_CONTEXT, 0x800, "c100-context" },
@@ -450,8 +476,8 @@ static const struct dump_table shikra_dump_table = {
 };
 
 static const struct dump_table glymur_dump_table = {
-	.items		= hamoa_items,
-	.num_of_items	= ARRAY_SIZE(hamoa_items),
+	.items		= glymur_items,
+	.num_of_items	= ARRAY_SIZE(glymur_items),
 	.imem_base	= 0x14680010,
 	.imem_size	= 0x8,
 };
