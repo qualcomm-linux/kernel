@@ -22,7 +22,13 @@ description: |
 
 properties:
   compatible:
-    const: qcom,bam-dmux
+    oneOf:
+      - const: qcom,bam-dmux
+      - items:
+          - enum:
+              # Shikra
+              - qcom,shikra-bam-dmux
+          - const: qcom,bam-dmux
 
   interrupts:
     description:

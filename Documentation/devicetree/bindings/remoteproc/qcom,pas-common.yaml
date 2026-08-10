@@ -26,26 +26,15 @@ properties:
 
   interrupts:
     minItems: 5
-    items:
-      - description: Watchdog interrupt
-      - description: Fatal interrupt
-      - description: Ready interrupt
-      - description: Handover interrupt
-      - description: Stop acknowledge interrupt
-      - description: Shutdown acknowledge interrupt
+    maxItems: 6
 
   interrupt-names:
     minItems: 5
-    items:
-      - const: wdog
-      - const: fatal
-      - const: ready
-      - const: handover
-      - const: stop-ack
-      - const: shutdown-ack
+    maxItems: 6
 
   iommus:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
   power-domains:
     minItems: 1
@@ -58,19 +47,23 @@ properties:
   qcom,smem-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: States used by the AP to signal the Hexagon core
+    minItems: 1
     items:
-      - description: Stop the modem
+      - description: Stop the remoteproc
         items:
           - description: Phandle to the Shared Memory Point 2 Point device
               handling the communication with a remote processor
           - description: Single bit index to toggle in the value sent to
               the remote processor
             maximum: 32
+      - description: ping the remoteproc
 
   qcom,smem-state-names:
     description: The names of the state bits used for SMP2P output
+    minItems: 1
     items:
       - const: stop
+      - const: ping
 
   smd-edge:
     $ref: /schemas/remoteproc/qcom,smd-edge.yaml#
@@ -78,6 +71,20 @@ properties:
       Qualcomm Shared Memory subnode which represents communication edge,
       channels and devices related to the ADSP.
     unevaluatedProperties: false
+
+  '#cooling-cells':
+    description:
+      Number of cooling cells; 2 for min/max cooling state and 3 when
+      selecting a thermal mitigation device index.
+    enum: [2, 3]
+
+  tmd-names:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description:
+      Names of the thermal mitigation devices available in remote processor
+      subsystem.
+    minItems: 1
+    maxItems: 5
 
   glink-edge:
     $ref: /schemas/remoteproc/qcom,glink-edge.yaml#

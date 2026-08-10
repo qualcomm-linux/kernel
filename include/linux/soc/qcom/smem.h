@@ -2,6 +2,8 @@
 #ifndef __QCOM_SMEM_H__
 #define __QCOM_SMEM_H__
 
+#include <linux/platform_device.h>
+
 #define QCOM_SMEM_HOST_ANY -1
 
 bool qcom_smem_is_available(void);
@@ -16,5 +18,7 @@ int qcom_smem_get_soc_id(u32 *id);
 int qcom_smem_get_feature_code(u32 *code);
 
 int qcom_smem_bust_hwspin_lock_by_host(unsigned int host);
+
+int qcom_smem_dram_get_hbb(void);
 
 #endif
