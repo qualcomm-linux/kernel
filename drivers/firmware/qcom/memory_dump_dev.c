@@ -435,6 +435,13 @@ static const struct dump_table shikra_dump_table = {
 	.imem_size	= 0x8,
 };
 
+static const struct dump_table glymur_dump_table = {
+	.items		= hamoa_items,
+	.num_of_items	= ARRAY_SIZE(hamoa_items),
+	.imem_base	= 0x14680010,
+	.imem_size	= 0x8,
+};
+
 static int __init mem_dump_dev_init(void)
 {
 	int ret;
@@ -522,6 +529,16 @@ static int __init mem_dump_dev_init(void)
 	case 759:
 		ret = platform_device_add_data(mem_dump_pdev,
 				&shikra_dump_table, sizeof(shikra_dump_table));
+		if (ret)
+			goto fail;
+		break;
+	case 662:
+	case 698:
+	case 699:
+	case 718:
+	case 719:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&glymur_dump_table, sizeof(glymur_dump_table));
 		if (ret)
 			goto fail;
 		break;
