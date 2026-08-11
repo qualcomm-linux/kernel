@@ -936,6 +936,7 @@ int msm_dp_display_get_test_bpp(struct msm_dp *dp)
 void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp)
 {
 	struct msm_dp_display_private *msm_dp_display;
+	int i;
 
 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
 
@@ -959,14 +960,22 @@ void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp)
 				    msm_dp_display->mst2link_base, "dp_mst2link");
 	msm_disp_snapshot_add_block(disp_state, msm_dp_display->mst3link_len,
 				    msm_dp_display->mst3link_base, "dp_mst3link");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[0], "dp_p0");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[1], "dp_p1");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[2], "dp_p2");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[3], "dp_p3");
+
+	/*
+	 * Each pixel stream is fed by its own pixel clock, and active_stream_cnt
+	 * only tells us that at least one of them is running. Dump a per-stream
+	 * block only when it is both mapped and its pixel clock is enabled: in
+	 * SST only stream 0 is used, so reading the others - present in the IO
+	 * space but unclocked - would trigger an unclocked (NoC) access.
+	 */
+	for (i = 0; i < DP_STREAM_MAX; i++) {
+		if (!msm_dp_display->pixel_base[i] ||
+		    !msm_dp_ctrl_stream_clk_on(msm_dp_display->ctrl, i))
+			continue;
+
+		msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
+					    msm_dp_display->pixel_base[i], "dp_p%d", i);
+	}
 }
 
 void msm_dp_display_set_psr(struct msm_dp *msm_dp_display, bool enter)

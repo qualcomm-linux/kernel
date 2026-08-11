@@ -2414,6 +2414,19 @@ void msm_dp_ctrl_off_pixel_clk(struct msm_dp_ctrl *msm_dp_ctrl, enum msm_dp_stre
 	}
 }
 
+bool msm_dp_ctrl_stream_clk_on(struct msm_dp_ctrl *msm_dp_ctrl,
+			       enum msm_dp_stream_id stream_id)
+{
+	struct msm_dp_ctrl_private *ctrl;
+
+	if (stream_id >= DP_STREAM_MAX)
+		return false;
+
+	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
+
+	return ctrl->stream_clks_on[stream_id];
+}
+
 static int msm_dp_ctrl_process_phy_test_request(struct msm_dp_ctrl_private *ctrl,
 						struct msm_dp_panel *panel)
 {
