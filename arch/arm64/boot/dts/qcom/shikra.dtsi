@@ -28,6 +28,22 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	bam_dmux: bam-dmux {
+		compatible = "qcom,bam-dmux";
+
+		interrupts-extended = <&modem_smsm 1 IRQ_TYPE_EDGE_BOTH>,
+				      <&modem_smsm 11 IRQ_TYPE_EDGE_BOTH>;
+		interrupt-names = "pc",
+				  "pc-ack";
+
+		qcom,smem-states = <&apps_smsm 1>, <&apps_smsm 11>;
+		qcom,smem-state-names = "pc",
+					"pc-ack";
+
+		dmas = <&bam_dmux_dma 4>, <&bam_dmux_dma 5>;
+		dma-names = "tx", "rx";
+	};
+
 	clocks {
 		xo_board: xo-board {
 			compatible = "fixed-clock";
@@ -2607,81 +2623,6 @@
 			};
 		};
 
-		usb_1: usb@4e00000 {
-			compatible = "qcom,shikra-dwc3", "qcom,snps-dwc3";
-			reg = <0x0 0x04e00000 0x0 0xfc100>;
-
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
-				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
-				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
-				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
-				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
-				 <&gcc GCC_USB3_PRIM_CLKREF_EN>;
-			clock-names = "cfg_noc",
-				      "core",
-				      "iface",
-				      "sleep",
-				      "mock_utmi",
-				      "xo";
-
-			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
-					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
-			assigned-clock-rates = <19200000>, <133333333>;
-
-			interrupts-extended = <&intc GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH 0>,
-					      <&intc GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH 0>,
-					      <&intc GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH 0>,
-					      <&intc GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH 0>,
-					      <&intc GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH 0>;
-			interrupt-names = "dwc_usb3",
-					  "pwr_event",
-					  "qusb2_phy",
-					  "hs_phy_irq",
-					  "ss_phy_irq";
-
-			iommus = <&apps_smmu 0x120 0x0>;
-
-			phys = <&usb_1_hsphy>, <&usb_qmpphy>;
-			phy-names = "usb2-phy", "usb3-phy";
-
-			power-domains = <&gcc GCC_USB30_PRIM_GDSC>;
-
-			resets = <&gcc GCC_USB30_PRIM_BCR>;
-
-			snps,dis_u2_susphy_quirk;
-			snps,dis_enblslpm_quirk;
-			snps,has-lpm-erratum;
-			snps,hird-threshold = /bits/ 8 <0x10>;
-			snps,usb3_lpm_capable;
-			snps,parkmode-disable-ss-quirk;
-
-			usb-role-switch;
-
-			wakeup-source;
-
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-
-					usb_1_dwc3_hs: endpoint {
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-
-					usb_1_dwc3_ss: endpoint {
-						remote-endpoint = <&usb_qmpphy_usb_ss_in>;
-					};
-				};
-			};
-		};
-
 		bam_dmux_dma: dma-controller@6044000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x0 0x06044000 0x0 0x19000>;
@@ -2725,23 +2666,6 @@
 			qcom,smem-state-names = "stop";
 
 			status = "disabled";
-
-			bam_dmux: bam-dmux {
-				compatible = "qcom,shikra-bam-dmux", "qcom,bam-dmux";
-
-				interrupts-extended = <&modem_smsm 1 IRQ_TYPE_EDGE_BOTH>,
-						      <&modem_smsm 11 IRQ_TYPE_EDGE_BOTH>;
-				interrupt-names = "pc",
-						  "pc-ack";
-
-				qcom,smem-states = <&apps_smsm 1>,
-						   <&apps_smsm 11>;
-				qcom,smem-state-names = "pc",
-							"pc-ack";
-
-				dmas = <&bam_dmux_dma 4>, <&bam_dmux_dma 5>;
-				dma-names = "tx", "rx";
-			};
 
 			glink-edge {
 				interrupts = <GIC_SPI 68 IRQ_TYPE_EDGE_RISING 0>;
@@ -4919,19 +4843,6 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			label = "cti_apss_2";
-		};
-
-		bam_dmux_dma: dma-controller@6044000 {
-			compatible = "qcom,shikra-bam-dma", "qcom,bam-v1.7.0";
-			reg = <0x0 0x06044000 0x0 0x19000>;
-			interrupts = <GIC_SPI 74 IRQ_TYPE_EDGE_RISING 0>;
-			#dma-cells = <1>;
-			qcom,ee = <0>;
-
-			num-channels = <6>;
-			qcom,num-ees = <1>;
-			qcom,powered-remotely;
-			qcom,vmid = <QCOM_SCM_VMID_NAV>;
 		};
 
 		sram@c11e000 {
