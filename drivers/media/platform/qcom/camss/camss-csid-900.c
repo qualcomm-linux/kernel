@@ -16,6 +16,7 @@
 #include "camss-csid.h"
 #include "camss-csid-gen3.h"
 
+/* Reset and Command Registers */
 #define CSID_RST_CFG				0xC
 #define		RST_MODE				BIT(0)
 #define		RST_LOCATION				BIT(4)
@@ -26,6 +27,7 @@
 #define CSID_IRQ_CMD				0x14
 #define		IRQ_CMD_CLEAR				BIT(0)
 
+/* Register Update Commands, RUP/AUP */
 #define CSID_RUP_CMD				0x18
 #define CSID_AUP_CMD				0x1C
 #define		CSID_RUP_AUP_RDI(rdi)			(BIT(8) << (rdi))
@@ -33,6 +35,7 @@
 #define		RUP_SET					BIT(0)
 #define		MUP					BIT(4)
 
+/* Top level interrupt registers */
 #define CSID_TOP_IRQ_STATUS			0x84
 #define CSID_TOP_IRQ_MASK			0x88
 #define CSID_TOP_IRQ_CLEAR			0x8C
@@ -41,22 +44,26 @@
 #define		CSI2_RX_IRQ_STATUS			BIT(2)
 #define		BUF_DONE_IRQ_STATUS			BIT(3)
 
+/* Buffer done interrupt registers */
 #define CSID_BUF_DONE_IRQ_STATUS		0xA4
 #define		BUF_DONE_IRQ_STATUS_RDI_OFFSET		16
 #define CSID_BUF_DONE_IRQ_MASK			0xA8
 #define CSID_BUF_DONE_IRQ_CLEAR			0xAC
 #define CSID_BUF_DONE_IRQ_SET			0xB0
 
+/* CSI2 RX interrupt registers */
 #define CSID_CSI2_RX_IRQ_STATUS			0xB4
 #define CSID_CSI2_RX_IRQ_MASK			0xB8
 #define CSID_CSI2_RX_IRQ_CLEAR			0xBC
 #define CSID_CSI2_RX_IRQ_SET			0xC0
 
+/* CSI2 RX Configuration */
 #define CSID_CSI2_RX_CFG0			0x400
 #define		CSI2_RX_CFG0_NUM_ACTIVE_LANES		0
 #define		CSI2_RX_CFG0_DL0_INPUT_SEL		4
 #define		CSI2_RX_CFG0_PHY_NUM_SEL		20
 #define		CSI2_RX_CFG0_TPG_MUX_EN			BIT(27)
+/* TPG_NUM_SEL: which TPG drives the data, programmed as n == n (TPG0 -> 0) */
 #define		CSI2_RX_CFG0_TPG_MUX_SEL		GENMASK(29, 28)
 #define CSID_CSI2_RX_CFG1			0x404
 #define		CSI2_RX_CFG1_ECC_CORRECTION_EN		BIT(0)
@@ -64,8 +71,18 @@
 
 #define MSM_CSID_MAX_SRC_STREAMS_900		(csid_is_lite(csid) ? 4 : 5)
 
+/*
+ * v900 uses a uniform register map for both CSID full and CSID lite (unlike
+ * v980 where the lite RDI region and IRQ block are laid out differently). Only
+ * the RDI region base differs: full at 0x1300, lite at 0x600, stride 0x200.
+ */
 #define CSID_RDI_BASE				(csid_is_lite(csid) ? 0x600 : 0x1300)
 #define CSID_RDI_CFG0(rdi)			(CSID_RDI_BASE + 0x0 + 0x200 * (rdi))
+/*
+ * Silicon (nordschleife_2.0) names CFG0 bit5 RETIME_DIS = "Disable SOF/EOF
+ * strobe retiming" (reset 0). Set here to match the 980, which sets the same
+ * bit (as RETIME_BS).
+ */
 #define		RDI_CFG0_RETIME_DIS			BIT(5)
 #define		RDI_CFG0_TIMESTAMP_EN			BIT(6)
 #define		RDI_CFG0_TIMESTAMP_STB_SEL		BIT(8)
@@ -75,6 +92,7 @@
 #define		RDI_CFG0_DT_ID				27
 #define		RDI_CFG0_EN				BIT(31)
 
+/* RDI Control and Configuration */
 #define CSID_RDI_CTRL(rdi)			(CSID_RDI_BASE + 0x4 + 0x200 * (rdi))
 #define		RDI_CTRL_START_CMD			BIT(0)
 
@@ -85,16 +103,33 @@
 #define		RDI_CFG1_CROP_V_EN			BIT(8)
 #define		RDI_CFG1_PACKING_FORMAT_MIPI		BIT(15)
 
+/* RDI Pixel Store Configuration (full only) */
 #define CSID_RDI_PIX_STORE_CFG0(rdi)		(CSID_RDI_BASE + 0x14 + 0x200 * (rdi))
 #define		RDI_PIX_STORE_CFG0_EN			BIT(0)
 #define		RDI_PIX_STORE_CFG0_MIN_HBI		1
 
+/* RDI IRQ Status in wrapper */
 #define CSID_CSI2_RDIN_IRQ_STATUS(rdi)		(0x114 + 0x10 * (rdi))
 #define CSID_CSI2_RDIN_IRQ_CLEAR(rdi)		(0x11C + 0x10 * (rdi))
 #define		INFO_RUP_DONE				BIT(23)
 
+/*
+ * Per-path domain_id (secure sub-block). The 5-bit domain_id CSID passes to the
+ * IFE becomes the write master's AUSER[4:0], which the NOC translates to the
+ * SMMU SID: a value of 0 yields an unmapped SID, a non-zero value selects the
+ * HLOS IFE SID that the device tree maps. The register lives in a secure
+ * sub-block one 4KB page below each CSID's mmio base, outside the CSID mmio
+ * window, so it is mapped separately. Physical bases per full CSID (lite has
+ * no such block).
+ */
+static const u32 csid_secure_ctrl_base[] = { 0x09b31000, 0x09b37800, 0x09b3e000 };
+#define CSID_SECURE_CTRL_SIZE			0x10
+#define CSID_PATH_DOMAIN_ID_CFG1		0x4
+#define		PATH_DOMAIN_ID_RDI(rdi)			(0x1U << ((rdi) * 8))
+
 static void __csid_aup_rup_trigger(struct csid_device *csid)
 {
+	/* trigger SET in combined register */
 	writel(RUP_SET, csid->base + CSID_RUP_AUP_CMD);
 }
 
@@ -103,6 +138,10 @@ static void __csid_aup_update(struct csid_device *csid, int port_id)
 	csid->aup_update |= CSID_RUP_AUP_RDI(port_id);
 	writel(csid->aup_update, csid->base + CSID_AUP_CMD);
 
+	/*
+	 * v900 splits AUP and RUP commands, which requires an additional SET
+	 * operation to make the register modification take effect.
+	 */
 	__csid_aup_rup_trigger(csid);
 }
 
@@ -116,6 +155,7 @@ static void __csid_rup_update(struct csid_device *csid, int port_id)
 
 static void __csid_aup_rup_clear(struct csid_device *csid, int port_id)
 {
+	/* Hardware clears the registers upon consuming the settings */
 	csid->aup_update &= ~CSID_RUP_AUP_RDI(port_id);
 	csid->rup_update &= ~CSID_RUP_AUP_RDI(port_id);
 }
@@ -169,6 +209,12 @@ static void __csid_configure_rdi_pix_store(struct csid_device *csid, u8 rdi)
 {
 	u32 val;
 
+	/*
+	 * Configure pixel store to allow absorption of hblanking or idle time.
+	 * This helps with horizontal crop and prevents line buffer conflicts.
+	 * Reset state is 0x8 which has MIN_HBI=4, we keep the default MIN_HBI
+	 * and just enable the pixel store functionality.
+	 */
 	val = (4 << RDI_PIX_STORE_CFG0_MIN_HBI) | RDI_PIX_STORE_CFG0_EN;
 	writel(val, csid->base + CSID_RDI_PIX_STORE_CFG0(rdi));
 }
@@ -208,8 +254,10 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 
 	val = RDI_CFG0_TIMESTAMP_EN;
 	val |= RDI_CFG0_TIMESTAMP_STB_SEL;
+	/* bit5 set to match the 980 */
 	val |= RDI_CFG0_RETIME_DIS;
 
+	/* note: for non-RDI path, this should be format->decode_format */
 	val |= DECODE_FORMAT_PAYLOAD_ONLY << RDI_CFG0_DECODE_FORMAT;
 	val |= vc << RDI_CFG0_VC;
 	val |= format->data_type << RDI_CFG0_DT;
@@ -219,6 +267,7 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 	val = RDI_CFG1_PACKING_FORMAT_MIPI;
 	writel(val, csid->base + rdi_cfg1_offset);
 
+	/* Pixel store is only present on CSID full */
 	if (!csid_is_lite(csid))
 		__csid_configure_rdi_pix_store(csid, port);
 
@@ -231,6 +280,31 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 		val |= RDI_CFG0_EN;
 
 	writel(val, csid->base + rdi_cfg0_offset);
+}
+
+/* Program a non-zero per-path domain_id (see CSID_PATH_DOMAIN_ID_CFG1). */
+static void __csid_configure_domain_id(struct csid_device *csid)
+{
+	void __iomem *sec;
+	u32 val;
+	int i;
+
+	/* Only full CSIDs (0..2) have the secure domain_id block */
+	if (csid_is_lite(csid) || csid->id >= ARRAY_SIZE(csid_secure_ctrl_base))
+		return;
+
+	sec = ioremap(csid_secure_ctrl_base[csid->id], CSID_SECURE_CTRL_SIZE);
+	if (!sec)
+		return;
+
+	/* CFG1: one 8-bit domain_id field per RDI (RDI0..3) */
+	val = readl(sec + CSID_PATH_DOMAIN_ID_CFG1);
+	for (i = 0; i < 4; i++)
+		if (csid->phy.en_vc & BIT(i))
+			val |= PATH_DOMAIN_ID_RDI(i);
+	writel(val, sec + CSID_PATH_DOMAIN_ID_CFG1);
+
+	iounmap(sec);
 }
 
 static void csid_configure_stream(struct csid_device *csid, u8 enable)
@@ -247,7 +321,16 @@ static void csid_configure_stream(struct csid_device *csid, u8 enable)
 			for (k = 0; k < CAMSS_INIT_BUF_COUNT; k++)
 				__csid_aup_update(csid, i);
 
+			/*
+			 * Latch the configuration into the active bank with a
+			 * single register update after the address updates, then
+			 * start.
+			 */
 			__csid_rup_update(csid, i);
+
+			/* Program domain_id before START (see __csid_configure_domain_id) */
+			if (enable)
+				__csid_configure_domain_id(csid);
 
 			__csid_ctrl_rdi(csid, enable, i);
 		}
@@ -268,6 +351,13 @@ static void csid_subdev_reg_update(struct csid_device *csid, int port_id,
 		__csid_aup_update(csid, port_id);
 }
 
+/**
+ * csid_isr - CSID module interrupt service routine
+ * @irq: Interrupt line
+ * @dev: CSID device
+ *
+ * Return IRQ_HANDLED on success
+ */
 static irqreturn_t csid_isr(int irq, void *dev)
 {
 	struct csid_device *csid = dev;
@@ -305,6 +395,12 @@ static irqreturn_t csid_isr(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+/**
+ * csid_reset - Trigger reset on CSID module and wait to complete
+ * @csid: CSID device
+ *
+ * Return 0 on success or a negative error code otherwise
+ */
 static int csid_reset(struct csid_device *csid)
 {
 	unsigned long time;
@@ -320,12 +416,18 @@ static int csid_reset(struct csid_device *csid)
 	val = 0;
 	for (i = 0; i < MSM_CSID_MAX_SRC_STREAMS_900; i++) {
 		if (csid->phy.en_vc & BIT(i)) {
+			/*
+			 * Only need to clear buf done IRQ status here,
+			 * RUP done IRQ status will be cleared once isr
+			 * strobe generated by CSID_RST_CMD
+			 */
 			val |= BIT(BUF_DONE_IRQ_STATUS_RDI_OFFSET + i);
 		}
 	}
 	writel(val, csid->base + CSID_BUF_DONE_IRQ_CLEAR);
 	writel(val, csid->base + CSID_BUF_DONE_IRQ_MASK);
 
+	/* Clear all IRQ status with CLEAR bits set */
 	val = IRQ_CMD_CLEAR;
 	writel(val, csid->base + CSID_IRQ_CMD);
 
