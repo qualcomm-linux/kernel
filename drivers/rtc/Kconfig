@@ -1836,6 +1836,16 @@ config RTC_DRV_PM8XXX
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-pm8xxx.
 
+config RTC_DRV_QCOM_GLINK
+	tristate "Qualcomm PMIC GLINK RTC"
+	depends on QCOM_PMIC_GLINK
+	help
+	  Say Y here to enable support for the RTC exposed by the PMIC
+	  over the GLINK transport on Qualcomm platforms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-qcom-glink.
+
 config RTC_DRV_TEGRA
 	tristate "NVIDIA Tegra Internal RTC driver"
 	depends on ARCH_TEGRA || COMPILE_TEST
