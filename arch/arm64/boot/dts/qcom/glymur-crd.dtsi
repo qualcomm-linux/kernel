@@ -967,7 +967,7 @@
 	pinctrl-0 = <&pcie6_default>;
 	pinctrl-names = "default";
 
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie6_phy {
@@ -976,7 +976,7 @@
 	vdda-refgen0p9-supply = <&vreg_l1c_e1_0p82>;
 	vdda-refgen1p2-supply = <&vreg_l4f_e1_1p08>;
 
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie6_port0 {
