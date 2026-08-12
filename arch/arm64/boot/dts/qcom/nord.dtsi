@@ -398,6 +398,11 @@
 		reg = <0x0 0x80000000 0x0 0x0>;
 	};
 
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -531,6 +536,11 @@
 		system_pd: power-domain-system {
 			#power-domain-cells = <0>;
 			domain-idle-states = <&domain_ss3>;
+		};
+
+		reboot-mode {
+			mode-bootloader = <0x80010001 0x2>;
+			mode-edl = <0x80000000 0x1>;
 		};
 	};
 

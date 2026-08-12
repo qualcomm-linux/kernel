@@ -1015,13 +1015,8 @@ static int qcom_pas_probe(struct platform_device *pdev)
 	pas->pas_ctx->use_tzmem = desc->needs_tzmem || rproc->has_iommu;
 	pas->dtb_pas_ctx->use_tzmem = desc->needs_tzmem || rproc->has_iommu;
 
-	if (desc->early_boot) {
-		ret = qcom_q6v5_ping_subsystem_init(&pas->q6v5, pdev);
-		if (ret)
-			dev_warn(&pdev->dev, "Falling back to firmware load\n");
-		else
-			pas->rproc->state = RPROC_DETACHED;
-	}
+	if (desc->early_boot)
+		pas->rproc->state = RPROC_DETACHED;
 
 	ret = qcom_pas_setup_tmd(pas);
 	if (ret)
