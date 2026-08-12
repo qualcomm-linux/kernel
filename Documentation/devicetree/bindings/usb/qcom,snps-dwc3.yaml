@@ -60,6 +60,7 @@ properties:
           - qcom,sdx55-dwc3
           - qcom,sdx65-dwc3
           - qcom,sdx75-dwc3
+          - qcom,shikra-dwc3
           - qcom,sm4250-dwc3
           - qcom,sm6115-dwc3
           - qcom,sm6125-dwc3
@@ -358,6 +359,7 @@ allOf:
               - qcom,sar2130p-dwc3
               - qcom,sc8180x-dwc3
               - qcom,sc8180x-dwc3-mp
+              - qcom,shikra-dwc3
               - qcom,sm4250-dwc3
               - qcom,sm6115-dwc3
               - qcom,sm6125-dwc3
@@ -434,6 +436,7 @@ allOf:
               - qcom,ipq8074-dwc3
               - qcom,msm8953-dwc3
               - qcom,msm8998-dwc3
+              - qcom,shikra-dwc3
     then:
       properties:
         interrupts:

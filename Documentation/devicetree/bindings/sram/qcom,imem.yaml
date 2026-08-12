@@ -36,6 +36,7 @@ properties:
           - qcom,sdx55-imem
           - qcom,sdx65-imem
           - qcom,sdx75-imem
+          - qcom,shikra-imem
           - qcom,sm6115-imem
           - qcom,sm6125-imem
           - qcom,sm6350-imem

@@ -41,6 +41,17 @@ properties:
   vcc-supply:
     description: Regulator for 3.3V IO power.
 
+  lontium,port-select:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+    default: 0
+    description: |
+      Selects which DSI input port(s) the bridge uses. Only relevant for
+      the lontium,lt9611c compatible.
+        0 = PORT_SELECT_A  - single DSI port A (default)
+        1 = PORT_SELECT_B  - single DSI port B
+        2 = PORT_SELECT_AB - dual DSI ports A and B
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -113,6 +124,8 @@ examples:
 
         vdd-supply = <&lt9611_1v8>;
         vcc-supply = <&lt9611_3v3>;
+
+        lontium,port-select = <1>;
 
         ports {
           #address-cells = <1>;
