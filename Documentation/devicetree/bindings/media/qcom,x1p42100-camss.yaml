@@ -1,23 +1,23 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/media/qcom,x1e80100-camss.yaml#
+$id: http://devicetree.org/schemas/media/qcom,x1p42100-camss.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm X1E80100 Camera Subsystem (CAMSS)
+title: Qualcomm X1P42100 Camera Subsystem (CAMSS)
 
 maintainers:
-  - Bryan O'Donoghue <bryan.odonoghue@linaro.org>
+  - Wenmeng Liu <wenmeng.liu@oss.qualcomm.com>
 
 description:
   The CAMSS IP is a CSI decoder and ISP present on Qualcomm platforms.
 
 properties:
   compatible:
-    const: qcom,x1e80100-camss
+    const: qcom,x1p42100-camss
 
   reg:
-    maxItems: 17
+    maxItems: 14
 
   reg-names:
     items:
@@ -28,14 +28,11 @@ properties:
       - const: csid_lite1
       - const: csid_wrapper
       - const: csiphy0
-      - const: csiphy1
-      - const: csiphy2
       - const: csiphy4
       - const: csitpg0
       - const: csitpg1
       - const: csitpg2
       - const: vfe0
-      - const: vfe1
       - const: vfe_lite0
       - const: vfe_lite1
 
@@ -48,7 +45,7 @@ properties:
   ranges: true
 
   clocks:
-    maxItems: 29
+    maxItems: 22
 
   clock-names:
     items:
@@ -58,32 +55,25 @@ properties:
       - const: cpas_ahb
       - const: cpas_fast_ahb
       - const: cpas_vfe0
-      - const: cpas_vfe1
       - const: cpas_vfe_lite
       - const: cphy_rx_clk_src
       - const: csid
       - const: csid_csiphy_rx
       - const: csiphy0
       - const: csiphy0_timer
-      - const: csiphy1
-      - const: csiphy1_timer
-      - const: csiphy2
-      - const: csiphy2_timer
       - const: csiphy4
       - const: csiphy4_timer
       - const: gcc_axi_hf
       - const: gcc_axi_sf
       - const: vfe0
       - const: vfe0_fast_ahb
-      - const: vfe1
-      - const: vfe1_fast_ahb
       - const: vfe_lite
       - const: vfe_lite_ahb
       - const: vfe_lite_cphy_rx
       - const: vfe_lite_csid
 
   interrupts:
-    maxItems: 13
+    maxItems: 10
 
   interrupt-names:
     items:
@@ -93,11 +83,8 @@ properties:
       - const: csid_lite0
       - const: csid_lite1
       - const: csiphy0
-      - const: csiphy1
-      - const: csiphy2
       - const: csiphy4
       - const: vfe0
-      - const: vfe1
       - const: vfe_lite0
       - const: vfe_lite1
 
@@ -132,13 +119,11 @@ properties:
   power-domains:
     items:
       - description: IFE0 GDSC - Image Front End, Global Distributed Switch Controller.
-      - description: IFE1 GDSC - Image Front End, Global Distributed Switch Controller.
       - description: Titan Top GDSC - Titan ISP Block, Global Distributed Switch Controller.
 
   power-domain-names:
     items:
       - const: ife0
-      - const: ife1
       - const: top
 
   vdd-csiphy-0p8-supply:
@@ -150,13 +135,11 @@ properties:
       1.2V supply to a PHY.
 
   phys:
-    maxItems: 4
+    maxItems: 2
 
   phy-names:
     items:
       - const: csiphy0
-      - const: csiphy1
-      - const: csiphy2
       - const: csiphy4
 
   ports:
@@ -292,7 +275,7 @@ examples:
         #size-cells = <2>;
 
         camss: isp@acb7000 {
-            compatible = "qcom,x1e80100-camss";
+            compatible = "qcom,x1p42100-camss";
 
             reg = <0 0x0acb7000 0 0x2000>,
                   <0 0x0acb9000 0 0x2000>,
@@ -301,14 +284,11 @@ examples:
                   <0 0x0acca000 0 0x1000>,
                   <0 0x0acb6000 0 0x1000>,
                   <0 0x0ace4000 0 0x1000>,
-                  <0 0x0ace6000 0 0x1000>,
-                  <0 0x0ace8000 0 0x1000>,
                   <0 0x0acec000 0 0x4000>,
                   <0 0x0acf6000 0 0x1000>,
                   <0 0x0acf7000 0 0x1000>,
                   <0 0x0acf8000 0 0x1000>,
                   <0 0x0ac62000 0 0x4000>,
-                  <0 0x0ac71000 0 0x4000>,
                   <0 0x0acc7000 0 0x2000>,
                   <0 0x0accb000 0 0x2000>;
 
@@ -319,14 +299,11 @@ examples:
                         "csid_lite1",
                         "csid_wrapper",
                         "csiphy0",
-                        "csiphy1",
-                        "csiphy2",
                         "csiphy4",
                         "csitpg0",
                         "csitpg1",
                         "csitpg2",
                         "vfe0",
-                        "vfe1",
                         "vfe_lite0",
                         "vfe_lite1";
 
@@ -340,25 +317,18 @@ examples:
                      <&camcc CAM_CC_CPAS_AHB_CLK>,
                      <&camcc CAM_CC_CPAS_FAST_AHB_CLK>,
                      <&camcc CAM_CC_CPAS_IFE_0_CLK>,
-                     <&camcc CAM_CC_CPAS_IFE_1_CLK>,
                      <&camcc CAM_CC_CPAS_IFE_LITE_CLK>,
                      <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
                      <&camcc CAM_CC_CSID_CLK>,
                      <&camcc CAM_CC_CSID_CSIPHY_RX_CLK>,
                      <&camcc CAM_CC_CSIPHY0_CLK>,
                      <&camcc CAM_CC_CSI0PHYTIMER_CLK>,
-                     <&camcc CAM_CC_CSIPHY1_CLK>,
-                     <&camcc CAM_CC_CSI1PHYTIMER_CLK>,
-                     <&camcc CAM_CC_CSIPHY2_CLK>,
-                     <&camcc CAM_CC_CSI2PHYTIMER_CLK>,
                      <&camcc CAM_CC_CSIPHY4_CLK>,
                      <&camcc CAM_CC_CSI4PHYTIMER_CLK>,
                      <&gcc GCC_CAMERA_HF_AXI_CLK>,
                      <&gcc GCC_CAMERA_SF_AXI_CLK>,
                      <&camcc CAM_CC_IFE_0_CLK>,
                      <&camcc CAM_CC_IFE_0_FAST_AHB_CLK>,
-                     <&camcc CAM_CC_IFE_1_CLK>,
-                     <&camcc CAM_CC_IFE_1_FAST_AHB_CLK>,
                      <&camcc CAM_CC_IFE_LITE_CLK>,
                      <&camcc CAM_CC_IFE_LITE_AHB_CLK>,
                      <&camcc CAM_CC_IFE_LITE_CPHY_RX_CLK>,
@@ -370,25 +340,18 @@ examples:
                           "cpas_ahb",
                           "cpas_fast_ahb",
                           "cpas_vfe0",
-                          "cpas_vfe1",
                           "cpas_vfe_lite",
                           "cphy_rx_clk_src",
                           "csid",
                           "csid_csiphy_rx",
                           "csiphy0",
                           "csiphy0_timer",
-                          "csiphy1",
-                          "csiphy1_timer",
-                          "csiphy2",
-                          "csiphy2_timer",
                           "csiphy4",
                           "csiphy4_timer",
                           "gcc_axi_hf",
                           "gcc_axi_sf",
                           "vfe0",
                           "vfe0_fast_ahb",
-                          "vfe1",
-                          "vfe1_fast_ahb",
                           "vfe_lite",
                           "vfe_lite_ahb",
                           "vfe_lite_cphy_rx",
@@ -400,11 +363,8 @@ examples:
                         <GIC_SPI 468 IRQ_TYPE_EDGE_RISING>,
                         <GIC_SPI 359 IRQ_TYPE_EDGE_RISING>,
                         <GIC_SPI 477 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 478 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 479 IRQ_TYPE_EDGE_RISING>,
                         <GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
                         <GIC_SPI 465 IRQ_TYPE_EDGE_RISING>,
-                        <GIC_SPI 467 IRQ_TYPE_EDGE_RISING>,
                         <GIC_SPI 469 IRQ_TYPE_EDGE_RISING>,
                         <GIC_SPI 360 IRQ_TYPE_EDGE_RISING>;
 
@@ -414,11 +374,8 @@ examples:
                               "csid_lite0",
                               "csid_lite1",
                               "csiphy0",
-                              "csiphy1",
-                              "csiphy2",
                               "csiphy4",
                               "vfe0",
-                              "vfe1",
                               "vfe_lite0",
                               "vfe_lite1";
 
@@ -443,11 +400,9 @@ examples:
                      <&apps_smmu 0x18a0 0x0>;
 
             power-domains = <&camcc CAM_CC_IFE_0_GDSC>,
-                            <&camcc CAM_CC_IFE_1_GDSC>,
                             <&camcc CAM_CC_TITAN_TOP_GDSC>;
 
             power-domain-names = "ife0",
-                                 "ife1",
                                  "top";
 
             vdd-csiphy-0p8-supply = <&csiphy_0p8_supply>;
