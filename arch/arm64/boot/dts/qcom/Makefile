@@ -7,7 +7,9 @@ apq8016-sbc-usb-host-dtbs		:= apq8016-sbc.dtb apq8016-sbc-usb-host.dtbo
 dtb-$(CONFIG_ARCH_QCOM) += sar2130p-qar2130p.dtb
 
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc-d3-camera-mezzanine.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc-d3-camera-mezzanine.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc-usb-host.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc-usb-host.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-schneider-hmibsc.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8039-t2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8094-sony-xperia-kitakami-karin_windy.dtb
@@ -60,13 +62,16 @@ lemans-evk-camera-csi1-imx577-dtbs	:= lemans-evk.dtb lemans-evk-camera-csi1-imx5
 lemans-evk-camera-dtbs	:= lemans-evk.dtb lemans-evk-camera.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camera-csi1-imx577.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camera-csi1-imx577.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camera.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camera.dtbo
 
 lemans-evk-el2-dtbs := lemans-evk.dtb lemans-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-el2.dtb
 lemans-evk-ifp-mezzanine-dtbs	:= lemans-evk.dtb lemans-evk-ifp-mezzanine.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-ifp-mezzanine.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-ifp-mezzanine.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= mahua-crd.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= mahua-qcb.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= milos-fairphone-fp6.dtb
@@ -77,6 +82,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk.dtb
 
 monaco-evk-camera-imx577-dtbs	:= monaco-evk.dtb monaco-evk-camera-imx577.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk-camera-imx577.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk-camera-imx577.dtbo
 
 monaco-evk-el2-dtbs := monaco-evk.dtb monaco-el2.dtbo
 
@@ -93,6 +99,7 @@ dtb-$(CONFIG_ARCH_QCOM) += monaco-evk-sd-card.dtb
 monaco-evk-emmc-dtbs := monaco-evk.dtb monaco-evk-emmc.dtbo
 dtb-$(CONFIG_ARCH_QCOM) += monaco-evk-emmc.dtb
 
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk-ifp-mezzanine.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8216-samsung-fortuna3g.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-acer-a1-724.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-alcatel-idol347.dtb
@@ -202,6 +209,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride.dtb
 qcs615-ride-el2-dtbs := qcs615-ride.dtb talos-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= talos-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-radxa-dragon-q6a.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2.dtb
 qcs6490-rb3gen2-el2-dtbs := qcs6490-rb3gen2.dtb kodiak-el2.dtbo
@@ -220,6 +228,9 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2-vision-mezzanine.dtb
 qcs6490-rb3gen2-vision-mezzanine-el2-dtbs := qcs6490-rb3gen2-vision-mezzanine.dtb kodiak-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2-vision-mezzanine-el2.dtb
 
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2-industrial-mezzanine.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2-vision-mezzanine.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2-vision-mezzanine.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-thundercomm-minipc-g1iot.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-thundercomm-rubikpi3.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride.dtb
@@ -227,6 +238,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride.dtb
 qcs8300-ride-el2-dtbs := qcs8300-ride.dtb monaco-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3.dtb
@@ -236,6 +248,7 @@ qcs9100-ride-r3-el2-dtbs := qcs9100-ride-r3.dtb lemans-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-el2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= qdu1000-idp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qrb2210-arduino-imola.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qrb2210-rb1.dtb
@@ -243,6 +256,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qrb2210-rb1.dtb
 qrb2210-rb1-vision-mezzanine-dtbs	:= qrb2210-rb1.dtb qrb2210-rb1-vision-mezzanine.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qrb2210-rb1-vision-mezzanine.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= qrb2210-rb1-vision-mezzanine.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qrb4210-rb2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= qrb5165-rb5.dtb
@@ -250,6 +264,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qrb5165-rb5.dtb
 qrb5165-rb5-vision-mezzanine-dtbs	:= qrb5165-rb5.dtb qrb5165-rb5-vision-mezzanine.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qrb5165-rb5-vision-mezzanine.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= qrb5165-rb5-vision-mezzanine.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= qru1000-idp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8155p-adp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8295p-adp.dtb
@@ -260,6 +275,7 @@ sc7180-acer-aspire1-el2-dtbs	:= sc7180-acer-aspire1.dtb sc7180-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-acer-aspire1.dtb sc7180-acer-aspire1-el2.dtb
 sc7180-ecs-liva-qc710-el2-dtbs	:= sc7180-ecs-liva-qc710.dtb sc7180-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-ecs-liva-qc710.dtb sc7180-ecs-liva-qc710-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-idp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-trogdor-coachz-r1.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sc7180-trogdor-coachz-r1-lte.dtb
@@ -335,6 +351,7 @@ sc8280xp-microsoft-arcata-el2-dtbs	:= sc8280xp-microsoft-arcata.dtb sc8280xp-el2
 dtb-$(CONFIG_ARCH_QCOM)	+= sc8280xp-microsoft-arcata.dtb sc8280xp-microsoft-arcata-el2.dtb
 sc8280xp-microsoft-blackrock-el2-dtbs	:= sc8280xp-microsoft-blackrock.dtb sc8280xp-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sc8280xp-microsoft-blackrock.dtb sc8280xp-microsoft-blackrock-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sc8280xp-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sda660-inforce-ifc6560.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sdm450-lenovo-tbx605f.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sdm450-motorola-ali.dtb
@@ -353,6 +370,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= sdm845-db845c.dtb
 sdm845-db845c-navigation-mezzanine-dtbs	:= sdm845-db845c.dtb sdm845-db845c-navigation-mezzanine.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= sdm845-db845c-navigation-mezzanine.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sdm845-db845c-navigation-mezzanine.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sdm845-google-crosshatch.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sdm845-google-blueline.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sdm845-lg-judyln.dtb
@@ -418,7 +436,9 @@ sm8550-hdk-rear-camera-card-dtbs	:= sm8550-hdk.dtb sm8550-hdk-rear-camera-card.d
 
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-hdk-display-card-rear-camera-card.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-hdk-display-card.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-hdk-display-card.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-hdk-rear-camera-card.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-hdk-rear-camera-card.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-hdk.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8550-qrd.dtb
@@ -432,7 +452,9 @@ sm8650-hdk-rear-camera-card-dtbs	:= sm8650-hdk.dtb sm8650-hdk-rear-camera-card.d
 
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-hdk-display-card-rear-camera-card.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-hdk-display-card.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-hdk-display-card.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-hdk-rear-camera-card.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-hdk-rear-camera-card.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-hdk.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8650-qrd.dtb
@@ -445,12 +467,14 @@ talos-evk-el2-dtbs	:= talos-evk.dtb talos-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-el2.dtb
 talos-evk-usb1-peripheral-dtbs := talos-evk.dtb talos-evk-usb1-peripheral.dtbo
 dtb-$(CONFIG_ARCH_QCOM) += talos-evk-usb1-peripheral.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-usb1-peripheral.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camera-imx577.dtbo
 talos-evk-camera-imx577-dtbs	:= talos-evk.dtb talos-evk-camera-imx577.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camera-imx577.dtb
 talos-evk-lvds-auo,g133han01-dtbs	:= \
 	talos-evk.dtb talos-evk-lvds-auo,g133han01.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-lvds-auo,g133han01.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-lvds-auo,g133han01.dtbo
 x1e001de-devkit-el2-dtbs	:= x1e001de-devkit.dtb x1-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= x1e001de-devkit.dtb x1e001de-devkit-el2.dtb
 x1e78100-lenovo-thinkpad-t14s-el2-dtbs	:= x1e78100-lenovo-thinkpad-t14s.dtb x1-el2.dtbo
@@ -499,3 +523,123 @@ x1p42100-lenovo-thinkbook-16-el2-dtbs	:= x1p42100-lenovo-thinkbook-16.dtb x1-el2
 dtb-$(CONFIG_ARCH_QCOM)	+= x1p42100-lenovo-thinkbook-16.dtb x1p42100-lenovo-thinkbook-16-el2.dtb
 x1p64100-microsoft-denali-el2-dtbs	:= x1p64100-microsoft-denali.dtb x1-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= x1p64100-microsoft-denali.dtb x1p64100-microsoft-denali-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= x1-el2.dtbo
+
+glymur-crd-camx-dtbs    := glymur-crd.dtb glymur-crd-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= glymur-crd-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= glymur-crd-camx.dtbo
+
+hamoa-evk-camx-dtbs  := hamoa-iot-evk.dtb hamoa-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-evk-camx.dtbo
+
+hamoa-camx-el2-dtbs  := hamoa-iot-evk-el2.dtb hamoa-evk-camx.dtbo hamoa-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camx-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camx-el2.dtbo
+
+lemans-evk-camx-dtbs	:= lemans-evk.dtb lemans-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtbo
+
+lemans-camx-el2-dtbs	:= lemans-evk-el2.dtb lemans-evk-camx.dtbo lemans-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-camx-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-rtss-mb.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-staging.dtbo
+
+monaco-evk-camx-dtbs   := monaco-evk.dtb monaco-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += monaco-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM) += monaco-evk-camx.dtbo
+
+monaco-camx-el2-dtbs	:= monaco-evk-el2.dtb monaco-evk-camx.dtbo monaco-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-camx-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk-staging.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-rtss-mb.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-staging.dtbo
+
+purwa-evk-camx-dtbs     := purwa-iot-evk.dtb purwa-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-evk-camx.dtbo
+
+purwa-camx-el2-dtbs  := purwa-iot-evk-el2.dtb purwa-evk-camx.dtbo purwa-camx-el2.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-camx-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-camx-el2.dtbo
+
+qcs5430-fps-camx-dtbs   := qcs6490-rb3gen2.dtb qcs5430-fps-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += qcs5430-fps-camx.dtb
+
+qcs615-ride-camx-dtbs	:= qcs615-ride.dtb qcs615-ride-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-camx.dtbo
+
+qcs6490-rb3gen2-vision-mezzanine-camx-dtbs := qcs6490-rb3gen2-vision-mezzanine.dtb \
+						      qcs6490-rb3gen2-vision-mezzanine-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += qcs6490-rb3gen2-vision-mezzanine-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM) += qcs6490-rb3gen2-vision-mezzanine-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += qcs6490-rb3gen2-industrial-mezzanine-staging.dtbo
+
+qcs8300-ride-camx-dtbs:= qcs8300-ride.dtb qcs8300-ride-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += qcs8300-ride-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM) += qcs8300-ride-camx.dtbo
+
+qcs9100-ride-camx-dtbs:= qcs9100-ride.dtb sa8775p-ride-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-camx.dtb
+
+qcs9100-ride-r3-camx-dtbs:= qcs9100-ride-r3.dtb sa8775p-ride-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3-camx.dtb
+
+sa8775p-ride-camx-dtbs:= sa8775p-ride.dtb sa8775p-ride-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-camx.dtbo
+
+sa8775p-ride-r3-camx-dtbs:= sa8775p-ride-r3.dtb sa8775p-ride-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-r3-camx.dtb
+
+talos-evk-camx-dtbs	:= talos-evk.dtb talos-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= talos-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += talos-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += talos-evk-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += kodiak-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += glymur-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += hamoa-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= purwa-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += sm8750-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += kaanapali-staging.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += shikra-staging.dtbo
