@@ -21,15 +21,57 @@ properties:
   '#sound-dai-cells':
     const: 1
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+patternProperties:
+  '^dai@[0-9]+$':
+    type: object
+    description:
+      Optional per-DAI clock description for LPASS backends.
+
+    properties:
+      reg:
+        description:
+          Digital Audio Interface ID.
+
+      clocks:
+        minItems: 1
+        maxItems: 3
+
+      clock-names:
+        description:
+          Supported names are `mclk`, `bclk` and `eclk` depending on the
+          interface clock required by the backend.
+        minItems: 1
+        maxItems: 3
+
+    additionalProperties: false
+
 required:
   - compatible
   - '#sound-dai-cells'
+
+additionalProperties: false
 
 unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
+
     dais {
         compatible = "qcom,q6apm-lpass-dais";
+        #address-cells = <1>;
+        #size-cells = <0>;
         #sound-dai-cells = <1>;
+
+        dai@0 {
+            reg = <PRIMARY_MI2S_RX>;
+            clocks = <&q6prmcc LPASS_CLK_ID_MCLK_1 LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+            clock-names = "mclk";
+        };
     };

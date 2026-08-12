@@ -55,6 +55,8 @@ static const struct of_device_id qcom_smmu_actlr_client_of_match[] = {
 			.data = (const void *) (PREFETCH_SHALLOW | CPRE | CMTLB) },
 	{ .compatible = "qcom,sc8280xp-mdss",
 			.data = (const void *) (PREFETCH_SHALLOW | CPRE | CMTLB) },
+	{ .compatible = "qcom,shikra-mdss",
+			.data = (const void *) (PREFETCH_SHALLOW | CPRE | CMTLB) },
 	{ .compatible = "qcom,sm6115-mdss",
 			.data = (const void *) (PREFETCH_SHALLOW | CPRE | CMTLB) },
 	{ .compatible = "qcom,sm6125-mdss",
@@ -438,6 +440,15 @@ static int qcom_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 	int cbndx = smmu_domain->cfg.cbndx;
 
 	smmu_domain->cfg.flush_walk_prefer_tlbiasid = true;
+	/*
+	 * Qualcomm SMMU-500 has an issue with TLBIVA/TLBIVAL where only
+	 * the base-page-size entry at the base IOVA is invalidated. Glymur
+	 * SoCs boot by default at EL2 and is the currently the only SoC
+	 * affected by it. Force the minimum page granule to ensure the full
+	 * range is covered.
+	 */
+	if (of_device_is_compatible(smmu->dev->of_node, "qcom,glymur-smmu-500"))
+		smmu_domain->cfg.force_min_tlbival_granule = true;
 
 	client_match = qsmmu->data->client_match;
 

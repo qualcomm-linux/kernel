@@ -17,6 +17,7 @@
 #include <linux/lockdep.h>
 #include <linux/msi.h>
 #include <linux/of.h>
+#include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -1112,6 +1113,16 @@ static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
 		return false;
 
 	return acpi_pci_bridge_d3(dev);
+}
+
+void platform_pci_configure_wake(struct pci_dev *dev)
+{
+	pci_configure_of_wake_gpio(dev);
+}
+
+void platform_pci_remove_wake(struct pci_dev *dev)
+{
+	pci_remove_of_wake_gpio(dev);
 }
 
 /**
@@ -3020,11 +3031,11 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 			return true;
 
 		/*
-		 * Hotplug ports handled natively by the OS were not validated
-		 * by vendors for runtime D3 at least until 2018 because there
-		 * was no OS support.
+		 * Do not allow D3 for native Hotplug ports on non-DT platforms
+		 * as they were not validated by vendors for runtime D3 at least
+		 * until 2018 because there was no OS support.
 		 */
-		if (bridge->is_pciehp)
+		if (bridge->is_pciehp && !of_have_populated_dt())
 			return false;
 
 		if (dmi_check_system(bridge_d3_blacklist))
