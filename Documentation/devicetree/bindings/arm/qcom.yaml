@@ -953,6 +953,13 @@ properties:
 
       - items:
           - enum:
+              - qcom,talos-lyra-evk
+          - const: qcom,talos-lyra-evk-som
+          - const: qcom,qcs615
+          - const: qcom,sm6150
+
+      - items:
+          - enum:
               - qcom,sa8155p-adp
           - const: qcom,sa8155p
 
