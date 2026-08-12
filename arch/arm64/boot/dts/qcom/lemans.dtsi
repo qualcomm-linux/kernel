@@ -7797,7 +7797,7 @@
 
 
 			cooling {
-				compatible = "qcom,qmi-cooling-cdsp";
+				compatible = "qcom,qmi-cooling-cdsp1";
 					cdsp_sw1: cdsp_sw {
 						label = "cdsp_sw";
 						#cooling-cells = <2>;
