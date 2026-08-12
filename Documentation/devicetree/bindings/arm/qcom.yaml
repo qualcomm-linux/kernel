@@ -74,11 +74,13 @@ properties:
       - items:
           - enum:
               - qcom,glymur-crd
+              - qcom,glymur-qcb
           - const: qcom,glymur
 
       - items:
           - enum:
               - qcom,mahua-crd
+              - qcom,mahua-qcb
           - const: qcom,mahua
 
       - items:

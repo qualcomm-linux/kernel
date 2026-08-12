@@ -5,7 +5,7 @@
 
 /dts-v1/;
 
-#include "mahua.dtsi"
+#include "kalambo.dtsi"
 #include "glymur-crd.dtsi"
 
 /delete-node/ &pmcx0102_d_e0;
@@ -16,8 +16,8 @@
 /delete-node/ &pmh0104_j0_thermal;
 
 / {
-	model = "Qualcomm Technologies, Inc. Mahua CRD";
-	compatible = "qcom,mahua-crd", "qcom,mahua";
+	model = "Qualcomm Technologies, Inc. Kalambo CRD";
+	compatible = "qcom,kalambo-crd", "qcom,kalambo";
 };
 
 &tcsr {
