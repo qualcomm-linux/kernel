@@ -44,6 +44,20 @@ static irqreturn_t msm_irq(int irq, void *arg)
 	return kms->funcs->irq(kms);
 }
 
+#ifdef CONFIG_PREEMPT_RT
+static irqreturn_t msm_irq_thread(int irq, void *arg)
+{
+	struct drm_device *dev = arg;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	if (WARN_ON_ONCE(!kms || !kms->funcs->irq_thread))
+		return IRQ_NONE;
+
+	return kms->funcs->irq_thread(kms);
+}
+#endif
+
 static void msm_irq_preinstall(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -78,7 +92,25 @@ static int msm_irq_install(struct drm_device *dev, unsigned int irq)
 
 	msm_irq_preinstall(dev);
 
+#ifdef CONFIG_PREEMPT_RT
+	/*
+	 * Some KMS backends (e.g. dpu1) split their handler into a minimal
+	 * hardirq primary handler that only acks hardware and a threaded
+	 * handler that does the actual (sleep-capable) callback dispatch.
+	 * IRQF_ONESHOT keeps the primary handler running as a true hardirq
+	 * even under PREEMPT_RT's forced-threading (see
+	 * irq_setup_forced_threading() in kernel/irq/manage.c), the same
+	 * property IRQF_NO_THREAD gives the backends that don't split their
+	 * handler and must run their whole ->irq() in hardirq context.
+	 */
+	if (kms->funcs->irq_thread)
+		ret = request_threaded_irq(irq, msm_irq, msm_irq_thread,
+					   IRQF_ONESHOT, dev->driver->name, dev);
+	else
+		ret = request_irq(irq, msm_irq, IRQF_NO_THREAD, dev->driver->name, dev);
+#else
 	ret = request_irq(irq, msm_irq, 0, dev->driver->name, dev);
+#endif
 	if (ret)
 		return ret;
 
