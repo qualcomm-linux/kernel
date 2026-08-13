@@ -29,13 +29,7 @@
 
 #define CPUSS_REGDUMP			0xEF
 #define SPR_DUMP_CPU0			0x1F0
-#define SPR_DUMP_CPU1			0x1F1
-#define SPR_DUMP_CPU2			0x1F2
-#define SPR_DUMP_CPU3			0x1F3
-#define SPR_DUMP_CPU4			0x1F4
-#define SPR_DUMP_CPU5			0x1F5
-#define SPR_DUMP_CPU6			0x1F6
-#define SPR_DUMP_CPU7			0x1F7
+#define SPR_DUMP_CPU11			0x1Fb
 #define SPR_DATA_HEADER_SIZE	5
 #define SPR_DATA_HEADER_TAIL_SIZE	1
 #define SPR_INPUT_DATA_TAIL_SIZE	1
@@ -1061,7 +1055,7 @@ static int mem_dump_alloc(struct platform_device *pdev)
 				id);
 
 		if ((id == CPUSS_REGDUMP) ||
-				((id >= SPR_DUMP_CPU0) && (id <= SPR_DUMP_CPU7)))
+				((id >= SPR_DUMP_CPU0) && (id <= SPR_DUMP_CPU11)))
 			initialized = cpuss_dump_init(pdev,
 				(dump_vaddr + MSM_DUMP_DATA_SIZE), size, id);
 
