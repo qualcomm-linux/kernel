@@ -22,6 +22,9 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/dma-map-ops.h>
+#include <linux/arm-smccc.h>
+#include <linux/spinlock.h>
+#include "qcom_scm.h"
 
 #define MSM_DUMP_TABLE_VERSION		MSM_DUMP_MAKE_VERSION(2, 0)
 
@@ -61,6 +64,10 @@
 #define EXTRA_CMD_MASK			GENMASK(31, 24)
 #define EXTRA_VALUE_MASK		GENMASK(23, 0)
 #define MAX_EXTRA_VALUE			0xffffff
+
+/* IDs for Dump Table*/
+#define QCOM_SCM_SVC_UTIL			0x03
+#define QCOM_SCM_UTIL_DUMP_TABLE_ASSIGN		0x13
 
 struct sprs_dump_data {
 	void *dump_vaddr;
@@ -984,6 +991,125 @@ void __init reserve_memdump_cma(void)
 	}
 }
 
+static enum qcom_scm_convention memdump_scm_convention = SMC_CONVENTION_UNKNOWN;
+static DEFINE_SPINLOCK(memdump_scm_query_lock);
+
+#define MEMDUMP_SCM_N_REG_ARGS		4
+#define MEMDUMP_SCM_FIRST_REG_IDX	2
+
+static int memdump_scm_smc_call(const struct qcom_scm_desc *desc,
+				 enum qcom_scm_convention convention,
+				 struct qcom_scm_res *res, bool atomic)
+{
+	int i;
+	u32 smccc_call_type = atomic ? ARM_SMCCC_FAST_CALL : ARM_SMCCC_STD_CALL;
+	u32 qcom_smccc_convention = (convention == SMC_CONVENTION_ARM_32) ?
+				    ARM_SMCCC_SMC_32 : ARM_SMCCC_SMC_64;
+	struct arm_smccc_res smc_res;
+	struct arm_smccc_quirk quirk = { .id = ARM_SMCCC_QUIRK_QCOM_A6 };
+	unsigned long args[8] = {0};
+
+	args[0] = ARM_SMCCC_CALL_VAL(smccc_call_type, qcom_smccc_convention,
+				      desc->owner,
+				      SCM_SMC_FNID(desc->svc, desc->cmd));
+	args[1] = desc->arginfo;
+	for (i = 0; i < MEMDUMP_SCM_N_REG_ARGS; i++)
+		args[i + MEMDUMP_SCM_FIRST_REG_IDX] = desc->args[i];
+
+	quirk.state.a6 = 0;
+	do {
+		arm_smccc_smc_quirk(args[0], args[1], args[2], args[3],
+				    args[4], args[5], quirk.state.a6,
+				    args[7], &smc_res, &quirk);
+
+		if (smc_res.a0 == QCOM_SCM_INTERRUPTED)
+			args[0] = smc_res.a0;
+	} while (smc_res.a0 == QCOM_SCM_INTERRUPTED);
+
+	if (res) {
+		res->result[0] = smc_res.a1;
+		res->result[1] = smc_res.a2;
+		res->result[2] = smc_res.a3;
+	}
+
+	if (smc_res.a0 == QCOM_SCM_WAITQ_SLEEP)
+		pr_err("SCM call (svc=%#x cmd=%#x) requested WAITQ_SLEEP resume, which is unsupported here\n",
+			desc->svc, desc->cmd);
+
+	return (long)smc_res.a0 ? qcom_scm_remap_error(smc_res.a0) : 0;
+}
+
+static enum qcom_scm_convention __get_convention(void)
+{
+	unsigned long flags;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_INFO,
+		.cmd = QCOM_SCM_INFO_IS_CALL_AVAIL,
+		.args[0] = SCM_SMC_FNID(QCOM_SCM_SVC_INFO,
+					   QCOM_SCM_INFO_IS_CALL_AVAIL) |
+			   (ARM_SMCCC_OWNER_SIP << ARM_SMCCC_OWNER_SHIFT),
+		.arginfo = QCOM_SCM_ARGS(1),
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	struct qcom_scm_res res;
+	enum qcom_scm_convention probed_convention;
+	int ret;
+
+	if (likely(memdump_scm_convention != SMC_CONVENTION_UNKNOWN))
+		return memdump_scm_convention;
+
+	/*
+	 * Per the "SMC calling convention specification", the 64-bit calling
+	 * convention can only be used when the client is 64-bit, otherwise
+	 * system will encounter the undefined behaviour.
+	 */
+#if IS_ENABLED(CONFIG_ARM64)
+	probed_convention = SMC_CONVENTION_ARM_64;
+	ret = memdump_scm_smc_call(&desc, probed_convention, &res, true);
+	if (!ret && res.result[0] == 1)
+		goto found;
+#endif
+
+	probed_convention = SMC_CONVENTION_ARM_32;
+	ret = memdump_scm_smc_call(&desc, probed_convention, &res, true);
+	if (!ret && res.result[0] == 1)
+		goto found;
+
+	probed_convention = SMC_CONVENTION_LEGACY;
+found:
+	spin_lock_irqsave(&memdump_scm_query_lock, flags);
+	memdump_scm_convention = probed_convention;
+	spin_unlock_irqrestore(&memdump_scm_query_lock, flags);
+
+	return memdump_scm_convention;
+}
+
+static int assign_dump_table_region(bool is_assign, phys_addr_t addr, size_t size)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_UTIL,
+		.cmd = QCOM_SCM_UTIL_DUMP_TABLE_ASSIGN,
+		.arginfo = QCOM_SCM_ARGS(3, QCOM_SCM_VAL, QCOM_SCM_VAL, QCOM_SCM_VAL),
+		.owner = ARM_SMCCC_OWNER_SIP,
+		.args[0] = is_assign,
+		.args[1] = addr,
+		.args[2] = size,
+	};
+	struct qcom_scm_res res;
+	enum qcom_scm_convention convention = __get_convention();
+	int ret;
+
+	might_sleep();
+	switch (convention) {
+	case SMC_CONVENTION_ARM_32:
+	case SMC_CONVENTION_ARM_64:
+		return memdump_scm_smc_call(&desc, convention, &res, false);
+	default:
+		pr_err("Unsupported SCM calling convention.\n");
+		return -EOPNOTSUPP;
+	}
+}
+
 #define MSM_DUMP_DATA_SIZE sizeof(struct msm_dump_data)
 static int mem_dump_alloc(struct platform_device *pdev)
 {
@@ -1030,10 +1156,13 @@ static int mem_dump_alloc(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = init_memdump_imem_area(table, total_size);
+	ret = assign_dump_table_region(1, phys_addr, total_size);
 	if (ret) {
-		qcom_tzmem_shm_bridge_delete(shm_bridge_handle);
-		return ret;
+		ret = init_memdump_imem_area(table, total_size);
+		if (ret) {
+			qcom_tzmem_shm_bridge_delete(shm_bridge_handle);
+			return ret;
+		}
 	}
 
 	dump_vaddr += (sizeof(struct msm_dump_table) * 2);
