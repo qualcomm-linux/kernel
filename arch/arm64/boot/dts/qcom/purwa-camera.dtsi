@@ -1333,6 +1333,7 @@
 		src-clock-name = "csi0phytimer_clk_src";
 		clock-cntl-level = "nominal";
 		clock-rates = <480000000 0 400000000 0>;
+		aggregator-rx;
 		operating-points-v2 = <&csiphy0_opp_table>;
 		cell-index = <0>;
 		status = "okay";
@@ -1375,6 +1376,7 @@
 		src-clock-name = "csi4phytimer_clk_src";
 		clock-cntl-level = "nominal";
 		clock-rates = <480000000 0 400000000 0>;
+		aggregator-rx;
 		operating-points-v2 = <&csiphy4_opp_table>;
 		cell-index = <4>;
 		status = "okay";
