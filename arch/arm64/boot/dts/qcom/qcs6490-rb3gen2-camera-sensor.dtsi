@@ -475,6 +475,45 @@
 		cci-master = <1>;
 		status = "ok";
 	};
+
+	/* cam3-connector - ov2778 */
+	qcom,cam-sensor14 {
+		compatible = "qcom,cam-sensor";
+		cell-index = <14>;
+		csiphy-sd-index = <3>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&vreg_l18b_1p8>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-0 = <&cam_sensor_mclk3_active
+				&cam_sensor_active_rst3>;
+		pinctrl-1 = <&cam_sensor_mclk3_suspend
+				&cam_sensor_suspend_rst3>;
+		pinctrl-names = "cam_default",
+				"cam_suspend";
+		gpios = <&tlmm 67 0>,
+			<&tlmm 78 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAMIF_MCLK3",
+				"CAM_RESET3";
+		sensor-mode = <0>;
+		cci-master = <1>;
+		clocks = <&camcc CAM_CC_MCLK3_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		status = "okay";
+	};
+
 };
 
 &soc {
