@@ -81,6 +81,13 @@
 #define HFI_BUFFER_INTERNAL_SCRATCH_1			0x7
 #define HFI_BUFFER_INTERNAL_SCRATCH_2			0x8
 
+#define HFI_DEBUG_MODE_QUEUE				0x01
+struct hfi_debug_config {
+	u32 config;
+	u32 mode;
+};
+
+#define HFI_PROPERTY_SYS_DEBUG_CONFIG			0x1
 #define HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL		0x5
 #define HFI_PROPERTY_SYS_IMAGE_VERSION			0x6
 
