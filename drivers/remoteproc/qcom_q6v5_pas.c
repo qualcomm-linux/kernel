@@ -139,6 +139,7 @@ struct qcom_pas {
  * @lock:	protects @members and @root
  * @members:	list of struct qcom_pas, linked via cluster_node
  * @root:	the member whose "qcom,cluster-root" points at itself
+ * @root_booted: signaled once @root has started, cleared when it goes down
  * @refcount:	number of members currently attached to this cluster
  *
  * PAS instances whose "qcom,cluster-root" phandle points at the same node
@@ -151,9 +152,17 @@ struct qcom_pas_cluster {
 	struct mutex lock;
 	struct list_head members;
 	struct qcom_pas *root;
+	struct completion root_booted;
 
 	int refcount;
 };
+
+/*
+ * How long a dependent member waits for its root to finish booting before
+ * giving up, e.g. when it is racing the root through the crash-restart
+ * cascade.
+ */
+#define QCOM_PAS_CLUSTER_ROOT_BOOT_TIMEOUT	(1 * HZ)
 
 static LIST_HEAD(qcom_pas_cluster_list);
 static DEFINE_MUTEX(qcom_pas_cluster_list_lock);
@@ -178,6 +187,13 @@ static struct qcom_pas_cluster *qcom_pas_cluster_get(struct device_node *node)
 	cluster->node = of_node_get(node);
 	mutex_init(&cluster->lock);
 	INIT_LIST_HEAD(&cluster->members);
+	init_completion(&cluster->root_booted);
+	/*
+	 * Cluster members may be attached to already-running firmware at
+	 * probe, so the root is presumed up until its own qcom_pas_stop()
+	 * reinit_completion()s this the first time it actually goes down.
+	 */
+	complete_all(&cluster->root_booted);
 	cluster->refcount = 1;
 	list_add_tail(&cluster->list, &qcom_pas_cluster_list);
 
@@ -266,6 +282,51 @@ static void qcom_pas_cluster_exit(struct qcom_pas *pas)
 
 	qcom_pas_cluster_put(cluster);
 	pas->cluster = NULL;
+}
+
+/**
+ * qcom_pas_cluster_wait_for_root() - gate a dependent member's boot on its root
+ * @pas:	the non-root cluster member being started
+ *
+ * The cluster root owns the resources its siblings need, and initializes them
+ * as part of its own boot, so a dependent member can only be started once the
+ * root is up.
+ *
+ * Return: 0 if the root is up, negative errno otherwise.
+ */
+static int qcom_pas_cluster_wait_for_root(struct qcom_pas *pas)
+{
+	struct qcom_pas_cluster *cluster = pas->cluster;
+	struct rproc *root;
+
+	/*
+	 * The root's PAS instance is enabled in DT (checked in
+	 * qcom_pas_cluster_init()) but has not necessarily bound yet, and may
+	 * have unbound again. Without it there is nothing to sequence this
+	 * member's boot against.
+	 *
+	 * Note that nothing refcounts members across unbind, so a root freed
+	 * under a concurrent sibling boot remains unhandled.
+	 */
+	mutex_lock(&cluster->lock);
+	root = cluster->root ? cluster->root->rproc : NULL;
+	mutex_unlock(&cluster->lock);
+
+	if (!root) {
+		dev_err(pas->dev, "cluster root not bound\n");
+		return -ENODEV;
+	}
+
+	if (root->state == RPROC_RUNNING || root->state == RPROC_ATTACHED)
+		return 0;
+
+	if (!wait_for_completion_timeout(&cluster->root_booted,
+					 QCOM_PAS_CLUSTER_ROOT_BOOT_TIMEOUT)) {
+		dev_err(pas->dev, "cluster root not started\n");
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
 static void qcom_pas_segment_dump(struct rproc *rproc,
@@ -446,6 +507,12 @@ static int qcom_pas_start(struct rproc *rproc)
 	struct qcom_pas *pas = rproc->priv;
 	int ret;
 
+	if (pas->cluster && !pas->is_cluster_root) {
+		ret = qcom_pas_cluster_wait_for_root(pas);
+		if (ret)
+			return ret;
+	}
+
 	ret = qcom_q6v5_prepare(&pas->q6v5);
 	if (ret)
 		return ret;
@@ -516,6 +583,9 @@ static int qcom_pas_start(struct rproc *rproc)
 	if (pas->dtb_pas_id)
 		qcom_scm_pas_metadata_release(pas->dtb_pas_ctx);
 
+	if (pas->cluster && pas->is_cluster_root)
+		complete_all(&pas->cluster->root_booted);
+
 	/* firmware is used to pass reference from qcom_pas_start(), drop it now */
 	pas->firmware = NULL;
 
@@ -570,6 +640,12 @@ static int qcom_pas_stop(struct rproc *rproc)
 	struct qcom_pas *pas = rproc->priv;
 	int handover;
 	int ret;
+
+	if (pas->cluster && pas->is_cluster_root) {
+		mutex_lock(&pas->cluster->lock);
+		reinit_completion(&pas->cluster->root_booted);
+		mutex_unlock(&pas->cluster->lock);
+	}
 
 	ret = qcom_q6v5_request_stop(&pas->q6v5, pas->sysmon);
 	if (ret == -ETIMEDOUT)
