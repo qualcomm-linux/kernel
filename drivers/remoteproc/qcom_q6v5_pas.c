@@ -66,6 +66,8 @@ struct qcom_pas_data {
 	bool needs_tzmem;
 };
 
+struct qcom_pas_cluster;
+
 struct qcom_pas {
 	struct device *dev;
 	struct rproc *rproc;
@@ -124,7 +126,147 @@ struct qcom_pas {
 	struct qcom_scm_pas_context *dtb_pas_ctx;
 
 	struct qmi_tmd_client *tmd_inst;
+
+	struct qcom_pas_cluster *cluster;
+	struct list_head cluster_node;
+	bool is_cluster_root;
 };
+
+/**
+ * struct qcom_pas_cluster - state shared by clustered PAS instances
+ * @node:	device_node of the cluster root, the key into the global list
+ * @list:	linkage in qcom_pas_cluster_list
+ * @lock:	protects @members and @root
+ * @members:	list of struct qcom_pas, linked via cluster_node
+ * @root:	the member whose "qcom,cluster-root" points at itself
+ * @refcount:	number of members currently attached to this cluster
+ *
+ * PAS instances whose "qcom,cluster-root" phandle points at the same node
+ * share one of these.
+ */
+struct qcom_pas_cluster {
+	struct device_node *node;
+	struct list_head list;
+
+	struct mutex lock;
+	struct list_head members;
+	struct qcom_pas *root;
+
+	int refcount;
+};
+
+static LIST_HEAD(qcom_pas_cluster_list);
+static DEFINE_MUTEX(qcom_pas_cluster_list_lock);
+
+static struct qcom_pas_cluster *qcom_pas_cluster_get(struct device_node *node)
+{
+	struct qcom_pas_cluster *cluster;
+
+	mutex_lock(&qcom_pas_cluster_list_lock);
+
+	list_for_each_entry(cluster, &qcom_pas_cluster_list, list) {
+		if (cluster->node == node) {
+			cluster->refcount++;
+			goto out;
+		}
+	}
+
+	cluster = kzalloc(sizeof(*cluster), GFP_KERNEL);
+	if (!cluster)
+		goto out;
+
+	cluster->node = of_node_get(node);
+	mutex_init(&cluster->lock);
+	INIT_LIST_HEAD(&cluster->members);
+	cluster->refcount = 1;
+	list_add_tail(&cluster->list, &qcom_pas_cluster_list);
+
+out:
+	mutex_unlock(&qcom_pas_cluster_list_lock);
+	return cluster;
+}
+
+static void qcom_pas_cluster_put(struct qcom_pas_cluster *cluster)
+{
+	mutex_lock(&qcom_pas_cluster_list_lock);
+	if (--cluster->refcount == 0) {
+		list_del(&cluster->list);
+		mutex_unlock(&qcom_pas_cluster_list_lock);
+		of_node_put(cluster->node);
+		kfree(cluster);
+		return;
+	}
+	mutex_unlock(&qcom_pas_cluster_list_lock);
+}
+
+/**
+ * qcom_pas_cluster_init() - join the cluster referenced by @np, if any
+ * @pas:	PAS instance being probed
+ * @np:		of_node of @pas's platform device
+ *
+ * Devices without a "qcom,cluster-root" property are not part of a cluster;
+ * @pas->cluster is left NULL and this is a no-op (e.g. cdsp0-3). Cluster
+ * members all carry the property, the root included, whose phandle points
+ * back at itself.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+static int qcom_pas_cluster_init(struct qcom_pas *pas, struct device_node *np)
+{
+	struct device_node *root_node;
+	bool is_root;
+
+	root_node = of_parse_phandle(np, "qcom,cluster-root", 0);
+	if (!root_node)
+		return 0;
+
+	is_root = root_node == np;
+
+	/*
+	 * A non-root member is useless without its root: it can never be
+	 * booted, since its boot has to be sequenced after the root's. Reject
+	 * it here rather than at first boot, so that a DT enabling a dependent
+	 * DSP but not the one owning the shared resources fails loudly and
+	 * early.
+	 */
+	if (!is_root && !of_device_is_available(root_node)) {
+		dev_err(pas->dev, "cluster root %pOF is not enabled\n", root_node);
+		of_node_put(root_node);
+		return -ENODEV;
+	}
+
+	pas->cluster = qcom_pas_cluster_get(root_node);
+	of_node_put(root_node);
+	if (!pas->cluster)
+		return -ENOMEM;
+
+	pas->is_cluster_root = is_root;
+
+	mutex_lock(&pas->cluster->lock);
+	list_add_tail(&pas->cluster_node, &pas->cluster->members);
+	if (is_root)
+		pas->cluster->root = pas;
+	mutex_unlock(&pas->cluster->lock);
+
+	return 0;
+}
+
+static void qcom_pas_cluster_exit(struct qcom_pas *pas)
+{
+	struct qcom_pas_cluster *cluster = pas->cluster;
+
+	if (!cluster)
+		return;
+
+	mutex_lock(&cluster->lock);
+	list_del(&pas->cluster_node);
+	if (cluster->root == pas)
+		cluster->root = NULL;
+	mutex_unlock(&cluster->lock);
+
+	qcom_pas_cluster_put(cluster);
+	pas->cluster = NULL;
+}
 
 static void qcom_pas_segment_dump(struct rproc *rproc,
 				  struct rproc_dump_segment *segment,
@@ -939,6 +1081,12 @@ static int qcom_pas_probe(struct platform_device *pdev)
 	pas = rproc->priv;
 	pas->dev = &pdev->dev;
 	pas->rproc = rproc;
+
+	ret = qcom_pas_cluster_init(pas, pdev->dev.of_node);
+	if (ret)
+		return ret;
+	rproc->cluster = pas->cluster;
+
 	pas->minidump_id = desc->minidump_id;
 	pas->pas_id = desc->pas_id;
 	pas->lite_pas_id = desc->lite_pas_id;
@@ -1046,6 +1194,7 @@ unassign_mem:
 	qcom_pas_unassign_memory_region(pas);
 free_rproc:
 	device_init_wakeup(pas->dev, false);
+	qcom_pas_cluster_exit(pas);
 
 	return ret;
 }
@@ -1058,6 +1207,9 @@ static void qcom_pas_remove(struct platform_device *pdev)
 		qmi_tmd_exit(pas->tmd_inst);
 
 	rproc_del(pas->rproc);
+
+	pas->rproc->cluster = NULL;
+	qcom_pas_cluster_exit(pas);
 
 	qcom_q6v5_deinit(&pas->q6v5);
 	qcom_pas_unassign_memory_region(pas);
