@@ -128,6 +128,29 @@
 #define BWMON_V4_ZONE_MAX(zone)			(0x2e0 + 4 * (zone))
 #define BWMON_V5_ZONE_MAX(zone)			(0x044 + 4 * (zone))
 
+/*
+ * SA8797P cpu-bwmon: global registers and monitor registers are both mapped
+ * in a single, unified region, but at different absolute offsets than
+ * BWMON v4 - no "845 offset" adjustment is needed. The zone mechanism
+ * (BWMON2 in the hardware docs) is used, same as v4/v5.
+ */
+#define SA8797P_CPU_BWMON_GLOBAL_IRQ_CLEAR	0x108
+#define SA8797P_CPU_BWMON_GLOBAL_IRQ_ENABLE	0x10c
+
+#define SA8797P_CPU_BWMON_IRQ_STATUS		0x200
+#define SA8797P_CPU_BWMON_IRQ_CLEAR		0x208
+#define SA8797P_CPU_BWMON_IRQ_ENABLE		0x20c
+
+#define SA8797P_CPU_BWMON_ENABLE		0x3a0
+#define SA8797P_CPU_BWMON_CLEAR			0x3a4
+#define SA8797P_CPU_BWMON_SAMPLE_WINDOW		0x3a8
+#define SA8797P_CPU_BWMON_THRESHOLD_HIGH	0x3ac
+#define SA8797P_CPU_BWMON_THRESHOLD_MED		0x3b0
+#define SA8797P_CPU_BWMON_THRESHOLD_LOW		0x3b4
+#define SA8797P_CPU_BWMON_ZONE_ACTIONS		0x3b8
+#define SA8797P_CPU_BWMON_THRESHOLD_COUNT	0x3bc
+#define SA8797P_CPU_BWMON_ZONE_MAX(zone)	(0x3e0 + 4 * (zone))
+
 /* Quirks for specific BWMON types */
 #define BWMON_HAS_GLOBAL_IRQ			BIT(0)
 #define BWMON_NEEDS_FORCE_CLEAR			BIT(1)
@@ -374,6 +397,91 @@ static const struct regmap_config sdm845_cpu_bwmon_regmap_cfg = {
 	.cache_type		= REGCACHE_MAPLE,
 };
 
+/*
+ * SA8797P cpu-bwmon (throttle_bwmon_wrapper_apss). Unified register space,
+ * but global and local IRQ registers do not overlap so, unlike the sdm845
+ * "unified register space" case, no offset shifting is needed for the
+ * global IRQ registers. Threshold and zone-max registers are 16-bit wide,
+ * versus 12-bit on BWMON v4/v5.
+ */
+static const struct reg_field sa8797p_cpu_bwmon_reg_fields[] = {
+	[F_GLOBAL_IRQ_CLEAR]	= REG_FIELD(SA8797P_CPU_BWMON_GLOBAL_IRQ_CLEAR, 0, 0),
+	[F_GLOBAL_IRQ_ENABLE]	= REG_FIELD(SA8797P_CPU_BWMON_GLOBAL_IRQ_ENABLE, 0, 0),
+	[F_IRQ_STATUS]		= REG_FIELD(SA8797P_CPU_BWMON_IRQ_STATUS, 4, 7),
+	[F_IRQ_CLEAR]		= REG_FIELD(SA8797P_CPU_BWMON_IRQ_CLEAR, 4, 7),
+	[F_IRQ_ENABLE]		= REG_FIELD(SA8797P_CPU_BWMON_IRQ_ENABLE, 4, 7),
+	/* F_ENABLE covers entire register to disable other features */
+	[F_ENABLE]		= REG_FIELD(SA8797P_CPU_BWMON_ENABLE, 0, 31),
+	[F_CLEAR]		= REG_FIELD(SA8797P_CPU_BWMON_CLEAR, 0, 1),
+	[F_SAMPLE_WINDOW]	= REG_FIELD(SA8797P_CPU_BWMON_SAMPLE_WINDOW, 0, 23),
+	[F_THRESHOLD_HIGH]	= REG_FIELD(SA8797P_CPU_BWMON_THRESHOLD_HIGH, 0, 15),
+	[F_THRESHOLD_MED]	= REG_FIELD(SA8797P_CPU_BWMON_THRESHOLD_MED, 0, 15),
+	[F_THRESHOLD_LOW]	= REG_FIELD(SA8797P_CPU_BWMON_THRESHOLD_LOW, 0, 15),
+	[F_ZONE_ACTIONS_ZONE0]	= REG_FIELD(SA8797P_CPU_BWMON_ZONE_ACTIONS, 0, 7),
+	[F_ZONE_ACTIONS_ZONE1]	= REG_FIELD(SA8797P_CPU_BWMON_ZONE_ACTIONS, 8, 15),
+	[F_ZONE_ACTIONS_ZONE2]	= REG_FIELD(SA8797P_CPU_BWMON_ZONE_ACTIONS, 16, 23),
+	[F_ZONE_ACTIONS_ZONE3]	= REG_FIELD(SA8797P_CPU_BWMON_ZONE_ACTIONS, 24, 31),
+	[F_THRESHOLD_COUNT_ZONE0]	= REG_FIELD(SA8797P_CPU_BWMON_THRESHOLD_COUNT, 0, 7),
+	[F_THRESHOLD_COUNT_ZONE1]	= REG_FIELD(SA8797P_CPU_BWMON_THRESHOLD_COUNT, 8, 15),
+	[F_THRESHOLD_COUNT_ZONE2]	= REG_FIELD(SA8797P_CPU_BWMON_THRESHOLD_COUNT, 16, 23),
+	[F_THRESHOLD_COUNT_ZONE3]	= REG_FIELD(SA8797P_CPU_BWMON_THRESHOLD_COUNT, 24, 31),
+	[F_ZONE0_MAX]		= REG_FIELD(SA8797P_CPU_BWMON_ZONE_MAX(0), 0, 15),
+	[F_ZONE1_MAX]		= REG_FIELD(SA8797P_CPU_BWMON_ZONE_MAX(1), 0, 15),
+	[F_ZONE2_MAX]		= REG_FIELD(SA8797P_CPU_BWMON_ZONE_MAX(2), 0, 15),
+	[F_ZONE3_MAX]		= REG_FIELD(SA8797P_CPU_BWMON_ZONE_MAX(3), 0, 15),
+};
+
+static const struct regmap_range sa8797p_cpu_bwmon_reg_noread_ranges[] = {
+	regmap_reg_range(SA8797P_CPU_BWMON_GLOBAL_IRQ_CLEAR, SA8797P_CPU_BWMON_GLOBAL_IRQ_CLEAR),
+	regmap_reg_range(SA8797P_CPU_BWMON_IRQ_CLEAR, SA8797P_CPU_BWMON_IRQ_CLEAR),
+	regmap_reg_range(SA8797P_CPU_BWMON_CLEAR, SA8797P_CPU_BWMON_CLEAR),
+};
+
+static const struct regmap_access_table sa8797p_cpu_bwmon_reg_read_table = {
+	.no_ranges	= sa8797p_cpu_bwmon_reg_noread_ranges,
+	.n_no_ranges	= ARRAY_SIZE(sa8797p_cpu_bwmon_reg_noread_ranges),
+};
+
+static const struct regmap_range sa8797p_cpu_bwmon_reg_volatile_ranges[] = {
+	regmap_reg_range(SA8797P_CPU_BWMON_IRQ_STATUS, SA8797P_CPU_BWMON_IRQ_STATUS),
+	regmap_reg_range(SA8797P_CPU_BWMON_ZONE_MAX(0), SA8797P_CPU_BWMON_ZONE_MAX(3)),
+};
+
+static const struct regmap_access_table sa8797p_cpu_bwmon_reg_volatile_table = {
+	.yes_ranges	= sa8797p_cpu_bwmon_reg_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(sa8797p_cpu_bwmon_reg_volatile_ranges),
+};
+
+/*
+ * Fill the cache for non-readable registers only as rest does not really
+ * matter and can be read from the device.
+ */
+static const struct reg_default sa8797p_cpu_bwmon_reg_defaults[] = {
+	{ SA8797P_CPU_BWMON_GLOBAL_IRQ_CLEAR, 0x0 },
+	{ SA8797P_CPU_BWMON_IRQ_CLEAR, 0x0 },
+	{ SA8797P_CPU_BWMON_CLEAR, 0x0 },
+};
+
+static const struct regmap_config sa8797p_cpu_bwmon_regmap_cfg = {
+	.reg_bits		= 32,
+	.reg_stride		= 4,
+	.val_bits		= 32,
+	/*
+	 * No concurrent access expected - driver has one interrupt handler,
+	 * regmap is not shared, no driver or user-space API.
+	 */
+	.disable_locking	= true,
+	.rd_table		= &sa8797p_cpu_bwmon_reg_read_table,
+	.volatile_table		= &sa8797p_cpu_bwmon_reg_volatile_table,
+	.reg_defaults		= sa8797p_cpu_bwmon_reg_defaults,
+	.num_reg_defaults	= ARRAY_SIZE(sa8797p_cpu_bwmon_reg_defaults),
+	/*
+	 * Cache is necessary for using regmap fields with non-readable
+	 * registers.
+	 */
+	.cache_type		= REGCACHE_MAPLE,
+};
+
 /* BWMON v5 */
 static const struct reg_field sdm845_llcc_bwmon_reg_fields[] = {
 	[F_GLOBAL_IRQ_CLEAR]	= {},
@@ -432,6 +540,57 @@ static const struct reg_default sdm845_llcc_bwmon_reg_defaults[] = {
 };
 
 static const struct regmap_config sdm845_llcc_bwmon_regmap_cfg = {
+	.reg_bits		= 32,
+	.reg_stride		= 4,
+	.val_bits		= 32,
+	/*
+	 * No concurrent access expected - driver has one interrupt handler,
+	 * regmap is not shared, no driver or user-space API.
+	 */
+	.disable_locking	= true,
+	.rd_table		= &sdm845_llcc_bwmon_reg_read_table,
+	.volatile_table		= &sdm845_llcc_bwmon_reg_volatile_table,
+	.reg_defaults		= sdm845_llcc_bwmon_reg_defaults,
+	.num_reg_defaults	= ARRAY_SIZE(sdm845_llcc_bwmon_reg_defaults),
+	/*
+	 * Cache is necessary for using regmap fields with non-readable
+	 * registers.
+	 */
+	.cache_type		= REGCACHE_MAPLE,
+};
+
+/*
+ * SA8797P llcc-bwmon: same register offsets as BWMON v5, but the
+ * threshold and zone-max fields are 16 bits wide instead of 12.
+ */
+static const struct reg_field sa8797p_llcc_bwmon_reg_fields[] = {
+	[F_GLOBAL_IRQ_CLEAR]	= {},
+	[F_GLOBAL_IRQ_ENABLE]	= {},
+	[F_IRQ_STATUS]		= REG_FIELD(BWMON_V5_IRQ_STATUS, 0, 3),
+	[F_IRQ_CLEAR]		= REG_FIELD(BWMON_V5_IRQ_CLEAR, 0, 3),
+	[F_IRQ_ENABLE]		= REG_FIELD(BWMON_V5_IRQ_ENABLE, 0, 3),
+	/* F_ENABLE covers entire register to disable other features */
+	[F_ENABLE]		= REG_FIELD(BWMON_V5_ENABLE, 0, 31),
+	[F_CLEAR]		= REG_FIELD(BWMON_V5_CLEAR, 0, 1),
+	[F_SAMPLE_WINDOW]	= REG_FIELD(BWMON_V5_SAMPLE_WINDOW, 0, 19),
+	[F_THRESHOLD_HIGH]	= REG_FIELD(BWMON_V5_THRESHOLD_HIGH, 0, 15),
+	[F_THRESHOLD_MED]	= REG_FIELD(BWMON_V5_THRESHOLD_MED, 0, 15),
+	[F_THRESHOLD_LOW]	= REG_FIELD(BWMON_V5_THRESHOLD_LOW, 0, 15),
+	[F_ZONE_ACTIONS_ZONE0]	= REG_FIELD(BWMON_V5_ZONE_ACTIONS, 0, 7),
+	[F_ZONE_ACTIONS_ZONE1]	= REG_FIELD(BWMON_V5_ZONE_ACTIONS, 8, 15),
+	[F_ZONE_ACTIONS_ZONE2]	= REG_FIELD(BWMON_V5_ZONE_ACTIONS, 16, 23),
+	[F_ZONE_ACTIONS_ZONE3]	= REG_FIELD(BWMON_V5_ZONE_ACTIONS, 24, 31),
+	[F_THRESHOLD_COUNT_ZONE0]	= REG_FIELD(BWMON_V5_THRESHOLD_COUNT, 0, 7),
+	[F_THRESHOLD_COUNT_ZONE1]	= REG_FIELD(BWMON_V5_THRESHOLD_COUNT, 8, 15),
+	[F_THRESHOLD_COUNT_ZONE2]	= REG_FIELD(BWMON_V5_THRESHOLD_COUNT, 16, 23),
+	[F_THRESHOLD_COUNT_ZONE3]	= REG_FIELD(BWMON_V5_THRESHOLD_COUNT, 24, 31),
+	[F_ZONE0_MAX]		= REG_FIELD(BWMON_V5_ZONE_MAX(0), 0, 15),
+	[F_ZONE1_MAX]		= REG_FIELD(BWMON_V5_ZONE_MAX(1), 0, 15),
+	[F_ZONE2_MAX]		= REG_FIELD(BWMON_V5_ZONE_MAX(2), 0, 15),
+	[F_ZONE3_MAX]		= REG_FIELD(BWMON_V5_ZONE_MAX(3), 0, 15),
+};
+
+static const struct regmap_config sa8797p_llcc_bwmon_regmap_cfg = {
 	.reg_bits		= 32,
 	.reg_stride		= 4,
 	.val_bits		= 32,
@@ -722,7 +881,9 @@ static int bwmon_init_regmap(struct platform_device *pdev,
 	BUILD_BUG_ON(ARRAY_SIZE(msm8998_bwmon_global_reg_fields) != F_NUM_GLOBAL_FIELDS);
 	BUILD_BUG_ON(ARRAY_SIZE(msm8998_bwmon_reg_fields) != F_NUM_FIELDS);
 	BUILD_BUG_ON(ARRAY_SIZE(sdm845_cpu_bwmon_reg_fields) != F_NUM_FIELDS);
+	BUILD_BUG_ON(ARRAY_SIZE(sa8797p_cpu_bwmon_reg_fields) != F_NUM_FIELDS);
 	BUILD_BUG_ON(ARRAY_SIZE(sdm845_llcc_bwmon_reg_fields) != F_NUM_FIELDS);
+	BUILD_BUG_ON(ARRAY_SIZE(sa8797p_llcc_bwmon_reg_fields) != F_NUM_FIELDS);
 
 	ret = devm_regmap_field_bulk_alloc(dev, map, bwmon->regs,
 					   bwmon->data->regmap_fields,
@@ -837,6 +998,16 @@ static const struct icc_bwmon_data sdm845_cpu_bwmon_data = {
 	.regmap_cfg = &sdm845_cpu_bwmon_regmap_cfg,
 };
 
+static const struct icc_bwmon_data sa8797p_cpu_bwmon_data = {
+	.sample_ms = 4,
+	.count_unit_kb = 64,
+	.zone1_thres_count = 16,
+	.zone3_thres_count = 1,
+	.quirks = BWMON_HAS_GLOBAL_IRQ,
+	.regmap_fields = sa8797p_cpu_bwmon_reg_fields,
+	.regmap_cfg = &sa8797p_cpu_bwmon_regmap_cfg,
+};
+
 static const struct icc_bwmon_data sdm845_llcc_bwmon_data = {
 	.sample_ms = 4,
 	.count_unit_kb = 1024,
@@ -856,14 +1027,28 @@ static const struct icc_bwmon_data sc7280_llcc_bwmon_data = {
 	.regmap_cfg = &sdm845_llcc_bwmon_regmap_cfg,
 };
 
+static const struct icc_bwmon_data sa8797p_llcc_bwmon_data = {
+	.sample_ms = 4,
+	.count_unit_kb = 64,
+	.zone1_thres_count = 16,
+	.zone3_thres_count = 1,
+	.quirks = BWMON_NEEDS_FORCE_CLEAR,
+	.regmap_fields = sa8797p_llcc_bwmon_reg_fields,
+	.regmap_cfg = &sa8797p_llcc_bwmon_regmap_cfg,
+};
+
 static const struct of_device_id bwmon_of_match[] = {
 	/* BWMONv4, separate monitor and global register spaces */
 	{ .compatible = "qcom,msm8998-bwmon", .data = &msm8998_bwmon_data },
 	/* BWMONv4, unified register space */
 	{ .compatible = "qcom,sdm845-bwmon", .data = &sdm845_cpu_bwmon_data },
+	/* SA8797P cpu-bwmon, unified register space, different layout than v4 */
+	{ .compatible = "qcom,sa8797p-cpu-bwmon", .data = &sa8797p_cpu_bwmon_data },
 	/* BWMONv5 */
 	{ .compatible = "qcom,sdm845-llcc-bwmon", .data = &sdm845_llcc_bwmon_data },
 	{ .compatible = "qcom,sc7280-llcc-bwmon", .data = &sc7280_llcc_bwmon_data },
+	/* BWMONv5, same offsets but wider threshold/zone-max fields */
+	{ .compatible = "qcom,sa8797p-llcc-bwmon", .data = &sa8797p_llcc_bwmon_data },
 
 	/* Compatibles kept for legacy reasons */
 	{ .compatible = "qcom,sc7280-cpu-bwmon", .data = &sdm845_cpu_bwmon_data },
