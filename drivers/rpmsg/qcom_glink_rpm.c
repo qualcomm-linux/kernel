@@ -346,7 +346,7 @@ static int glink_rpm_probe(struct platform_device *pdev)
 					0,
 					&rpm->rx_pipe.native,
 					&rpm->tx_pipe.native,
-					true);
+					true, NULL);
 	if (IS_ERR(glink)) {
 		mbox_free_channel(rpm->mbox_chan);
 		return PTR_ERR(glink);

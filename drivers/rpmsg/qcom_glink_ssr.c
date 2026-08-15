@@ -11,6 +11,8 @@
 #include <linux/rpmsg/qcom_glink.h>
 #include <linux/remoteproc/qcom_rproc.h>
 
+#include "qcom_glink_native.h"
+
 /**
  * struct do_cleanup_msg - The data structure for an SSR do_cleanup message
  * @version:	The G-Link SSR protocol version
@@ -55,16 +57,34 @@ struct glink_ssr {
 	struct completion completion;
 };
 
+/**
+ * struct glink_ssr_notify_data - payload of an SSR notification
+ * @ssr_name:	name of the remoteproc that has been stopped
+ * @cluster:	cluster identifier of the remoteproc that has been stopped,
+ *		or NULL if it is not part of a cluster
+ */
+struct glink_ssr_notify_data {
+	const char *ssr_name;
+	void *cluster;
+};
+
 /* Notifier list for all registered glink_ssr instances */
 static BLOCKING_NOTIFIER_HEAD(ssr_notifiers);
 
 /**
  * qcom_glink_ssr_notify() - notify GLINK SSR about stopped remoteproc
  * @ssr_name:	name of the remoteproc that has been stopped
+ * @cluster:	cluster identifier of the remoteproc that has been stopped,
+ *		or NULL if it is not part of a cluster
  */
-void qcom_glink_ssr_notify(const char *ssr_name)
+void qcom_glink_ssr_notify(const char *ssr_name, void *cluster)
 {
-	blocking_notifier_call_chain(&ssr_notifiers, 0, (void *)ssr_name);
+	struct glink_ssr_notify_data data = {
+		.ssr_name = ssr_name,
+		.cluster = cluster,
+	};
+
+	blocking_notifier_call_chain(&ssr_notifiers, 0, &data);
 }
 EXPORT_SYMBOL_GPL(qcom_glink_ssr_notify);
 
@@ -100,9 +120,15 @@ static int qcom_glink_ssr_notifier_call(struct notifier_block *nb,
 					void *data)
 {
 	struct glink_ssr *ssr = container_of(nb, struct glink_ssr, nb);
+	struct glink_ssr_notify_data *notify_data = data;
 	struct do_cleanup_msg msg;
-	char *ssr_name = data;
+	void *cluster;
 	int ret;
+
+	/* Cluster siblings' firmware can't handle peer SSR notify; skip it */
+	cluster = qcom_glink_ept_cluster(ssr->ept);
+	if (cluster && cluster == notify_data->cluster)
+		return NOTIFY_DONE;
 
 	ssr->seq_num++;
 	reinit_completion(&ssr->completion);
@@ -110,8 +136,8 @@ static int qcom_glink_ssr_notifier_call(struct notifier_block *nb,
 	memset(&msg, 0, sizeof(msg));
 	msg.command = cpu_to_le32(GLINK_SSR_DO_CLEANUP);
 	msg.seq_num = cpu_to_le32(ssr->seq_num);
-	msg.name_len = cpu_to_le32(strlen(ssr_name));
-	strscpy(msg.name, ssr_name, sizeof(msg.name));
+	msg.name_len = cpu_to_le32(strlen(notify_data->ssr_name));
+	strscpy(msg.name, notify_data->ssr_name, sizeof(msg.name));
 
 	ret = rpmsg_send(ssr->ept, &msg, sizeof(msg));
 	if (ret < 0)

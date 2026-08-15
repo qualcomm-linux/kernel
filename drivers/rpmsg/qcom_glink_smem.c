@@ -218,7 +218,8 @@ static void qcom_glink_smem_release(struct device *dev)
 }
 
 struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
-						 struct device_node *node)
+						 struct device_node *node,
+						 void *cluster)
 {
 	struct glink_smem_pipe *rx_pipe;
 	struct glink_smem_pipe *tx_pipe;
@@ -338,7 +339,7 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 	glink = qcom_glink_native_probe(dev,
 					GLINK_FEATURE_INTENT_REUSE,
 					&rx_pipe->native, &tx_pipe->native,
-					false);
+					false, cluster);
 	if (IS_ERR(glink)) {
 		ret = PTR_ERR(glink);
 		goto err_free_mbox;
