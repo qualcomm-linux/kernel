@@ -122,6 +122,8 @@ struct qcom_glink {
 	unsigned long features;
 
 	bool intentless;
+	/* Cluster identifier of the remote processor behind this edge, or NULL */
+	void *cluster;
 	wait_queue_head_t tx_avail_notify;
 	bool sent_read_notify;
 
@@ -1892,7 +1894,8 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 					   unsigned long features,
 					   struct qcom_glink_pipe *rx,
 					   struct qcom_glink_pipe *tx,
-					   bool intentless)
+					   bool intentless,
+					   void *cluster)
 {
 	int ret;
 	struct qcom_glink *glink;
@@ -1907,6 +1910,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 
 	glink->features = features;
 	glink->intentless = intentless;
+	glink->cluster = cluster;
 
 	spin_lock_init(&glink->tx_lock);
 	spin_lock_init(&glink->rx_lock);
@@ -1939,6 +1943,20 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	return glink;
 }
 EXPORT_SYMBOL_GPL(qcom_glink_native_probe);
+
+/**
+ * qcom_glink_ept_cluster() - cluster identifier of an endpoint's edge
+ * @ept:	endpoint to query
+ *
+ * Return: the opaque cluster identifier of the remote processor @ept talks to,
+ * or NULL if it is not part of a cluster.
+ */
+void *qcom_glink_ept_cluster(struct rpmsg_endpoint *ept)
+{
+	struct glink_channel *channel = to_glink_channel(ept);
+
+	return channel->glink->cluster;
+}
 
 static int qcom_glink_remove_device(struct device *dev, void *data)
 {

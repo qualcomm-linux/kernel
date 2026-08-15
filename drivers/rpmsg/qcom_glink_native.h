@@ -29,12 +29,15 @@ struct qcom_glink_pipe {
 
 struct device;
 struct qcom_glink;
+struct rpmsg_endpoint;
 
 struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 					   unsigned long features,
 					   struct qcom_glink_pipe *rx,
 					   struct qcom_glink_pipe *tx,
-					   bool intentless);
+					   bool intentless,
+					   void *cluster);
+void *qcom_glink_ept_cluster(struct rpmsg_endpoint *ept);
 void qcom_glink_native_remove(struct qcom_glink *glink);
 void qcom_glink_native_rx(struct qcom_glink *glink);
 
