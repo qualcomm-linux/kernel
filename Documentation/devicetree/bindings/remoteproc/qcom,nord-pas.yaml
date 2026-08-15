@@ -17,6 +17,8 @@ properties:
   compatible:
     enum:
       - qcom,nord-adsp-pas
+      - qcom,nord-adsp1-pas
+      - qcom,nord-adsp2-pas
       - qcom,nord-cdsp0-pas
       - qcom,nord-cdsp1-pas
       - qcom,nord-cdsp2-pas
@@ -89,6 +91,19 @@ properties:
     maxItems: 1
     description: The names of the state bits used for SMP2P output
 
+  qcom,cluster-root:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Reference to the Peripheral Authentication Service instance that owns the
+      resources shared across this DSP's cluster. HPASS shares clock/reset/NoC
+      resources between its ADSP0/1/2 QDSP6 instances, and the owning instance
+      (ADSP0) has to boot first to initialize them before ADSP1/ADSP2 can cold
+      boot. Every member of a cluster carries this property, the owning instance
+      included, which references itself; instances whose property references the
+      same node form one cluster. A cluster is always brought down as a single
+      unit; any member crashing or being stopped forces every other member to
+      crash or stop with it.
+
 required:
   - compatible
   - reg
@@ -101,6 +116,8 @@ allOf:
         compatible:
           enum:
             - qcom,nord-adsp-pas
+            - qcom,nord-adsp1-pas
+            - qcom,nord-adsp2-pas
     then:
       properties:
         power-domains:
