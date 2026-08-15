@@ -2032,6 +2032,48 @@ static const struct qcom_pas_data nord_adsp_resource = {
 	.smem_host_id = 2,
 };
 
+static const struct qcom_pas_data nord_adsp1_resource = {
+	.crash_reason_smem = 663,
+	.firmware_name = "adsp1.mbn",
+	.dtb_firmware_name = "adsp1_dtb.mbn",
+	.pas_id = 53,
+	.dtb_pas_id = 55,
+	.minidump_id = 21,
+	.auto_boot = true,
+	.early_boot = true,
+	.proxy_pd_names = (char*[]){
+		"cx",
+		"mx",
+		NULL
+	},
+	.load_state = "adsp1",
+	.ssr_name = "lpass1",
+	.sysmon_name = "adsp1",
+	.ssctl_id = 0x1d,
+	.smem_host_id = 66,
+};
+
+static const struct qcom_pas_data nord_adsp2_resource = {
+	.crash_reason_smem = 664,
+	.firmware_name = "adsp2.mbn",
+	.dtb_firmware_name = "adsp2_dtb.mbn",
+	.pas_id = 54,
+	.dtb_pas_id = 56,
+	.minidump_id = 22,
+	.auto_boot = true,
+	.early_boot = true,
+	.proxy_pd_names = (char*[]){
+		"cx",
+		"mx",
+		NULL
+	},
+	.load_state = "adsp2",
+	.ssr_name = "lpass2",
+	.sysmon_name = "adsp2",
+	.ssctl_id = 0x1e,
+	.smem_host_id = 130,
+};
+
 static const struct qcom_pas_data nord_cdsp0_resource = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mbn",
@@ -2378,6 +2420,8 @@ static const struct of_device_id qcom_pas_of_match[] = {
 	{ .compatible = "qcom,milos-mpss-pas", .data = &sm8450_mpss_resource },
 	{ .compatible = "qcom,milos-wpss-pas", .data = &sc7280_wpss_resource },
 	{ .compatible = "qcom,nord-adsp-pas", .data = &nord_adsp_resource },
+	{ .compatible = "qcom,nord-adsp1-pas", .data = &nord_adsp1_resource },
+	{ .compatible = "qcom,nord-adsp2-pas", .data = &nord_adsp2_resource },
 	{ .compatible = "qcom,nord-cdsp0-pas", .data = &nord_cdsp0_resource },
 	{ .compatible = "qcom,nord-cdsp1-pas", .data = &nord_cdsp1_resource },
 	{ .compatible = "qcom,nord-cdsp2-pas", .data = &nord_cdsp2_resource },
