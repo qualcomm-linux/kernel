@@ -1400,6 +1400,110 @@
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
+
+	llcc_bwmon: pmu@21091000 {
+		compatible = "qcom,sa8797p-llcc-bwmon", "qcom,sc7280-llcc-bwmon";
+		reg = <0x0 0x21091000 0x0 0x1000>;
+		interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+		interconnects = <&mc_virt MASTER_LLCC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+		operating-points-v2 = <&llcc_bwmon_opp_table>;
+
+		llcc_bwmon_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-0 {
+				opp-peak-kBps = <762000>;
+			};
+
+			opp-1 {
+				opp-peak-kBps = <1720000>;
+			};
+
+			opp-2 {
+				opp-peak-kBps = <2086000>;
+			};
+
+			opp-3 {
+				opp-peak-kBps = <2601000>;
+			};
+
+			opp-4 {
+				opp-peak-kBps = <2929000>;
+			};
+
+			opp-5 {
+				opp-peak-kBps = <5931000>;
+			};
+
+			opp-6 {
+				opp-peak-kBps = <6515000>;
+			};
+
+			opp-7 {
+				opp-peak-kBps = <7984000>;
+			};
+
+			opp-8 {
+				opp-peak-kBps = <10437000>;
+			};
+
+			opp-9 {
+				opp-peak-kBps = <12195000>;
+			};
+		};
+	};
+
+	cpu_bwmon0: pmu@1016300 {
+		compatible = "qcom,sa8797p-cpu-bwmon", "qcom,sdm845-bwmon";
+		reg = <0x0 0x1016300 0x0 0x600>;
+		interrupts = <GIC_SPI 813 IRQ_TYPE_LEVEL_HIGH>;
+		interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &hscnoc SLAVE_LLCC QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+		operating-points-v2 = <&cpu_bwmon_opp_table>;
+
+		cpu_bwmon_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-0 {
+				opp-peak-kBps = <9155000>;
+			};
+
+			opp-1 {
+				opp-peak-kBps = <12298000>;
+			};
+
+			opp-2 {
+				opp-peak-kBps = <14236000>;
+			};
+
+			opp-3 {
+				opp-peak-kBps = <16265000>;
+			};
+		};
+	};
+
+	cpu_bwmon1: pmu@1015300 {
+		compatible = "qcom,sa8797p-cpu-bwmon", "qcom,sdm845-bwmon";
+		reg = <0x0 0x1015300 0x0 0x600>;
+		interrupts = <GIC_SPI 812 IRQ_TYPE_LEVEL_HIGH>;
+		interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &hscnoc SLAVE_LLCC QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+		operating-points-v2 = <&cpu_bwmon_opp_table>;
+	};
+
+	cpu_bwmon2: pmu@1014300 {
+		compatible = "qcom,sa8797p-cpu-bwmon", "qcom,sc7280-cpu-bwmon";
+		reg = <0x0 0x1014300 0x0 0x600>;
+		interrupts = <GIC_SPI 739 IRQ_TYPE_LEVEL_HIGH>;
+		interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &hscnoc SLAVE_LLCC QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+		operating-points-v2 = <&cpu_bwmon_opp_table>;
+	};
 };
 
 &tlmm {
