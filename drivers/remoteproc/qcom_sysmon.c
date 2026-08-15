@@ -67,6 +67,7 @@ static const char * const sysmon_state_string[] = {
 struct sysmon_event {
 	const char *subsys_name;
 	u32 ssr_event;
+	void *cluster;
 };
 
 static DEFINE_MUTEX(sysmon_lock);
@@ -473,7 +474,8 @@ static int sysmon_prepare(struct rproc_subdev *subdev)
 						  subdev);
 	struct sysmon_event event = {
 		.subsys_name = sysmon->name,
-		.ssr_event = SSCTL_SSR_EVENT_BEFORE_POWERUP
+		.ssr_event = SSCTL_SSR_EVENT_BEFORE_POWERUP,
+		.cluster = sysmon->rproc->cluster,
 	};
 
 	mutex_lock(&sysmon->state_lock);
@@ -500,7 +502,8 @@ static int sysmon_start(struct rproc_subdev *subdev)
 	struct qcom_sysmon *target;
 	struct sysmon_event event = {
 		.subsys_name = sysmon->name,
-		.ssr_event = SSCTL_SSR_EVENT_AFTER_POWERUP
+		.ssr_event = SSCTL_SSR_EVENT_AFTER_POWERUP,
+		.cluster = sysmon->rproc->cluster,
 	};
 
 	reinit_completion(&sysmon->ssctl_comp);
@@ -536,7 +539,8 @@ static void sysmon_stop(struct rproc_subdev *subdev, bool crashed)
 	struct qcom_sysmon *sysmon = container_of(subdev, struct qcom_sysmon, subdev);
 	struct sysmon_event event = {
 		.subsys_name = sysmon->name,
-		.ssr_event = SSCTL_SSR_EVENT_BEFORE_SHUTDOWN
+		.ssr_event = SSCTL_SSR_EVENT_BEFORE_SHUTDOWN,
+		.cluster = sysmon->rproc->cluster,
 	};
 
 	sysmon->shutdown_acked = false;
@@ -567,7 +571,8 @@ static void sysmon_unprepare(struct rproc_subdev *subdev)
 						  subdev);
 	struct sysmon_event event = {
 		.subsys_name = sysmon->name,
-		.ssr_event = SSCTL_SSR_EVENT_AFTER_SHUTDOWN
+		.ssr_event = SSCTL_SSR_EVENT_AFTER_SHUTDOWN,
+		.cluster = sysmon->rproc->cluster,
 	};
 
 	mutex_lock(&sysmon->state_lock);
@@ -587,6 +592,11 @@ static int sysmon_notify(struct notifier_block *nb, unsigned long event,
 {
 	struct qcom_sysmon *sysmon = container_of(nb, struct qcom_sysmon, nb);
 	struct sysmon_event *sysmon_event = data;
+
+	/* Cluster siblings' firmware can't handle peer SSR notify; skip it */
+	if (sysmon->rproc->cluster &&
+	    sysmon->rproc->cluster == sysmon_event->cluster)
+		return NOTIFY_DONE;
 
 	/* Skip non-running rprocs and the originating instance */
 	if (sysmon->state != SSCTL_SSR_EVENT_AFTER_POWERUP ||
