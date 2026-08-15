@@ -28,6 +28,7 @@
 #include <linux/soc/qcom/qmi_tmd.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
+#include <linux/workqueue.h>
 
 #include "qcom_common.h"
 #include "qcom_pil_info.h"
@@ -129,7 +130,9 @@ struct qcom_pas {
 
 	struct qcom_pas_cluster *cluster;
 	struct list_head cluster_node;
+	struct work_struct stop_work;
 	bool is_cluster_root;
+	bool in_cluster_stop;
 };
 
 /**
@@ -140,6 +143,13 @@ struct qcom_pas {
  * @members:	list of struct qcom_pas, linked via cluster_node
  * @root:	the member whose "qcom,cluster-root" points at itself
  * @root_booted: signaled once @root has started, cleared when it goes down
+ * @cascade_work: deferred work that restarts the cluster after a crash
+ * @cascade_origin: member whose stop or crash triggered the current round
+ * @cascade_crashed: true if @cascade_origin crashed, rather than being stopped
+ * @stop_in_progress: re-entrancy guard: a coordinated stop is in flight
+ * @stop_pending: participants still owing a phase-1 graceful-ack attempt
+ * @stop_barrier: released once @stop_pending reaches 0
+ * @stop_done_pending: participants still owing a phase-2 hardware power-off
  * @refcount:	number of members currently attached to this cluster
  *
  * PAS instances whose "qcom,cluster-root" phandle points at the same node
@@ -154,6 +164,15 @@ struct qcom_pas_cluster {
 	struct qcom_pas *root;
 	struct completion root_booted;
 
+	struct work_struct cascade_work;
+	struct qcom_pas *cascade_origin;
+	bool cascade_crashed;
+	bool stop_in_progress;
+
+	int stop_pending;
+	struct completion stop_barrier;
+	int stop_done_pending;
+
 	int refcount;
 };
 
@@ -164,8 +183,77 @@ struct qcom_pas_cluster {
  */
 #define QCOM_PAS_CLUSTER_ROOT_BOOT_TIMEOUT	(1 * HZ)
 
+/*
+ * How long a member waits at the phase-1 barrier for the rest of the cluster,
+ * in case a participant never reaches it at all (e.g. rproc_stop() bails out
+ * before calling ops->stop).
+ */
+#define QCOM_PAS_CLUSTER_STOP_TIMEOUT		(20 * HZ)
+
 static LIST_HEAD(qcom_pas_cluster_list);
 static DEFINE_MUTEX(qcom_pas_cluster_list_lock);
+
+static void qcom_pas_stop_work_fn(struct work_struct *work)
+{
+	struct qcom_pas *pas = container_of(work, struct qcom_pas, stop_work);
+
+	rproc_shutdown(pas->rproc);
+}
+
+/**
+ * qcom_pas_cluster_cascade_work() - restart a crashed cluster, root first
+ * @work:	the cluster's cascade_work
+ *
+ * Only ever scheduled from qcom_pas_cluster_stop_complete(), i.e. only after
+ * every participant has finished its own phase-2 hardware power-off, and only
+ * when the round that just finished was a crash; explicit stops never
+ * auto-restart.
+ */
+static void qcom_pas_cluster_cascade_work(struct work_struct *work)
+{
+	struct qcom_pas_cluster *cluster = container_of(work, struct qcom_pas_cluster,
+						       cascade_work);
+	struct qcom_pas *pas, *origin, *root;
+
+	mutex_lock(&cluster->lock);
+	origin = cluster->cascade_origin;
+	root = cluster->root;
+	mutex_unlock(&cluster->lock);
+
+	/*
+	 * Membership is stable here: qcom_pas_cluster_exit() always
+	 * cancel_work_sync()s this work before touching cluster->members, so no
+	 * member can join or leave while this work item is running.
+	 *
+	 * If @origin is itself the root, its own crash-recovery thread
+	 * (rproc_boot_recovery()) is already booting it directly -- never call
+	 * rproc_boot() on @origin from here. The root has to be booted before
+	 * any other member, since a dependent member's qcom_pas_start() blocks
+	 * on cluster->root_booted: were we to boot it first from this
+	 * single-threaded work item, it would wait out its timeout on a root
+	 * boot this same thread has not issued yet.
+	 */
+	if (root && root != origin) {
+		int ret;
+
+		ret = rproc_boot(root->rproc);
+		if (ret) {
+			dev_err(root->dev, "failed to restart cluster root: %d\n", ret);
+			return;
+		}
+	}
+
+	list_for_each_entry(pas, &cluster->members, cluster_node) {
+		int ret;
+
+		if (pas == origin || pas == root)
+			continue;
+
+		ret = rproc_boot(pas->rproc);
+		if (ret)
+			dev_err(pas->dev, "failed to restart cluster sibling: %d\n", ret);
+	}
+}
 
 static struct qcom_pas_cluster *qcom_pas_cluster_get(struct device_node *node)
 {
@@ -188,6 +276,8 @@ static struct qcom_pas_cluster *qcom_pas_cluster_get(struct device_node *node)
 	mutex_init(&cluster->lock);
 	INIT_LIST_HEAD(&cluster->members);
 	init_completion(&cluster->root_booted);
+	init_completion(&cluster->stop_barrier);
+	INIT_WORK(&cluster->cascade_work, qcom_pas_cluster_cascade_work);
 	/*
 	 * Cluster members may be attached to already-running firmware at
 	 * probe, so the root is presumed up until its own qcom_pas_stop()
@@ -257,6 +347,7 @@ static int qcom_pas_cluster_init(struct qcom_pas *pas, struct device_node *np)
 		return -ENOMEM;
 
 	pas->is_cluster_root = is_root;
+	INIT_WORK(&pas->stop_work, qcom_pas_stop_work_fn);
 
 	mutex_lock(&pas->cluster->lock);
 	list_add_tail(&pas->cluster_node, &pas->cluster->members);
@@ -273,6 +364,9 @@ static void qcom_pas_cluster_exit(struct qcom_pas *pas)
 
 	if (!cluster)
 		return;
+
+	cancel_work_sync(&pas->stop_work);
+	cancel_work_sync(&cluster->cascade_work);
 
 	mutex_lock(&cluster->lock);
 	list_del(&pas->cluster_node);
@@ -327,6 +421,153 @@ static int qcom_pas_cluster_wait_for_root(struct qcom_pas *pas)
 	}
 
 	return 0;
+}
+
+/*
+ * A member takes part in a coordinated stop if its hardware is still powered:
+ * either it is running or attached, or it is the crashed member that triggered
+ * the round, whose rproc->state is RPROC_CRASHED and only becomes
+ * RPROC_OFFLINE once its ops->stop() has returned.
+ *
+ * A sibling that crashes concurrently is deliberately not a participant: it is
+ * already being torn down by its own recovery, and pulling it into this round
+ * would leave the two rounds fighting over the same counters.
+ */
+static bool qcom_pas_cluster_member_stops(struct qcom_pas *member,
+					  struct qcom_pas *origin)
+{
+	if (member == origin)
+		return true;
+
+	return member->rproc->state == RPROC_RUNNING ||
+	       member->rproc->state == RPROC_ATTACHED;
+}
+
+/**
+ * qcom_pas_cluster_trigger_stop() - begin a coordinated cluster stop
+ * @pas:	the member that is being stopped or has crashed
+ * @crashed:	true if @pas crashed, rather than being stopped explicitly
+ *
+ * Marks every member whose hardware is still powered as a participant of this
+ * round and fires off each *other* participant's own full stop concurrently
+ * via its stop_work, instead of one after another. This lets every
+ * participant's phase-1 graceful-ack attempt (see qcom_pas_stop()) run while
+ * all of them are still fully powered, so nobody is asking firmware to ack a
+ * shutdown after a sibling's hardware is already gone.
+ *
+ * A no-op if a coordinated stop is already in flight, e.g. when @pas is a
+ * sibling whose own stop was itself triggered by this same round: @pas is
+ * already marked as a participant and just goes on to take part in it.
+ *
+ * Must not call rproc_shutdown()/rproc_boot() directly from here: this runs
+ * from inside qcom_pas_stop(), which the remoteproc core calls with @pas's own
+ * rproc->lock held, and taking a sibling's rproc->lock synchronously from
+ * within that critical section would risk an ABBA deadlock against a
+ * concurrent operation on the sibling.
+ */
+static void qcom_pas_cluster_trigger_stop(struct qcom_pas *pas, bool crashed)
+{
+	struct qcom_pas_cluster *cluster = pas->cluster;
+	struct qcom_pas *member;
+	int active = 0;
+
+	mutex_lock(&cluster->lock);
+	if (cluster->stop_in_progress) {
+		mutex_unlock(&cluster->lock);
+		return;
+	}
+
+	cluster->stop_in_progress = true;
+	cluster->cascade_origin = pas;
+	cluster->cascade_crashed = crashed;
+
+	list_for_each_entry(member, &cluster->members, cluster_node) {
+		member->in_cluster_stop = qcom_pas_cluster_member_stops(member, pas);
+		if (member->in_cluster_stop)
+			active++;
+	}
+
+	cluster->stop_pending = active;
+	cluster->stop_done_pending = active;
+	reinit_completion(&cluster->stop_barrier);
+
+	/*
+	 * Fan out while still holding the lock, so that membership cannot
+	 * change between counting the participants and scheduling them, and so
+	 * that a stop_work running immediately blocks in
+	 * qcom_pas_cluster_stop_barrier() until the counters above are in
+	 * place. schedule_work() does not sleep, so it is safe from here.
+	 */
+	list_for_each_entry(member, &cluster->members, cluster_node) {
+		if (member == pas || !member->in_cluster_stop)
+			continue;
+
+		schedule_work(&member->stop_work);
+	}
+	mutex_unlock(&cluster->lock);
+}
+
+/**
+ * qcom_pas_cluster_stop_barrier() - wait for the whole cluster's phase-1 ack
+ * @pas:	the member calling this from inside its own qcom_pas_stop()
+ *
+ * Blocks this member's own hardware power-off until every other participant
+ * has also finished its phase-1 graceful-ack attempt (see qcom_pas_stop()).
+ * Bounded by QCOM_PAS_CLUSTER_STOP_TIMEOUT, proceeding to phase 2 anyway
+ * rather than hanging forever.
+ *
+ * A member that is not a participant of the current round, having already been
+ * powered off before it started, has no ack to contribute and must not touch
+ * the counters.
+ */
+static void qcom_pas_cluster_stop_barrier(struct qcom_pas *pas)
+{
+	struct qcom_pas_cluster *cluster = pas->cluster;
+
+	mutex_lock(&cluster->lock);
+	if (!pas->in_cluster_stop) {
+		mutex_unlock(&cluster->lock);
+		return;
+	}
+	if (--cluster->stop_pending == 0)
+		complete_all(&cluster->stop_barrier);
+	mutex_unlock(&cluster->lock);
+
+	if (!wait_for_completion_timeout(&cluster->stop_barrier,
+					 QCOM_PAS_CLUSTER_STOP_TIMEOUT))
+		dev_warn(pas->dev, "timed out waiting for cluster stop barrier\n");
+}
+
+/**
+ * qcom_pas_cluster_stop_complete() - record this member's phase-2 completion
+ * @pas:	the member calling this from inside its own qcom_pas_stop()
+ *
+ * The last participant to call this, i.e. the last to finish powering off its
+ * own hardware, ends the round and, if it was triggered by a crash, schedules
+ * the root-first restart cascade.
+ */
+static void qcom_pas_cluster_stop_complete(struct qcom_pas *pas)
+{
+	struct qcom_pas_cluster *cluster = pas->cluster;
+	bool crashed;
+
+	mutex_lock(&cluster->lock);
+	if (!pas->in_cluster_stop) {
+		mutex_unlock(&cluster->lock);
+		return;
+	}
+	pas->in_cluster_stop = false;
+
+	if (--cluster->stop_done_pending != 0) {
+		mutex_unlock(&cluster->lock);
+		return;
+	}
+	cluster->stop_in_progress = false;
+	crashed = cluster->cascade_crashed;
+	mutex_unlock(&cluster->lock);
+
+	if (crashed)
+		schedule_work(&cluster->cascade_work);
 }
 
 static void qcom_pas_segment_dump(struct rproc *rproc,
@@ -647,10 +888,18 @@ static int qcom_pas_stop(struct rproc *rproc)
 		mutex_unlock(&pas->cluster->lock);
 	}
 
+	if (pas->cluster)
+		qcom_pas_cluster_trigger_stop(pas, rproc->state == RPROC_CRASHED);
+
+	/* Phase 1: request and await this member's own graceful ack */
 	ret = qcom_q6v5_request_stop(&pas->q6v5, pas->sysmon);
 	if (ret == -ETIMEDOUT)
 		dev_err(pas->dev, "timed out on wait\n");
 
+	if (pas->cluster)
+		qcom_pas_cluster_stop_barrier(pas);
+
+	/* Phase 2: the whole cluster has acked, power the hardware off */
 	ret = qcom_scm_pas_shutdown(pas->pas_id);
 	if (ret && pas->decrypt_shutdown)
 		ret = qcom_pas_shutdown_poll_decrypt(pas);
@@ -680,6 +929,9 @@ static int qcom_pas_stop(struct rproc *rproc)
 
 	if (pas->smem_host_id)
 		ret = qcom_smem_bust_hwspin_lock_by_host(pas->smem_host_id);
+
+	if (pas->cluster)
+		qcom_pas_cluster_stop_complete(pas);
 
 	return ret;
 }
