@@ -1761,8 +1761,6 @@
 
 			snps,dis-u1-entry-quirk;
 			snps,dis-u2-entry-quirk;
-
-			status = "disabled";
 		};
 
 		usb_0: usb@a600000 {
@@ -2148,6 +2146,32 @@
 							 <&apps_smmu_0 0x0a76 0x0020>,
 							 <&apps_smmu_0 0x0a96 0x0000>;
 						dma-coherent;
+					};
+				};
+			};
+		};
+
+		eud: eud@88e7000 {
+			compatible = "qcom,sc7280-eud", "qcom,eud";
+			reg = <0x0 0x088e7000 0x0 0x2000>,
+			      <0x0 0x088e9000 0x0 0x1000>;
+			interrupts-extended = <&pdc 11 IRQ_TYPE_LEVEL_HIGH>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					eud_ep: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					eud_con: endpoint {
 					};
 				};
 			};

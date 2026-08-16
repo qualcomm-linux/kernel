@@ -570,6 +570,10 @@
 	};
 };
 
+&eud_ep {
+	remote-endpoint = <&usb_0_dwc3_hs>;
+};
+
 &i2c9 {
 	clock-frequency = <400000>;
 
@@ -781,6 +785,10 @@
 	status = "okay";
 };
 
+&usb_0_dwc3_hs {
+	remote-endpoint = <&eud_ep>;
+};
+
 &usb_0_hsphy {
 	vdd-supply = <&vreg_l1e_0p9>;
 	vdda12-supply = <&vreg_l2i_1p2>;
@@ -807,7 +815,6 @@
 
 &usb_1 {
 	dr_mode = "peripheral";
-
 	status = "okay";
 };
 
