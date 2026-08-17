@@ -45,6 +45,37 @@ enum {
 	ISR_HPD_REPLUG_COUNT,
 };
 
+/* event thread connection state */
+enum {
+	ST_DISCONNECTED,
+	ST_MAINLINK_READY,
+	ST_CONNECTED,
+	ST_DISCONNECT_PENDING,
+	ST_DISPLAY_OFF,
+};
+
+enum {
+	EV_NO_EVENT,
+	/* hpd events */
+	EV_HPD_PLUG_INT,
+	EV_IRQ_HPD_INT,
+	EV_HPD_UNPLUG_INT,
+	EV_USER_NOTIFICATION,
+};
+
+#define EVENT_TIMEOUT	(HZ/10)	/* 100ms */
+#define DP_EVENT_Q_MAX	8
+
+#define DP_TIMEOUT_NONE		0
+
+#define WAIT_FOR_RESUME_TIMEOUT_JIFFIES (HZ / 2)
+
+struct msm_dp_event {
+	u32 event_id;
+	u32 data;
+	u32 delay;
+};
+
 struct msm_dp_display_private {
 	int irq;
 
