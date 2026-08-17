@@ -7,6 +7,7 @@
 #include <dt-bindings/spmi/spmi.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/linux-event-codes.h>
+#include "qcom-adc5-gen3.h"
 
 &spmi_bus {
 	kobra_mm_a: pmic@0 {
@@ -51,6 +52,39 @@
 			interrupts = <0x0 0x62 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
+		kobra_mm_a_adc: adc@8000 {
+			compatible = "qcom,spmi-adc5-gen3";
+			reg = <0x8000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0x0 0x80 0x1 IRQ_TYPE_EDGE_RISING>;
+			#io-channel-cells = <1>;
+
+			channel@0 {
+				reg = <ADC5_GEN3_REF_GND(0)>;
+				label = "kobra_mm_a_ref_gnd";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@1 {
+				reg = <ADC5_GEN3_1P25VREF(0)>;
+				label = "kobra_mm_a_vref_1p25";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@2 {
+				reg = <ADC5_GEN3_VREF_VADC(0)>;
+				label = "kobra_mm_a_vref_vadc";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@3 {
+				reg = <ADC5_GEN3_DIE_TEMP(0)>;
+				label = "kobra_mm_a_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+		};
+
 		kobra_mm_a_gpios: gpio@8800 {
 			compatible = "qcom,pmm8650au-gpio", "qcom,spmi-gpio";
 			reg = <0x8800>;
@@ -67,6 +101,39 @@
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		kobra_psail_b_adc: adc@8000 {
+			compatible = "qcom,spmi-adc5-gen3";
+			reg = <0x8000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <0x1 0x80 0x1 IRQ_TYPE_EDGE_RISING>;
+			#io-channel-cells = <1>;
+
+			channel@100 {
+				reg = <ADC5_GEN3_REF_GND(1)>;
+				label = "kobra_psail_b_ref_gnd";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@101 {
+				reg = <ADC5_GEN3_1P25VREF(1)>;
+				label = "kobra_psail_b_vref_1p25";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@102 {
+				reg = <ADC5_GEN3_VREF_VADC(1)>;
+				label = "kobra_psail_b_vref_vadc";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@103 {
+				reg = <ADC5_GEN3_DIE_TEMP(1)>;
+				label = "kobra_psail_b_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+		};
 
 		kobra_psail_b_gpios: gpio@8800 {
 			compatible = "qcom,pmm8650au-gpio", "qcom,spmi-gpio";
