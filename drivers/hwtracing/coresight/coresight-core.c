@@ -953,8 +953,12 @@ int coresight_path_assign_trace_id(struct coresight_path *path,
 		/* Assign a trace ID to the path for the first device that wants to do it */
 		trace_id = coresight_get_trace_id(nd->csdev, mode, sink);
 
-		/* 0 means the device has no ID assignment, so keep searching */
-		if (trace_id == 0)
+		/*
+		 * 0 means the device has no ID assignment, and -EOPNOTSUPP
+		 * means the device explicitly declines to assign one (e.g. a
+		 * pass-through NoC) - in both cases keep searching downstream.
+		 */
+		if (trace_id == 0 || trace_id == -EOPNOTSUPP)
 			continue;
 
 		if (!IS_VALID_CS_TRACE_ID(trace_id))
