@@ -128,6 +128,16 @@ config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
 
+config QCOM_QMI_TMD
+	bool "Qualcomm QMI TMD library" if COMPILE_TEST
+	depends on ARCH_QCOM
+	select QCOM_QMI_HELPERS
+	help
+	  This enables the QMI-based Thermal Mitigation Device (TMD) library
+	  for Qualcomm remote subsystems. The library manages TMD messaging and
+	  handles QMI communication with remote processors (modem, CDSP) to
+	  exchange mitigation state and apply thermal mitigation requests.
+
 config QCOM_RAMP_CTRL
 	tristate "Qualcomm Ramp Controller driver"
 	depends on ARCH_QCOM || COMPILE_TEST
