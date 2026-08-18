@@ -263,4 +263,13 @@ config PTP_NETC_V4_TIMER
 	  synchronization. It also supports periodic output signal (e.g. PPS)
 	  and external trigger timestamping.
 
+config PTP_QCOM_CLOCK_TSC
+	tristate "Qualcomm TSC as PTP clock"
+	depends on COMMON_CLK && PTP_1588_CLOCK
+	help
+	  This driver adds support for using the Qualcomm Timestamp Counter (TSC)
+	  as a PTP clock the requires for time stamping of PTP packets.
+	  It also registers interrupts for Event Timestamp Unit (ETU) and updates
+	  the TSC timestamps to PTP clock event.
+
 endmenu
