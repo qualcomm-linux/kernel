@@ -30,6 +30,7 @@ properties:
       - items:
           - enum:
               - qcom,qcs8300-ctcu
+              - qcom,shikra-ctcu
           - const: qcom,sa8775p-ctcu
       - enum:
           - qcom,sa8775p-ctcu
