@@ -12,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/clk.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -74,6 +75,7 @@ struct pcm1681_private {
 	unsigned int deemph;
 	/* Current rate for deemphasis control */
 	unsigned int rate;
+	struct clk *sclk;
 };
 
 static const int pcm1681_deemph[] = { 44100, 48000, 32000 };
@@ -303,6 +305,22 @@ static int pcm1681_i2c_probe(struct i2c_client *client)
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->sclk = devm_clk_get_optional(&client->dev, "sclk");
+	if (IS_ERR(priv->sclk))
+		return dev_err_probe(&client->dev, PTR_ERR(priv->sclk),
+				     "Failed to get sclk\n");
+
+	ret = clk_prepare_enable(priv->sclk);
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to enable sclk\n");
+
+	ret = devm_add_action_or_reset(&client->dev,
+				       (void (*)(void *))clk_disable_unprepare,
+				       priv->sclk);
+	if (ret)
+		return ret;
 
 	priv->regmap = devm_regmap_init_i2c(client, &pcm1681_regmap);
 	if (IS_ERR(priv->regmap)) {
