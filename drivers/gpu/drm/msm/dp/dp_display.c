@@ -671,6 +671,7 @@ static int msm_dp_display_prepare_link(struct msm_dp_display_private *dp)
 	if (!msm_dp_display->power_on) {
 		msm_dp_display_host_phy_init(dp);
 		force_link_train = true;
+		dp->ctrl->plugged = dp->plugged;
 	}
 
 	rc = msm_dp_ctrl_on_link(dp->ctrl, dp->panel);
