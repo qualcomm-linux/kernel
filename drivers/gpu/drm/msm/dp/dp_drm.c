@@ -50,7 +50,7 @@ static void msm_dp_bridge_debugfs_init(struct drm_bridge *bridge, struct dentry 
 }
 
 static void msm_dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct msm_dp_bridge *dp_bridge = to_dp_bridge(drm_bridge);
 	struct msm_dp *dp = dp_bridge->msm_dp_display;
@@ -60,7 +60,7 @@ static void msm_dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 }
 
 static void msm_dp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct msm_dp_bridge *dp_bridge = to_dp_bridge(drm_bridge);
 	struct msm_dp *dp = dp_bridge->msm_dp_display;
@@ -69,7 +69,7 @@ static void msm_dp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
 }
 
 static void msm_dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct msm_dp_bridge *dp_bridge = to_dp_bridge(drm_bridge);
 	struct msm_dp *dp = dp_bridge->msm_dp_display;
@@ -128,7 +128,7 @@ static int msm_edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
 }
 
 static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -158,7 +158,7 @@ static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 }
 
 static void msm_edp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
-					  struct drm_atomic_state *atomic_state)
+					  struct drm_atomic_commit *atomic_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state = NULL, *old_crtc_state = NULL;
@@ -202,7 +202,7 @@ out:
 }
 
 static void msm_edp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-					       struct drm_atomic_state *atomic_state)
+					       struct drm_atomic_commit *atomic_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;

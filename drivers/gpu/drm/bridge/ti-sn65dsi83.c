@@ -471,7 +471,7 @@ static void sn65dsi83_monitor_stop(struct sn65dsi83 *ctx)
 }
 
 static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	const unsigned int dual_factor = ctx->lvds_dual_link ? 2 : 1;
@@ -644,7 +644,7 @@ static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	unsigned int pval;
@@ -670,7 +670,7 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void sn65dsi83_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	int ret;

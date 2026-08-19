@@ -584,7 +584,7 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_tv_reset);
  * %0 for success, a negative error code on error.
  */
 int drm_atomic_helper_connector_tv_check(struct drm_connector *connector,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct drm_connector_state *old_conn_state =
 		drm_atomic_get_old_connector_state(state, connector);
@@ -710,6 +710,28 @@ void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_atomic_helper_connector_destroy_state);
 
 /**
+ * __drm_atomic_helper_private_obj_create_state - initializes private object state
+ * @obj: private object
+ * @state: new state to initialize
+ *
+ * Initializes the newly allocated @state, usually required when
+ * initializing the drivers.
+ *
+ * @obj is assumed to be zeroed.
+ *
+ * This is useful for drivers that use private states.
+ */
+void __drm_atomic_helper_private_obj_create_state(struct drm_private_obj *obj,
+						  struct drm_private_state *state)
+{
+	if (state)
+		state->obj = obj;
+
+	obj->state = state;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_private_obj_create_state);
+
+/**
  * __drm_atomic_helper_private_obj_duplicate_state - copy atomic private state
  * @obj: CRTC object
  * @state: new private object state
@@ -772,6 +794,7 @@ EXPORT_SYMBOL(drm_atomic_helper_bridge_duplicate_state);
  * @state: bridge state to destroy
  *
  * Destroys a bridge state previously created by
+ * &drm_atomic_helper_bridge_create_state(),
  * &drm_atomic_helper_bridge_reset() or
  * &drm_atomic_helper_bridge_duplicate_state(). This helper is meant to be
  * used as a bridge &drm_bridge_funcs.atomic_destroy_state hook for bridges
@@ -791,13 +814,15 @@ EXPORT_SYMBOL(drm_atomic_helper_bridge_destroy_state);
  * @state: bridge state to initialize
  *
  * Initializes the bridge state to default values. This is meant to be called
- * by the bridge &drm_bridge_funcs.atomic_reset hook for bridges that subclass
- * the bridge state.
+ * by the bridge &drm_bridge_funcs.atomic_create_state or
+ * &drm_bridge_funcs.atomic_reset hook for bridges that subclass the bridge
+ * state.
  */
 void __drm_atomic_helper_bridge_reset(struct drm_bridge *bridge,
 				      struct drm_bridge_state *state)
 {
 	memset(state, 0, sizeof(*state));
+	__drm_atomic_helper_private_obj_create_state(&bridge->base, &state->base);
 	state->bridge = bridge;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_bridge_reset);
@@ -814,6 +839,25 @@ EXPORT_SYMBOL(__drm_atomic_helper_bridge_reset);
 struct drm_bridge_state *
 drm_atomic_helper_bridge_reset(struct drm_bridge *bridge)
 {
+	return drm_atomic_helper_bridge_create_state(bridge);
+}
+EXPORT_SYMBOL(drm_atomic_helper_bridge_reset);
+
+/**
+ * drm_atomic_helper_bridge_create_state - default
+ *              &drm_bridge_funcs.atomic_create_state hook for bridges
+ * @bridge: bridge object
+ *
+ * Allocates and initializes pristine @drm_bridge_state.
+ *
+ * This is useful for drivers that don't subclass @drm_bridge_state.
+ *
+ * RETURNS:
+ * Pointer to new bridge state, or ERR_PTR on failure.
+ */
+struct drm_bridge_state *
+drm_atomic_helper_bridge_create_state(struct drm_bridge *bridge)
+{
 	struct drm_bridge_state *bridge_state;
 
 	bridge_state = kzalloc(sizeof(*bridge_state), GFP_KERNEL);
@@ -823,4 +867,4 @@ drm_atomic_helper_bridge_reset(struct drm_bridge *bridge)
 	__drm_atomic_helper_bridge_reset(bridge, bridge_state);
 	return bridge_state;
 }
-EXPORT_SYMBOL(drm_atomic_helper_bridge_reset);
+EXPORT_SYMBOL(drm_atomic_helper_bridge_create_state);

@@ -190,7 +190,7 @@ static enum drm_mode_status meson_encoder_hdmi_mode_valid(struct drm_bridge *bri
 }
 
 static void meson_encoder_hdmi_atomic_enable(struct drm_bridge *bridge,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct meson_encoder_hdmi *encoder_hdmi = bridge_to_meson_encoder_hdmi(bridge);
 	unsigned int ycrcb_map = VPU_HDMI_OUTPUT_CBYCR;
@@ -253,7 +253,7 @@ static void meson_encoder_hdmi_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_hdmi_atomic_disable(struct drm_bridge *bridge,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct meson_encoder_hdmi *encoder_hdmi = bridge_to_meson_encoder_hdmi(bridge);
 	struct meson_drm *priv = encoder_hdmi->priv;

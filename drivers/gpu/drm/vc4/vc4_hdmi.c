@@ -461,7 +461,7 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 }
 
 static int vc4_hdmi_connector_atomic_check(struct drm_connector *connector,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct drm_connector_state *old_state =
 		drm_atomic_get_old_connector_state(state, connector);
@@ -799,7 +799,7 @@ static void vc4_hdmi_scrambling_wq(struct work_struct *work)
 }
 
 static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
-					       struct drm_atomic_state *state)
+					       struct drm_atomic_commit *state)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_device *drm = vc4_hdmi->connector.dev;
@@ -849,7 +849,7 @@ out:
 }
 
 static void vc4_hdmi_encoder_post_crtc_powerdown(struct drm_encoder *encoder,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_device *drm = vc4_hdmi->connector.dev;
@@ -1396,7 +1396,7 @@ static void vc4_hdmi_recenter_fifo(struct vc4_hdmi *vc4_hdmi)
 }
 
 static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_device *drm = vc4_hdmi->connector.dev;
@@ -1512,7 +1512,7 @@ out:
 }
 
 static void vc4_hdmi_encoder_pre_crtc_enable(struct drm_encoder *encoder,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_device *drm = vc4_hdmi->connector.dev;
@@ -1542,7 +1542,7 @@ out:
 }
 
 static void vc4_hdmi_encoder_post_crtc_enable(struct drm_encoder *encoder,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_connector *connector = &vc4_hdmi->connector;

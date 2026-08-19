@@ -41,7 +41,7 @@ void msm_dp_display_debugfs_init(struct msm_dp *msm_dp_display, struct dentry *d
 void msm_dp_display_atomic_post_disable(struct msm_dp *dp_display);
 void msm_dp_display_atomic_disable(struct msm_dp *dp_display);
 void msm_dp_display_atomic_prepare(struct msm_dp *dp_display,
-				   struct drm_atomic_state *state);
+				   struct drm_atomic_commit *state);
 void msm_dp_display_atomic_enable(struct msm_dp *dp_display);
 enum drm_mode_status msm_dp_display_mode_valid(struct msm_dp *dp,
 					       const struct drm_display_info *info,
@@ -56,7 +56,7 @@ void msm_dp_display_disable_helper(struct msm_dp *msm_dp_display,
 void msm_dp_display_atomic_post_disable_helper(struct msm_dp *msm_dp_display,
 					       struct msm_dp_panel *msm_dp_panel);
 int msm_dp_display_set_mode_helper(struct msm_dp *msm_dp_display,
-				   struct drm_atomic_state *state,
+				   struct drm_atomic_commit *state,
 				   struct drm_encoder *drm_encoder,
 				   struct msm_dp_panel *msm_dp_panel);
 int msm_dp_display_prepare(struct msm_dp *msm_dp_display);
