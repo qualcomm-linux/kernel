@@ -497,6 +497,62 @@ static int mhi_find_capability(struct mhi_controller *mhi_cntrl, u32 capability)
 	return 0;
 }
 
+static int mhi_get_er_index(struct mhi_controller *mhi_cntrl,
+			    enum mhi_er_data_type type)
+{
+	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
+	int i;
+
+	/* Find event ring for requested type */
+	for (i = 0; i < mhi_cntrl->total_ev_rings; i++, mhi_event++) {
+		if (mhi_event->data_type == type)
+			return mhi_event->er_index;
+	}
+
+	return -ENOENT;
+}
+
+static int mhi_init_bw_scale(struct mhi_controller *mhi_cntrl,
+			     int bw_scale_db)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	struct mhi_event *mhi_event;
+	u32 bw_cfg_offset, val;
+	int er_index, i;
+
+	bw_cfg_offset = mhi_find_capability(mhi_cntrl, MHI_BW_SCALE_CAP_ID);
+	if (!bw_cfg_offset)
+		return 0;
+
+	er_index = mhi_get_er_index(mhi_cntrl, MHI_ER_BW_SCALE);
+	if (er_index < 0)
+		return er_index;
+
+	/* Initialize BW scale event ring resources */
+	mhi_event = mhi_cntrl->mhi_event;
+	for (i = 0; i < mhi_cntrl->total_ev_rings; i++, mhi_event++) {
+		if (mhi_event->data_type == MHI_ER_BW_SCALE) {
+			INIT_WORK(&mhi_event->work, mhi_process_ev_work);
+			mutex_init(&mhi_event->mutex);
+			break;
+		}
+	}
+
+	bw_cfg_offset += MHI_BW_SCALE_CFG_OFFSET;
+
+	/* Advertise host support */
+	val = FIELD_PREP(MHI_BW_SCALE_DB_CHAN_ID, bw_scale_db) |
+			 FIELD_PREP(MHI_BW_SCALE_ER_INDEX, er_index) |
+			 MHI_BW_SCALE_ENABLED;
+
+	mhi_write_reg(mhi_cntrl, mhi_cntrl->regs, bw_cfg_offset, val);
+
+	dev_dbg(dev, "Bandwidth scaling setup complete with event ring: %d\n",
+		er_index);
+
+	return 0;
+}
+
 static int mhi_init_tsc_timesync(struct mhi_controller *mhi_cntrl)
 {
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
@@ -523,8 +579,8 @@ static int mhi_init_tsc_timesync(struct mhi_controller *mhi_cntrl)
 
 int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 {
-	u32 val;
-	int i, ret;
+	u32 val, chdb_offset;
+	int i, ret, doorbell = 0;
 	struct mhi_chan *mhi_chan;
 	struct mhi_event *mhi_event;
 	void __iomem *base = mhi_cntrl->regs;
@@ -605,6 +661,8 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 		return -ERANGE;
 	}
 
+	chdb_offset = val;
+	
 	/* Setup wake db */
 	mhi_cntrl->wake_db = base + val + (8 * MHI_DEV_WAKE_DB);
 	mhi_cntrl->wake_set = false;
@@ -661,6 +719,17 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 	ret = mhi_init_tsc_timesync(mhi_cntrl);
 	if (ret)
 		dev_dbg(dev, "TSC Time synchronization init failure\n");
+	
+	if (mhi_cntrl->get_misc_doorbell)
+		doorbell = mhi_cntrl->get_misc_doorbell(mhi_cntrl, MHI_ER_BW_SCALE);
+
+	if (doorbell > 0) {
+		ret = mhi_init_bw_scale(mhi_cntrl, doorbell);
+		if (!ret)
+			mhi_cntrl->bw_scale_db = base + chdb_offset + (8 * doorbell);
+		else
+			dev_warn(dev, "Failed to setup bandwidth scaling: %d\n", ret);
+	}
 
 	return 0;
 }
@@ -805,6 +874,9 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 			break;
 		case MHI_ER_CTRL:
 			mhi_event->process_event = mhi_process_ctrl_ev_ring;
+			break;
+		case MHI_ER_BW_SCALE:
+			mhi_event->process_event = mhi_process_bw_scale_ev_ring;
 			break;
 		default:
 			dev_err(dev, "Event Ring type not supported\n");
@@ -1029,12 +1101,15 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 
 		mhi_event->mhi_cntrl = mhi_cntrl;
 		spin_lock_init(&mhi_event->lock);
-		if (mhi_event->data_type == MHI_ER_CTRL)
+		if (mhi_event->data_type == MHI_ER_CTRL) {
 			tasklet_init(&mhi_event->task, mhi_ctrl_ev_task,
 				     (ulong)mhi_event);
-		else
+		} else if (mhi_event->data_type == MHI_ER_BW_SCALE) {
+			/* BW scale resources will be initialized in mhi_init_mmio() if capability exists */
+		} else {
 			tasklet_init(&mhi_event->task, mhi_ev_task,
 				     (ulong)mhi_event);
+		}
 	}
 
 	mhi_chan = mhi_cntrl->mhi_chan;
@@ -1120,6 +1195,7 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_device *mhi_dev = mhi_cntrl->mhi_dev;
 	struct mhi_chan *mhi_chan = mhi_cntrl->mhi_chan;
+	struct mhi_event *mhi_event;
 	unsigned int i;
 
 	mhi_deinit_free_irq(mhi_cntrl);
@@ -1129,6 +1205,16 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl)
 		sysfs_remove_file(&mhi_dev->dev.kobj, &dev_attr_trigger_edl.attr);
 
 	destroy_workqueue(mhi_cntrl->hiprio_wq);
+	
+	/* Clean up BW scale resources */
+	mhi_event = mhi_cntrl->mhi_event;
+	for (i = 0; i < mhi_cntrl->total_ev_rings; i++, mhi_event++) {
+		if (mhi_event->data_type == MHI_ER_BW_SCALE) {
+			cancel_work_sync(&mhi_event->work);
+			mutex_destroy(&mhi_event->mutex);
+		}
+	}
+
 	kfree(mhi_cntrl->mhi_cmd);
 	kfree(mhi_cntrl->mhi_event);
 
