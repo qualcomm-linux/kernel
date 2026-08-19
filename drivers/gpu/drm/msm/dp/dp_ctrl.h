@@ -12,6 +12,7 @@
 
 struct msm_dp_ctrl {
 	bool wide_bus_en;
+	bool plugged;
 };
 
 struct phy;
