@@ -80,8 +80,12 @@
 	};
 };
 
-&pcieport0_ep {
-	remote-endpoint = <&m2_e_pcie_ep>;
+&pcieport0 {
+	port {
+		pcieport0_ep: endpoint {
+			remote-endpoint = <&m2_e_pcie_ep>;
+		};
+	};
 };
 
 &sdhc_1 {
@@ -97,8 +101,10 @@
 
 &uart2 {
 	status = "okay";
-};
 
-&uart2_ep {
-	remote-endpoint = <&m2_e_uart_ep>;
+	port {
+		uart2_ep: endpoint {
+			remote-endpoint = <&m2_e_uart_ep>;
+		};
+	};
 };
