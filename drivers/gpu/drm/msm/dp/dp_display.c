@@ -750,6 +750,8 @@ int msm_dp_display_prepare_link(struct msm_dp *msm_dp_display)
 		rc = msm_dp_ctrl_on_link(dp->ctrl, dp->panel);
 		if (rc)
 			DRM_ERROR("Failed link training (rc=%d)\n", rc);
+		else
+			force_link_train = false;
 		// TODO: schedule drm_connector_set_link_status_property()
 	}
 
