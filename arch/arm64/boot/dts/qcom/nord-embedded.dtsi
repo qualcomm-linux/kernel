@@ -16,7 +16,7 @@
 #include <dt-bindings/interconnect/qcom,icc.h>
 #include <dt-bindings/interconnect/qcom,nord-rpmh.h>
 #include <dt-bindings/phy/phy-qcom-qmp.h>
-#include <dt-bindings/power/qcom-rpmpd.h>
+#include <dt-bindings/power/qcom,rpmhpd.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 
 #include "nord.dtsi"
@@ -605,10 +605,10 @@
 	interconnects = <&nsp_data_noc_0 MASTER_NSP0_PROC QCOM_ICC_TAG_ALWAYS
 			 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 	power-domains = <&rpmhpd RPMHPD_CX>,
-			<&rpmhpd RPMHPD_MX>,
+			<&rpmhpd RPMHPD_NMXC>,
 			<&rpmhpd RPMHPD_NSP0>;
 	power-domain-names = "cx",
-			     "mx",
+			     "nmxc",
 			     "nsp";
 };
 
@@ -618,10 +618,10 @@
 	interconnects = <&nsp_data_noc_1 MASTER_NSP1_PROC QCOM_ICC_TAG_ALWAYS
 			 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 	power-domains = <&rpmhpd RPMHPD_CX>,
-			<&rpmhpd RPMHPD_MX>,
+			<&rpmhpd RPMHPD_NMXC>,
 			<&rpmhpd RPMHPD_NSP1>;
 	power-domain-names = "cx",
-			     "mx",
+			     "nmxc",
 			     "nsp";
 };
 
@@ -631,10 +631,10 @@
 	interconnects = <&nsp_data_noc_2 MASTER_NSP2_PROC QCOM_ICC_TAG_ALWAYS
 			 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 	power-domains = <&rpmhpd RPMHPD_CX>,
-			<&rpmhpd RPMHPD_MX>,
+			<&rpmhpd RPMHPD_NMXC>,
 			<&rpmhpd RPMHPD_NSP2>;
 	power-domain-names = "cx",
-			     "mx",
+			     "nmxc",
 			     "nsp";
 };
 
@@ -644,10 +644,10 @@
 	interconnects = <&nsp_data_noc_3 MASTER_NSP3_PROC QCOM_ICC_TAG_ALWAYS
 			 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 	power-domains = <&rpmhpd RPMHPD_CX>,
-			<&rpmhpd RPMHPD_MX>,
+			<&rpmhpd RPMHPD_NMXC>,
 			<&rpmhpd RPMHPD_NSP3>;
 	power-domain-names = "cx",
-			     "mx",
+			     "nmxc",
 			     "nsp";
 };
 
