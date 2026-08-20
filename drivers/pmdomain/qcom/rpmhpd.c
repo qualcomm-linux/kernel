@@ -232,6 +232,11 @@ static struct rpmhpd qphy = {
 	.res_name = "qphy.lvl",
 };
 
+static struct rpmhpd nmxc = {
+	.pd = { .name = "nmxc", },
+	.res_name = "nmxc.lvl",
+};
+
 static struct rpmhpd gmxc = {
 	.pd = { .name = "gmxc", },
 	.res_name = "gmxc.lvl",
@@ -335,6 +340,7 @@ static struct rpmhpd *nord_rpmhpds[] = {
 	[RPMHPD_NSP1] = &nsp1,
 	[RPMHPD_NSP2] = &nsp2,
 	[RPMHPD_NSP3] = &nsp3,
+	[RPMHPD_NMXC] = &nmxc,
 };
 
 static const struct rpmhpd_desc nord_desc = {
