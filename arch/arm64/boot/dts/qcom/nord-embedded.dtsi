@@ -799,6 +799,116 @@
 		#power-domain-cells = <1>;
 	};
 
+	gpu_0: gpu_0@3d00000 {
+		compatible = "qcom,adreno-43051701", "qcom,adreno";
+
+		reg = <0x0 0x03d00000 0x0 0x40000>,
+				<0x0 0x03d9e000 0x0 0x2000>,
+				<0x0 0x03d61000 0x0 0x800>;
+		reg-names = "kgsl_3d0_reg_memory", "cx_mem", "cx_dbgc";
+
+		interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
+
+		iommus = <&adreno_smmu_0 0 0x0>,
+				<&adreno_smmu_0 1 0x0>;
+
+		operating-points-v2 = <&gpu_opp_table_0>;
+		qcom,gmu = <&gmu_0>;
+
+		#cooling-cells = <2>;
+
+		status = "okay";
+
+		interconnects = <&hscnoc MASTER_GFX3D QCOM_ICC_TAG_ALWAYS
+					&mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+		interconnect-names = "gfx-mem";
+
+		zap-shader {
+			memory-region = <&gpu_microcode_mem>;
+			firmware-name = "qcom/nord/gen71300_zap.mbn";
+		};
+
+		gpu_opp_table_0: opp-table {
+			compatible = "operating-points-v2-adreno",
+						"operating-points-v2";
+
+			opp-468000000 {
+				opp-hz = /bits/ 64 <468000000>;
+				opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
+				opp-peak-kBps = <781250>;
+			};
+
+			opp-625000000 {
+				opp-hz = /bits/ 64 <625000000>;
+				opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+				opp-peak-kBps = <6075000>;
+			};
+
+			opp-735000000 {
+				opp-hz = /bits/ 64 <735000000>;
+				opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+				opp-peak-kBps = <8175000>;
+			};
+
+			opp-854000000 {
+				opp-hz = /bits/ 64 <854000000>;
+				opp-level = <RPMH_REGULATOR_LEVEL_TURBO>;
+				opp-peak-kBps = <10687500>;
+			};
+
+			opp-1000000000 {
+				opp-hz = /bits/ 64 <1000000000>;
+				opp-level = <RPMH_REGULATOR_LEVEL_TURBO_L1>;
+				opp-peak-kBps = <12450000>;
+			};
+
+		};
+	};
+
+	gmu_0: gmu_0@3d6a000 {
+		compatible = "qcom,adreno-gmu-753.2", "qcom,adreno-gmu";
+
+		reg = <0x0 0x03d6a000 0x0 0x35000>,
+				<0x0 0x03d50000 0x0 0x10000>,
+				<0x0 0x0b2a0000 0x0 0x10000>;
+		reg-names = "gmu", "rscc", "gmu_pdc";
+
+		interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hfi", "gmu";
+
+		clocks = <&gpucc GPU_CC_AHB_CLK>,
+				<&gpucc GPU_CC_CX_GMU_CLK>,
+				<&gpucc GPU_CC_CXO_CLK>,
+				<&nwgcc NW_GCC_HSCNOC_GPU_AXI_CLK>,
+				<&gpucc GPU_CC_MEMNOC_GFX_CLK>,
+				<&gpucc GPU_CC_HUB_CX_INT_CLK>;
+		clock-names = "ahb", "gmu", "cxo", "axi",
+				"memnoc", "hub";
+
+		power-domains = <&gpucc GPU_CC_CX_GDSC>,
+				<&gpucc GPU_CC_GX_GDSC>;
+		power-domain-names = "cx", "gx";
+
+		iommus = <&adreno_smmu_0 5 0x0>;
+
+		operating-points-v2 = <&gmu_opp_table_0>;
+
+		gmu_opp_table_0: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-500000000 {
+				opp-hz = /bits/ 64 <416666000>;
+				opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
+			};
+
+			opp-625000000 {
+				opp-hz = /bits/ 64 <625000000>;
+				opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+			};
+		};
+	};
+
 	hpass_ag_noc: interconnect@5fc0000 {
 		compatible = "qcom,nord-hpass-ag-noc";
 		reg = <0x0  0x05fc0000 0x0 0x37080>;
