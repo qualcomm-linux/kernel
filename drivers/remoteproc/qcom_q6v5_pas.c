@@ -2084,7 +2084,7 @@ static const struct qcom_pas_data nord_cdsp0_resource = {
 	.auto_boot = true,
 	.proxy_pd_names = (char*[]){
 		"cx",
-		"mx",
+		"nmxc",
 		"nsp",
 		NULL
 	},
@@ -2105,7 +2105,7 @@ static const struct qcom_pas_data nord_cdsp1_resource = {
 	.auto_boot = true,
 	.proxy_pd_names = (char*[]){
 		"cx",
-		"mx",
+		"nmxc",
 		"nsp",
 		NULL
 	},
@@ -2126,7 +2126,7 @@ static const struct qcom_pas_data nord_cdsp2_resource = {
 	.auto_boot = true,
 	.proxy_pd_names = (char*[]){
 		"cx",
-		"mx",
+		"nmxc",
 		"nsp",
 		NULL
 	},
@@ -2147,7 +2147,7 @@ static const struct qcom_pas_data nord_cdsp3_resource = {
 	.auto_boot = true,
 	.proxy_pd_names = (char*[]){
 		"cx",
-		"mx",
+		"nmxc",
 		"nsp",
 		NULL
 	},
