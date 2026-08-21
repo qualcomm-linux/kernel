@@ -1334,6 +1334,32 @@
 			};
 		};
 
+		eud: eud@88e0000 {
+			compatible = "qcom,sc7280-eud", "qcom,eud";
+			reg = <0 0x88e7000 0 0x2000>,
+			      <0 0x88e9000 0 0x1000>;
+			interrupts-extended = <&pdc 11 IRQ_TYPE_LEVEL_HIGH>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					eud_ep: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					eud_con: endpoint {
+					};
+				};
+			};
+		};
+
 		qupv3_0: geniqup@9c0000 {
 			compatible = "qcom,geni-se-qup";
 			reg = <0x0 0x009c0000 0x0 0x2000>;
