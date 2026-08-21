@@ -463,19 +463,11 @@
 	status = "okay";
 };
 
-&pm4125_hs_in {
-	remote-endpoint = <&usb_1_dwc3_hs>;
-};
-
 &pm4125_l5 {
 	/* DSI VDDA - must be at NOM voltage for PHY PLL lock */
 	regulator-min-microvolt = <1232000>;
 	regulator-max-microvolt = <1232000>;
 	regulator-allow-set-load;
-};
-
-&pm4125_ss_in {
-	remote-endpoint = <&usb_qmpphy_out>;
 };
 
 &qaif_cpu {
@@ -721,17 +713,9 @@
 };
 
 &usb_1 {
-	dr_mode = "otg";
+	dr_mode = "peripheral";
 
 	status = "okay";
-};
-
-&usb_1_dwc3_hs {
-	remote-endpoint = <&pm4125_hs_in>;
-};
-
-&usb_qmpphy_out {
-	remote-endpoint = <&pm4125_ss_in>;
 };
 
 &vamacro {
