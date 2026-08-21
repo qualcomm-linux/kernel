@@ -683,6 +683,14 @@
 	status = "okay";
 };
 
+&eud_ep {
+	remote-endpoint = <&usb_0_dwc3_hs>;
+};
+
+&usb_0_dwc3_hs {
+	remote-endpoint = <&eud_ep>;
+};
+
 &usb_1 {
 	dr_mode = "peripheral";
 
