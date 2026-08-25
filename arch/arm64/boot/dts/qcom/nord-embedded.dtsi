@@ -3802,7 +3802,7 @@
 	power-domains = <&gpucc GPU_CC_CX_GDSC>;
 };
 
-&thermal_gpuss_0 {
+&gpuss_0_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3813,7 +3813,7 @@
 	};
 };
 
-&thermal_gpuss_1 {
+&gpuss_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3824,7 +3824,7 @@
 	};
 };
 
-&thermal_gpuss_2 {
+&gpuss_2_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3835,7 +3835,7 @@
 	};
 };
 
-&thermal_gpu_0_0_0 {
+&gpu_0_0_0_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3846,29 +3846,7 @@
 	};
 };
 
-&thermal_gpuss_1_0 {
-	polling-delay-passive = <10>;
-
-	cooling-maps {
-		map0 {
-			trip = <&gpuss_1_0_alert0>;
-			cooling-device = <&gpu_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
-	};
-};
-
-&thermal_gpuss_1_1 {
-	polling-delay-passive = <10>;
-
-	cooling-maps {
-		map0 {
-			trip = <&gpuss_1_1_alert0>;
-			cooling-device = <&gpu_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
-	};
-};
-
-&thermal_gpuss_0_1_1 {
+&gpuss_0_1_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3879,7 +3857,7 @@
 	};
 };
 
-&thermal_gpuss_1_1_1 {
+&gpuss_1_1_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3890,7 +3868,7 @@
 	};
 };
 
-&thermal_gpuss_2_1_1 {
+&gpuss_2_1_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3901,7 +3879,7 @@
 	};
 };
 
-&thermal_gpu_0_1_1 {
+&gpu_0_1_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3912,7 +3890,7 @@
 	};
 };
 
-&thermal_gpuss_0_1_0 {
+&gpuss_0_1_0_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3923,7 +3901,7 @@
 	};
 };
 
-&thermal_gpuss_1_1_0 {
+&gpuss_1_1_0_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3934,7 +3912,7 @@
 	};
 };
 
-&thermal_gpuss_2_1_0 {
+&gpuss_2_1_0_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3945,7 +3923,7 @@
 	};
 };
 
-&thermal_gpu_0_1_0 {
+&gpu_0_1_0_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3956,29 +3934,7 @@
 	};
 };
 
-&thermal_gpuss_1_2 {
-	polling-delay-passive = <10>;
-
-	cooling-maps {
-		map0 {
-			trip = <&gpuss_1_2_alert0>;
-			cooling-device = <&gpu_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
-	};
-};
-
-&thermal_gpu_1_0 {
-	polling-delay-passive = <10>;
-
-	cooling-maps {
-		map0 {
-			trip = <&gpu_1_0_alert0>;
-			cooling-device = <&gpu_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
-	};
-};
-
-&thermal_gpuss_0_1 {
+&gpuss_0_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -3989,7 +3945,7 @@
 	};
 };
 
-&thermal_gpuss_1_0_1 {
+&gpuss_1_0_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -4000,7 +3956,7 @@
 	};
 };
 
-&thermal_gpuss_2_0_1 {
+&gpuss_2_0_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
@@ -4011,7 +3967,7 @@
 	};
 };
 
-&thermal_gpu_0_0_1 {
+&gpu_0_0_1_thermal {
 	polling-delay-passive = <10>;
 
 	cooling-maps {
