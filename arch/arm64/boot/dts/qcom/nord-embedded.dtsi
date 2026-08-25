@@ -668,6 +668,84 @@
 		#power-domain-cells = <1>;
 	};
 
+	bwmon_cluster0: pmu@1016400 {
+		compatible = "qcom,sa8797p-cpu-bwmon", "qcom,sdm845-bwmon";
+		reg = <0x0 0x1016400 0x0 0x600>;
+		interrupts = <GIC_SPI 813 IRQ_TYPE_LEVEL_HIGH>;
+		interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+		operating-points-v2 = <&bwmon_cluster_opp_table>;
+
+		bwmon_cluster_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-0 {
+				opp-peak-kBps = <800000>;
+			};
+
+			opp-1 {
+				opp-peak-kBps = <2188800>;
+			};
+
+			opp-2 {
+				opp-peak-kBps = <5414400>;
+			};
+
+			opp-3 {
+				opp-peak-kBps = <6220800>;
+			};
+
+			opp-4 {
+				opp-peak-kBps = <6835200>;
+			};
+
+			opp-5 {
+				opp-peak-kBps = <7603200>;
+			};
+
+			opp-6 {
+				opp-peak-kBps = <8371200>;
+			};
+
+			opp-7 {
+				opp-peak-kBps = <9657600>;
+			};
+
+			opp-8 {
+				opp-peak-kBps = <10944000>;
+			};
+
+			opp-9 {
+				opp-peak-kBps = <12748800>;
+			};
+
+			opp-10 {
+				opp-peak-kBps = <14745600>;
+			};
+		};
+	};
+
+	bwmon_cluster1: pmu@1015400 {
+		compatible = "qcom,sa8797p-cpu-bwmon", "qcom,sdm845-bwmon";
+		reg = <0x0 0x1015400 0x0 0x600>;
+		interrupts = <GIC_SPI 812 IRQ_TYPE_LEVEL_HIGH>;
+		interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+		operating-points-v2 = <&bwmon_cluster_opp_table>;
+	};
+
+	bwmon_cluster2: pmu@1014400 {
+		compatible = "qcom,sa8797p-cpu-bwmon", "qcom,sc7280-cpu-bwmon";
+		reg = <0x0 0x1014400 0x0 0x600>;
+		interrupts = <GIC_SPI 739 IRQ_TYPE_LEVEL_HIGH>;
+		interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+				 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+		operating-points-v2 = <&bwmon_cluster_opp_table>;
+	};
+
 	cnoc_main: interconnect@1500000 {
 		compatible = "qcom,nord-cnoc-main";
 		reg = <0x0 0x01500000 0x0 0x1d200>;
