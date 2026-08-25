@@ -2297,15 +2297,17 @@
 			reg = <0x0 0x0c400000 0x0 0x3000>,
 			      <0x0 0x0c500000 0x0 0x400000>,
 			      <0x0 0x0c440000 0x0 0x80000>,
-			      <0x0 0x0c4c0000 0x0 0x20000>,
+			      <0x0 0x0c4c0000 0x0 0x10000>,
 			      <0x0 0x0c42d000 0x0 0x4000>;
 			reg-names = "core",
 				    "chnls",
 				    "obsrvr",
 				    "intr",
 				    "cnfg";
+			cell-index = <0>;
 			qcom,channel = <0>;
 			qcom,ee = <0>;
+			qcom,bus-id = <0>;
 			interrupts-extended = <&pdc 1 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "periph_irq";
 			interrupt-controller;

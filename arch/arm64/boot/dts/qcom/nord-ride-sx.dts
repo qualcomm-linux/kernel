@@ -10,7 +10,6 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
 #include "nord-embedded.dtsi"
-#include "nord-pmics.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. Nord Ride SX";
@@ -115,7 +114,7 @@
 		regulator-name = "usb2_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&pmic_h_gpios 3 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmau0102_h_gpios 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
 	};
@@ -582,7 +581,7 @@
 
 		vdd1v8-supply = <&vreg_l3l_1p8>;
 
-		reset-gpios = <&pmic_i_gpios 9 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&pmau0102_i_gpios 9 GPIO_ACTIVE_LOW>;
 	};
 
 	usb1_repeater: redriver@4f {
@@ -592,7 +591,7 @@
 
 		vdd1v8-supply = <&vreg_l3l_1p8>;
 
-		reset-gpios = <&pmic_i_gpios 10 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&pmau0102_i_gpios 10 GPIO_ACTIVE_LOW>;
 	};
 
 	usb2_repeater: redriver@47 {
@@ -602,7 +601,7 @@
 
 		vdd1v8-supply = <&vreg_l3l_1p8>;
 
-		reset-gpios = <&pmic_l_gpios 3 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&pmau0102_l_gpios 3 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -628,8 +627,8 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
-		interrupts-extended = <&pmic_l_gpios 6 GPIO_ACTIVE_LOW>;
-		reset-gpios = <&pmic_l_gpios 5 GPIO_ACTIVE_LOW>;
+		interrupts-extended = <&pmau0102_l_gpios 6 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&pmau0102_l_gpios 5 GPIO_ACTIVE_LOW>;
 
 		click-pop-mute-hog {
 			gpio-hog;

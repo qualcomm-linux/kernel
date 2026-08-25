@@ -20,6 +20,8 @@
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 
 #include "nord.dtsi"
+#include "pmm8650au-nord.dtsi"
+#include "pmau0102-nord.dtsi"
 
 / {
 	clk_virt: interconnect-clk-virt {

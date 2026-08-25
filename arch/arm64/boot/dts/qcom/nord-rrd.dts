@@ -10,7 +10,6 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
 #include "nord-embedded.dtsi"
-#include "nord-pmics.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IQ10 RRD";
@@ -601,8 +600,8 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
-		interrupts-extended = <&pmic_l_gpios 6 GPIO_ACTIVE_LOW>;
-		reset-gpios = <&pmic_l_gpios 5 GPIO_ACTIVE_LOW>;
+		interrupts-extended = <&pmau0102_l_gpios 6 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&pmau0102_l_gpios 5 GPIO_ACTIVE_LOW>;
 
 		click-pop-mute-hog {
 			gpio-hog;
