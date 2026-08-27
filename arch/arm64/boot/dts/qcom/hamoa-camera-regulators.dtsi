@@ -33,14 +33,14 @@
 
 		vreg_l3m_1p8: ldo3 {
 			regulator-name = "vreg_l3m_1p8";
-			regulator-min-microvolt = <1808000>;
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1808000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l4m_1p8: ldo4 {
 			regulator-name = "vreg_l4m_1p8";
-			regulator-min-microvolt = <1808000>;
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1808000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
@@ -54,7 +54,7 @@
 
 		vreg_l6m_1p8: ldo6 {
 			regulator-name = "vreg_l6m_1p8";
-			regulator-min-microvolt = <1808000>;
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1808000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
