@@ -17,13 +17,16 @@ properties:
     const: qcom,nord-camss
 
   reg:
-    maxItems: 29
+    maxItems: 32
 
   reg-names:
     items:
       - const: csid0
       - const: csid1
       - const: csid2
+      - const: csid_wrapper0
+      - const: csid_wrapper1
+      - const: csid_wrapper2
       - const: csid_lite0
       - const: csid_lite1
       - const: csid_lite2
@@ -199,6 +202,9 @@ examples:
             reg = <0 0x09b32000 0 0x2000>,
                   <0 0x09b38800 0 0x2000>,
                   <0 0x09b3f000 0 0x2000>,
+                  <0 0x09b31000 0 0x1000>,
+                  <0 0x09b37800 0 0x1000>,
+                  <0 0x09b3e000 0 0x1000>,
                   <0 0x09c32000 0 0x1000>,
                   <0 0x09c37000 0 0x1000>,
                   <0 0x09c3c000 0 0x1000>,
@@ -229,6 +235,9 @@ examples:
             reg-names = "csid0",
                         "csid1",
                         "csid2",
+                        "csid_wrapper0",
+                        "csid_wrapper1",
+                        "csid_wrapper2",
                         "csid_lite0",
                         "csid_lite1",
                         "csid_lite2",

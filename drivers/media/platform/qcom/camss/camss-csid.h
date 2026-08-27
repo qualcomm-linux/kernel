@@ -154,6 +154,7 @@ struct csid_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[MSM_CSID_PADS_NUM];
 	void __iomem *base;
+	void __iomem *wrapper_base;
 	u32 irq;
 	char irq_name[30];
 	union {

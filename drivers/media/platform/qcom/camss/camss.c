@@ -427,7 +427,7 @@ static const struct camss_subdev_resources csid_res_nord[] = {
 		.clock_rate = { { 400000000, 480000000 },
 				{ 400000000, 480000000 },
 				{ 0 } },
-		.reg = { "csid0" },
+		.reg = { "csid0", "csid_wrapper0" },
 		.interrupt = { "csid0" },
 		.csid = {
 			.is_lite = false,
@@ -442,7 +442,7 @@ static const struct camss_subdev_resources csid_res_nord[] = {
 		.clock_rate = { { 400000000, 480000000 },
 				{ 400000000, 480000000 },
 				{ 0 } },
-		.reg = { "csid1" },
+		.reg = { "csid1", "csid_wrapper1" },
 		.interrupt = { "csid1" },
 		.csid = {
 			.is_lite = false,
@@ -457,7 +457,7 @@ static const struct camss_subdev_resources csid_res_nord[] = {
 		.clock_rate = { { 400000000, 480000000 },
 				{ 400000000, 480000000 },
 				{ 0 } },
-		.reg = { "csid2" },
+		.reg = { "csid2", "csid_wrapper2" },
 		.interrupt = { "csid2" },
 		.csid = {
 			.is_lite = false,
