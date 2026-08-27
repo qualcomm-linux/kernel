@@ -93,6 +93,14 @@
 #define CSID_CSI2_RDIN_IRQ_CLEAR(rdi)		(0x11C + 0x10 * (rdi))
 #define		INFO_RUP_DONE				BIT(23)
 
+/*
+ * Per-path domain_id (CSID wrapper, full CSID only). A domain_id of 0 selects
+ * an unmapped SMMU SID, so RDI writes never reach memory; program a non-zero
+ * value to select the IFE SID that the device tree maps via "iommus".
+ */
+#define CSID_PATH_DOMAIN_ID_CFG1		0x4
+#define		PATH_DOMAIN_ID_RDI(rdi)			(1U << ((rdi) * 8))
+
 static void __csid_aup_rup_trigger(struct csid_device *csid)
 {
 	writel(RUP_SET, csid->base + CSID_RUP_AUP_CMD);
@@ -233,11 +241,29 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 	writel(val, csid->base + rdi_cfg0_offset);
 }
 
+static void __csid_configure_domain_id(struct csid_device *csid)
+{
+	u32 val;
+	int i;
+
+	if (csid_is_lite(csid) || !csid->wrapper_base)
+		return;
+
+	val = readl(csid->wrapper_base + CSID_PATH_DOMAIN_ID_CFG1);
+	for (i = 0; i < MSM_CSID_MAX_SRC_STREAMS; i++)
+		if (csid->phy.en_vc & BIT(i))
+			val |= PATH_DOMAIN_ID_RDI(i);
+	writel(val, csid->wrapper_base + CSID_PATH_DOMAIN_ID_CFG1);
+}
+
 static void csid_configure_stream(struct csid_device *csid, u8 enable)
 {
 	u8 i, k;
 
 	__csid_configure_rx(csid, &csid->phy);
+
+	if (enable)
+		__csid_configure_domain_id(csid);
 
 	for (i = 0; i < MSM_CSID_MAX_SRC_STREAMS_900; i++) {
 		if (csid->phy.en_vc & BIT(i)) {

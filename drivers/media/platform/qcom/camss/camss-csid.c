@@ -1130,6 +1130,15 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 			return PTR_ERR(csid->base);
 	}
 
+	/* Optional per-CSID wrapper region (e.g. secure control on CSID 900) */
+
+	if (res->reg[1]) {
+		csid->wrapper_base =
+			devm_platform_ioremap_resource_byname(pdev, res->reg[1]);
+		if (IS_ERR(csid->wrapper_base))
+			return PTR_ERR(csid->wrapper_base);
+	}
+
 	/* Interrupt */
 
 	ret = platform_get_irq_byname(pdev, res->interrupt[0]);
