@@ -467,6 +467,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camx-el2.dtb
 lemans-evk-camx-dtbs	:= lemans-evk.dtb lemans-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= monaco-arduino-monza.dtb
 
 lemans-camx-el2-dtbs	:= lemans-evk-el2.dtb lemans-evk-camx.dtbo lemans-camx-el2.dtbo
 
