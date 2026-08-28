@@ -33,6 +33,7 @@ properties:
               - qcom,sdm660-dsi-ctrl
               - qcom,sdm670-dsi-ctrl
               - qcom,sdm845-dsi-ctrl
+              - qcom,shikra-dsi-ctrl
               - qcom,sm6115-dsi-ctrl
               - qcom,sm6125-dsi-ctrl
               - qcom,sm6150-dsi-ctrl
@@ -46,6 +47,10 @@ properties:
               - qcom,sm8550-dsi-ctrl
               - qcom,sm8650-dsi-ctrl
               - qcom,sm8750-dsi-ctrl
+          - const: qcom,mdss-dsi-ctrl
+      - items:
+          - const: qcom,shikra-dsi-ctrl
+          - const: qcom,qcm2290-dsi-ctrl
           - const: qcom,mdss-dsi-ctrl
       - items:
           - enum:

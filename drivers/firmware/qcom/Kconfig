@@ -6,7 +6,26 @@
 
 menu "Qualcomm firmware drivers"
 
+config QCOM_PAS
+	tristate
+	help
+	  Enable the generic Peripheral Authentication Service (PAS) provided
+	  by the firmware. It acts as the common layer with different TZ
+	  backends plugged in whether it's an SCM implementation or a proper
+	  TEE bus based PAS service implementation.
+
+config QCOM_PAS_TEE
+	tristate
+	select QCOM_PAS
+	depends on TEE
+	depends on !CPU_BIG_ENDIAN
+	default m if ARCH_QCOM
+	help
+	  Enable the generic Peripheral Authentication Service (PAS) provided
+	  by the firmware TEE implementation as the backend.
+
 config QCOM_SCM
+	select QCOM_PAS
 	select QCOM_TZMEM
 	tristate
 
@@ -73,5 +92,45 @@ config QCOM_QSEECOM_UEFISECAPP
 
 	  Select Y here to provide access to EFI variables on the aforementioned
 	  platforms.
+
+config QCOM_TEE_UEFISECAPP
+	tristate "Qualcomm TEE UEFI Secure App client driver"
+	depends on QCOMTEE
+	depends on EFI
+	depends on !QCOM_QSEECOM_UEFISECAPP
+	help
+	  On Qualcomm SoC based platforms without emulated RPMB support,
+	  specifically platforms where RPMB is not present within SPI-NOR storage
+	  and instead located on UFS/EMMC storage, non-volatile EFI variables can
+	  only be set via a callback request from the UEFI Secure Application to
+	  the RPMB service running in user-space (within the QTEE supplicant:
+	  github.com/qualcomm/minkipc). Unlike the QCOMTEE driver, the QSEECOM
+	  driver used by the QSEECOM based uefisecapp does not support callback
+	  requests. And so on these platforms, the TEE based uefisecapp client
+	  driver must be used to ensure persistence of non-volatile EFI variables
+	  via writes through the RPMB service hosted in the QTEE supplicant.
+
+	  This module provides a TEE client driver for uefisecapp, installing efivar
+	  operations to allow the kernel and user-space access to EFI variables.
+
+	  Select m here to provide access to EFI variables on the aforementioned
+	  platforms if your Linux distribution has QTEE supplicant installed and
+	  running.
+
+config QCOM_MEMORY_DUMP_V2
+	tristate "QCOM Memory Dump V2 Support"
+	depends on QCOM_TZMEM
+	depends on CMA
+	help
+	  This enables memory dump feature. It allows various client
+	  subsystems to register respective dump regions. At the time
+	  of deadlocks or cpu hangs these dump regions are captured to
+	  give a snapshot of the system at the time of the crash.
+
+config QCOM_MEMORY_DUMP_DEV
+	tristate "QCOM Memory Dump V2 device stub"
+	depends on QCOM_MEMORY_DUMP_V2
+	help
+	  Device stub for memory dump V2 driver.
 
 endmenu

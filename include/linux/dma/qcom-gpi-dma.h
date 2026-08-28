@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2020, Linaro Limited
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef QCOM_GPI_DMA_H
@@ -55,6 +56,21 @@ enum i2c_op {
 };
 
 /**
+ * enum gpi_lock_action - request lock/unlock TRE sequencing
+ * @GPI_LOCK_NONE: No lock/unlock TRE requested for this transfer
+ * @GPI_LOCK_ACQUIRE: Emit a lock TRE before the transfer
+ * @GPI_LOCK_RELEASE: Emit an unlock TRE after the transfer
+ *
+ * Used by protocol drivers for multi-owner controller setups (e.g. when
+ * DeviceTree indicates the controller is shared via qcom,qup-multi-owner).
+ */
+enum gpi_lock_action {
+	GPI_LOCK_NONE = 0,
+	GPI_LOCK_ACQUIRE,
+	GPI_LOCK_RELEASE,
+};
+
+/**
  * struct gpi_i2c_config - i2c config for peripheral
  *
  * @pack_enable: process tx/rx buffers as packed
@@ -67,7 +83,8 @@ enum i2c_op {
  * @set_config: set peripheral config
  * @rx_len: receive length for buffer
  * @op: i2c cmd
- * @multi_msg: is part of multi i2c r-w msgs
+ * @muli-msg: is part of multi i2c r-w msgs
+ * @lock_action: request lock/unlock TRE sequencing for this transfer
  */
 struct gpi_i2c_config {
 	u8 set_config;
@@ -81,6 +98,7 @@ struct gpi_i2c_config {
 	u32 rx_len;
 	enum i2c_op op;
 	bool multi_msg;
+	enum gpi_lock_action lock_action;
 };
 
 #endif /* QCOM_GPI_DMA_H */

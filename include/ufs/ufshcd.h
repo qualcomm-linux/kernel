@@ -812,7 +812,22 @@ enum ufshcd_quirks {
 	 * (EQTR) using Adapt L0L1L2L3 length which is larger than what is
 	 * allowed by M-PHY spec ver 6.0.
 	 */
+
 	UFSHCD_QUIRK_EXTENDED_TX_EQTR_ADAPT_LENGTH_L0L1L2L3	= 1 << 28,
+	/*
+	 * Some UFS devices keep drawing larger current after reset is
+	 * asserted until it is deasserted. Asserting device reset
+	 * during UFS power down causes the device firmware to wake up and
+	 * execute its reset routine, drawing current beyond the permissible
+	 * limit for low-power mode (LPM). This may trigger an OCP fault on
+	 * the regulator supplying power to UFS.
+	 *
+	 * Enable this quirk to skip asserting device reset during UFS power
+	 * down. This is handled only in shutdown; the device reset will be
+	 * asserted as part of the platform shutdown sequence.
+	 */
+
+	UFSHCD_QUIRK_SKIP_DEVICE_RESET			= 1 << 29,
 };
 
 enum ufshcd_caps {

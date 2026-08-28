@@ -1,0 +1,406 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/arm,aest.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arm Error Source Table (AEST)
+
+maintainers:
+  - Umang Chheda <umang.chheda@oss.qualcomm.com>
+
+description:
+  The Arm Error Source Table (AEST) describes RAS error sources and their
+  register interfaces. Each error source exposes one or more error records
+  through either system registers or a memory-mapped register window, and
+  may signal errors via interrupts. The top-level node acts as a container
+  for one or more child nodes, each describing a single AEST error source.
+  Refer to the Arm AEST specification (DEN0085 / DDI 0587B) for details.
+  Flag bit constants for use in DT source files are defined in
+  <dt-bindings/arm/aest.h>.
+
+properties:
+  compatible:
+    const: arm,aest
+
+  "#address-cells":
+    const: 2
+
+  "#size-cells":
+    const: 2
+
+  ranges: true
+
+required:
+  - compatible
+
+additionalProperties: false
+
+patternProperties:
+  "^aest-[a-z0-9-]+(@[0-9a-f]+)?$":
+    type: object
+    description:
+      An AEST error source node describing one error source defined by
+      the Arm AEST specification.
+
+    properties:
+      compatible:
+        description:
+          Identifies the type of AEST error source. Each value corresponds to
+          a distinct error source class defined by the Arm AEST specification.
+          arm,aest-proxy represents a proxy error source that forwards errors
+          from another error source.
+        enum:
+          - arm,aest-processor
+          - arm,aest-memory
+          - arm,aest-smmu
+          - arm,aest-gic
+          - arm,aest-pcie
+          - arm,aest-vendor
+          - arm,aest-proxy
+
+      reg:
+        description:
+          Register ranges for the error source. Absence of reg implies
+          system-register access (interface type 0). A single range implies
+          memory-mapped access (interface type 1). Two ranges imply
+          single-record memory-mapped access (interface type 2).
+        minItems: 1
+        maxItems: 4
+
+      reg-names:
+        description:
+          Names for the register ranges. The base error-record window is
+          unnamed (or first entry). Optional named ranges provide access to
+          the fault-injection, error-group, and interrupt-config register
+          windows defined by the AEST specification.
+        minItems: 1
+        maxItems: 4
+        items:
+          enum:
+            - fault-inject
+            - err-group
+            - irq-config
+
+      interrupts:
+        description: Interrupts associated with the error source.
+        minItems: 1
+        maxItems: 2
+
+      interrupt-names:
+        description: Names of the interrupts associated with the error source.
+        minItems: 1
+        maxItems: 2
+        items:
+          enum:
+            - fhi
+            - eri
+
+      arm,fhi-flags:
+        description:
+          Bitmask of flags for the fault-handling interrupt (FHI), as defined
+          in the AEST node interrupt structure flags field. Constants are
+          defined in <dt-bindings/arm/aest.h> - AEST_IRQ_MODE_LEVEL (0),
+          AEST_IRQ_MODE_EDGE (1).
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,eri-flags:
+        description:
+          Bitmask of flags for the error-recovery interrupt (ERI), as defined
+          in the AEST node interrupt structure flags field. Constants are
+          defined in <dt-bindings/arm/aest.h>.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,interface-flags:
+        description: |
+          Bitmask of interface flags for the error source, as defined in the
+          AEST node interface flags field. Constants are defined in
+          <dt-bindings/arm/aest.h>:
+            AEST_XFACE_SHARED        (bit 0) - shared error source,
+            AEST_XFACE_CLEAR_MISC    (bit 1) - clear MISC registers on error,
+            AEST_XFACE_ERROR_DEVICE  (bit 2) - error node device present,
+            AEST_XFACE_AFFINITY      (bit 3) - affinity information valid,
+            AEST_XFACE_ERROR_GROUP   (bit 4) - error group register window present,
+            AEST_XFACE_FAULT_INJECT  (bit 5) - fault injection register window present,
+            AEST_XFACE_INT_CONFIG    (bit 6) - interrupt config register window present.
+          For system-register interface nodes (no reg property), only
+          AEST_XFACE_CLEAR_MISC is meaningful; the MMIO window flags
+          (AEST_XFACE_ERROR_GROUP, AEST_XFACE_FAULT_INJECT,
+          AEST_XFACE_INT_CONFIG) have no effect without a base address.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,group-format:
+        description: |
+          Page-granularity of the error record group register window, which
+          determines the MMIO mapping size, the number of ERRGSR registers,
+          and the width of the record-implemented and status-reporting bitmaps.
+          Constants are defined in <dt-bindings/arm/aest.h>:
+            AEST_GROUP_FORMAT_4K  (0) - 4K window, 1 ERRGSR, up to 64 records,
+            AEST_GROUP_FORMAT_16K (1) - 16K window, 4 ERRGSRs, up to 256 records,
+            AEST_GROUP_FORMAT_64K (2) - 64K window, 14 ERRGSRs, up to 896 records.
+          Required for memory-mapped nodes (reg present) where it controls
+          the ioremap size and ERRGSR layout. For system-register nodes
+          (no reg property) this property is optional and defaults to
+          AEST_GROUP_FORMAT_4K.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2]
+
+      arm,num-records:
+        description: Number of error records implemented by this error source.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,record-impl:
+        description:
+          Bitmap of implemented error records within this error source. Bit N
+          set to 0 means error record N is implemented and must be polled.
+        $ref: /schemas/types.yaml#/definitions/uint64-array
+
+      arm,status-reporting:
+        description:
+          Bitmap indicating which error records support status reporting via
+          the ERRGSR register. Bit N set to 1 means record N does not report
+          through ERRGSR and must be polled explicitly.
+        $ref: /schemas/types.yaml#/definitions/uint64-array
+
+      arm,addressing-mode:
+        description:
+          Bitmap indicating the address type reported in ERR_ADDR for each
+          error record. Bit N set to 0 means record N reports System Physical
+          Addresses (SPA); bit N set to 1 means record N reports node-specific
+          Logical Addresses (LA) that require OS translation to SPA.
+        $ref: /schemas/types.yaml#/definitions/uint64-array
+
+      arm,processor-flags:
+        description:
+          Bitmask indicating the scope of a processor error source, as defined
+          in the AEST processor node flags field. Constants are defined in
+          <dt-bindings/arm/aest.h> - AEST_PROC_GLOBAL (bit 0),
+          AEST_PROC_SHARED (bit 1).
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,resource-type:
+        description: |
+          Type of processor resource associated with this error source.
+          Constants are defined in <dt-bindings/arm/aest.h>:
+            AEST_RESOURCE_CACHE   (0),
+            AEST_RESOURCE_TLB     (1),
+            AEST_RESOURCE_GENERIC (2).
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2]
+
+      arm,cache-ref:
+        description:
+          Phandle to the cache node associated with this processor error source.
+        $ref: /schemas/types.yaml#/definitions/phandle
+
+      arm,tlb-level:
+        description: TLB level identifier for this processor TLB error source.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,resource-ref:
+        description:
+          Generic resource reference identifier for this processor error source.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,proximity-domain:
+        description:
+          SRAT proximity domain of the memory node associated with this error
+          source.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,smmu-ref:
+        description:
+          Phandle to the SMMU node in the IORT associated with this error
+          source.
+        $ref: /schemas/types.yaml#/definitions/phandle
+
+      arm,smmu-subcomponent:
+        description:
+          SMMU subcomponent reference identifier for this error source, as
+          defined in the AEST SMMU node structure.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,gic-type:
+        description: |
+          GIC component type for this error source, as defined in the AEST GIC
+          node structure. Constants are defined in <dt-bindings/arm/aest.h>:
+            AEST_GIC_CPU           (0),
+            AEST_GIC_DISTRIBUTOR   (1),
+            AEST_GIC_REDISTRIBUTOR (2),
+            AEST_GIC_ITS           (3).
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2, 3]
+
+      arm,gic-instance:
+        description:
+          GIC instance identifier for this error source, used to distinguish
+          multiple instances of the same GIC component type.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,pcie-segment:
+        description:
+          PCI segment number of the PCIe root port associated with this error
+          source, corresponding to the IORT node reference.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      arm,vendor-hid:
+        description:
+          8-character ACPI Hardware ID string identifying the vendor error
+          source, as defined in the AEST vendor node structure.
+        $ref: /schemas/types.yaml#/definitions/string
+
+      arm,vendor-uid:
+        description:
+          ACPI unique instance identifier for this vendor error source, used
+          to distinguish multiple instances with the same hardware ID.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+    required:
+      - compatible
+      - arm,num-records
+
+    allOf:
+      - if:
+          required:
+            - reg
+        then:
+          required:
+            - arm,group-format
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: arm,aest-processor
+        then:
+          properties:
+            arm,processor-flags: {}
+            arm,resource-type: {}
+            arm,cache-ref: {}
+            arm,tlb-level: {}
+            arm,resource-ref: {}
+        else:
+          properties:
+            arm,processor-flags: false
+            arm,resource-type: false
+            arm,cache-ref: false
+            arm,tlb-level: false
+            arm,resource-ref: false
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: arm,aest-memory
+        then:
+          required:
+            - arm,proximity-domain
+          properties:
+            arm,proximity-domain: {}
+        else:
+          properties:
+            arm,proximity-domain: false
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: arm,aest-smmu
+        then:
+          required:
+            - arm,smmu-ref
+          properties:
+            arm,smmu-ref: {}
+            arm,smmu-subcomponent: {}
+        else:
+          properties:
+            arm,smmu-ref: false
+            arm,smmu-subcomponent: false
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: arm,aest-gic
+        then:
+          properties:
+            arm,gic-type: {}
+            arm,gic-instance: {}
+        else:
+          properties:
+            arm,gic-type: false
+            arm,gic-instance: false
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: arm,aest-pcie
+        then:
+          required:
+            - arm,pcie-segment
+          properties:
+            arm,pcie-segment: {}
+        else:
+          properties:
+            arm,pcie-segment: false
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: arm,aest-vendor
+        then:
+          required:
+            - arm,vendor-hid
+          properties:
+            arm,vendor-hid: {}
+            arm,vendor-uid: {}
+        else:
+          properties:
+            arm,vendor-hid: false
+            arm,vendor-uid: false
+
+    unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/arm/aest.h>
+
+    aest {
+        compatible = "arm,aest";
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        /* System-register based processor error source (no reg property) */
+        aest-processor-0 {
+            compatible = "arm,aest-processor";
+            arm,num-records = <2>;
+            arm,record-impl = /bits/ 64 <0x3>;
+            arm,status-reporting = /bits/ 64 <0x0>;
+            arm,addressing-mode = /bits/ 64 <0x0>;
+            arm,processor-flags = <AEST_PROC_GLOBAL>;
+            arm,resource-type = <AEST_RESOURCE_CACHE>;
+            interrupts = <GIC_PPI 0 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "fhi";
+        };
+
+        /* Memory-mapped memory controller error source */
+        aest-memory-0@50010000 {
+            compatible = "arm,aest-memory";
+            reg = <0x0 0x50010000 0x0 0x1000>,
+                  <0x0 0x50011000 0x0 0x1000>,
+                  <0x0 0x50012000 0x0 0x1000>;
+            reg-names = "err-group", "fault-inject", "irq-config";
+            arm,group-format = <AEST_GROUP_FORMAT_4K>;
+            arm,num-records = <4>;
+            arm,record-impl = /bits/ 64 <0xf>;
+            arm,status-reporting = /bits/ 64 <0x0>;
+            arm,addressing-mode = /bits/ 64 <0x0>;
+            arm,interface-flags = <AEST_XFACE_ERROR_GROUP>;
+            arm,proximity-domain = <0>;
+            interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "fhi", "eri";
+        };
+    };
