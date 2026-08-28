@@ -23,14 +23,28 @@ struct ieee80211_rx_status;
 #define TARGET_NUM_VDEVS(ab)    ((ab)->profile_param->num_vdevs)
 
 /* Max num of stations for Single Radio mode */
-#define TARGET_NUM_STATIONS_SINGLE(ab) ((ab)->profile_param->max_client_single)
+#define TARGET_NUM_STATIONS_SINGLE(ab) \
+({ \
+	typeof(ab) _ab = (ab); \
+	min_not_zero(_ab->hw_params->client.max_client_single, \
+		     _ab->profile_param->max_client_single); \
+})
 
 /* Max num of stations for DBS */
-#define TARGET_NUM_STATIONS_DBS(ab)    ((ab)->profile_param->max_client_dbs)
+#define TARGET_NUM_STATIONS_DBS(ab) \
+({ \
+	typeof(ab) _ab = (ab); \
+	min_not_zero(_ab->hw_params->client.max_client_dbs, \
+		     _ab->profile_param->max_client_dbs); \
+})
 
 /* Max num of stations for DBS_SBS */
 #define TARGET_NUM_STATIONS_DBS_SBS(ab) \
-	((ab)->profile_param->max_client_dbs_sbs)
+({ \
+	typeof(ab) _ab = (ab); \
+	min_not_zero(_ab->hw_params->client.max_client_dbs_sbs, \
+		     _ab->profile_param->max_client_dbs_sbs); \
+})
 
 #define TARGET_NUM_STATIONS(ab, x)     TARGET_NUM_STATIONS_##x(ab)
 
@@ -182,6 +196,7 @@ struct ath12k_hw_params {
 	bool supports_shadow_regs:1;
 	bool supports_aspm:1;
 	bool current_cc_support:1;
+	bool supports_cong_ctrl_max_msdus:1;
 
 	u32 num_tcl_banks;
 	u32 max_tx_ring;
@@ -217,6 +232,11 @@ struct ath12k_hw_params {
 
 	/* setup REO queue, frag etc only for primary link peer */
 	bool dp_primary_link_only:1;
+	struct {
+		u32 max_client_single;
+		u32 max_client_dbs;
+		u32 max_client_dbs_sbs;
+	} client;
 };
 
 struct ath12k_hw_ops {

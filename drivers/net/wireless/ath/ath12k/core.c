@@ -49,7 +49,7 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
 		.dp_params = {
 			.tx_comp_ring_size = 32768,
 			.rxdma_monitor_buf_ring_size = 4096,
-			.rxdma_monitor_dst_ring_size = 8092,
+			.rxdma_monitor_dst_ring_size = 8192,
 			.num_pool_tx_desc = 32768,
 			.rx_desc_count = 12288,
 		},
@@ -637,31 +637,6 @@ u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab)
 }
 EXPORT_SYMBOL(ath12k_core_get_max_peers_per_radio);
 
-struct reserved_mem *ath12k_core_get_reserved_mem(struct ath12k_base *ab,
-						  int index)
-{
-	struct device *dev = ab->dev;
-	struct reserved_mem *rmem;
-	struct device_node *node;
-
-	node = of_parse_phandle(dev->of_node, "memory-region", index);
-	if (!node) {
-		ath12k_dbg(ab, ATH12K_DBG_BOOT,
-			   "failed to parse memory-region for index %d\n", index);
-		return NULL;
-	}
-
-	rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
-	if (!rmem) {
-		ath12k_dbg(ab, ATH12K_DBG_BOOT,
-			   "unable to get memory-region for index %d\n", index);
-		return NULL;
-	}
-
-	return rmem;
-}
-
 static inline
 void ath12k_core_to_group_ref_get(struct ath12k_base *ab)
 {
@@ -708,8 +683,10 @@ static void ath12k_core_stop(struct ath12k_base *ab)
 
 	ath12k_core_to_group_ref_put(ab);
 
-	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))
+	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags)) {
+		ath12k_dp_reoq_lut_addr_reset(ath12k_ab_to_dp(ab));
 		ath12k_qmi_firmware_stop(ab);
+	}
 
 	ath12k_acpi_stop(ab);
 
@@ -835,8 +812,6 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 		goto err_qmi_deinit;
 	}
 
-	ath12k_debugfs_pdev_create(ab);
-
 	return 0;
 
 err_qmi_deinit:
@@ -863,11 +838,24 @@ static int ath12k_core_pdev_create(struct ath12k_base *ab)
 		return ret;
 	}
 
+	ret = ath12k_thermal_register(ab);
+	if (ret) {
+		ath12k_err(ab, "could not register thermal device: %d\n", ret);
+		goto err_dp_pdev_free;
+	}
+
+	ath12k_debugfs_pdev_create(ab);
+
 	return 0;
+
+err_dp_pdev_free:
+	ath12k_dp_pdev_free(ab);
+	return ret;
 }
 
 static void ath12k_core_pdev_destroy(struct ath12k_base *ab)
 {
+	ath12k_thermal_unregister(ab);
 	ath12k_dp_pdev_free(ab);
 }
 
@@ -995,6 +983,27 @@ static void ath12k_core_device_cleanup(struct ath12k_base *ab)
 	mutex_unlock(&ab->core_lock);
 }
 
+static int ath12k_core_device_setup(struct ath12k_base *ab)
+{
+	int ret;
+
+	guard(mutex)(&ab->core_lock);
+
+	ret = ath12k_core_pdev_create(ab);
+	if (ret) {
+		ath12k_err(ab, "failed to create pdev core %d\n", ret);
+		return ret;
+	}
+
+	ath12k_hif_irq_enable(ab);
+
+	ret = ath12k_core_rfkill_config(ab);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	return 0;
+}
+
 static void ath12k_core_hw_group_stop(struct ath12k_hw_group *ag)
 {
 	struct ath12k_base *ab;
@@ -1003,8 +1012,6 @@ static void ath12k_core_hw_group_stop(struct ath12k_hw_group *ag)
 	lockdep_assert_held(&ag->mutex);
 
 	clear_bit(ATH12K_GROUP_FLAG_REGISTERED, &ag->flags);
-
-	ath12k_mac_unregister(ag);
 
 	for (i = ag->num_devices - 1; i >= 0; i--) {
 		ab = ag->ab[i];
@@ -1015,6 +1022,12 @@ static void ath12k_core_hw_group_stop(struct ath12k_hw_group *ag)
 
 		ath12k_core_device_cleanup(ab);
 	}
+
+	/* Unregister MAC (drops wiphys) only after per-device cleanup */
+	ath12k_mac_unregister(ag);
+
+	/* Teardown MLO state after MAC unregister for symmetry */
+	ath12k_mac_mlo_teardown(ag);
 
 	ath12k_mac_destroy(ag);
 }
@@ -1123,8 +1136,14 @@ static int ath12k_core_hw_group_start(struct ath12k_hw_group *ag)
 
 	lockdep_assert_held(&ag->mutex);
 
-	if (test_bit(ATH12K_GROUP_FLAG_REGISTERED, &ag->flags))
+	if (test_bit(ATH12K_GROUP_FLAG_REGISTERED, &ag->flags)) {
+		ret = ath12k_core_mlo_setup(ag);
+		if (WARN_ON(ret)) {
+			ath12k_mac_unregister(ag);
+			goto err_mac_destroy;
+		}
 		goto core_pdev_create;
+	}
 
 	ret = ath12k_mac_allocate(ag);
 	if (WARN_ON(ret))
@@ -1146,26 +1165,11 @@ core_pdev_create:
 		if (!ab)
 			continue;
 
-		mutex_lock(&ab->core_lock);
-
 		set_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags);
 
-		ret = ath12k_core_pdev_create(ab);
-		if (ret) {
-			ath12k_err(ab, "failed to create pdev core %d\n", ret);
-			mutex_unlock(&ab->core_lock);
+		ret = ath12k_core_device_setup(ab);
+		if (ret)
 			goto err;
-		}
-
-		ath12k_hif_irq_enable(ab);
-
-		ret = ath12k_core_rfkill_config(ab);
-		if (ret && ret != -EOPNOTSUPP) {
-			mutex_unlock(&ab->core_lock);
-			goto err;
-		}
-
-		mutex_unlock(&ab->core_lock);
 	}
 
 	return 0;
@@ -1344,6 +1348,7 @@ err_core_stop:
 	goto exit;
 
 err_deinit:
+	ath12k_dp_reoq_lut_addr_reset(ath12k_ab_to_dp(ab));
 	ath12k_dp_cmn_device_deinit(ath12k_ab_to_dp(ab));
 	mutex_unlock(&ab->core_lock);
 	mutex_unlock(&ag->mutex);
@@ -1361,6 +1366,7 @@ static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 
 	mutex_lock(&ab->core_lock);
 	ath12k_link_sta_rhash_tbl_destroy(ab);
+	ath12k_thermal_unregister(ab);
 	ath12k_dp_pdev_free(ab);
 	ath12k_ce_cleanup_pipes(ab);
 	ath12k_wmi_detach(ab);
@@ -1496,12 +1502,13 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 			complete_all(&ar->scan.completed);
 			complete(&ar->scan.on_channel);
 			complete(&ar->peer_assoc_done);
-			complete(&ar->peer_delete_done);
+			ath12k_peer_delete_wait_flush(ar);
 			complete(&ar->install_key_done);
 			complete(&ar->vdev_setup_done);
 			complete(&ar->vdev_delete_done);
 			complete(&ar->bss_survey_done);
 			complete_all(&ar->regd_update_completed);
+			complete_all(&ar->thermal.wmi_sync);
 
 			wake_up(&ar->dp.tx_empty_waitq);
 			idr_for_each(&ar->txmgmt_idr,
@@ -1817,10 +1824,22 @@ static struct ath12k_hw_group *ath12k_core_hw_group_alloc(struct ath12k_base *ab
 	return ag;
 }
 
+static void ath12k_core_free_wsi_info(struct ath12k_hw_group *ag)
+{
+	int i;
+
+	for (i = 0; i < ag->num_devices; i++) {
+		of_node_put(ag->wsi_node[i]);
+		ag->wsi_node[i] = NULL;
+	}
+	ag->num_devices = 0;
+}
+
 static void ath12k_core_hw_group_free(struct ath12k_hw_group *ag)
 {
 	mutex_lock(&ath12k_hw_group_mutex);
 
+	ath12k_core_free_wsi_info(ag);
 	list_del(&ag->list);
 	kfree(ag);
 
@@ -1846,52 +1865,59 @@ static struct ath12k_hw_group *ath12k_core_hw_group_find_by_dt(struct ath12k_bas
 static int ath12k_core_get_wsi_info(struct ath12k_hw_group *ag,
 				    struct ath12k_base *ab)
 {
-	struct device_node *wsi_dev = ab->dev->of_node, *next_wsi_dev;
-	struct device_node *tx_endpoint, *next_rx_endpoint;
-	int device_count = 0;
+	struct device_node *next_wsi_dev;
+	int device_count = 0, ret = 0;
+	struct device_node *wsi_dev;
 
-	next_wsi_dev = wsi_dev;
-
-	if (!next_wsi_dev)
+	wsi_dev = of_node_get(ab->dev->of_node);
+	if (!wsi_dev)
 		return -ENODEV;
 
 	do {
-		ag->wsi_node[device_count] = next_wsi_dev;
+		if (device_count >= ATH12K_MAX_DEVICES) {
+			ath12k_warn(ab, "device count in DT %d is more than limit %d\n",
+				    device_count, ATH12K_MAX_DEVICES);
+			ret = -EINVAL;
+			break;
+		}
 
-		tx_endpoint = of_graph_get_endpoint_by_regs(next_wsi_dev, 0, -1);
+		ag->wsi_node[device_count++] = of_node_get(wsi_dev);
+
+		struct device_node *tx_endpoint __free(device_node) =
+					of_graph_get_endpoint_by_regs(wsi_dev, 0, -1);
 		if (!tx_endpoint) {
-			of_node_put(next_wsi_dev);
-			return -ENODEV;
+			ret = -ENODEV;
+			break;
 		}
 
-		next_rx_endpoint = of_graph_get_remote_endpoint(tx_endpoint);
+		struct device_node *next_rx_endpoint __free(device_node) =
+					of_graph_get_remote_endpoint(tx_endpoint);
 		if (!next_rx_endpoint) {
-			of_node_put(next_wsi_dev);
-			of_node_put(tx_endpoint);
-			return -ENODEV;
+			ret = -ENODEV;
+			break;
 		}
-
-		of_node_put(tx_endpoint);
-		of_node_put(next_wsi_dev);
 
 		next_wsi_dev = of_graph_get_port_parent(next_rx_endpoint);
 		if (!next_wsi_dev) {
-			of_node_put(next_rx_endpoint);
-			return -ENODEV;
+			ret = -ENODEV;
+			break;
 		}
 
-		of_node_put(next_rx_endpoint);
+		of_node_put(wsi_dev);
+		wsi_dev = next_wsi_dev;
+	} while (ab->dev->of_node != wsi_dev);
 
-		device_count++;
-		if (device_count > ATH12K_MAX_DEVICES) {
-			ath12k_warn(ab, "device count in DT %d is more than limit %d\n",
-				    device_count, ATH12K_MAX_DEVICES);
-			of_node_put(next_wsi_dev);
-			return -EINVAL;
+	if (ret) {
+		while (--device_count >= 0) {
+			of_node_put(ag->wsi_node[device_count]);
+			ag->wsi_node[device_count] = NULL;
 		}
-	} while (wsi_dev != next_wsi_dev);
 
-	of_node_put(next_wsi_dev);
+		of_node_put(wsi_dev);
+		return ret;
+	}
+
+	of_node_put(wsi_dev);
 	ag->num_devices = device_count;
 
 	return 0;
@@ -1962,9 +1988,9 @@ static struct ath12k_hw_group *ath12k_core_hw_group_assign(struct ath12k_base *a
 		    ath12k_core_get_wsi_index(ag, ab)) {
 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
 				   "unable to get wsi info from dt, grouping single device");
+			ath12k_core_free_wsi_info(ag);
 			ag->id = ATH12K_INVALID_GROUP_ID;
 			ag->num_devices = 1;
-			memset(ag->wsi_node, 0, sizeof(ag->wsi_node));
 			wsi->index = 0;
 		}
 
@@ -2235,6 +2261,7 @@ void ath12k_core_deinit(struct ath12k_base *ab)
 void ath12k_core_free(struct ath12k_base *ab)
 {
 	timer_delete_sync(&ab->rx_replenish_retry);
+	ath12k_wmi_free();
 	destroy_workqueue(ab->workqueue_aux);
 	destroy_workqueue(ab->workqueue);
 	kfree(ab);
@@ -2258,6 +2285,9 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	ab->workqueue_aux = create_singlethread_workqueue("ath12k_aux_wq");
 	if (!ab->workqueue_aux)
 		goto err_free_wq;
+
+	if (ath12k_wmi_alloc() < 0)
+		goto err_free_wq_aux;
 
 	mutex_init(&ab->core_lock);
 	spin_lock_init(&ab->base_lock);
@@ -2293,6 +2323,8 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 
 	return ab;
 
+err_free_wq_aux:
+	destroy_workqueue(ab->workqueue_aux);
 err_free_wq:
 	destroy_workqueue(ab->workqueue);
 err_sc_free:

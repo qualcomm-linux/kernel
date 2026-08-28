@@ -1031,6 +1031,7 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	struct ath12k_device_dp_stats *device_stats = &dp->device_stats;
 	int len = 0, i, j, ret;
 	struct ath12k *ar;
+	u32 center_freq;
 	const int size = 4096;
 	static const char *rxdma_err[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX] = {
 		[HAL_REO_ENTR_RING_RXDMA_ECODE_OVERFLOW_ERR] = "Overflow",
@@ -1082,6 +1083,9 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
+	len += scnprintf(buf + len, size - len,
+			 "DEVICE DP STATS (timestamp: %lldms):\n\n",
+			 ktime_to_ms(ktime_get()));
 	len += scnprintf(buf + len, size - len, "DEVICE RX STATS:\n\n");
 	len += scnprintf(buf + len, size - len, "err ring pkts: %u\n",
 			 device_stats->err_ring_pkts);
@@ -1161,6 +1165,12 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	for (i = 0; i < ab->num_radios; i++) {
 		ar = ath12k_mac_get_ar_by_pdev_id(ab, DP_SW2HW_MACID(i));
 		if (ar) {
+			spin_lock_bh(&ar->data_lock);
+			center_freq = ar->rx_channel ? ar->rx_channel->center_freq : 0;
+			spin_unlock_bh(&ar->data_lock);
+			len += scnprintf(buf + len, size - len,
+					 "\nradio%d center_freq: %u\n",
+					 i, center_freq);
 			len += scnprintf(buf + len, size - len,
 					"\nradio%d tx_pending: %u\n", i,
 					atomic_read(&ar->dp.num_tx_pending));
@@ -1173,7 +1183,7 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	for (i = 0; i < DP_REO_DST_RING_MAX; i++) {
 		len += scnprintf(buf + len, size - len, "Ring%d:", i + 1);
 
-		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+		for (j = 0; j < ab->ag->num_devices; j++) {
 			len += scnprintf(buf + len, size - len,
 					"\t%d:%u", j,
 					 device_stats->reo_rx[i][j]);
@@ -1190,7 +1200,7 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 	for (i = 0; i < HAL_WBM_REL_SRC_MODULE_MAX; i++) {
 		len += scnprintf(buf + len, size - len, "%s:", wbm_rel_src[i]);
 
-		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+		for (j = 0; j < ab->ag->num_devices; j++) {
 			len += scnprintf(buf + len,
 					 size - len,
 					 "\t%d:%u", j,
@@ -1450,6 +1460,44 @@ static const struct file_operations fops_pdev_stats = {
 	.llseek = default_llseek,
 };
 
+static ssize_t
+ath12k_write_simulate_incumbent_signal_interference(struct file *file,
+						    const char __user *user_buf,
+						    size_t count, loff_t *ppos)
+{
+	struct ath12k *ar = file->private_data;
+	struct ath12k_hw *ah = ath12k_ar_to_ah(ar);
+	struct wiphy *wiphy = ath12k_ar_to_hw(ar)->wiphy;
+	u32 chan_bw_interference_bitmap;
+	int ret;
+
+	if (ah->state != ATH12K_HW_STATE_ON)
+		return -ENETDOWN;
+
+	/*
+	 * Bitmap uses the firmware primary-based ordering documented in
+	 * ath12k_wmi_transform_interference_bitmap() & intf_map_80.
+	 */
+	if (kstrtou32_from_user(user_buf, count, 0, &chan_bw_interference_bitmap))
+		return -EINVAL;
+
+	wiphy_lock(wiphy);
+	ret = ath12k_wmi_simulate_incumbent_signal_interference(ar, chan_bw_interference_bitmap);
+	if (ret)
+		goto exit;
+
+	ret = count;
+
+exit:
+	wiphy_unlock(wiphy);
+	return ret;
+}
+
+static const struct file_operations fops_simulate_incumbent_signal_interference = {
+	.write = ath12k_write_simulate_incumbent_signal_interference,
+	.open = simple_open,
+};
+
 static
 void ath12k_debugfs_fw_stats_register(struct ath12k *ar)
 {
@@ -1473,18 +1521,35 @@ void ath12k_debugfs_register(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ieee80211_hw *hw = ar->ah->hw;
-	char pdev_name[5];
+	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
+	struct dentry *ath12k_fs;
 	char buf[100] = {};
+	char pdev_name[5];
 
 	scnprintf(pdev_name, sizeof(pdev_name), "%s%d", "mac", ar->pdev_idx);
 
 	ar->debug.debugfs_pdev = debugfs_create_dir(pdev_name, ab->debugfs_soc);
 
 	/* Create a symlink under ieee80211/phy* */
-	scnprintf(buf, sizeof(buf), "../../ath12k/%pd2", ar->debug.debugfs_pdev);
-	ar->debug.debugfs_pdev_symlink = debugfs_create_symlink("ath12k",
-								hw->wiphy->debugfsdir,
-								buf);
+	if (ar->radio_idx == 0) {
+		scnprintf(buf, sizeof(buf), "../../ath12k/%pd2",
+			  ar->debug.debugfs_pdev);
+		ath12k_fs = hw->wiphy->debugfsdir;
+
+		/* symbolic link for compatibility */
+		ar->debug.debugfs_pdev_symlink_default = debugfs_create_symlink("ath12k",
+										ath12k_fs,
+										buf);
+	}
+
+	if (ah->num_radio > 1) {
+		scnprintf(buf, sizeof(buf), "../../../ath12k/%pd2",
+			  ar->debug.debugfs_pdev);
+		ath12k_fs = hw->wiphy->radio_cfg[ar->radio_idx].radio_debugfsdir;
+		ar->debug.debugfs_pdev_symlink = debugfs_create_symlink("ath12k",
+									ath12k_fs,
+									buf);
+	}
 
 	if (ar->mac.sbands[NL80211_BAND_5GHZ].channels) {
 		debugfs_create_file("dfs_simulate_radar", 0200,
@@ -1497,6 +1562,14 @@ void ath12k_debugfs_register(struct ath12k *ar)
 	debugfs_create_file("tpc_stats_type", 0200, ar->debug.debugfs_pdev,
 			    ar, &fops_tpc_stats_type);
 	init_completion(&ar->debug.tpc_complete);
+
+	if (ar->mac.sbands[NL80211_BAND_6GHZ].channels &&
+	    test_bit(WMI_TLV_SERVICE_DCS_INCUMBENT_SIGNAL_INTERFERENCE_SUPPORT,
+		     ar->ab->wmi_ab.svc_map)) {
+		debugfs_create_file("simulate_incumbent_signal_interference", 0200,
+				    ar->debug.debugfs_pdev, ar,
+				    &fops_simulate_incumbent_signal_interference);
+	}
 
 	ath12k_debugfs_htt_stats_register(ar);
 	ath12k_debugfs_fw_stats_register(ar);
@@ -1513,7 +1586,9 @@ void ath12k_debugfs_unregister(struct ath12k *ar)
 
 	/* Remove symlink under ieee80211/phy* */
 	debugfs_remove(ar->debug.debugfs_pdev_symlink);
+	debugfs_remove(ar->debug.debugfs_pdev_symlink_default);
 	debugfs_remove_recursive(ar->debug.debugfs_pdev);
 	ar->debug.debugfs_pdev_symlink = NULL;
+	ar->debug.debugfs_pdev_symlink_default = NULL;
 	ar->debug.debugfs_pdev = NULL;
 }
