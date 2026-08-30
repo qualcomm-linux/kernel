@@ -187,7 +187,7 @@ patternProperties:
 
   "^sensor@[0-9a-f]+$":
     type: object
-    $ref: /schemas/hwmon/qcom,bcl-hwmon.yaml#
+    $ref: /schemas/hwmon/qcom,pm7250b-bcl.yaml#
 
   "^temp-alarm@[0-9a-f]+$":
     type: object
