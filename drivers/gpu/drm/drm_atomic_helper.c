@@ -42,6 +42,7 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_writeback.h>
@@ -3670,6 +3671,8 @@ EXPORT_SYMBOL(drm_atomic_helper_reset_crtc);
  *
  * This is just a convenience wrapper around drm_atomic_helper_disable_all(),
  * and it is the atomic version of drm_helper_force_disable_all().
+ *
+ * This also tears down output polling and HPD via drm_kms_helper_poll_fini().
  */
 void drm_atomic_helper_shutdown(struct drm_device *dev)
 {
@@ -3678,6 +3681,8 @@ void drm_atomic_helper_shutdown(struct drm_device *dev)
 
 	if (dev == NULL)
 		return;
+
+	drm_kms_helper_poll_fini(dev);
 
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 

@@ -562,6 +562,11 @@ static inline int adreno_is_x185(struct adreno_gpu *gpu)
 	return gpu->info->chip_ids[0] == 0x43050c01;
 }
 
+static inline int adreno_is_a722(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x43020100;
+}
+
 static inline int adreno_is_a740_family(struct adreno_gpu *gpu)
 {
 	if (WARN_ON_ONCE(!gpu->info))
@@ -595,6 +600,11 @@ static inline int adreno_is_a810(struct adreno_gpu *gpu)
 static inline int adreno_is_x285(struct adreno_gpu *gpu)
 {
 	return gpu->info->chip_ids[0] == 0x44070001;
+}
+
+static inline int adreno_is_a830(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x44050001;
 }
 
 static inline int adreno_is_a840(struct adreno_gpu *gpu)

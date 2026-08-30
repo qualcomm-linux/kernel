@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	display_bl: backlight {
+		compatible = "pwm-backlight";
+		power-supply = <&vreg_disp_3p3>;
+		pwms = <&reg_backlight 0 255 0>;
+	};
+};
+
+&lt9611uxd {
+	status = "disabled";
+};
+
+&hdmi_connector {
+	status = "disabled";
+};
+
+/*
+ * Override vreg_disp_3p3: switch GPIO from tlmm 3 (lt9611) to expander0 pin 1
+ * (RPI panel/touch 3.3V supply).
+ */
+&vreg_disp_3p3 {
+	regulator-name = "rpi-dsi-touch";
+	gpio = <&expander0 1 GPIO_ACTIVE_HIGH>;
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	regulator-boot-on;
+	regulator-always-on;
+};
+
+&i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	reg_backlight: reg_backlight@45 {
+		compatible = "raspberrypi,touchscreen-panel-regulator-v2";
+		reg = <0x45>;
+		vcc-supply = <&vreg_disp_3p3>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		#pwm-cells = <3>;
+	};
+};
+
+&mdss_dsi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	panel@0 {
+		compatible = "raspberrypi,dsi-7inch";
+		reg = <0>;
+
+		reset-gpios = <&reg_backlight 0 GPIO_ACTIVE_LOW>;
+		power-supply = <&vreg_disp_3p3>;
+		iovcc-supply = <&vreg_s4a>;
+		backlight = <&display_bl>;
+
+		port {
+			panel0_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel0_in>;
+	data-lanes = <0 1>;
+};
