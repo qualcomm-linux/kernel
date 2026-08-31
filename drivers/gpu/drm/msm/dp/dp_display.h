@@ -65,4 +65,6 @@ int msm_dp_get_mst_max_stream(struct msm_dp *msm_dp_display);
 int msm_dp_mst_register(struct msm_dp *msm_dp_display);
 struct msm_dp_panel *msm_dp_display_get_panel(struct msm_dp *msm_dp_display,
 					      enum msm_dp_stream_id stream_id);
+void msm_dp_display_get_link_info(struct msm_dp *msm_dp_display,
+				  struct msm_dp_link_info *link_info);
 #endif /* _DP_DISPLAY_H_ */
