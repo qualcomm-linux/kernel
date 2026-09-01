@@ -361,7 +361,9 @@ static void ufs_qcom_disable_lane_clks(struct ufs_qcom_host *host)
 	if (!host->is_lane_clks_enabled)
 		return;
 
-	clk_bulk_disable_unprepare(host->num_clks, host->clks);
+	clk_disable_unprepare(host->rx_lane1_sync_clk);
+	clk_disable_unprepare(host->rx_lane0_sync_clk);
+	clk_disable_unprepare(host->tx_lane0_sync_clk);
 
 	host->is_lane_clks_enabled = false;
 }
@@ -370,18 +372,35 @@ static int ufs_qcom_enable_lane_clks(struct ufs_qcom_host *host)
 {
 	int err;
 
-	err = clk_bulk_prepare_enable(host->num_clks, host->clks);
+	if (host->is_lane_clks_enabled)
+		return 0;
+
+	err = clk_prepare_enable(host->tx_lane0_sync_clk);
 	if (err)
-		return err;
+		goto out;
+
+	err = clk_prepare_enable(host->rx_lane0_sync_clk);
+	if (err)
+		goto out_disable_tx_lane0;
+
+	err = clk_prepare_enable(host->rx_lane1_sync_clk);
+	if (err)
+		goto out_disable_rx_lane0;
 
 	host->is_lane_clks_enabled = true;
-
 	return 0;
+
+out_disable_rx_lane0:
+	clk_disable_unprepare(host->rx_lane0_sync_clk);
+out_disable_tx_lane0:
+	clk_disable_unprepare(host->tx_lane0_sync_clk);
+out:
+	return err;
 }
 
 static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 {
-	int err;
+	int err, i;
 	struct device *dev = host->hba->dev;
 
 	if (has_acpi_companion(dev))
@@ -392,6 +411,18 @@ static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 		return err;
 
 	host->num_clks = err;
+
+	for (i = 0; i < host->num_clks; i++) {
+		if (!host->clks[i].id)
+			continue;
+		if (!strcmp(host->clks[i].id, "tx_lane0_sync_clk"))
+			host->tx_lane0_sync_clk = host->clks[i].clk;
+		else if (!strcmp(host->clks[i].id, "rx_lane0_sync_clk"))
+			host->rx_lane0_sync_clk = host->clks[i].clk;
+		else if (!strcmp(host->clks[i].id, "rx_lane1_sync_clk"))
+			if (host->hba->lanes_per_direction > 1)
+				host->rx_lane1_sync_clk = host->clks[i].clk;
+	}
 
 	return 0;
 }
@@ -2182,8 +2213,9 @@ static unsigned long ufs_qcom_opp_freq_to_clk_freq(struct ufs_hba *hba,
 	bool found = false;
 
 	opp = dev_pm_opp_find_freq_exact_indexed(hba->dev, freq, 0, true);
-	if (IS_ERR(opp)) {
-		dev_err(hba->dev, "Failed to find OPP for exact frequency %lu\n", freq);
+	if (IS_ERR_OR_NULL(opp)) {
+		dev_err(hba->dev, "%s: Failed to find OPP for exact frequency %lu\n",
+			__func__, freq);
 		return 0;
 	}
 
@@ -2211,12 +2243,32 @@ static unsigned long ufs_qcom_opp_freq_to_clk_freq(struct ufs_hba *hba,
 
 static u32 ufs_qcom_freq_to_gear_speed(struct ufs_hba *hba, unsigned long freq)
 {
-	u32 gear = UFS_HS_DONT_CHANGE;
+	struct dev_pm_opp *opp;
 	unsigned long unipro_freq;
+	u32 gear = UFS_HS_DONT_CHANGE;
 
 	if (!hba->use_pm_opp)
 		return gear;
 
+	opp = dev_pm_opp_find_freq_exact_indexed(hba->dev, freq, 0, true);
+	if (IS_ERR_OR_NULL(opp)) {
+		dev_err(hba->dev, "%s: Failed to find OPP for exact frequency %lu\n",
+			__func__, freq);
+		return gear;
+	}
+
+	/* Get HS gear speed from 'opp-level' */
+	gear = dev_pm_opp_get_level(opp);
+	dev_pm_opp_put(opp);
+
+	/*
+	 * Greater than max gear means that there is no specified gear configured in DT
+	 * or the specified gear is invalid.
+	 */
+	if (gear <= hba->max_pwr_info.info.gear_rx)
+		return gear;
+
+	gear = UFS_HS_DONT_CHANGE;
 	unipro_freq = ufs_qcom_opp_freq_to_clk_freq(hba, freq, "core_clk_unipro");
 	switch (unipro_freq) {
 	case 403000000:
@@ -2237,7 +2289,8 @@ static u32 ufs_qcom_freq_to_gear_speed(struct ufs_hba *hba, unsigned long freq)
 		gear = UFS_HS_G1;
 		break;
 	default:
-		dev_err(hba->dev, "%s: Unsupported clock freq : %lu\n", __func__, freq);
+		dev_err(hba->dev, "%s: Unsupported clock freq [sys_clk: %lu, unipro_clk: %lu]\n",
+			__func__, freq, unipro_freq);
 		return UFS_HS_DONT_CHANGE;
 	}
 
