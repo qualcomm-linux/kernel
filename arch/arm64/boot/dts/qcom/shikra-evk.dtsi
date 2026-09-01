@@ -41,13 +41,13 @@
 };
 
 &usb_1 {
-	dr_mode = "peripheral";
+	dr_mode = "otg";
 
 	status = "okay";
 };
 
 &usb_2 {
-	dr_mode = "peripheral";
+	dr_mode = "otg";
 
 	status = "okay";
 };
