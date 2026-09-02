@@ -3961,6 +3961,7 @@
 						 /bits/ 64 <0>,
 						 /bits/ 64 <0>,
 						 /bits/ 64 <0>;
+					opp-level = <1>; /* HS-G1 */
 					required-opps = <&rpmhpd_opp_low_svs>;
 				};
 
@@ -3973,6 +3974,7 @@
 						 /bits/ 64 <0>,
 						 /bits/ 64 <0>,
 						 /bits/ 64 <0>;
+					opp-level = <3>; /* HS-G3 */
 					required-opps = <&rpmhpd_opp_svs>;
 				};
 
@@ -3985,6 +3987,7 @@
 						 /bits/ 64 <0>,
 						 /bits/ 64 <0>,
 						 /bits/ 64 <0>;
+					opp-level = <5>; /* HS-G5 */
 					required-opps = <&rpmhpd_opp_nom>;
 				};
 			};
