@@ -42,6 +42,8 @@
 #define ATH12K_TX_MGMT_NUM_PENDING_MAX	512
 
 #define ATH12K_TX_MGMT_TARGET_MAX_SUPPORT_WMI 64
+/* Generic, station, and AP entries in ath12k_iftypes_ext_capa_template. */
+#define ATH12K_WIPHY_IFTYPE_EXT_CAPA_MAX 3
 
 /* Pending management packets threshold for dropping probe responses */
 #define ATH12K_PRB_RSP_DROP_THRESHOLD ((ATH12K_TX_MGMT_TARGET_MAX_SUPPORT_WMI * 3) / 4)
@@ -811,6 +813,8 @@ struct ath12k_hw {
 	struct completion peer_ml_id_done;
 
 	u8 num_radio;
+	struct wiphy_iftype_ext_capab
+		iftypes_ext_capa[ATH12K_WIPHY_IFTYPE_EXT_CAPA_MAX];
 
 	DECLARE_BITMAP(free_ml_peer_id_map, ATH12K_MAX_MLO_PEERS);
 
