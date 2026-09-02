@@ -463,19 +463,11 @@
 	status = "okay";
 };
 
-&pm4125_hs_in {
-	remote-endpoint = <&usb_1_dwc3_hs>;
-};
-
 &pm4125_l5 {
 	/* DSI VDDA - must be at NOM voltage for PHY PLL lock */
 	regulator-min-microvolt = <1232000>;
 	regulator-max-microvolt = <1232000>;
 	regulator-allow-set-load;
-};
-
-&pm4125_ss_in {
-	remote-endpoint = <&usb_qmpphy_out>;
 };
 
 &qaif_cpu {
@@ -521,6 +513,51 @@
 
 &rxmacro {
 	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+
+	typec@40 {
+		compatible = "cypress,cypd6129";
+		reg = <0x40>;
+		interrupts-extended = <&tlmm 136 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&usb0_intr_state>;
+		pinctrl-names = "default";
+		wakeup-source;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ccg_typec_con0: connector@0 {
+			compatible = "usb-c-connector";
+			reg = <0>;
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					ucsi_ccg_port: endpoint {
+						remote-endpoint = <&usb_2_dwc3_hs>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&pm4125_hs_in {
+	remote-endpoint = <&usb_1_dwc3_hs>;
+};
+
+&pm4125_ss_in {
+	remote-endpoint = <&usb_qmpphy_out>;
 };
 
 &sdhc_1 {
@@ -736,6 +773,15 @@
 	status = "okay";
 };
 
+&tlmm {
+	usb0_intr_state: usb0-intr-state {
+		pins = "gpio136";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
+
 &usb_1_dwc3_hs {
 	remote-endpoint = <&pm4125_hs_in>;
 };
@@ -748,13 +794,20 @@
 	status = "okay";
 };
 
-&usb_qmpphy_out {
-	remote-endpoint = <&pm4125_ss_in>;
+&usb_2 {
+	dr_mode = "otg";
+
+	port {
+		usb_2_dwc3_hs: endpoint {
+			remote-endpoint = <&ucsi_ccg_port>;
+		};
+	};
 };
 
-&usb_qmpphy {
-	vdda-phy-supply = <&pm4125_l8>;
+&usb_2_hsphy {
+	vdd-supply = <&pm4125_l12>;
 	vdda-pll-supply = <&pm4125_l13>;
+	vdda-phy-dpdm-supply = <&pm4125_l21>;
 
 	status = "okay";
 };
@@ -774,6 +827,17 @@
 	vdd-3.3-ch0-supply = <&vreg_pmu_ch0>;
 	qcom,calibration-variant = "Shikra_EVK";
 	firmware-name = "shikra";
+
+	status = "okay";
+};
+
+&usb_qmpphy_out {
+	remote-endpoint = <&pm4125_ss_in>;
+};
+
+&usb_qmpphy {
+	vdda-phy-supply = <&pm4125_l8>;
+	vdda-pll-supply = <&pm4125_l13>;
 
 	status = "okay";
 };

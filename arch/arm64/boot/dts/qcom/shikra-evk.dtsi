@@ -39,3 +39,15 @@
 		max-speed = <3200000>;
 	};
 };
+
+&usb_1 {
+	dr_mode = "otg";
+
+	status = "okay";
+};
+
+&usb_2 {
+	dr_mode = "otg";
+
+	status = "okay";
+};
