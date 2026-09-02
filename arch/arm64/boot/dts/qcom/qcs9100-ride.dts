@@ -14,3 +14,11 @@
 	model = "Qualcomm Technologies, Inc. Lemans Ride";
 	compatible = "qcom,qcs9100-ride", "qcom,qcs9100", "qcom,sa8775p";
 };
+
+&pcie0_phy {
+	vdda-refgen-supply = <&vreg_l7a>;
+};
+
+&pcie1_phy {
+	vdda-refgen-supply = <&vreg_l7a>;
+};
