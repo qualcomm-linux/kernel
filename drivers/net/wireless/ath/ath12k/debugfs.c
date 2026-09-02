@@ -1600,6 +1600,81 @@ static const struct file_operations fops_mlo_max_simultaneous_links = {
 	.llseek = default_llseek,
 };
 
+static void ath12k_debugfs_set_emlsr_support(struct ath12k_hw *ah, bool enable)
+{
+	int i;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	for (i = 0; i < ARRAY_SIZE(ah->iftypes_ext_capa); i++) {
+		enum nl80211_iftype iftype = ah->iftypes_ext_capa[i].iftype;
+
+		if (iftype != NL80211_IFTYPE_STATION && iftype != NL80211_IFTYPE_AP)
+			continue;
+
+		ah->iftypes_ext_capa[i].eml_capabilities =
+			u16_replace_bits(ah->iftypes_ext_capa[i].eml_capabilities,
+					 enable, IEEE80211_EML_CAP_EMLSR_SUPP);
+	}
+}
+
+static ssize_t ath12k_write_emlsr_support(struct file *file,
+					  const char __user *ubuf,
+					  size_t count, loff_t *ppos)
+{
+	struct ath12k_hw *ah = file->private_data;
+	struct ath12k *ar;
+	int ret;
+	u8 val;
+	int i;
+
+	ret = kstrtou8_from_user(ubuf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 1)
+		return -EINVAL;
+
+	guard(wiphy)(ah->hw->wiphy);
+	if (val) {
+		for_each_ar(ah, ar, i) {
+			if (!(ar->pdev->cap.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP))
+				return -EOPNOTSUPP;
+		}
+	}
+	ath12k_debugfs_set_emlsr_support(ah, val);
+
+	return count;
+}
+
+static ssize_t ath12k_read_emlsr_support(struct file *file, char __user *ubuf,
+					 size_t count, loff_t *ppos)
+{
+	const struct wiphy_iftype_ext_capab *iftype_ext_capa;
+	struct ath12k_hw *ah = file->private_data;
+	u8 emlsr_support;
+	char buf[8];
+	int len;
+
+	scoped_guard(wiphy, ah->hw->wiphy) {
+		iftype_ext_capa = cfg80211_get_iftype_ext_capa(ah->hw->wiphy,
+							       NL80211_IFTYPE_STATION);
+		emlsr_support = u16_get_bits(iftype_ext_capa->eml_capabilities,
+					     IEEE80211_EML_CAP_EMLSR_SUPP);
+	}
+	len = scnprintf(buf, sizeof(buf), "%u\n", emlsr_support);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_emlsr_support = {
+	.read = ath12k_read_emlsr_support,
+	.write = ath12k_write_emlsr_support,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath12k_debugfs_register(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
@@ -1667,6 +1742,9 @@ void ath12k_debugfs_register(struct ath12k *ar)
 	debugfs_create_file("mlo_max_simultaneous_links", 0644,
 			    ar->debug.debugfs_pdev, ah,
 			    &fops_mlo_max_simultaneous_links);
+	debugfs_create_file("eml_capa_present", 0644,
+			    ar->debug.debugfs_pdev, ah,
+			    &fops_emlsr_support);
 }
 
 void ath12k_debugfs_unregister(struct ath12k *ar)
