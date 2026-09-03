@@ -2093,6 +2093,14 @@ static int qcom_pcie_resume_noirq(struct device *dev)
 		return 0;
 
 	if (pcie->pci->suspended) {
+		if (pcie->use_pm_opp) {
+			ret = qcom_pcie_set_max_opp(dev);
+			if (ret) {
+				dev_err(dev, "Failed to set max OPP: %d\n", ret);
+				return ret;
+			}
+		}
+
 		ret = icc_enable(pcie->icc_cpu);
 		if (ret) {
 			dev_err(dev, "Failed to enable CPU-PCIe interconnect path: %d\n", ret);
