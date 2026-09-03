@@ -22,6 +22,7 @@
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/soc/qcom,gpr.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
+#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -2880,6 +2881,75 @@
 			};
 		};
 
+		lpass_tlmm: pinctrl@3440000 {
+			compatible = "qcom,qcs8300-lpass-lpi-pinctrl", "qcom,sm8450-lpass-lpi-pinctrl";
+			reg = <0x0 0x03440000 0x0 0x20000>,
+			      <0x0 0x034d0000 0x0 0x10000>;
+
+			clocks = <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+				 <&q6prmcc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+			clock-names = "core", "audio";
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&lpass_tlmm 0 0 23>;
+
+			quad_mclk_active: quad-mclk-state {
+				clk-pins {
+					pins = "gpio5";
+					function = "ext_mclk1_c";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			quad_mi2s_active: quad-active-state {
+				data-pins {
+					pins = "gpio2", "gpio3";
+					function = "qua_mi2s_data";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				sclk-pins {
+					pins = "gpio0";
+					function = "qua_mi2s_sclk";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				ws-pins {
+					pins = "gpio1";
+					function = "qua_mi2s_ws";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			lpi_i2s4_active: lpi_i2s4-active-state {
+				data0-pins {
+					pins = "gpio17";
+					function = "i2s4_data";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				clk-pins {
+					pins = "gpio12";
+					function = "i2s4_clk";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				ws-pins {
+					pins = "gpio13";
+					function = "i2s4_ws";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+		};
+
 		lpass_ag_noc: interconnect@3c40000 {
 			compatible = "qcom,qcs8300-lpass-ag-noc";
 			reg = <0x0 0x03c40000 0x0 0x17200>;
@@ -4923,6 +4993,12 @@
 			status = "disabled";
 		};
 
+		refgen: regulator@891c000 {
+			compatible = "qcom,qcs8300-refgen-regulator",
+				     "qcom,sm8250-refgen-regulator";
+			reg = <0x0 0x0891c000 0x0 0x84>;
+		};
+
 		gpu: gpu@3d00000 {
 			compatible = "qcom,adreno-623.0", "qcom,adreno";
 			reg = <0x0 0x03d00000 0x0 0x40000>,
@@ -5253,9 +5329,29 @@
 			snps,dis_u2_susphy_quirk;
 			snps,dis_u3_susphy_quirk;
 
+			usb-role-switch;
 			wakeup-source;
 
 			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_1_dwc3_hs: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					usb_1_dwc3_ss: endpoint {
+					};
+				};
+			};
 		};
 
 		usb_2: usb@a400000 {
@@ -5432,14 +5528,14 @@
 
 			cci0_i2c0: i2c-bus@0 {
 				reg = <0>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			cci0_i2c1: i2c-bus@1 {
 				reg = <1>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
@@ -5469,14 +5565,14 @@
 
 			cci1_i2c0: i2c-bus@0 {
 				reg = <0>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			cci1_i2c1: i2c-bus@1 {
 				reg = <1>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
@@ -5506,14 +5602,14 @@
 
 			cci2_i2c0: i2c-bus@0 {
 				reg = <0>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			cci2_i2c1: i2c-bus@1 {
 				reg = <1>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
