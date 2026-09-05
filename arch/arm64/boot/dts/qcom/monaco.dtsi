@@ -812,6 +812,21 @@
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
+		tz_sail_mailbox_mem: tz-sail-mailbox@90c00000 {
+			reg = <0x0 0x90c00000 0x0 0x100000>;
+			no-map;
+		};
+
+		sail_mailbox_mem: sail-ss@90d00000 {
+			reg = <0x0 0x90d00000 0x0 0x100000>;
+			no-map;
+		};
+
+		sail_ota_mem: sail-ss@90e00000 {
+			reg = <0x0 0x90e00000 0x0 0x300000>;
+			no-map;
+		};
+
 		gunyah_md_mem: gunyah-md-region@91a80000 {
 			reg = <0x0 0x91a80000 0x0 0x80000>;
 			no-map;
