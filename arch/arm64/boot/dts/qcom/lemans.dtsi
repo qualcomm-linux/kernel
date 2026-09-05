@@ -1130,6 +1130,57 @@
 			#mbox-cells = <2>;
 		};
 
+		ipcc1: mailbox@488000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x00488000 0x0 0x1000>;
+			interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
+		ipcc2: mailbox@4a1000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x004a1000 0x0 0x1000>;
+			interrupts = <GIC_SPI 553 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
+		ipcc3: mailbox@4a2000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x004a2000 0x0 0x1000>;
+			interrupts = <GIC_SPI 554 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
+		ipcc4: mailbox@4a3000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x004a3000 0x0 0x1000>;
+			interrupts = <GIC_SPI 555 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
+		apss_tcsr_req: syscon@1ffe02c {
+			compatible = "qcom,sa8775p-tcsr", "syscon";
+			reg = <0x0 0x1ffe02c 0x0 0x10>;
+		};
+
+		apss_tcsr_resp: syscon@1ffd018 {
+			compatible = "qcom,sa8775p-tcsr", "syscon";
+			reg = <0x0 0x1ffd018 0x0 0x10>;
+		};
+
+		apss_shared_ipc: syscon@17c0000c {
+			compatible = "qcom,sa8775p-tcsr", "syscon";
+			reg = <0x0 0x17c0000c 0x0 0x4>;
+		};
+
 		qfprom: efuse@784000 {
 			compatible = "qcom,sa8775p-qfprom", "qcom,qfprom";
 			reg = <0x0 0x00784000 0x0 0x3000>;
