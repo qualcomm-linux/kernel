@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2026, Royyan Zahir
+ *
+ * OP-TEE firmware node for the open-firmware (TF-A + OP-TEE) boot flow.
+ * The default firmware exposes only the QTEE scm node; this overlay adds the
+ * OP-TEE SMC transport so the kernel OP-TEE driver binds when open firmware
+ * is flashed.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&{/firmware} {
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+};
