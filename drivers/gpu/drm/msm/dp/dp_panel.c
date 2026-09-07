@@ -25,50 +25,23 @@ struct msm_dp_panel_private {
 	struct drm_dp_aux *aux;
 	struct msm_dp_link *link;
 	void __iomem *link_base;
-	void __iomem *mst2link_base;
-	void __iomem *mst3link_base;
 	void __iomem *pixel_base;
 	bool panel_on;
 };
 
 static inline u32 msm_dp_read_link(struct msm_dp_panel_private *panel, u32 offset)
 {
-	switch (panel->msm_dp_panel.stream_id) {
-	case DP_STREAM_0:
-	case DP_STREAM_1:
-		return readl_relaxed(panel->link_base + offset);
-	case DP_STREAM_2:
-		return readl_relaxed(panel->mst2link_base + offset);
-	case DP_STREAM_3:
-		return readl_relaxed(panel->mst3link_base + offset);
-	default:
-		DRM_ERROR("error stream_id\n");
-		return 0;
-	}
+	return readl_relaxed(panel->link_base + offset);
 }
 
 static inline void msm_dp_write_link(struct msm_dp_panel_private *panel,
-					u32 offset, u32 data)
+			       u32 offset, u32 data)
 {
 	/*
 	 * To make sure link reg writes happens before any other operation,
 	 * this function uses writel() instread of writel_relaxed()
 	 */
-	switch (panel->msm_dp_panel.stream_id) {
-	case DP_STREAM_0:
-	case DP_STREAM_1:
-		writel(data, panel->link_base + offset);
-		break;
-	case DP_STREAM_2:
-		writel(data, panel->mst2link_base + offset);
-		break;
-	case DP_STREAM_3:
-		writel(data, panel->mst3link_base + offset);
-		break;
-	default:
-		DRM_ERROR("error stream_id\n");
-		break;
-	}
+	writel(data, panel->link_base + offset);
 }
 
 static inline void msm_dp_write_pn(struct msm_dp_panel_private *panel,
@@ -471,51 +444,38 @@ void msm_dp_panel_clear_dsc_dto(struct msm_dp_panel *msm_dp_panel)
 
 static void msm_dp_panel_send_vsc_sdp(struct msm_dp_panel_private *panel, struct dp_sdp *vsc_sdp)
 {
-	u32 id = panel->msm_dp_panel.stream_id;
 	u32 header[2];
 	u32 val;
 	int i;
 	u32 offset = 0;
 
-	if (id == DP_STREAM_1)
+	if (panel->msm_dp_panel.stream_id == DP_STREAM_1)
 		offset = MMSS_DP1_GENERIC0_0 - MMSS_DP_GENERIC0_0;
 
 	msm_dp_utils_pack_sdp_header(&vsc_sdp->sdp_header, header);
 
-	msm_dp_write_link(panel, id > 1 ?
-			  MMSS_DP_MSTLINK_GENERIC0_0 : MMSS_DP_GENERIC0_0 + offset,
-			  header[0]);
-	msm_dp_write_link(panel, id > 1 ?
-			  MMSS_DP_MSTLINK_GENERIC0_1 : MMSS_DP_GENERIC0_1 + offset,
-			  header[1]);
+	msm_dp_write_link(panel, MMSS_DP_GENERIC0_0 + offset, header[0]);
+	msm_dp_write_link(panel, MMSS_DP_GENERIC0_1 + offset, header[1]);
 
 	for (i = 0; i < sizeof(vsc_sdp->db); i += 4) {
 		val = ((vsc_sdp->db[i]) | (vsc_sdp->db[i + 1] << 8) | (vsc_sdp->db[i + 2] << 16) |
 		       (vsc_sdp->db[i + 3] << 24));
-
-		msm_dp_write_link(panel, id > 1 ?
-				  MMSS_DP_MSTLINK_GENERIC0_2 + i : MMSS_DP_GENERIC0_2 + i + offset,
-				  val);
+		msm_dp_write_link(panel, MMSS_DP_GENERIC0_2 + i + offset, val);
 	}
 }
 
 static void msm_dp_panel_update_sdp(struct msm_dp_panel_private *panel)
 {
-	u32 id = panel->msm_dp_panel.stream_id;
 	u32 hw_revision = panel->msm_dp_panel.hw_revision;
 	u32 offset = 0;
 
-	if (id == DP_STREAM_1)
+	if (panel->msm_dp_panel.stream_id == DP_STREAM_1)
 		offset = MMSS_DP1_SDP_CFG3 - MMSS_DP_SDP_CFG3;
 
 	if (hw_revision >= DP_HW_VERSION_1_0 &&
 	    hw_revision < DP_HW_VERSION_1_2) {
-		msm_dp_write_link(panel, id > 1 ?
-				  MMSS_DP_MSTLINK_SDP_CFG3 : MMSS_DP_SDP_CFG3 + offset,
-				  UPDATE_SDP);
-		msm_dp_write_link(panel, id > 1 ?
-				  MMSS_DP_MSTLINK_SDP_CFG3 : MMSS_DP_SDP_CFG3 + offset,
-				  0x0);
+		msm_dp_write_link(panel, MMSS_DP_SDP_CFG3 + offset, UPDATE_SDP);
+		msm_dp_write_link(panel, MMSS_DP_SDP_CFG3 + offset, 0x0);
 	}
 }
 
@@ -523,34 +483,26 @@ void msm_dp_panel_enable_vsc_sdp(struct msm_dp_panel *msm_dp_panel, struct dp_sd
 {
 	struct msm_dp_panel_private *panel =
 		container_of(msm_dp_panel, struct msm_dp_panel_private, msm_dp_panel);
-	u32 id = msm_dp_panel->stream_id;
 	u32 cfg, cfg2, misc;
 	u32 misc_reg_offset = 0;
 	u32 sdp_cfg_offset = 0;
 	u32 sdp_cfg2_offset = 0;
 
-	if (id == DP_STREAM_1) {
+	if (msm_dp_panel->stream_id == DP_STREAM_1) {
 		misc_reg_offset = REG_DP1_MISC1_MISC0 - REG_DP_MISC1_MISC0;
 		sdp_cfg_offset = MMSS_DP1_SDP_CFG - MMSS_DP_SDP_CFG;
 		sdp_cfg2_offset = MMSS_DP1_SDP_CFG2 - MMSS_DP_SDP_CFG2;
 	}
 
-	cfg = msm_dp_read_link(panel, id > 1 ?
-			       MMSS_DP_MSTLINK_SDP_CFG : MMSS_DP_SDP_CFG + sdp_cfg_offset);
-	cfg2 = msm_dp_read_link(panel, id > 1 ?
-				MMSS_DP_MSTLINK_SDP_CFG2 : MMSS_DP_SDP_CFG2 + sdp_cfg2_offset);
-	misc = msm_dp_read_link(panel, id > 1 ?
-				REG_DP_MSTLINK_MISC1_MISC0 : REG_DP_MISC1_MISC0 + misc_reg_offset);
+	cfg = msm_dp_read_link(panel, MMSS_DP_SDP_CFG + sdp_cfg_offset);
+	cfg2 = msm_dp_read_link(panel, MMSS_DP_SDP_CFG2 + sdp_cfg2_offset);
+	misc = msm_dp_read_link(panel, REG_DP_MISC1_MISC0 + misc_reg_offset);
 
 	cfg |= GEN0_SDP_EN;
-	cfg2 |= GENERIC0_SDPSIZE_VALID;
+	msm_dp_write_link(panel, MMSS_DP_SDP_CFG + sdp_cfg_offset, cfg);
 
-	msm_dp_write_link(panel, id > 1 ?
-			  MMSS_DP_MSTLINK_SDP_CFG : MMSS_DP_SDP_CFG + sdp_cfg_offset,
-			  cfg);
-	msm_dp_write_link(panel, id > 1 ?
-			  MMSS_DP_MSTLINK_SDP_CFG2 : MMSS_DP_SDP_CFG2 + sdp_cfg2_offset,
-			  cfg2);
+	cfg2 |= GENERIC0_SDPSIZE_VALID;
+	msm_dp_write_link(panel, MMSS_DP_SDP_CFG2 + sdp_cfg2_offset, cfg2);
 
 	msm_dp_panel_send_vsc_sdp(panel, vsc_sdp);
 
@@ -560,9 +512,7 @@ void msm_dp_panel_enable_vsc_sdp(struct msm_dp_panel *msm_dp_panel, struct dp_sd
 	drm_dbg_dp(panel->drm_dev, "vsc sdp enable=1\n");
 
 	pr_debug("misc settings = 0x%x\n", misc);
-	msm_dp_write_link(panel, id > 1 ?
-			  REG_DP_MSTLINK_MISC1_MISC0 : REG_DP_MISC1_MISC0 + misc_reg_offset,
-			  misc);
+	msm_dp_write_link(panel, REG_DP_MISC1_MISC0 + misc_reg_offset, misc);
 
 	msm_dp_panel_update_sdp(panel);
 }
@@ -571,34 +521,26 @@ void msm_dp_panel_disable_vsc_sdp(struct msm_dp_panel *msm_dp_panel)
 {
 	struct msm_dp_panel_private *panel =
 		container_of(msm_dp_panel, struct msm_dp_panel_private, msm_dp_panel);
-	u32 id = msm_dp_panel->stream_id;
 	u32 cfg, cfg2, misc;
 	u32 misc_reg_offset = 0;
 	u32 sdp_cfg_offset = 0;
 	u32 sdp_cfg2_offset = 0;
 
-	if (id == DP_STREAM_1) {
+	if (msm_dp_panel->stream_id == DP_STREAM_1) {
 		misc_reg_offset = REG_DP1_MISC1_MISC0 - REG_DP_MISC1_MISC0;
 		sdp_cfg_offset = MMSS_DP1_SDP_CFG - MMSS_DP_SDP_CFG;
 		sdp_cfg2_offset = MMSS_DP1_SDP_CFG2 - MMSS_DP_SDP_CFG2;
 	}
 
-	cfg = msm_dp_read_link(panel, id > 1 ?
-			       MMSS_DP_MSTLINK_SDP_CFG : MMSS_DP_SDP_CFG + sdp_cfg_offset);
-	cfg2 = msm_dp_read_link(panel, id > 1 ?
-				MMSS_DP_MSTLINK_SDP_CFG2 : MMSS_DP_SDP_CFG2 + sdp_cfg2_offset);
-	misc = msm_dp_read_link(panel, id > 1 ?
-				REG_DP_MSTLINK_MISC1_MISC0 : REG_DP_MISC1_MISC0 + misc_reg_offset);
+	cfg = msm_dp_read_link(panel, MMSS_DP_SDP_CFG + sdp_cfg_offset);
+	cfg2 = msm_dp_read_link(panel, MMSS_DP_SDP_CFG2 + sdp_cfg2_offset);
+	misc = msm_dp_read_link(panel, REG_DP_MISC1_MISC0 + misc_reg_offset);
 
 	cfg &= ~GEN0_SDP_EN;
-	cfg2 &= ~GENERIC0_SDPSIZE_VALID;
+	msm_dp_write_link(panel, MMSS_DP_SDP_CFG + sdp_cfg_offset, cfg);
 
-	msm_dp_write_link(panel, id > 1 ?
-			  MMSS_DP_MSTLINK_SDP_CFG : MMSS_DP_SDP_CFG + sdp_cfg_offset,
-			  cfg);
-	msm_dp_write_link(panel, id > 1 ?
-			  MMSS_DP_MSTLINK_SDP_CFG2 : MMSS_DP_SDP_CFG2 + sdp_cfg2_offset,
-			  cfg2);
+	cfg2 &= ~GENERIC0_SDPSIZE_VALID;
+	msm_dp_write_link(panel, MMSS_DP_SDP_CFG2 + sdp_cfg2_offset, cfg2);
 
 	/* switch back to MSA */
 	misc &= ~DP_MISC1_VSC_SDP;
@@ -606,9 +548,7 @@ void msm_dp_panel_disable_vsc_sdp(struct msm_dp_panel *msm_dp_panel)
 	drm_dbg_dp(panel->drm_dev, "vsc sdp enable=0\n");
 
 	pr_debug("misc settings = 0x%x\n", misc);
-	msm_dp_write_link(panel, id > 1 ?
-			  REG_DP_MSTLINK_MISC1_MISC0 : REG_DP_MISC1_MISC0 + misc_reg_offset,
-			  misc);
+	msm_dp_write_link(panel, REG_DP_MISC1_MISC0 + misc_reg_offset, misc);
 
 	msm_dp_panel_update_sdp(panel);
 }
@@ -658,7 +598,6 @@ static int msm_dp_panel_setup_vsc_sdp_yuv_420(struct msm_dp_panel *msm_dp_panel)
 
 int msm_dp_panel_timing_cfg(struct msm_dp_panel *msm_dp_panel, bool wide_bus_en)
 {
-	u32 id = msm_dp_panel->stream_id;
 	u32 data, total_ver, total_hor;
 	struct msm_dp_panel_private *panel;
 	struct drm_display_mode *drm_mode;
@@ -682,7 +621,7 @@ int msm_dp_panel_timing_cfg(struct msm_dp_panel *msm_dp_panel, bool wide_bus_en)
 		drm_mode->vsync_start - drm_mode->vdisplay,
 		drm_mode->vsync_end - drm_mode->vsync_start);
 
-	if (id == DP_STREAM_1)
+	if (msm_dp_panel->stream_id == DP_STREAM_1)
 		offset = REG_DP1_TOTAL_HOR_VER - REG_DP_TOTAL_HOR_VER;
 
 	total_hor = drm_mode->htotal;
@@ -715,18 +654,10 @@ int msm_dp_panel_timing_cfg(struct msm_dp_panel *msm_dp_panel, bool wide_bus_en)
 
 	msm_dp_active = data;
 
-	msm_dp_write_link(panel,
-			  id > 1 ? REG_DP_MSTLINK_TOTAL_HOR_VER :
-			  REG_DP_TOTAL_HOR_VER + offset, total);
-	msm_dp_write_link(panel,
-			  id > 1 ? REG_DP_MSTLINK_START_HOR_VER_FROM_SYNC :
-			  REG_DP_START_HOR_VER_FROM_SYNC + offset, sync_start);
-	msm_dp_write_link(panel,
-			  id > 1 ? REG_DP_MSTLINK_HSYNC_VSYNC_WIDTH_POLARITY :
-			  REG_DP_HSYNC_VSYNC_WIDTH_POLARITY + offset, width_blanking);
-	msm_dp_write_link(panel,
-			  id > 1 ? REG_DP_MSTLINK_ACTIVE_HOR_VER :
-			  REG_DP_ACTIVE_HOR_VER + offset, msm_dp_active);
+	msm_dp_write_link(panel, REG_DP_TOTAL_HOR_VER + offset, total);
+	msm_dp_write_link(panel, REG_DP_START_HOR_VER_FROM_SYNC  + offset, sync_start);
+	msm_dp_write_link(panel, REG_DP_HSYNC_VSYNC_WIDTH_POLARITY + offset, width_blanking);
+	msm_dp_write_link(panel, REG_DP_ACTIVE_HOR_VER  + offset, msm_dp_active);
 
 	reg = msm_dp_read_pn(panel, MMSS_DP_INTF_CONFIG);
 	if (wide_bus_en)
@@ -807,8 +738,6 @@ int msm_dp_panel_init_panel_info(struct msm_dp_panel *msm_dp_panel)
 struct msm_dp_panel *msm_dp_panel_get(struct device *dev, struct drm_dp_aux *aux,
 			      struct msm_dp_link *link,
 			      void __iomem *link_base,
-			      void __iomem *mst2link_base,
-			      void __iomem *mst3link_base,
 			      void __iomem *pixel_base)
 {
 	struct msm_dp_panel_private *panel;
@@ -828,8 +757,6 @@ struct msm_dp_panel *msm_dp_panel_get(struct device *dev, struct drm_dp_aux *aux
 	panel->link = link;
 	panel->link_base = link_base;
 	panel->pixel_base = pixel_base;
-	panel->mst2link_base = mst2link_base;
-	panel->mst3link_base = mst3link_base;
 
 	msm_dp_panel = &panel->msm_dp_panel;
 	msm_dp_panel->max_bw_code = DP_LINK_BW_8_1;

@@ -87,12 +87,6 @@ struct msm_dp_display_private {
 	void __iomem *link_base;
 	size_t link_len;
 
-	void __iomem *mst2link_base;
-	size_t mst2link_len;
-
-	void __iomem *mst3link_base;
-	size_t mst3link_len;
-
 	void __iomem *pixel_base[DP_STREAM_MAX];
 	size_t pixel_len;
 
@@ -601,8 +595,7 @@ struct msm_dp_panel *msm_dp_display_get_panel(struct msm_dp *msm_dp_display)
 	dp = container_of(msm_dp_display, struct msm_dp_display_private, msm_dp_display);
 
 	dp_panel = msm_dp_panel_get(&dp->msm_dp_display.pdev->dev, dp->aux, dp->link,
-				    dp->link_base, dp->mst2link_base, dp->mst3link_base,
-				    dp->pixel_base[0]);
+				    dp->link_base, dp->pixel_base[0]);
 
 	if (IS_ERR(dp->panel)) {
 		DRM_ERROR("failed to initialize panel\n");
@@ -656,8 +649,7 @@ static int msm_dp_init_sub_modules(struct msm_dp_display_private *dp)
 		goto error_link;
 	}
 
-	dp->panel = msm_dp_panel_get(dev, dp->aux, dp->link, dp->link_base,
-				     dp->mst2link_base, dp->mst3link_base, dp->pixel_base[0]);
+	dp->panel = msm_dp_panel_get(dev, dp->aux, dp->link, dp->link_base, dp->pixel_base[0]);
 	if (IS_ERR(dp->panel)) {
 		rc = PTR_ERR(dp->panel);
 		DRM_ERROR("failed to initialize panel, rc = %d\n", rc);
@@ -666,8 +658,7 @@ static int msm_dp_init_sub_modules(struct msm_dp_display_private *dp)
 	}
 
 	dp->ctrl = msm_dp_ctrl_get(dev, dp->link, dp->panel, dp->aux,
-			       phy, dp->max_stream, dp->ahb_base,
-			       dp->link_base, dp->mst2link_base, dp->mst3link_base);
+			       phy, dp->max_stream, dp->ahb_base, dp->link_base);
 	if (IS_ERR(dp->ctrl)) {
 		rc = PTR_ERR(dp->ctrl);
 		DRM_ERROR("failed to initialize ctrl, rc = %d\n", rc);
@@ -977,10 +968,6 @@ void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp)
 				    msm_dp_display->aux_base, "dp_aux");
 	msm_disp_snapshot_add_block(disp_state, msm_dp_display->link_len,
 				    msm_dp_display->link_base, "dp_link");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->mst2link_len,
-				    msm_dp_display->mst2link_base, "dp_mst2link");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->mst3link_len,
-				    msm_dp_display->mst3link_base, "dp_mst3link");
 	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
 				    msm_dp_display->pixel_base[0], "dp_p0");
 	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
@@ -1334,14 +1321,6 @@ static int msm_dp_display_get_io(struct msm_dp_display_private *display)
 			break;
 		}
 	}
-
-	display->mst2link_base = msm_dp_ioremap(pdev, 7, &display->mst2link_len);
-	if (IS_ERR(display->mst2link_base))
-		DRM_DEBUG_DP("unable to remap link region: %pe\n", display->mst2link_base);
-
-	display->mst3link_base = msm_dp_ioremap(pdev, 8, &display->mst3link_len);
-	if (IS_ERR(display->mst3link_base))
-		DRM_DEBUG_DP("unable to remap link region: %pe\n", display->mst3link_base);
 
 	return 0;
 }
