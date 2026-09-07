@@ -752,16 +752,35 @@ static void iris_hfi_gen1_handle_response(struct iris_core *core, void *response
 
 static void iris_hfi_gen1_flush_debug_queue(struct iris_core *core, u8 *packet)
 {
-	struct hfi_msg_sys_coverage_pkt *pkt;
+	struct hfi_msg_sys_debug_pkt *pkt;
+	struct hfi_pkt_hdr *hdr;
+	u32 log_size;
+	u8 *log;
 
 	while (!iris_hfi_queue_dbg_read(core, packet)) {
-		pkt = (struct hfi_msg_sys_coverage_pkt *)packet;
+		hdr = (struct hfi_pkt_hdr *)packet;
 
-		if (pkt->hdr.pkt_type != HFI_MSG_SYS_COV) {
-			struct hfi_msg_sys_debug_pkt *pkt =
-				(struct hfi_msg_sys_debug_pkt *)packet;
+		if (hdr->size <= sizeof(*hdr))
+			continue;
 
-			dev_dbg(core->dev, "%s", pkt->msg_data);
+		if (hdr->size >= IFACEQ_CORE_PKT_SIZE)
+			continue;
+
+		if (hdr->pkt_type != HFI_MSG_SYS_COV) {
+			pkt = (struct hfi_msg_sys_debug_pkt *)packet;
+
+			if (hdr->size <= sizeof(*pkt))
+				continue;
+
+			log = pkt->msg_data;
+			log_size = hdr->size - sizeof(*pkt);
+			if (pkt->msg_size < log_size)
+				log_size = pkt->msg_size;
+
+			if (pkt->msg_type & (IRIS_FW_DEBUG_ERROR | IRIS_FW_DEBUG_FATAL))
+				dev_err_ratelimited(core->dev, "%.*s", (int)log_size, log);
+			else
+				dev_dbg(core->dev, "%.*s", (int)log_size, log);
 		}
 	}
 }
