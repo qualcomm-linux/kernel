@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 /* I2C registers of the microcontroller. */
 #define REG_ID		0x01
@@ -66,9 +67,26 @@ static int rpi_panel_v2_i2c_probe(struct i2c_client *i2c)
 		.parent		= &i2c->dev,
 		.reg_set_base	= REG_POWERON,
 	};
+	struct regulator *vcc;
 	struct regmap *regmap;
 	struct pwm_chip *pc;
 	int ret;
+
+	vcc = devm_regulator_get_optional(&i2c->dev, "vcc");
+	if (IS_ERR(vcc)) {
+		ret = PTR_ERR(vcc);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		/* vcc-supply is optional, proceed without it */
+		vcc = NULL;
+	}
+
+	if (vcc) {
+		ret = regulator_enable(vcc);
+		if (ret)
+			return dev_err_probe(&i2c->dev, ret,
+					     "Failed to enable vcc supply\n");
+	}
 
 	pc = devm_pwmchip_alloc(&i2c->dev, 1, 0);
 	if (IS_ERR(pc))

@@ -26,6 +26,8 @@ enum qcom_battmgr_variant {
 	QCOM_BATTMGR_X1E80100,
 };
 
+#define MAX_USB_PORTS                   3
+
 #define BATTMGR_BAT_STATUS		0x1
 
 #define BATTMGR_REQUEST_NOTIFICATION	0x4
@@ -76,6 +78,10 @@ enum qcom_battmgr_variant {
 
 #define BATTMGR_USB_PROPERTY_GET	0x32
 #define BATTMGR_USB_PROPERTY_SET	0x33
+#define BATTMGR_USB2_PROPERTY_GET	0xC0
+#define BATTMGR_USB2_PROPERTY_SET	0xC1
+#define BATTMGR_USB3_PROPERTY_GET	0xC2
+#define BATTMGR_USB3_PROPERTY_SET	0xC3
 #define USB_ONLINE			0
 #define USB_VOLT_NOW			1
 #define USB_VOLT_MAX			2
@@ -86,6 +92,13 @@ enum qcom_battmgr_variant {
 #define USB_ADAP_TYPE			7
 #define USB_MOISTURE_DET_EN		8
 #define USB_MOISTURE_DET_STS		9
+#define USB_CONNECTOR_TEMP		10
+#define USB_REAL_TYPE			11
+#define USB_TYPEC_COMPLIANT		12
+#define USB_SCOPE			13
+#define USB_CONNECTOR_TYPE		14
+#define USB_F_ACTIVE			15
+#define USB_NUM_PORTS			16
 
 #define BATTMGR_WLS_PROPERTY_GET	0x34
 #define BATTMGR_WLS_PROPERTY_SET	0x35
@@ -297,6 +310,7 @@ struct qcom_battmgr_usb {
 	unsigned int current_max;
 	unsigned int current_limit;
 	unsigned int usb_type;
+	unsigned int num_ports;
 };
 
 struct qcom_battmgr_wireless {
@@ -316,6 +330,8 @@ struct qcom_battmgr {
 	struct power_supply *ac_psy;
 	struct power_supply *bat_psy;
 	struct power_supply *usb_psy;
+	struct power_supply *usb2_psy;
+	struct power_supply *usb3_psy;
 	struct power_supply *wls_psy;
 
 	enum qcom_battmgr_unit unit;
@@ -329,7 +345,11 @@ struct qcom_battmgr {
 	struct qcom_battmgr_status status;
 	struct qcom_battmgr_ac ac;
 	struct qcom_battmgr_usb usb;
+	struct qcom_battmgr_usb usb2;
+	struct qcom_battmgr_usb usb3;
 	struct qcom_battmgr_wireless wireless;
+
+	struct power_supply_config usb_psy_cfg;
 
 	struct work_struct enable_work;
 
@@ -829,6 +849,7 @@ static const enum power_supply_property x1e80100_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -977,6 +998,16 @@ static const u8 sm8350_usb_prop_map[] = {
 	[POWER_SUPPLY_PROP_USB_TYPE] = USB_TYPE,
 };
 
+static const u8 x1e80100_usb_prop_map[] = {
+	[POWER_SUPPLY_PROP_ONLINE] = USB_ONLINE,
+	[POWER_SUPPLY_PROP_VOLTAGE_NOW] = USB_VOLT_NOW,
+	[POWER_SUPPLY_PROP_VOLTAGE_MAX] = USB_VOLT_MAX,
+	[POWER_SUPPLY_PROP_CURRENT_NOW] = USB_CURR_NOW,
+	[POWER_SUPPLY_PROP_CURRENT_MAX] = USB_CURR_MAX,
+	[POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT] = USB_INPUT_CURR_LIMIT,
+	[POWER_SUPPLY_PROP_USB_TYPE] = USB_ADAP_TYPE,
+};
+
 static int qcom_battmgr_usb_sm8350_update(struct qcom_battmgr *battmgr,
 					  enum power_supply_property psp)
 {
@@ -995,6 +1026,24 @@ static int qcom_battmgr_usb_sm8350_update(struct qcom_battmgr *battmgr,
 	return ret;
 }
 
+static int qcom_battmgr_usb_x1e80100_update(struct qcom_battmgr *battmgr,
+					    enum power_supply_property psp)
+{
+	unsigned int prop;
+	int ret;
+
+	if (psp >= ARRAY_SIZE(x1e80100_usb_prop_map))
+		return -EINVAL;
+
+	prop = x1e80100_usb_prop_map[psp];
+
+	mutex_lock(&battmgr->lock);
+	ret = qcom_battmgr_request_property(battmgr, BATTMGR_USB_PROPERTY_GET, prop, 0);
+	mutex_unlock(&battmgr->lock);
+
+	return ret;
+}
+
 static int qcom_battmgr_usb_get_property(struct power_supply *psy,
 					 enum power_supply_property psp,
 					 union power_supply_propval *val)
@@ -1005,8 +1054,7 @@ static int qcom_battmgr_usb_get_property(struct power_supply *psy,
 	if (!battmgr->service_up)
 		return -EAGAIN;
 
-	if (battmgr->variant == QCOM_BATTMGR_SC8280XP ||
-	    battmgr->variant == QCOM_BATTMGR_X1E80100)
+	if (battmgr->variant == QCOM_BATTMGR_SC8280XP)
 		ret = qcom_battmgr_bat_sc8280xp_update(battmgr, psp);
 	else
 		ret = qcom_battmgr_usb_sm8350_update(battmgr, psp);
@@ -1042,8 +1090,179 @@ static int qcom_battmgr_usb_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int qcom_battmgr_usb_x1e80100_get_property(struct power_supply *psy,
+						   enum power_supply_property psp,
+						   union power_supply_propval *val)
+{
+	struct qcom_battmgr *battmgr = power_supply_get_drvdata(psy);
+	int ret;
+
+	if (!battmgr->service_up)
+		return -EAGAIN;
+
+	ret = qcom_battmgr_usb_x1e80100_update(battmgr, psp);
+	if (ret)
+		return ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = battmgr->usb.online;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = battmgr->usb.voltage_now;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		val->intval = battmgr->usb.voltage_max;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = battmgr->usb.current_now;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = battmgr->usb.current_max;
+		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		val->intval = battmgr->usb.current_limit;
+		break;
+	case POWER_SUPPLY_PROP_USB_TYPE:
+		val->intval = battmgr->usb.usb_type;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int qcom_battmgr_usb2_x1e80100_update(struct qcom_battmgr *battmgr,
+					     enum power_supply_property psp)
+{
+	unsigned int prop;
+	int ret;
+
+	if (psp >= ARRAY_SIZE(x1e80100_usb_prop_map))
+		return -EINVAL;
+
+	prop = x1e80100_usb_prop_map[psp];
+
+	mutex_lock(&battmgr->lock);
+	ret = qcom_battmgr_request_property(battmgr, BATTMGR_USB2_PROPERTY_GET, prop, 0);
+	mutex_unlock(&battmgr->lock);
+
+	return ret;
+}
+
+static int qcom_battmgr_usb3_x1e80100_update(struct qcom_battmgr *battmgr,
+					     enum power_supply_property psp)
+{
+	unsigned int prop;
+	int ret;
+
+	if (psp >= ARRAY_SIZE(x1e80100_usb_prop_map))
+		return -EINVAL;
+
+	prop = x1e80100_usb_prop_map[psp];
+
+	mutex_lock(&battmgr->lock);
+	ret = qcom_battmgr_request_property(battmgr, BATTMGR_USB3_PROPERTY_GET, prop, 0);
+	mutex_unlock(&battmgr->lock);
+
+	return ret;
+}
+
+static int qcom_battmgr_usb2_get_property(struct power_supply *psy,
+					  enum power_supply_property psp,
+					  union power_supply_propval *val)
+{
+	struct qcom_battmgr *battmgr = power_supply_get_drvdata(psy);
+	int ret;
+
+	if (!battmgr->service_up)
+		return -EAGAIN;
+
+	ret = qcom_battmgr_usb2_x1e80100_update(battmgr, psp);
+	if (ret)
+		return ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = battmgr->usb2.online;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = battmgr->usb2.voltage_now;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		val->intval = battmgr->usb2.voltage_max;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = battmgr->usb2.current_now;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = battmgr->usb2.current_max;
+		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		val->intval = battmgr->usb2.current_limit;
+		break;
+	case POWER_SUPPLY_PROP_USB_TYPE:
+		val->intval = battmgr->usb2.usb_type;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int qcom_battmgr_usb3_get_property(struct power_supply *psy,
+					  enum power_supply_property psp,
+					  union power_supply_propval *val)
+{
+	struct qcom_battmgr *battmgr = power_supply_get_drvdata(psy);
+	int ret;
+
+	if (!battmgr->service_up)
+		return -EAGAIN;
+
+	ret = qcom_battmgr_usb3_x1e80100_update(battmgr, psp);
+	if (ret)
+		return ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = battmgr->usb3.online;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = battmgr->usb3.voltage_now;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		val->intval = battmgr->usb3.voltage_max;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = battmgr->usb3.current_now;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = battmgr->usb3.current_max;
+		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		val->intval = battmgr->usb3.current_limit;
+		break;
+	case POWER_SUPPLY_PROP_USB_TYPE:
+		val->intval = battmgr->usb3.usb_type;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const enum power_supply_property sc8280xp_usb_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_USB_TYPE,
 };
 
 static const struct power_supply_desc sc8280xp_usb_psy_desc = {
@@ -1052,6 +1271,60 @@ static const struct power_supply_desc sc8280xp_usb_psy_desc = {
 	.properties = sc8280xp_usb_props,
 	.num_properties = ARRAY_SIZE(sc8280xp_usb_props),
 	.get_property = qcom_battmgr_usb_get_property,
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN) |
+		     BIT(POWER_SUPPLY_USB_TYPE_SDP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_ACA)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_C)       |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD)      |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD_DRP)  |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD_PPS)  |
+		     BIT(POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID),
+};
+
+static const struct power_supply_desc x1e80100_usb_psy_desc = {
+	.name = "qcom-battmgr-usb",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.properties = sc8280xp_usb_props,
+	.num_properties = ARRAY_SIZE(sc8280xp_usb_props),
+	.get_property = qcom_battmgr_usb_x1e80100_get_property,
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN) |
+		     BIT(POWER_SUPPLY_USB_TYPE_SDP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_ACA)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_C)       |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD)      |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD_DRP)  |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD_PPS)  |
+		     BIT(POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID),
+};
+
+static const struct power_supply_desc x1e80100_usb2_psy_desc = {
+	.name = "qcom-battmgr-usb2",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.properties = sc8280xp_usb_props,
+	.num_properties = ARRAY_SIZE(sc8280xp_usb_props),
+	.get_property = qcom_battmgr_usb2_get_property,
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN) |
+		     BIT(POWER_SUPPLY_USB_TYPE_SDP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_ACA)     |
+		     BIT(POWER_SUPPLY_USB_TYPE_C)       |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD)      |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD_DRP)  |
+		     BIT(POWER_SUPPLY_USB_TYPE_PD_PPS)  |
+		     BIT(POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID),
+};
+
+static const struct power_supply_desc x1e80100_usb3_psy_desc = {
+	.name = "qcom-battmgr-usb3",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.properties = sc8280xp_usb_props,
+	.num_properties = ARRAY_SIZE(sc8280xp_usb_props),
+	.get_property = qcom_battmgr_usb3_get_property,
 	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN) |
 		     BIT(POWER_SUPPLY_USB_TYPE_SDP)     |
 		     BIT(POWER_SUPPLY_USB_TYPE_DCP)     |
@@ -1212,6 +1485,10 @@ static void qcom_battmgr_notification(struct qcom_battmgr *battmgr,
 		break;
 	case NOTIF_USB_PROPERTY:
 		power_supply_changed(battmgr->usb_psy);
+		if (battmgr->usb2_psy)
+			power_supply_changed(battmgr->usb2_psy);
+		if (battmgr->usb3_psy)
+			power_supply_changed(battmgr->usb3_psy);
 		break;
 	case NOTIF_WLS_PROPERTY:
 		power_supply_changed(battmgr->wls_psy);
@@ -1260,6 +1537,7 @@ static void qcom_battmgr_sc8280xp_callback(struct qcom_battmgr *battmgr,
 	unsigned int opcode = le32_to_cpu(resp->hdr.opcode);
 	unsigned int source;
 	unsigned int state;
+	unsigned int property;
 	size_t payload_len = len - sizeof(struct pmic_glink_hdr);
 
 	if (payload_len < sizeof(__le32)) {
@@ -1354,6 +1632,124 @@ static void qcom_battmgr_sc8280xp_callback(struct qcom_battmgr *battmgr,
 		break;
 	case BATTMGR_CHG_CTRL_LIMIT_EN:
 		battmgr->error = 0;
+		break;
+	case BATTMGR_USB_PROPERTY_GET:
+		property = le32_to_cpu(resp->intval.property);
+		if (payload_len != sizeof(resp->intval)) {
+			dev_warn(battmgr->dev,
+				 "invalid payload length for %#x request: %zd\n",
+				 property, payload_len);
+			battmgr->error = -ENODATA;
+			return;
+		}
+
+		switch (property) {
+		case USB_ONLINE:
+			battmgr->usb.online = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_VOLT_NOW:
+			battmgr->usb.voltage_now = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_VOLT_MAX:
+			battmgr->usb.voltage_max = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_CURR_NOW:
+			battmgr->usb.current_now = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_CURR_MAX:
+			battmgr->usb.current_max = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_INPUT_CURR_LIMIT:
+			battmgr->usb.current_limit = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_TYPE:
+		case USB_ADAP_TYPE:
+			battmgr->usb.usb_type = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_NUM_PORTS:
+			battmgr->usb.num_ports = le32_to_cpu(resp->intval.value);
+			break;
+		default:
+			dev_warn(battmgr->dev, "unknown property %#x\n", property);
+			break;
+		}
+		break;
+
+	case BATTMGR_USB2_PROPERTY_GET:
+		property = le32_to_cpu(resp->intval.property);
+		if (payload_len != sizeof(resp->intval)) {
+			dev_warn(battmgr->dev,
+				 "invalid payload length for %#x request: %zd\n",
+				 property, payload_len);
+			battmgr->error = -ENODATA;
+			return;
+		}
+
+		switch (property) {
+		case USB_ONLINE:
+			battmgr->usb2.online = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_VOLT_NOW:
+			battmgr->usb2.voltage_now = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_VOLT_MAX:
+			battmgr->usb2.voltage_max = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_CURR_NOW:
+			battmgr->usb2.current_now = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_CURR_MAX:
+			battmgr->usb2.current_max = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_INPUT_CURR_LIMIT:
+			battmgr->usb2.current_limit = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_TYPE:
+		case USB_ADAP_TYPE:
+			battmgr->usb2.usb_type = le32_to_cpu(resp->intval.value);
+			break;
+		default:
+			dev_warn(battmgr->dev, "unknown property %#x\n", property);
+			break;
+		}
+		break;
+	case BATTMGR_USB3_PROPERTY_GET:
+		property = le32_to_cpu(resp->intval.property);
+		if (payload_len != sizeof(resp->intval)) {
+			dev_warn(battmgr->dev,
+				 "invalid payload length for %#x request: %zd\n",
+				 property, payload_len);
+			battmgr->error = -ENODATA;
+			return;
+		}
+
+		switch (property) {
+		case USB_ONLINE:
+			battmgr->usb3.online = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_VOLT_NOW:
+			battmgr->usb3.voltage_now = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_VOLT_MAX:
+			battmgr->usb3.voltage_max = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_CURR_NOW:
+			battmgr->usb3.current_now = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_CURR_MAX:
+			battmgr->usb3.current_max = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_INPUT_CURR_LIMIT:
+			battmgr->usb3.current_limit = le32_to_cpu(resp->intval.value);
+			break;
+		case USB_TYPE:
+		case USB_ADAP_TYPE:
+			battmgr->usb3.usb_type = le32_to_cpu(resp->intval.value);
+			break;
+		default:
+			dev_warn(battmgr->dev, "unknown property %#x\n", property);
+			break;
+		}
 		break;
 	default:
 		dev_warn(battmgr->dev, "unknown message %#x\n", opcode);
@@ -1583,6 +1979,8 @@ static void qcom_battmgr_callback(const void *data, size_t len, void *priv)
 		qcom_battmgr_sm8350_callback(battmgr, data, len);
 }
 
+static char *qcom_battmgr_battery[] = { "battery" };
+
 static void qcom_battmgr_enable_worker(struct work_struct *work)
 {
 	struct qcom_battmgr *battmgr = container_of(work, struct qcom_battmgr, enable_work);
@@ -1591,11 +1989,53 @@ static void qcom_battmgr_enable_worker(struct work_struct *work)
 		.hdr.type = cpu_to_le32(PMIC_GLINK_NOTIFY),
 		.hdr.opcode = cpu_to_le32(BATTMGR_REQUEST_NOTIFICATION),
 	};
+	struct power_supply *psy;
 	int ret;
+	int num_ports_fw = 0;
 
 	ret = qcom_battmgr_request(battmgr, &req, sizeof(req));
 	if (ret)
 		dev_err(battmgr->dev, "failed to request power notifications\n");
+
+	if (battmgr->variant == QCOM_BATTMGR_X1E80100) {
+		mutex_lock(&battmgr->lock);
+		ret = qcom_battmgr_request_property(battmgr, BATTMGR_USB_PROPERTY_GET,
+						     USB_NUM_PORTS, 0);
+		mutex_unlock(&battmgr->lock);
+		if (ret < 0) {
+			dev_dbg(battmgr->dev, "Failed to read USB_NUM_PORTS from SoCCP, rc=%d\n",
+				ret);
+		} else {
+			num_ports_fw = battmgr->usb.num_ports;
+			if (num_ports_fw > MAX_USB_PORTS) {
+				dev_err(battmgr->dev, "USB ports reported by SoCCP: %d exceeds max %d\n",
+					num_ports_fw, MAX_USB_PORTS);
+				num_ports_fw = MAX_USB_PORTS;
+			}
+		}
+
+		if (num_ports_fw >= 2 && !battmgr->usb2_psy) {
+			psy = devm_power_supply_register(battmgr->dev, &x1e80100_usb2_psy_desc,
+							  &battmgr->usb_psy_cfg);
+			if (IS_ERR(psy)) {
+				dev_err(battmgr->dev, "failed to register USB port-1 power supply: %ld\n",
+					PTR_ERR(psy));
+			} else {
+				battmgr->usb2_psy = psy;
+			}
+		}
+
+		if (num_ports_fw >= 3 && !battmgr->usb3_psy) {
+			psy = devm_power_supply_register(battmgr->dev, &x1e80100_usb3_psy_desc,
+							  &battmgr->usb_psy_cfg);
+			if (IS_ERR(psy)) {
+				dev_err(battmgr->dev, "failed to register USB port-2 power supply: %ld\n",
+					PTR_ERR(psy));
+			} else {
+				battmgr->usb3_psy = psy;
+			}
+		}
+	}
 }
 
 static void qcom_battmgr_pdr_notify(void *priv, int state)
@@ -1620,8 +2060,6 @@ static const struct of_device_id qcom_battmgr_of_variants[] = {
 	/* Unmatched devices falls back to QCOM_BATTMGR_SM8350 */
 	{}
 };
-
-static char *qcom_battmgr_battery[] = { "battery" };
 
 static int qcom_battmgr_probe(struct auxiliary_device *adev,
 			      const struct auxiliary_device_id *id)
@@ -1648,6 +2086,8 @@ static int qcom_battmgr_probe(struct auxiliary_device *adev,
 	psy_cfg_supply.supplied_to = qcom_battmgr_battery;
 	psy_cfg_supply.num_supplicants = 1;
 
+	battmgr->usb_psy_cfg = psy_cfg_supply;
+
 	INIT_WORK(&battmgr->enable_work, qcom_battmgr_enable_worker);
 	mutex_init(&battmgr->lock);
 	init_completion(&battmgr->ack);
@@ -1663,14 +2103,9 @@ static int qcom_battmgr_probe(struct auxiliary_device *adev,
 		return dev_err_probe(dev, ret,
 				     "failed to init battery charge control thresholds\n");
 
-	if (battmgr->variant == QCOM_BATTMGR_SC8280XP ||
-	    battmgr->variant == QCOM_BATTMGR_X1E80100) {
-		if (battmgr->variant == QCOM_BATTMGR_X1E80100)
-			psy_desc = &x1e80100_bat_psy_desc;
-		else
-			psy_desc = &sc8280xp_bat_psy_desc;
-
-		battmgr->bat_psy = devm_power_supply_register(dev, psy_desc, &psy_cfg);
+	if (battmgr->variant == QCOM_BATTMGR_SC8280XP) {
+		battmgr->bat_psy = devm_power_supply_register(dev, &sc8280xp_bat_psy_desc,
+								&psy_cfg);
 		if (IS_ERR(battmgr->bat_psy))
 			return dev_err_probe(dev, PTR_ERR(battmgr->bat_psy),
 					     "failed to register battery power supply\n");
@@ -1681,6 +2116,30 @@ static int qcom_battmgr_probe(struct auxiliary_device *adev,
 					     "failed to register AC power supply\n");
 
 		battmgr->usb_psy = devm_power_supply_register(dev, &sc8280xp_usb_psy_desc, &psy_cfg_supply);
+		if (IS_ERR(battmgr->usb_psy))
+			return dev_err_probe(dev, PTR_ERR(battmgr->usb_psy),
+					     "failed to register USB power supply\n");
+
+		battmgr->wls_psy = devm_power_supply_register(dev, &sc8280xp_wls_psy_desc,
+								&psy_cfg_supply);
+		if (IS_ERR(battmgr->wls_psy))
+			return dev_err_probe(dev, PTR_ERR(battmgr->wls_psy),
+					     "failed to register wireless charing power supply\n");
+	} else if (battmgr->variant == QCOM_BATTMGR_X1E80100) {
+		battmgr->bat_psy = devm_power_supply_register(dev, &x1e80100_bat_psy_desc,
+								&psy_cfg);
+		if (IS_ERR(battmgr->bat_psy))
+			return dev_err_probe(dev, PTR_ERR(battmgr->bat_psy),
+					     "failed to register battery power supply\n");
+
+		battmgr->ac_psy = devm_power_supply_register(dev, &sc8280xp_ac_psy_desc,
+								&psy_cfg_supply);
+		if (IS_ERR(battmgr->ac_psy))
+			return dev_err_probe(dev, PTR_ERR(battmgr->ac_psy),
+					     "failed to register AC power supply\n");
+
+		battmgr->usb_psy = devm_power_supply_register(dev, &x1e80100_usb_psy_desc,
+								&psy_cfg_supply);
 		if (IS_ERR(battmgr->usb_psy))
 			return dev_err_probe(dev, PTR_ERR(battmgr->usb_psy),
 					     "failed to register USB power supply\n");

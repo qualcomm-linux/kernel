@@ -10,10 +10,12 @@
 #include <linux/cpumask.h>
 
 #include <dt-bindings/firmware/qcom,scm.h>
+#include <asm-generic/errno-base.h>
 
 #define QCOM_SCM_VERSION(major, minor)	(((major) << 16) | ((minor) & 0xFF))
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
+#define QCOM_SCM_CAMERA_MAX_QOS_CNT	2
 #define QCOM_SCM_HDCP_MAX_REQ_CNT	5
 
 struct qcom_scm_hdcp_req {
@@ -76,6 +78,14 @@ struct qcom_scm_pas_context {
 	ssize_t size;
 	bool use_tzmem;
 };
+
+struct qcom_scm_camera_qos {
+	u32 offset;
+	u32 val;
+};
+
+int qcom_scm_camera_update_camnoc_qos(uint32_t use_case_id,
+		uint32_t qos_cnt, struct qcom_scm_camera_qos *scm_buf);
 
 struct qcom_scm_pas_context *devm_qcom_scm_pas_context_alloc(struct device *dev,
 							     u32 pas_id,

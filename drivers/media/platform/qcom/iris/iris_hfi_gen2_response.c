@@ -989,20 +989,24 @@ static int iris_hfi_gen2_handle_response(struct iris_core *core, void *response)
 static void iris_hfi_gen2_flush_debug_queue(struct iris_core *core, u8 *packet)
 {
 	struct hfi_debug_header *pkt;
+	u32 log_size;
 	u8 *log;
 
 	while (!iris_hfi_queue_dbg_read(core, packet)) {
 		pkt = (struct hfi_debug_header *)packet;
 
-		if (pkt->size < sizeof(*pkt))
+		if (pkt->size <= sizeof(*pkt) + 1)
 			continue;
 
 		if (pkt->size >= IFACEQ_CORE_PKT_SIZE)
 			continue;
 
-		packet[pkt->size] = '\0';
 		log = (u8 *)packet + sizeof(*pkt) + 1;
-		dev_dbg(core->dev, "%s", log);
+		log_size = pkt->size - sizeof(*pkt) - 1;
+		if (pkt->debug_level & (IRIS_FW_DEBUG_ERROR | IRIS_FW_DEBUG_FATAL))
+			dev_err_ratelimited(core->dev, "%.*s", (int)log_size, log);
+		else
+			dev_dbg(core->dev, "%.*s", (int)log_size, log);
 	}
 }
 

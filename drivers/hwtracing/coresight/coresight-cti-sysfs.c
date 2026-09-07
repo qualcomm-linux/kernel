@@ -171,7 +171,7 @@ static ssize_t coresight_cti_reg_show(struct device *dev,
 	pm_runtime_get_sync(dev->parent);
 
 	scoped_guard(raw_spinlock_irqsave, &drvdata->spinlock)
-		val = cti_read_single_reg(drvdata, cti_attr->off);
+		val = cti_read_single_reg_index(drvdata, cti_attr->off, cti_attr->index);
 
 	pm_runtime_put_sync(dev->parent);
 	return sysfs_emit(buf, "0x%x\n", val);
@@ -192,7 +192,7 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	pm_runtime_get_sync(dev->parent);
 
 	scoped_guard(raw_spinlock_irqsave, &drvdata->spinlock)
-		cti_write_single_reg(drvdata, cti_attr->off, val);
+		cti_write_single_reg_index(drvdata, cti_attr->off, cti_attr->index, val);
 
 	pm_runtime_put_sync(dev->parent);
 	return size;
@@ -202,7 +202,17 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
 		__ATTR(name, 0444, coresight_cti_reg_show, NULL),	\
-		offset							\
+		offset,							\
+		0							\
+	   }								\
+	})[0].attr.attr)
+
+#define coresight_cti_reg_index(name, offset, idx)			\
+	(&((struct cs_off_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_cti_reg_show, NULL),	\
+		offset,							\
+		idx							\
 	   }								\
 	})[0].attr.attr)
 
@@ -211,7 +221,18 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	   {								\
 		__ATTR(name, 0644, coresight_cti_reg_show,		\
 		       coresight_cti_reg_store),			\
-		offset							\
+		offset,							\
+		0							\
+	   }								\
+	})[0].attr.attr)
+
+#define coresight_cti_reg_rw_index(name, offset, idx)			\
+	(&((struct cs_off_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0644, coresight_cti_reg_show,		\
+		       coresight_cti_reg_store),			\
+		offset,							\
+		idx							\
 	   }								\
 	})[0].attr.attr)
 
@@ -219,7 +240,17 @@ static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
 		__ATTR(name, 0200, NULL, coresight_cti_reg_store),	\
-		offset							\
+		offset,							\
+		0							\
+	   }								\
+	})[0].attr.attr)
+
+#define coresight_cti_reg_wo_index(name, offset, idx)			\
+	(&((struct cs_off_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0200, NULL, coresight_cti_reg_store),	\
+		offset,							\
+		idx							\
 	   }								\
 	})[0].attr.attr)
 
@@ -386,7 +417,7 @@ static ssize_t inen_store(struct device *dev,
 
 	/* write through if enabled */
 	if (cti_is_active(config))
-		cti_write_single_reg(drvdata, CTIINEN(index), val);
+		cti_write_single_reg_index(drvdata, CTIINEN, index, val);
 
 	return size;
 }
@@ -427,7 +458,7 @@ static ssize_t outen_store(struct device *dev,
 
 	/* write through if enabled */
 	if (cti_is_active(config))
-		cti_write_single_reg(drvdata, CTIOUTEN(index), val);
+		cti_write_single_reg_index(drvdata, CTIOUTEN, index, val);
 
 	return size;
 }
@@ -512,18 +543,36 @@ static struct attribute *coresight_cti_regs_attrs[] = {
 	&dev_attr_appclear.attr,
 	&dev_attr_apppulse.attr,
 	coresight_cti_reg(triginstatus, CTITRIGINSTATUS),
+	coresight_cti_reg_index(triginstatus1, CTITRIGINSTATUS, 1),
+	coresight_cti_reg_index(triginstatus2, CTITRIGINSTATUS, 2),
+	coresight_cti_reg_index(triginstatus3, CTITRIGINSTATUS, 3),
 	coresight_cti_reg(trigoutstatus, CTITRIGOUTSTATUS),
+	coresight_cti_reg_index(trigoutstatus1, CTITRIGOUTSTATUS, 1),
+	coresight_cti_reg_index(trigoutstatus2, CTITRIGOUTSTATUS, 2),
+	coresight_cti_reg_index(trigoutstatus3, CTITRIGOUTSTATUS, 3),
 	coresight_cti_reg(chinstatus, CTICHINSTATUS),
 	coresight_cti_reg(choutstatus, CTICHOUTSTATUS),
 #ifdef CONFIG_CORESIGHT_CTI_INTEGRATION_REGS
 	coresight_cti_reg_rw(itctrl, CORESIGHT_ITCTRL),
 	coresight_cti_reg(ittrigin, ITTRIGIN),
+	coresight_cti_reg_index(ittrigin1, ITTRIGIN, 1),
+	coresight_cti_reg_index(ittrigin2, ITTRIGIN, 2),
+	coresight_cti_reg_index(ittrigin3, ITTRIGIN, 3),
 	coresight_cti_reg(itchin, ITCHIN),
 	coresight_cti_reg_rw(ittrigout, ITTRIGOUT),
+	coresight_cti_reg_rw_index(ittrigout1, ITTRIGOUT, 1),
+	coresight_cti_reg_rw_index(ittrigout2, ITTRIGOUT, 2),
+	coresight_cti_reg_rw_index(ittrigout3, ITTRIGOUT, 3),
 	coresight_cti_reg_rw(itchout, ITCHOUT),
 	coresight_cti_reg(itchoutack, ITCHOUTACK),
 	coresight_cti_reg(ittrigoutack, ITTRIGOUTACK),
+	coresight_cti_reg_index(ittrigoutack1, ITTRIGOUTACK, 1),
+	coresight_cti_reg_index(ittrigoutack2, ITTRIGOUTACK, 2),
+	coresight_cti_reg_index(ittrigoutack3, ITTRIGOUTACK, 3),
 	coresight_cti_reg_wo(ittriginack, ITTRIGINACK),
+	coresight_cti_reg_wo_index(ittriginack1, ITTRIGINACK, 1),
+	coresight_cti_reg_wo_index(ittriginack2, ITTRIGINACK, 2),
+	coresight_cti_reg_wo_index(ittriginack3, ITTRIGINACK, 3),
 	coresight_cti_reg_wo(itchinack, ITCHINACK),
 #endif
 	NULL,
@@ -534,9 +583,21 @@ static umode_t coresight_cti_regs_is_visible(struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct device_attribute *dev_attr;
+	struct cs_off_attribute *cti_attr;
+	int max_bank;
 
 	if (attr == &dev_attr_asicctl.attr && !drvdata->config.asicctl_impl)
 		return 0;
+
+	dev_attr = container_of(attr, struct device_attribute, attr);
+	if (dev_attr->show == coresight_cti_reg_show ||
+	    dev_attr->store == coresight_cti_reg_store) {
+		cti_attr = container_of(dev_attr, struct cs_off_attribute, attr);
+		max_bank = DIV_ROUND_UP(drvdata->config.nr_trig_max, 32);
+		if (cti_attr->index >= max_bank)
+			return 0;
+	}
 
 	return attr->mode;
 }
@@ -719,12 +780,12 @@ static ssize_t trigout_filtered_show(struct device *dev,
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
 	int nr_trig_max = cfg->nr_trig_max;
-	unsigned long mask = cfg->trig_out_filter;
+	unsigned long *mask = cfg->trig_out_filter;
 
-	if (mask == 0)
+	if (bitmap_empty(mask, nr_trig_max))
 		return 0;
 
-	return sysfs_emit(buf, "%*pbl\n", nr_trig_max, &mask);
+	return sysfs_emit(buf, "%*pbl\n", nr_trig_max, mask);
 }
 static DEVICE_ATTR_RO(trigout_filtered);
 
@@ -931,9 +992,9 @@ static ssize_t trigin_sig_show(struct device *dev,
 	struct cti_trig_con *con = (struct cti_trig_con *)ext_attr->var;
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
-	unsigned long mask = con->con_in->used_mask;
+	unsigned long *mask = con->con_in->used_mask;
 
-	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, &mask);
+	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, mask);
 }
 
 static ssize_t trigout_sig_show(struct device *dev,
@@ -945,9 +1006,9 @@ static ssize_t trigout_sig_show(struct device *dev,
 	struct cti_trig_con *con = (struct cti_trig_con *)ext_attr->var;
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
-	unsigned long mask = con->con_out->used_mask;
+	unsigned long *mask = con->con_out->used_mask;
 
-	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, &mask);
+	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, mask);
 }
 
 /* convert a sig type id to a name */

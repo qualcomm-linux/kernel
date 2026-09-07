@@ -317,6 +317,14 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
+&gpu_zap_shader {
+	firmware-name = "qcom/qcs615/a612_zap.mbn";
+};
+
 &i2c5 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -358,13 +366,15 @@
 };
 
 &pcie {
-	perst-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
-	wake-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
-
 	pinctrl-0 = <&pcie_default_state>;
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+
+&pcie_port0 {
+	reset-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 100 GPIO_ACTIVE_LOW>;
 };
 
 &pcie_phy {

@@ -4,6 +4,7 @@
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/debugfs.h>
 #include <linux/hwspinlock.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -15,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/socinfo.h>
+
+#include "smem.h"
 
 /*
  * The Qualcomm shared memory system is a allocate only heap structure that
@@ -280,6 +283,8 @@ struct qcom_smem {
 	struct smem_ptable *ptable;
 	struct smem_partition global_partition;
 	struct xarray partitions;
+
+	struct dentry *debugfs_dir;
 
 	unsigned num_regions;
 	struct smem_region regions[] __counted_by(num_regions);
@@ -1239,17 +1244,24 @@ static int qcom_smem_probe(struct platform_device *pdev)
 
 	__smem = smem;
 
+	smem->debugfs_dir = smem_dram_parse(smem->dev);
+
 	smem->socinfo = platform_device_register_data(&pdev->dev, "qcom-socinfo",
 						      PLATFORM_DEVID_NONE, NULL,
 						      0);
-	if (IS_ERR(smem->socinfo))
+	if (IS_ERR(smem->socinfo)) {
+		debugfs_remove_recursive(smem->debugfs_dir);
+
 		dev_dbg(&pdev->dev, "failed to register socinfo device\n");
+	}
 
 	return 0;
 }
 
 static void qcom_smem_remove(struct platform_device *pdev)
 {
+	debugfs_remove_recursive(__smem->debugfs_dir);
+
 	platform_device_unregister(__smem->socinfo);
 
 	xa_destroy(&__smem->partitions);
