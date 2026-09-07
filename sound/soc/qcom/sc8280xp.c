@@ -56,6 +56,39 @@ static const struct snd_kcontrol_new shikra_iqs_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
+static const struct snd_soc_dapm_widget talos_lyra_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic12", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic56", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic34", NULL),
+	SND_SOC_DAPM_SPK("Receiver", NULL),
+	SND_SOC_DAPM_SPK("Speaker", NULL),
+};
+
+static const struct snd_soc_dapm_route talos_lyra_dapm_routes[] = {
+	{"IN12", NULL, "Headset Mic12"},
+	{"Headset Mic12", NULL, "MICBIAS"},
+	{"IN34", NULL, "Headset Mic34"},
+	{"Headset Mic34", NULL, "MICBIAS"},
+	{"IN56", NULL, "Headset Mic56"},
+	{"Headset Mic56", NULL, "MICBIAS"},
+	{"Headphone", NULL, "HPL"},
+	{"Headphone", NULL, "HPR"},
+	{"Receiver", NULL, "RCVL"},
+	{"Receiver", NULL, "RCVR"},
+	{"Speaker", NULL, "SPKL"},
+	{"Speaker", NULL, "SPKR"},
+};
+
+static const struct snd_kcontrol_new talos_lyra_max98090_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headset Mic12"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic34"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic56"),
+	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Receiver"),
+	SOC_DAPM_PIN_SWITCH("Speaker"),
+};
+
 struct snd_soc_common {
 	const char *driver_name;
 	const struct snd_soc_dapm_widget *dapm_widgets;
@@ -384,6 +417,18 @@ static struct snd_soc_common qcs615_priv_data = {
 	.num_dapm_widgets = ARRAY_SIZE(sc8280xp_dapm_widgets),
 };
 
+static struct snd_soc_common talos_lyra_priv_data = {
+	.driver_name = "qcs615",
+	.dapm_widgets = talos_lyra_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(talos_lyra_dapm_widgets),
+	.dapm_routes = talos_lyra_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(talos_lyra_dapm_routes),
+	.controls = talos_lyra_max98090_controls,
+	.num_controls = ARRAY_SIZE(talos_lyra_max98090_controls),
+	.codec_dai_fmt = SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_BC_FC,
+	.codec_sysclk_set = true,
+};
+
 static struct snd_soc_common qcm6490_priv_data = {
 	.driver_name = "qcm6490",
 	.dapm_widgets = sc8280xp_dapm_widgets,
@@ -475,6 +520,7 @@ static const struct of_device_id snd_sc8280xp_dt_match[] = {
 	{.compatible = "qcom,sm8550-sndcard", .data = &sm8550_priv_data},
 	{.compatible = "qcom,sm8650-sndcard", .data = &sm8650_priv_data},
 	{.compatible = "qcom,sm8750-sndcard", .data = &sm8750_priv_data},
+	{.compatible = "qcom,talos-lyra-sndcard", .data = &talos_lyra_priv_data},
 	{}
 };
 

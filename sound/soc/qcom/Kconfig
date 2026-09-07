@@ -212,6 +212,7 @@ config SND_SOC_SC8280XP
 	depends on QCOM_APR && SOUNDWIRE
 	depends on COMMON_CLK
 	select SND_SOC_QDSP6
+	select SND_SOC_MAX98090
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_QCOM_SDW
 	help
