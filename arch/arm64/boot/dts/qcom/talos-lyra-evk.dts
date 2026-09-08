@@ -100,6 +100,46 @@
 			};
 		};
 	};
+
+	sound {
+		compatible = "qcom,talos-lyra-sndcard";
+		model = "qcs615-snd-card";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&lpi_spkr_i2s_mclk_a>, <&lpi_i2s1_clk>, <&lpi_i2s1_data>, <&lpi_i2s1_ws>;
+
+		sec-mi2s-playback-dai-link {
+			link-name = "Secondary MI2S Playback";
+
+			cpu {
+				sound-dai = <&q6apmbedai SECONDARY_MI2S_RX>;
+			};
+
+			codec {
+				sound-dai = <&max98091>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		sec-mi2s-capture-dai-link {
+			link-name = "Secondary MI2S Capture";
+
+			cpu {
+				sound-dai = <&q6apmbedai SECONDARY_MI2S_TX>;
+			};
+
+			codec {
+				sound-dai = <&max98091>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+	};
 };
 
 &i2c2 {
@@ -170,6 +210,18 @@
 		reg = <0x3c>;
 		#gpio-cells = <2>;
 		gpio-controller;
+	};
+
+	max98091: max98091@10 {
+		compatible = "maxim,max98091";
+		reg = <0x10>;
+		#sound-dai-cells = <0>;
+		clock-names = "mclk";
+		clocks = <&q6prmcc LPASS_CLK_ID_SPEAKER_I2S_OSR LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <119 IRQ_TYPE_NONE>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&int_codec>;
 	};
 };
 
@@ -290,6 +342,79 @@
 	status = "okay";
 };
 
+&soc {
+	lpass_tlmm: pinctrl@62B40000 {
+		compatible = "qcom,qcs615-lpass-lpi-pinctrl";
+		reg = <0x0 0x62B40000 0x0 0x20000>,
+		      <0x0 0x62B00000 0x0 0x10000>;
+
+		clocks = <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "core";
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&lpass_tlmm 0 0 32>;
+	};
+};
+
+&lpass_tlmm {
+	lpi_spkr_i2s_mclk_a: lpi-spkr-i2s-mclk-a-state {
+		pins = "gpio19";
+		function = "spkr_i2s_mclk_a";
+		drive-strength = <16>;
+		bias-disable;
+		output-high;
+	};
+
+	lpi_i2s1_clk: lpi-i2s1-clk-state {
+		pins = "gpio8";
+		function = "i2s1_clk";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	lpi_i2s1_clk_sleep: lpi-i2s1-clk-sleep-state {
+		pins = "gpio8";
+		function = "i2s1_clk";
+		drive-strength = <2>;
+		bias-pull-down;
+		input-enable;
+	};
+
+	lpi_i2s1_data: lpi-i2s1-data-state {
+		pins = "gpio10", "gpio11";
+		function = "i2s1_data";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	lpi_i2s1_data_sleep: lpi-i2s1-data-sleep-state {
+		pins = "gpio10", "gpio11";
+		function = "i2s1_data";
+		drive-strength = <2>;
+		bias-pull-down;
+		input-enable;
+	};
+
+	lpi_i2s1_ws: lpi-i2s1-ws-state {
+		pins = "gpio9";
+		function = "i2s1_ws";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	lpi_i2s1_ws_sleep: lpi-i2s1-ws-sleep-state {
+		pins = "gpio9";
+		function = "i2s1_ws";
+		drive-strength = <2>;
+		bias-pull-down;
+		input-enable;
+	};
+};
+
 &spi6 {
 	status = "okay";
 
@@ -305,6 +430,11 @@
 };
 
 &tlmm {
+	int_codec: gpio-irq-state {
+		pins = "gpio119";
+		function = "gpio";
+	};
+
 	lt9611_irq_pin: lt9611-irq-state {
 		pins = "gpio60";
 		function = "gpio";
