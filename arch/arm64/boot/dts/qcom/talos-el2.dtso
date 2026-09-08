@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+
+ * Talos specific modifications required to boot in EL2.
+ */
+
+#include <dt-bindings/media/qcom,qcs615-venus.h>
+
+/dts-v1/;
+/plugin/;
+
+&gpu_zap_shader {
+	status = "disabled";
+};
+
+&remoteproc_adsp {
+	iommus = <&apps_smmu 0x1720 0x0>;
+};
+
+&remoteproc_cdsp {
+	iommus = <&apps_smmu 0x1080 0x0>;
+};
+
+&venus {
+	iommu-map = <VENUS_FIRMWARE &apps_smmu 0xe42 0x0 0x1>;
+	status = "okay";
+};

@@ -1,0 +1,6 @@
+What:           /sys/bus/coresight/devices/<ctcu-name>/irq_threshold
+Date:           Oct. 2025
+KernelVersion:  6.19
+Contact:        Tingwei Zhang <tingwei.zhang@oss.qualcomm.com>; Jinlong Mao <jinlong.mao@oss.qualcomm.com>; Jie Gan <jie.gan@oss.qualcomm.com>
+Description:
+		(RW) Configure the IRQ value for byte-cntr register.

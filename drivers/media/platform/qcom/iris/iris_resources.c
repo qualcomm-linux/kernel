@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+#include <linux/clk.h>
+#include <linux/devfreq.h>
+#include <linux/interconnect.h>
+#include <linux/of_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_opp.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
+
+#include "iris_core.h"
+#include "iris_instance.h"
+#include "iris_resources.h"
+
+#define BW_THRESHOLD 50000
+
+int iris_set_icc_bw(struct iris_core *core, unsigned long icc_bw)
+{
+	u32 icc_ib_multiplier = core->iris_platform_data->icc_ib_multiplier;
+	unsigned long bw_kbps = 0, bw_prev = 0;
+	const struct icc_info *icc_tbl;
+	int ret = 0, i;
+
+	icc_tbl = core->iris_platform_data->icc_tbl;
+
+	for (i = 0; i < core->icc_count; i++) {
+		if (!strcmp(core->icc_tbl[i].name, "video-mem")) {
+			bw_kbps = icc_bw;
+			bw_prev = core->power.icc_bw;
+
+			bw_kbps = clamp_t(typeof(bw_kbps), bw_kbps,
+					  icc_tbl[i].bw_min_kbps, icc_tbl[i].bw_max_kbps);
+
+			if (abs(bw_kbps - bw_prev) < BW_THRESHOLD && bw_prev)
+				return ret;
+
+			core->icc_tbl[i].avg_bw = bw_kbps;
+			core->icc_tbl[i].peak_bw = bw_kbps * icc_ib_multiplier;
+
+			core->power.icc_bw = bw_kbps;
+			break;
+		}
+	}
+
+	return icc_bulk_set_bw(core->icc_count, core->icc_tbl);
+}
+
+int iris_unset_icc_bw(struct iris_core *core)
+{
+	u32 i;
+
+	core->power.icc_bw = 0;
+
+	for (i = 0; i < core->icc_count; i++) {
+		core->icc_tbl[i].avg_bw = 0;
+		core->icc_tbl[i].peak_bw = 0;
+	}
+
+	return icc_bulk_set_bw(core->icc_count, core->icc_tbl);
+}
+
+int iris_opp_set_rate(struct device *dev, unsigned long freq)
+{
+	struct dev_pm_opp *opp __free(put_opp);
+
+	opp = devfreq_recommended_opp(dev, &freq, 0);
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+
+	return dev_pm_opp_set_opp(dev, opp);
+}
+
+int iris_enable_power_domains(struct iris_core *core, struct device *pd_dev)
+{
+	int ret;
+
+	ret = iris_opp_set_rate(core->dev, ULONG_MAX);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(pd_dev);
+	if (ret < 0)
+		return ret;
+
+	return ret;
+}
+
+int iris_disable_power_domains(struct iris_core *core, struct device *pd_dev)
+{
+	int ret;
+
+	ret = iris_opp_set_rate(core->dev, 0);
+	if (ret)
+		return ret;
+
+	pm_runtime_put_sync(pd_dev);
+
+	return 0;
+}
+
+static struct clk *iris_get_clk_by_type(struct iris_core *core, enum platform_clk_type clk_type)
+{
+	const struct platform_clk_data *clk_tbl;
+	u32 clk_cnt, i, j;
+
+	clk_tbl = core->iris_platform_data->clk_tbl;
+	clk_cnt = core->iris_platform_data->clk_tbl_size;
+
+	for (i = 0; i < clk_cnt; i++) {
+		if (clk_tbl[i].clk_type == clk_type) {
+			for (j = 0; core->clock_tbl && j < core->clk_count; j++) {
+				if (!strcmp(core->clock_tbl[j].id, clk_tbl[i].clk_name))
+					return core->clock_tbl[j].clk;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+int iris_prepare_enable_clock(struct iris_core *core, enum platform_clk_type clk_type)
+{
+	struct clk *clock;
+
+	clock = iris_get_clk_by_type(core, clk_type);
+	if (!clock)
+		return -ENOENT;
+
+	return clk_prepare_enable(clock);
+}
+
+int iris_disable_unprepare_clock(struct iris_core *core, enum platform_clk_type clk_type)
+{
+	struct clk *clock;
+
+	clock = iris_get_clk_by_type(core, clk_type);
+	if (!clock)
+		return -EINVAL;
+
+	clk_disable_unprepare(clock);
+
+	return 0;
+}
+
+struct device *iris_create_cb_dev(struct iris_core *core, const char *name, const u32 *f_id)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	pdev = platform_device_alloc(name, 0);
+	if (!pdev)
+		return ERR_PTR(-ENOMEM);
+
+	pdev->dev.parent = core->dev;
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+		platform_device_put(pdev);
+		return ERR_PTR(ret);
+	}
+
+	ret = of_dma_configure_id(&pdev->dev, core->dev->of_node, true, f_id);
+	if (ret)
+		goto error_unregister;
+
+	ret = dma_set_mask_and_coherent(&pdev->dev, core->iris_platform_data->dma_mask);
+	if (ret)
+		goto error_unregister;
+
+	return &pdev->dev;
+
+error_unregister:
+	platform_device_unregister(to_platform_device(&pdev->dev));
+
+	return ERR_PTR(ret);
+}
+
+struct device *iris_get_cb_dev(struct iris_inst *inst, enum iris_buffer_type buffer_type)
+{
+	struct iris_core *core = inst->core;
+	struct device *dev = NULL;
+
+	switch (buffer_type) {
+	case BUF_INPUT:
+		if (inst->domain == DECODER)
+			dev = core->dev_bs;
+		else
+			dev = core->dev_p;
+		break;
+	case BUF_OUTPUT:
+		if (inst->domain == DECODER)
+			dev = core->dev_p;
+		else
+			dev = core->dev_bs;
+		break;
+	case BUF_BIN:
+		dev = core->dev_bs;
+		break;
+	case BUF_DPB:
+	case BUF_PARTIAL:
+	case BUF_SCRATCH_2:
+	case BUF_VPSS:
+		dev = core->dev_p;
+		break;
+	case BUF_ARP:
+	case BUF_COMV:
+	case BUF_LINE:
+	case BUF_NON_COMV:
+	case BUF_PERSIST:
+		dev = core->dev_np;
+		break;
+	default:
+		dev_err(core->dev, "invalid buffer type: %d\n", buffer_type);
+	}
+
+	return dev ? dev : core->dev;
+}
