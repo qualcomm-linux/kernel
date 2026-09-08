@@ -32,7 +32,6 @@ properties:
           - qcom,qcs404-ethqos
           - qcom,sa8775p-ethqos
           - qcom,sc8280xp-ethqos
-          - qcom,shikra-ethqos
           - qcom,sm8150-ethqos
 
   reg:
@@ -58,30 +57,16 @@ properties:
       - const: sfty
 
   clocks:
-    minItems: 4
-    maxItems: 7
+    maxItems: 4
 
   clock-names:
-    oneOf:
-      - items:
-          - const: stmmaceth
-          - const: pclk
-          - const: ptp_ref
-          - enum:
-              - rgmii
-              - phyaux
-      - description: |
-          Extended clock list for platforms with AXI NOC clocks that require
-          explicit driver management (e.g. Shikra). GCC_EMAC0_AXI_CLK appears
-          as both "stmmaceth" and "axi"; CCF refcounting makes this safe.
-        items:
-          - const: stmmaceth
-          - const: pclk
-          - const: ptp_ref
-          - const: rgmii
-          - const: axi
-          - const: axi-noc
-          - const: pcie-tile-axi-noc
+    items:
+      - const: stmmaceth
+      - const: pclk
+      - const: ptp_ref
+      - enum:
+          - rgmii
+          - phyaux
 
   iommus:
     maxItems: 1
