@@ -3331,52 +3331,6 @@
 			#power-domain-cells = <1>;
 		};
 
-		qaif_cpu: audio@a000000 {
-			compatible = "qcom,shikra-qaif-cpu";
-			reg = <0x0 0x0a000000 0x0 0x20000>;
-
-			interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH 0>;
-
-			clocks = <&gcc GCC_LPASS_CONFIG_CLK>,
-				<&gcc GCC_LPASS_CORE_AXIM_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AUD_DMA_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AUD_DMA_MEM_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_BUS_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF0_EBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF0_IBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF1_EBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF1_IBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF2_EBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF2_IBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF3_EBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_AIF_IF3_IBIT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_EXT_MCLKA_OUT_CLK>,
-				<&audiocorecc AUDIO_CORE_CC_EXT_MCLKB_OUT_CLK>;
-			clock-names = "lpass_config_clk",
-				"lpass_core_axim_clk",
-				"aud_dma_clk",
-				"aud_dma_mem_clk",
-				"bus_clk",
-				"aif_if0_ebit_clk",
-				"aif_if0_ibit_clk",
-				"aif_if1_ebit_clk",
-				"aif_if1_ibit_clk",
-				"aif_if2_ebit_clk",
-				"aif_if2_ibit_clk",
-				"aif_if3_ebit_clk",
-				"aif_if3_ibit_clk",
-				"ext_mclka_clk",
-				"ext_mclkb_clk";
-
-			iommus = <&apps_smmu 0x1c0 0x0>;
-
-			#sound-dai-cells = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			status = "disabled";
-		};
-
 		rxmacro: codec@a040000 {
 			compatible = "qcom,shikra-lpass-rx-macro";
 			reg = <0x0 0x0a040000 0x0 0x1000>;
