@@ -27,22 +27,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	bam_dmux: bam-dmux {
-		compatible = "qcom,bam-dmux";
-
-		interrupts-extended = <&modem_smsm 1 IRQ_TYPE_EDGE_BOTH>,
-				      <&modem_smsm 11 IRQ_TYPE_EDGE_BOTH>;
-		interrupt-names = "pc",
-				  "pc-ack";
-
-		qcom,smem-states = <&apps_smsm 1>, <&apps_smsm 11>;
-		qcom,smem-state-names = "pc",
-					"pc-ack";
-
-		dmas = <&bam_dmux_dma 4>, <&bam_dmux_dma 5>;
-		dma-names = "tx", "rx";
-	};
-
 	clocks {
 		xo_board: xo-board {
 			compatible = "fixed-clock";
@@ -2677,18 +2661,6 @@
 			};
 		};
 
-		bam_dmux_dma: dma-controller@6044000 {
-			compatible = "qcom,bam-v1.7.0";
-			reg = <0x0 0x06044000 0x0 0x19000>;
-			interrupts = <GIC_SPI 74 IRQ_TYPE_EDGE_RISING 0>;
-			#dma-cells = <1>;
-			qcom,ee = <0>;
-
-			num-channels = <6>;
-			qcom,num-ees = <1>;
-			qcom,powered-remotely;
-		};
-
 		remoteproc_mpss: remoteproc@6080000 {
 			compatible = "qcom,shikra-mpss-pas";
 			reg = <0x0 0x06080000 0x0 0x100>;
@@ -2720,6 +2692,23 @@
 			qcom,smem-state-names = "stop";
 
 			status = "disabled";
+
+			bam_dmux: bam-dmux {
+				compatible = "qcom,shikra-bam-dmux", "qcom,bam-dmux";
+
+				interrupts-extended = <&modem_smsm 1 IRQ_TYPE_EDGE_BOTH>,
+						      <&modem_smsm 11 IRQ_TYPE_EDGE_BOTH>;
+				interrupt-names = "pc",
+						  "pc-ack";
+
+				qcom,smem-states = <&apps_smsm 1>,
+						   <&apps_smsm 11>;
+				qcom,smem-state-names = "pc",
+							"pc-ack";
+
+				dmas = <&bam_dmux_dma 4>, <&bam_dmux_dma 5>;
+				dma-names = "tx", "rx";
+			};
 
 			glink-edge {
 				interrupts = <GIC_SPI 68 IRQ_TYPE_EDGE_RISING 0>;
@@ -4749,6 +4738,19 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			label = "cti_apss_2";
+		};
+
+		bam_dmux_dma: dma-controller@6044000 {
+			compatible = "qcom,shikra-bam-dma", "qcom,bam-v1.7.0";
+			reg = <0x0 0x06044000 0x0 0x19000>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_EDGE_RISING 0>;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+
+			num-channels = <6>;
+			qcom,num-ees = <1>;
+			qcom,powered-remotely;
+			qcom,vmid = <QCOM_SCM_VMID_NAV>;
 		};
 
 		sram@c11e000 {
