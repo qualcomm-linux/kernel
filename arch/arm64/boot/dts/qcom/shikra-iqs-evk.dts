@@ -44,7 +44,78 @@
 		gpio = <&pm8150_gpios 4 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		pinctrl-0 = <&lcd_bias_en>;
+	};
+
+	rgmii_phy0_supply: regulator-rgmii-phy0 {
+		compatible = "regulator-fixed";
+		regulator-name = "rgmii-phy0-pwr";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		gpio = <&tlmm 66 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-0 = <&rgmii_phy0_pwr_default>;
 		pinctrl-names = "default";
+	};
+
+	rgmii_phy1_supply: regulator-rgmii-phy1 {
+		compatible = "regulator-fixed";
+		regulator-name = "rgmii-phy1-pwr";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		gpio = <&tlmm 53 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-0 = <&rgmii_phy1_pwr_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&ethernet0 {
+	phy-handle = <&rgmii_phy0>;
+	phy-mode = "rgmii-id";
+
+	pinctrl-0 = <&ethernet0_default>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rgmii_phy0: ethernet-phy@7 {
+			compatible = "ethernet-phy-id2000.a231";
+			reg = <0x7>;
+			reset-gpios = <&tlmm 135 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <50000>;
+			vdda-2p5-supply = <&rgmii_phy0_supply>;
+		};
+	};
+};
+
+&ethernet1 {
+	phy-handle = <&rgmii_phy1>;
+	phy-mode = "rgmii-id";
+
+	pinctrl-0 = <&ethernet1_default>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rgmii_phy1: ethernet-phy@7 {
+			compatible = "ethernet-phy-id2000.a231";
+			reg = <0x7>;
+			reset-gpios = <&tlmm 151 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <50000>;
+			vdda-2p5-supply = <&rgmii_phy1_supply>;
+		};
 	};
 };
 
@@ -180,6 +251,22 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
+	};
+
+	rgmii_phy0_pwr_default: rgmii-phy0-pwr-default-state {
+		pins = "gpio66";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
+	rgmii_phy1_pwr_default: rgmii-phy1-pwr-default-state {
+		pins = "gpio53";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
 	};
 };
 
