@@ -196,6 +196,13 @@
 		reg = <0x21>;
 		#gpio-cells = <2>;
 		gpio-controller;
+
+		emac0_phy_en_hog: emac0-phy-en-hog {
+			gpio-hog;
+			gpios = <6 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "emac0-phy-en";
+		};
 	};
 
 	expander2: gpio@38 {
@@ -430,6 +437,48 @@
 };
 
 &tlmm {
+	ethernet_defaults: ethernet-defaults-state {
+		mdc-pins {
+			pins = "gpio113";
+			function = "rgmii";
+			bias-pull-up;
+		};
+
+		mdio-pins {
+			pins = "gpio114";
+			function = "rgmii";
+			bias-pull-up;
+		};
+
+		phy-intr-pins {
+			pins = "gpio121";
+			function = "gpio";
+			bias-disable;
+			drive-strength = <8>;
+		};
+
+		phy-reset-pins {
+			pins = "gpio105";
+			function = "gpio";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+
+		rgmii-rx-pins {
+			pins = "gpio81", "gpio82", "gpio83", "gpio102", "gpio103", "gpio112";
+			function = "rgmii";
+			bias-disable;
+			drive-strength = <2>;
+		};
+
+		rgmii-tx-pins {
+			pins = "gpio92", "gpio93", "gpio94", "gpio95", "gpio96", "gpio97";
+			function = "rgmii";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+	};
+
 	int_codec: gpio-irq-state {
 		pins = "gpio119";
 		function = "gpio";
