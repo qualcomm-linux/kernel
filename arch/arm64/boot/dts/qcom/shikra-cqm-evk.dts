@@ -676,6 +676,13 @@
 		line-name = "emac0-phy-en";
 	};
 
+	vbus_boost_5v: vbus-boost-5v {
+		gpio-hog;
+		gpios = <79 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "vbus-boost-5v";
+	};
+
 	i2s2_default: i2s2-default-active-state {
 		pins = "gpio100", "gpio101", "gpio102", "gpio103";
 		function = "i2s2";
