@@ -720,8 +720,14 @@ int gdsc_gx_disable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
 
-	if (domain->synced_poweroff)
+	if (domain->synced_poweroff) {
+		dev_info_ratelimited(&domain->dev,
+				     "synced power-off requested, disabling GDSC\n");
 		return gdsc_disable(domain);
+	}
+
+	dev_info_ratelimited(&domain->dev,
+			     "synced power-off not requested, retaining GDSC\n");
 
 	/* Remove parent-supply placed in enable */
 	if (sc->rsupply)
