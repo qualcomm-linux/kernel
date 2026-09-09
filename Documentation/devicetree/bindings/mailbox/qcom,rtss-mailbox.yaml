@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/qcom,rtss-mailbox.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. RTSS Mailbox
+
+maintainers:
+  - Ram Sargar <rsargar@qti.qualcomm.com>
+
+description:
+  The RTSS mailbox exposes a shared-memory and IPCC doorbell channel between
+  the application processor and the RTSS subsystem, and manages handshake
+  with the RTSS subsystem to handle different milestones in mission mode.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,sa8775p-rtss-mailbox
+          - qcom,qcs8300-rtss-mailbox
+      - const: qcom,rtss-mailbox
+
+  qcom,syscon-tcsr-req:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the TCSR syscon node
+          - description: offset of the RTSS request register from the syscon base
+    description:
+      Reference to the TCSR syscon node and register offset used to write
+      the boot/suspend handshake magic that RTSS reads.
+
+  qcom,syscon-tcsr-resp:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the TCSR syscon node
+          - description: offset of the RTSS response register from the syscon base
+    description:
+      Reference to the TCSR syscon node and register offset used to read
+      back the handshake magic RTSS acknowledges with.
+
+  qcom,syscon-ipc:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the APSS shared IPC syscon node
+          - description: offset of the IPC trigger register from the syscon base
+    description:
+      Reference to the syscon node and register offset used to trigger the
+      IPC interrupt that notifies RTSS a TCSR handshake register was updated.
+
+  mboxes:
+    description:
+      IPCC mailbox channels used to send interrupts to the RTSS-facing IPCC
+      client/signal pairs.
+
+  interrupts-extended:
+    description:
+      IPCC channels used to receive interrupts from the RTSS-facing IPCC
+      client/signal pairs.
+
+  memory-region:
+    items:
+      - description: reserved-memory carveout for the RTSS mailbox descriptor region
+      - description: reserved-memory carveout for the OTA region
+    description:
+      Reference to the reserved-memory regions used for the mailbox
+      descriptor and for OTA.
+
+required:
+  - compatible
+  - qcom,syscon-tcsr-req
+  - qcom,syscon-tcsr-resp
+  - qcom,syscon-ipc
+  - mboxes
+  - interrupts-extended
+  - memory-region
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/mailbox/qcom-ipcc.h>
+
+    rtss-ipcc-mailbox {
+        compatible = "qcom,sa8775p-rtss-mailbox", "qcom,rtss-mailbox";
+        qcom,syscon-tcsr-req  = <&tcsr 0x3e02c>;
+        qcom,syscon-tcsr-resp = <&tcsr 0x3d018>;
+        qcom,syscon-ipc = <&apsshm_shared_intu 0xc>;
+        mboxes = <&ipcc1 IPCC_CLIENT_RTSS0 0x2>,
+                 <&ipcc1 IPCC_CLIENT_RTSS1 0x3>;
+        interrupts-extended = <&ipcc1 IPCC_CLIENT_RTSS0 0x2 IRQ_TYPE_EDGE_RISING>,
+                               <&ipcc1 IPCC_CLIENT_RTSS1 0x3 IRQ_TYPE_EDGE_RISING>;
+        memory-region = <&sail_mailbox_mem>, <&sail_ota_mem>;
+    };
