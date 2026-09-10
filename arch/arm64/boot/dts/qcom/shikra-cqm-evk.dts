@@ -28,18 +28,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	lcd_bias: regulator-lcd-bias {
-		compatible = "regulator-fixed";
-		regulator-name = "lcd_bias";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&pm4125_l17>;
-		gpio = <&tlmm 151 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		pinctrl-0 = <&lcd_bias_en>;
-		pinctrl-names = "default";
-	};
-
 	mi2s_tdm_sen: mi2s-tdm-sen-qaif-aif {
 		qcom,qaif-aif-bits-per-lane = <2>;
 		qcom,qaif-aif-ctrl-data-oe = <1>;
@@ -331,52 +319,6 @@
 };
 
 &i2c3 {
-	status = "okay";
-};
-
-&mdss {
-	status = "okay";
-};
-
-&pm4125_l5 {
-	/* DSI VDDA - must be at NOM voltage for PHY PLL lock */
-	regulator-min-microvolt = <1232000>;
-	regulator-max-microvolt = <1232000>;
-	regulator-allow-set-load;
-};
-
-&mdss_dsi0 {
-	vdda-supply = <&pm4125_l5>;
-	status = "okay";
-
-	panel@0 {
-		compatible = "dlc,dlc0697";
-		reg = <0>;
-
-		reset-gpios = <&tlmm 3 GPIO_ACTIVE_LOW>;
-		enable-gpios = <&tlmm 91 GPIO_ACTIVE_HIGH>;
-
-		vddio-supply = <&pm4125_l15>;
-		bias-supply = <&lcd_bias>;
-
-		pinctrl-0 = <&panel_rst_n &panel_te_pin>;
-		pinctrl-1 = <&panel_rst_n_suspend>;
-		pinctrl-names = "default", "sleep";
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&mdss_dsi0_out>;
-			};
-		};
-	};
-};
-
-&mdss_dsi0_out {
-	remote-endpoint = <&panel_in>;
-	data-lanes = <0 1 2 3>;
-};
-
-&mdss_dsi0_phy {
 	status = "okay";
 };
 
@@ -683,34 +625,6 @@
 		drive-strength = <8>;
 		output-high;
 		bias-disable;
-	};
-
-	lcd_bias_en: lcd-bias-en-state {
-		pins = "gpio151";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	panel_rst_n: panel-rst-n-state {
-		pins = "gpio3";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
-	panel_rst_n_suspend: panel-rst-n-suspend-state {
-		pins = "gpio3";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-pull-down;
-	};
-
-	panel_te_pin: panel-te-pin-state {
-		pins = "gpio86";
-		function = "mdp_vsync_p";
-		drive-strength = <2>;
-		bias-pull-down;
 	};
 
 	pcie_default_state: pcie-default-state {
