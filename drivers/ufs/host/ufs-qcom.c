@@ -400,7 +400,6 @@ out:
 
 static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 {
-	int err;
 	struct device *dev = host->hba->dev;
 
 	if (has_acpi_companion(dev))
