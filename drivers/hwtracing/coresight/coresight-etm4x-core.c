@@ -2377,12 +2377,15 @@ static int etm4_probe_platform_dev(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	ret = etm4_probe(&pdev->dev);
+	if (ret) {
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_set_suspended(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+		return ret;
+	}
 
 	pm_runtime_put(&pdev->dev);
-	if (ret)
-		pm_runtime_disable(&pdev->dev);
-
-	return ret;
+	return 0;
 }
 
 static int etm4_probe_cpu(unsigned int cpu)
