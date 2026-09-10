@@ -784,6 +784,13 @@
 		line-name = "emac1-phy-en";
 	};
 
+	vbus_boost_5v: vbus-boost-5v {
+		gpio-hog;
+		gpios = <79 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "vbus-boost-5v";
+	};
+
 	ext_mclk2_active: ext-mclk2-state {
 		pins = "gpio110";
 		function = "ext_mclk";
