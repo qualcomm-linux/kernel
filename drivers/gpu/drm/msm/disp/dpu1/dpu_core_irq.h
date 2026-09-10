@@ -14,6 +14,16 @@ void dpu_core_irq_uninstall(struct msm_kms *kms);
 
 irqreturn_t dpu_core_irq(struct msm_kms *kms);
 
+#ifdef CONFIG_PREEMPT_RT
+/**
+ * dpu_core_irq_thread - core IRQ threaded handler, dispatches the per-IRQ
+ *                       callbacks recorded by dpu_core_irq()
+ * @kms:		MSM KMS handle
+ * @return:		interrupt handling status
+ */
+irqreturn_t dpu_core_irq_thread(struct msm_kms *kms);
+#endif
+
 u32 dpu_core_irq_read(
 		struct dpu_kms *dpu_kms,
 		unsigned int irq_idx);
