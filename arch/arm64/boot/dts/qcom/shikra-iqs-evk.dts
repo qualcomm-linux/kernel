@@ -28,7 +28,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	hdmi-connector {
+	hdmi_connector: hdmi-connector {
                 compatible = "hdmi-connector";
                 type = "a";
 
@@ -116,24 +116,17 @@
 		regulator-always-on;
 	};
 
-	vreg_lt9611_vcc: regulator-lt9611-vcc {
+	vreg_disp_3p3: regulator-disp-3p3 {
                 compatible = "regulator-fixed";
-                regulator-name = "lt9611_vcc";
+                regulator-name = "vreg_disp_3p3";
                 regulator-min-microvolt = <3300000>;
                 regulator-max-microvolt = <3300000>;
                 gpio = <&pm8150_gpios 4 GPIO_ACTIVE_HIGH>;
                 enable-active-high;
-                pinctrl-0 = <&hdmi_reg_en>;
+                pinctrl-0 = <&lcd_bias_en>;
                 pinctrl-names = "default";
         };
 
-        vreg_lt9611_vdd: regulator-lt9611-vdd {
-                compatible = "regulator-fixed";
-                regulator-name = "lt9611_vdd";
-                regulator-min-microvolt = <1800000>;
-                regulator-max-microvolt = <1800000>;
-                regulator-always-on;
-        };
 
 	vreg_wlan_3p3_dummy: regulator-wlan-3p3-dummy {
 		compatible = "regulator-fixed";
@@ -415,10 +408,10 @@
                 reg = <0x41>;
                 interrupts-extended = <&tlmm 85 IRQ_TYPE_EDGE_FALLING>;
                 reset-gpios = <&tlmm 76 GPIO_ACTIVE_LOW>;
-                vcc-supply = <&vreg_lt9611_vcc>;
-                vdd-supply = <&vreg_lt9611_vdd>;
+                vcc-supply = <&vreg_disp_3p3>;
+                vdd-supply = <&pm8150_s4>;
 
-                pinctrl-0 = <&lt9611_irq_pin &lt9611_rst_pin>;
+                pinctrl-0 = <&bridge_irq_pin &bridge_rst_pin>;
                 pinctrl-names = "default";
 
                 ports {
@@ -572,7 +565,7 @@
 };
 
 &pm8150_gpios {
-        hdmi_reg_en: hdmi-reg-en-state {
+        lcd_bias_en: lcd-bias-en-state {
                 pins = "gpio4";
                 function = PMIC_GPIO_FUNC_NORMAL;
                 bias-disable;
@@ -732,14 +725,14 @@
 		bias-disable;
 	};
 
-	lt9611_irq_pin: lt9611-irq-state {
+	bridge_irq_pin: bridge-irq-state {
 		pins = "gpio85";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	lt9611_rst_pin: lt9611-rst-state {
+	bridge_rst_pin: bridge-rst-state {
 		pins = "gpio76";
 		function = "gpio";
 		drive-strength = <8>;
