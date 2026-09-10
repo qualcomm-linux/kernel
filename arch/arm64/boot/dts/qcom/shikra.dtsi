@@ -378,7 +378,7 @@
 				qcom,glink-channels = "rpm_requests";
 
 				rpmcc: clock-controller {
-					compatible = "qcom,rpmcc-shikra", "qcom,rpmcc";
+					compatible = "qcom,rpmcc-shikra", "qcom,rpmcc-qcm2290", "qcom,rpmcc";
 					clocks = <&xo_board>;
 					clock-names = "xo";
 					#clock-cells = <1>;
