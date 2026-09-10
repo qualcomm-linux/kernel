@@ -319,11 +319,15 @@ static int ctcu_platform_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	ret = ctcu_probe(pdev);
-	pm_runtime_put(&pdev->dev);
-	if (ret)
+	if (ret) {
 		pm_runtime_disable(&pdev->dev);
+		pm_runtime_set_suspended(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+		return ret;
+	}
 
-	return ret;
+	pm_runtime_put(&pdev->dev);
+	return 0;
 }
 
 static void ctcu_platform_remove(struct platform_device *pdev)
@@ -333,8 +337,16 @@ static void ctcu_platform_remove(struct platform_device *pdev)
 	if (WARN_ON(!drvdata))
 		return;
 
+	/*
+	 * Resume the device so its clocks are enabled again, balancing the
+	 * clk_disable_unprepare() that devm runs when the driver detaches.
+	 * Then mark it suspended and drop the usage count taken here.
+	 */
+	pm_runtime_get_sync(&pdev->dev);
 	ctcu_remove(pdev);
 	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
 }
 
 #ifdef CONFIG_PM
