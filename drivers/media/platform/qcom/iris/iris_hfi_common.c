@@ -87,7 +87,42 @@ int iris_hfi_core_init(struct iris_core *core)
 	if (ret)
 		return ret;
 
+	if (hfi_ops->sys_set_debug) {
+		ret = hfi_ops->sys_set_debug(core);
+		if (ret)
+			dev_warn(core->dev,
+				"failed to configure firmware debug logging: %d\n",
+				ret);
+	}
+
 	return hfi_ops->sys_interframe_powercollapse(core);
+}
+
+int iris_hfi_set_debug(struct iris_core *core)
+{
+	const struct iris_hfi_sys_ops *hfi_ops = core->hfi_sys_ops;
+	int ret = 0;
+
+	if (!hfi_ops->sys_set_debug)
+		return 0;
+
+	ret = pm_runtime_resume_and_get(core->dev);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&core->lock);
+	if (core->state != IRIS_CORE_INIT) {
+		ret = 0;
+		goto unlock;
+	}
+
+	ret = hfi_ops->sys_set_debug(core);
+
+unlock:
+	mutex_unlock(&core->lock);
+	pm_runtime_put_autosuspend(core->dev);
+
+	return ret;
 }
 
 irqreturn_t iris_hfi_isr(int irq, void *data)
@@ -144,6 +179,7 @@ error:
 
 int iris_hfi_pm_resume(struct iris_core *core)
 {
+	const struct vpu_ops *vpu_ops = core->iris_platform_data->vpu_ops;
 	const struct iris_hfi_sys_ops *ops = core->hfi_sys_ops;
 	int ret;
 
@@ -162,6 +198,9 @@ int iris_hfi_pm_resume(struct iris_core *core)
 	ret = iris_vpu_switch_to_hwmode(core);
 	if (ret)
 		goto err_suspend_hw;
+
+	if (vpu_ops->disable_arp)
+		vpu_ops->disable_arp(core);
 
 	ret = ops->sys_interframe_powercollapse(core);
 	if (ret)
