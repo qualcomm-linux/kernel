@@ -47,7 +47,7 @@ static u64 lsdc_fb_base_addr(struct drm_framebuffer *fb)
 }
 
 static int lsdc_primary_atomic_check(struct drm_plane *plane,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_crtc *crtc = new_plane_state->crtc;
@@ -66,7 +66,7 @@ static int lsdc_primary_atomic_check(struct drm_plane *plane,
 }
 
 static void lsdc_primary_atomic_update(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct lsdc_primary *primary = to_lsdc_primary(plane);
 	const struct lsdc_primary_plane_ops *ops = primary->ops;
@@ -86,7 +86,7 @@ static void lsdc_primary_atomic_update(struct drm_plane *plane,
 }
 
 static void lsdc_primary_atomic_disable(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	/*
 	 * Do nothing, just prevent call into atomic_update().
@@ -171,7 +171,7 @@ static const struct drm_plane_helper_funcs lsdc_primary_helper_funcs = {
 };
 
 static int lsdc_cursor_plane_atomic_async_check(struct drm_plane *plane,
-						struct drm_atomic_state *state,
+						struct drm_atomic_commit *state,
 						bool flip)
 {
 	struct drm_plane_state *new_state;
@@ -218,7 +218,7 @@ static int lsdc_cursor_plane_atomic_async_check(struct drm_plane *plane,
 }
 
 static void lsdc_cursor_plane_atomic_async_update(struct drm_plane *plane,
-						  struct drm_atomic_state *state)
+						  struct drm_atomic_commit *state)
 {
 	struct lsdc_cursor *cursor = to_lsdc_cursor(plane);
 	const struct lsdc_cursor_plane_ops *ops = cursor->ops;
@@ -267,7 +267,7 @@ static void lsdc_cursor_plane_atomic_async_update(struct drm_plane *plane,
 /* ls7a1000 cursor plane helpers */
 
 static int ls7a1000_cursor_plane_atomic_check(struct drm_plane *plane,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state;
 	struct drm_crtc_state *new_crtc_state;
@@ -297,7 +297,7 @@ static int ls7a1000_cursor_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void ls7a1000_cursor_plane_atomic_update(struct drm_plane *plane,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct lsdc_cursor *cursor = to_lsdc_cursor(plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -319,7 +319,7 @@ static void ls7a1000_cursor_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void ls7a1000_cursor_plane_atomic_disable(struct drm_plane *plane,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct lsdc_cursor *cursor = to_lsdc_cursor(plane);
 	const struct lsdc_cursor_plane_ops *ops = cursor->ops;
@@ -340,7 +340,7 @@ static const struct drm_plane_helper_funcs ls7a1000_cursor_plane_helper_funcs = 
 /* ls7a2000 cursor plane helpers */
 
 static int ls7a2000_cursor_plane_atomic_check(struct drm_plane *plane,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state;
 	struct drm_crtc_state *new_crtc_state;
@@ -378,7 +378,7 @@ static int ls7a2000_cursor_plane_atomic_check(struct drm_plane *plane,
 /* Update the format, size and location of the cursor */
 
 static void ls7a2000_cursor_plane_atomic_update(struct drm_plane *plane,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct lsdc_cursor *cursor = to_lsdc_cursor(plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -415,7 +415,7 @@ static void ls7a2000_cursor_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void ls7a2000_cursor_plane_atomic_disable(struct drm_plane *plane,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct lsdc_cursor *cursor = to_lsdc_cursor(plane);
 	const struct lsdc_cursor_plane_ops *hw_ops = cursor->ops;

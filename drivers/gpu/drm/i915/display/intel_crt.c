@@ -846,7 +846,7 @@ intel_crt_detect(struct drm_connector *connector,
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *encoder = &crt->base;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	intel_wakeref_t wakeref;
 	int status;
 

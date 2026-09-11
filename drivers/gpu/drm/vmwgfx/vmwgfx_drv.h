@@ -493,7 +493,7 @@ struct vmw_private {
 	struct drm_property *hotplug_mode_update_property;
 	struct drm_property *implicit_placement_property;
 	spinlock_t cursor_lock;
-	struct drm_atomic_state *suspend_state;
+	struct drm_atomic_commit *suspend_state;
 
 	/*
 	 * Context and surface management.

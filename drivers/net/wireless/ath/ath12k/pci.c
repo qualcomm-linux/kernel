@@ -189,6 +189,8 @@ static void ath12k_pci_soc_global_reset(struct ath12k_base *ab)
 	val |= PCIE_SOC_GLOBAL_RESET_V;
 
 	ath12k_pci_write32(ab, PCIE_SOC_GLOBAL_RESET, val);
+	/* Flush the posted write to the device */
+	ath12k_pci_read32(ab, PCIE_SOC_GLOBAL_RESET);
 
 	/* TODO: exact time to sleep is uncertain */
 	delay = 10;
@@ -198,6 +200,8 @@ static void ath12k_pci_soc_global_reset(struct ath12k_base *ab)
 	val &= ~PCIE_SOC_GLOBAL_RESET_V;
 
 	ath12k_pci_write32(ab, PCIE_SOC_GLOBAL_RESET, val);
+	/* Flush the posted write to the device */
+	ath12k_pci_read32(ab, PCIE_SOC_GLOBAL_RESET);
 
 	mdelay(delay);
 
@@ -1648,7 +1652,7 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 	ret = ab_pci->device_family_ops->arch_init(ab);
 	if (ret) {
 		ath12k_err(ab, "PCI arch_init failed %d\n", ret);
-		goto err_pci_msi_free;
+		goto err_free_irq;
 	}
 
 	ret = ath12k_core_init(ab);

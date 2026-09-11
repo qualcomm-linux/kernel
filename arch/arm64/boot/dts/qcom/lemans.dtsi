@@ -339,17 +339,7 @@
 		idle-states {
 			entry-method = "psci";
 
-			gold_cpu_sleep_0: cpu-sleep-0 {
-				compatible = "arm,idle-state";
-				idle-state-name = "gold-power-collapse";
-				arm,psci-suspend-param = <0x40000003>;
-				entry-latency-us = <549>;
-				exit-latency-us = <901>;
-				min-residency-us = <1774>;
-				local-timer-stop;
-			};
-
-			gold_rail_cpu_sleep_0: cpu-sleep-1 {
+			gold_rail_cpu_sleep_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "gold-rail-power-collapse";
 				arm,psci-suspend-param = <0x40000004>;
@@ -656,57 +646,49 @@
 		cpu_pd0: power-domain-cpu0 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_0_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cpu_pd1: power-domain-cpu1 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_0_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cpu_pd2: power-domain-cpu2 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_0_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cpu_pd3: power-domain-cpu3 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_0_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cpu_pd4: power-domain-cpu4 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_1_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cpu_pd5: power-domain-cpu5 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_1_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cpu_pd6: power-domain-cpu6 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_1_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cpu_pd7: power-domain-cpu7 {
 			#power-domain-cells = <0>;
 			power-domains = <&cluster_1_pd>;
-			domain-idle-states = <&gold_cpu_sleep_0>,
-					     <&gold_rail_cpu_sleep_0>;
+			domain-idle-states = <&gold_rail_cpu_sleep_0>;
 		};
 
 		cluster_0_pd: power-domain-cluster0 {
@@ -719,6 +701,11 @@
 			#power-domain-cells = <0>;
 			domain-idle-states = <&cluster_sleep_gold>;
 			power-domains = <&system_pd>;
+		};
+
+		reboot-mode {
+			mode-bootloader = <0x10001 0x2>;
+			mode-edl = <0 0x1>;
 		};
 
 		system_pd: power-domain-system {
@@ -2853,6 +2840,32 @@
 			clock-names = "core",
 				      "iface";
 			power-domains = <&gcc UFS_PHY_GDSC>;
+
+			operating-points-v2 = <&ice_opp_table>;
+
+			ice_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-75000000 {
+					opp-hz = /bits/ 64 <75000000>;
+					required-opps = <&rpmhpd_opp_svs_l1>;
+				};
+
+				opp-150000000 {
+					opp-hz = /bits/ 64 <150000000>;
+					required-opps = <&rpmhpd_opp_svs_l1>;
+				};
+
+				opp-300000000 {
+					opp-hz = /bits/ 64 <300000000>;
+					required-opps = <&rpmhpd_opp_nom>;
+				};
+
+				opp-600000000 {
+					opp-hz = /bits/ 64 <600000000>;
+					required-opps = <&rpmhpd_opp_nom>;
+				};
+			};
 		};
 
 		cryptobam: dma-controller@1dc4000 {
@@ -7797,7 +7810,7 @@
 
 
 			cooling {
-				compatible = "qcom,qmi-cooling-cdsp";
+				compatible = "qcom,qmi-cooling-cdsp1";
 					cdsp_sw1: cdsp_sw {
 						label = "cdsp_sw";
 						#cooling-cells = <2>;
@@ -9127,9 +9140,6 @@
 
 		power-domains = <&gcc PCIE_0_GDSC>;
 
-		phys = <&pcie0_phy>;
-		phy-names = "pciephy";
-
 		eq-presets-8gts = /bits/ 16 <0x5555 0x5555>;
 		eq-presets-16gts = /bits/ 8 <0x55 0x55>;
 
@@ -9140,6 +9150,8 @@
 			device_type = "pci";
 			reg = <0x0 0x0 0x0 0x0 0x0>;
 			bus-range = <0x01 0xff>;
+
+			phys = <&pcie0_phy>;
 
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -9301,18 +9313,17 @@
 
 		power-domains = <&gcc PCIE_1_GDSC>;
 
-		phys = <&pcie1_phy>;
-		phy-names = "pciephy";
-
 		eq-presets-8gts = /bits/ 16 <0x5555 0x5555 0x5555 0x5555>;
 		eq-presets-16gts = /bits/ 8 <0x55 0x55 0x55 0x55>;
 
 		status = "disabled";
 
-		pcie@0 {
+		pcieport1: pcie@0 {
 			device_type = "pci";
 			reg = <0x0 0x0 0x0 0x0 0x0>;
 			bus-range = <0x01 0xff>;
+
+			phys = <&pcie1_phy>;
 
 			#address-cells = <3>;
 			#size-cells = <2>;

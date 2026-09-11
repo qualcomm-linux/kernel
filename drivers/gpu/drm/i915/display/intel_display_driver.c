@@ -698,7 +698,7 @@ void intel_display_driver_unregister(struct intel_display *display)
  */
 int intel_display_driver_suspend(struct intel_display *display)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	int ret;
 
 	if (!HAS_DISPLAY(display))
@@ -722,7 +722,7 @@ int intel_display_driver_suspend(struct intel_display *display)
 
 int
 __intel_display_driver_resume(struct intel_display *display,
-			      struct drm_atomic_state *state,
+			      struct drm_atomic_commit *state,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_crtc_state *crtc_state;
@@ -761,7 +761,7 @@ __intel_display_driver_resume(struct intel_display *display,
 
 void intel_display_driver_resume(struct intel_display *display)
 {
-	struct drm_atomic_state *state = display->restore.modeset_state;
+	struct drm_atomic_commit *state = display->restore.modeset_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
@@ -796,5 +796,5 @@ void intel_display_driver_resume(struct intel_display *display)
 		drm_err(display->drm,
 			"Restoring old state failed with %i\n", ret);
 	if (state)
-		drm_atomic_state_put(state);
+		drm_atomic_commit_put(state);
 }

@@ -26,6 +26,7 @@
 #define MODEM0_INSTANCE_ID	0x0
 #define ADSP_INSTANCE_ID	0x1
 #define CDSP_INSTANCE_ID	0x43
+#define CDSP1_INSTANCE_ID       0x44
 #define SLPI_INSTANCE_ID	0x53
 
 #define QMI_TMD_RESP_TIMEOUT msecs_to_jiffies(100)
@@ -479,6 +480,10 @@ static const struct of_device_id qmi_tmd_device_table[] = {
 	{
 		.compatible = "qcom,qmi-cooling-cdsp",
 		.data = &((struct qmi_instance_data) { CDSP_INSTANCE_ID, "cdsp" }),
+	},
+	{
+	       .compatible = "qcom,qmi-cooling-cdsp1",
+	       .data = &((struct qmi_instance_data) { CDSP1_INSTANCE_ID, "cdsp1" }),
 	},
 	{}
 };

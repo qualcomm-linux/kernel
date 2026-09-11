@@ -200,7 +200,7 @@ static void rockchip_dp_drm_encoder_mode_set(struct drm_encoder *encoder,
 
 static
 struct drm_crtc *rockchip_dp_drm_get_new_crtc(struct drm_encoder *encoder,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
@@ -217,7 +217,7 @@ struct drm_crtc *rockchip_dp_drm_get_new_crtc(struct drm_encoder *encoder,
 }
 
 static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct rockchip_dp_device *dp = encoder_to_dp(encoder);
 	struct drm_crtc *crtc;
@@ -271,7 +271,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 }
 
 static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct rockchip_dp_device *dp = encoder_to_dp(encoder);
 	struct drm_crtc *crtc;
@@ -469,6 +469,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 
 	i = 0;
 	while (dp_data[i].reg) {

@@ -1596,7 +1596,7 @@ int msm_dp_mst_register(struct msm_dp *msm_dp_display)
 }
 
 int msm_dp_display_set_mode_helper(struct msm_dp *msm_dp_display,
-				   struct drm_atomic_state *state,
+				   struct drm_atomic_commit *state,
 				   struct drm_encoder *drm_encoder,
 				   struct msm_dp_panel *msm_dp_panel)
 {
@@ -1612,7 +1612,7 @@ int msm_dp_display_set_mode_helper(struct msm_dp *msm_dp_display,
 }
 
 void msm_dp_display_atomic_prepare(struct msm_dp *msm_dp_display,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	int rc = 0;
 	struct msm_dp_display_private *dp;

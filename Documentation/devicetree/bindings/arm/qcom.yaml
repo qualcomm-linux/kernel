@@ -341,6 +341,7 @@ properties:
       - description: Qualcomm Technologies, Inc. Robotics RB1
         items:
           - enum:
+              - arduino,imola
               - qcom,qrb2210-rb1
           - const: qcom,qrb2210
           - const: qcom,qcm2290
@@ -867,6 +868,7 @@ properties:
 
       - items:
           - enum:
+              - arduino,monza
               - qcom,monaco-ac-evk
               - qcom,monaco-evk
               - qcom,qcs8300-ride
@@ -876,6 +878,13 @@ properties:
           - enum:
               - qcom,qcs615-ride
               - qcom,talos-evk
+          - const: qcom,qcs615
+          - const: qcom,sm6150
+
+      - items:
+          - enum:
+              - qcom,talos-lyra-evk
+          - const: qcom,talos-lyra-evk-som
           - const: qcom,qcs615
           - const: qcom,sm6150
 
