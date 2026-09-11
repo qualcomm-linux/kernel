@@ -40,7 +40,7 @@ static int iris_wait_for_system_response(struct iris_core *core)
 		return -EIO;
 
 	ret = wait_for_completion_timeout(&core->core_init_done,
-					  msecs_to_jiffies(HW_RESPONSE_TIMEOUT_VALUE));
+					  msecs_to_jiffies(READ_ONCE(core->hw_response_timeout)));
 	if (!ret) {
 		core->state = IRIS_CORE_ERROR;
 		return -ETIMEDOUT;

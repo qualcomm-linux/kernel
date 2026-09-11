@@ -78,12 +78,14 @@ void iris_helper_buffers_done(struct iris_inst *inst, unsigned int type,
 int iris_wait_for_session_response(struct iris_inst *inst, bool is_flush)
 {
 	struct completion *done;
+	unsigned int timeout;
 	int ret;
 
 	done = is_flush ? &inst->flush_completion : &inst->completion;
+	timeout = READ_ONCE(inst->core->hw_response_timeout);
 
 	mutex_unlock(&inst->lock);
-	ret = wait_for_completion_timeout(done, msecs_to_jiffies(HW_RESPONSE_TIMEOUT_VALUE));
+	ret = wait_for_completion_timeout(done, msecs_to_jiffies(timeout));
 	mutex_lock(&inst->lock);
 	if (!ret) {
 		iris_inst_change_state(inst, IRIS_INST_ERROR);
