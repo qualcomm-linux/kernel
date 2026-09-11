@@ -1494,11 +1494,9 @@
 };
 
 &usb_1_ss0 {
-	status = "okay";
-};
-
-&usb_1_ss0_dwc3 {
 	dr_mode = "host";
+
+	status = "okay";
 };
 
 &usb_1_ss0_dwc3_hs {
@@ -1526,11 +1524,9 @@
 };
 
 &usb_1_ss1 {
-	status = "okay";
-};
-
-&usb_1_ss1_dwc3 {
 	dr_mode = "host";
+
+	status = "okay";
 };
 
 &usb_1_ss1_dwc3_hs {
@@ -1542,12 +1538,10 @@
 };
 
 &usb_mp {
-	status = "okay";
-};
-
-&usb_mp_dwc3 {
 	phys = <&usb_mp_hsphy0>, <&usb_mp_qmpphy0>;
 	phy-names = "usb2-0", "usb3-0";
+
+	status = "okay";
 };
 
 &usb_mp_hsphy0 {
