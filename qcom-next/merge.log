@@ -1,0 +1,521 @@
+Verified existence of local and remote repos: Success
+/local/mnt/workspace/sgaud/Builds/Github/All_Runners/kernel-automation/actions-runner/_work/kernel-automation/kernel-automation/kernel-topics /local/mnt/workspace/sgaud/Builds/Github/All_Runners/kernel-automation/actions-runner/_work/kernel-automation/kernel-automation/kernel-topics
+Reuse-Recorded-Resolution: Enabled
+Downloaded shared rerere cache
+Local tree is clean
+Removing old remotes ...
+The remote kernel https://github.com/qualcomm-linux/kernel.git is no longer tracked.
+Delete it [Y/n]? The remote origin https://github.com/qualcomm-linux/kernel-topics.git is no longer tracked.
+Delete it [Y/n]? The remote trovalds https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git is no longer tracked.
+Delete it [Y/n]? Done, removed 3 old remote(s).
+Adding new remotes...
+Adding remote baseline https://github.com/qualcomm-linux/kernel.git qcom-next-staging
+Updating baseline
+Adding remote tech/bsp/clk https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/clk
+Updating tech/bsp/clk
+Adding remote tech/bsp/devfreq https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/devfreq
+Updating tech/bsp/devfreq
+Adding remote tech/bsp/ec https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/ec
+Updating tech/bsp/ec
+Adding remote tech/bsp/interconnect https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/interconnect
+Updating tech/bsp/interconnect
+Adding remote tech/bsp/sched https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/sched
+Updating tech/bsp/sched
+Adding remote tech/mem/secure-buffer https://github.com/qualcomm-linux/kernel-topics.git tech/mem/secure-buffer
+Updating tech/mem/secure-buffer
+Adding remote tech/security/firmware-smc https://github.com/qualcomm-linux/kernel-topics.git tech/security/firmware-smc
+Updating tech/security/firmware-smc
+Adding remote tech/bsp/soc-infra https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/soc-infra
+Updating tech/bsp/soc-infra
+Adding remote tech/debug/soc https://github.com/qualcomm-linux/kernel-topics.git tech/debug/soc
+Updating tech/debug/soc
+Adding remote tech/bsp/pinctrl https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/pinctrl
+Updating tech/bsp/pinctrl
+Adding remote tech/bsp/remoteproc https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/remoteproc
+Updating tech/bsp/remoteproc
+Adding remote tech/bus/peripherals https://github.com/qualcomm-linux/kernel-topics.git tech/bus/peripherals
+Updating tech/bus/peripherals
+Adding remote tech/bus/pci/all https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/all
+Updating tech/bus/pci/all
+Adding remote tech/bus/pci/mhi https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/mhi
+Updating tech/bus/pci/mhi
+Adding remote tech/bus/pci/phy https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/phy
+Updating tech/bus/pci/phy
+Adding remote tech/bus/pci/pwrctl https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/pwrctl
+Updating tech/bus/pci/pwrctl
+Adding remote tech/bus/usb/dwc https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/dwc
+Updating tech/bus/usb/dwc
+Adding remote tech/bus/usb/gadget https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/gadget
+Updating tech/bus/usb/gadget
+Adding remote tech/bus/usb/phy https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/phy
+Updating tech/bus/usb/phy
+Adding remote tech/debug/eud https://github.com/qualcomm-linux/kernel-topics.git tech/debug/eud
+Updating tech/debug/eud
+Adding remote tech/debug/hwtracing https://github.com/qualcomm-linux/kernel-topics.git tech/debug/hwtracing
+Updating tech/debug/hwtracing
+Adding remote tech/debug/rdbg https://github.com/qualcomm-linux/kernel-topics.git tech/debug/rdbg
+Updating tech/debug/rdbg
+Adding remote tech/pmic/backlight https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/backlight
+Updating tech/pmic/backlight
+Adding remote tech/pmic/mfd https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/mfd
+Updating tech/pmic/mfd
+Adding remote tech/pmic/misc https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/misc
+Updating tech/pmic/misc
+Adding remote tech/pmic/regulator https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/regulator
+Updating tech/pmic/regulator
+Adding remote tech/pmic/supply https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/supply
+Updating tech/pmic/supply
+Adding remote tech/mem/dma-buf https://github.com/qualcomm-linux/kernel-topics.git tech/mem/dma-buf
+Updating tech/mem/dma-buf
+Adding remote tech/mem/iommu https://github.com/qualcomm-linux/kernel-topics.git tech/mem/iommu
+Updating tech/mem/iommu
+Adding remote tech/mm/audio/all https://github.com/qualcomm-linux/kernel-topics.git tech/mm/audio/all
+Updating tech/mm/audio/all
+Adding remote tech/mm/audio/soundwire https://github.com/qualcomm-linux/kernel-topics.git tech/mm/audio/soundwire
+Updating tech/mm/audio/soundwire
+Adding remote tech/mm/camss https://github.com/qualcomm-linux/kernel-topics.git tech/mm/camss
+Updating tech/mm/camss
+Adding remote tech/mm/drm https://github.com/qualcomm-linux/kernel-topics.git tech/mm/drm
+Updating tech/mm/drm
+Adding remote tech/mm/fastrpc https://github.com/qualcomm-linux/kernel-topics.git tech/mm/fastrpc
+Updating tech/mm/fastrpc
+Adding remote tech/mm/phy https://github.com/qualcomm-linux/kernel-topics.git tech/mm/phy
+Updating tech/mm/phy
+Adding remote tech/mm/video https://github.com/qualcomm-linux/kernel-topics.git tech/mm/video
+Updating tech/mm/video
+Adding remote tech/mm/gpu https://github.com/qualcomm-linux/kernel-topics.git tech/mm/gpu
+Updating tech/mm/gpu
+Adding remote tech/mproc/rpmsg https://github.com/qualcomm-linux/kernel-topics.git tech/mproc/rpmsg
+Updating tech/mproc/rpmsg
+Adding remote tech/mproc/qmi https://github.com/qualcomm-linux/kernel-topics.git tech/mproc/qmi
+Updating tech/mproc/qmi
+Adding remote tech/net/ath https://github.com/qualcomm-linux/kernel-topics.git tech/net/ath
+Updating tech/net/ath
+Adding remote tech/net/eth https://github.com/qualcomm-linux/kernel-topics.git tech/net/eth
+Updating tech/net/eth
+Adding remote tech/net/rmnet https://github.com/qualcomm-linux/kernel-topics.git tech/net/rmnet
+Updating tech/net/rmnet
+Adding remote tech/net/qrtr https://github.com/qualcomm-linux/kernel-topics.git tech/net/qrtr
+Updating tech/net/qrtr
+Adding remote tech/net/phy https://github.com/qualcomm-linux/kernel-topics.git tech/net/phy
+Updating tech/net/phy
+Adding remote tech/net/bluetooth https://github.com/qualcomm-linux/kernel-topics.git tech/net/bluetooth
+Updating tech/net/bluetooth
+Adding remote tech/pm/opp https://github.com/qualcomm-linux/kernel-topics.git tech/pm/opp
+Updating tech/pm/opp
+Adding remote tech/pm/pmdomain https://github.com/qualcomm-linux/kernel-topics.git tech/pm/pmdomain
+Updating tech/pm/pmdomain
+Adding remote tech/pm/power https://github.com/qualcomm-linux/kernel-topics.git tech/pm/power
+Updating tech/pm/power
+Adding remote tech/pm/thermal https://github.com/qualcomm-linux/kernel-topics.git tech/pm/thermal
+Updating tech/pm/thermal
+Adding remote tech/security/crypto https://github.com/qualcomm-linux/kernel-topics.git tech/security/crypto
+Updating tech/security/crypto
+Adding remote tech/security/fscrypt https://github.com/qualcomm-linux/kernel-topics.git tech/security/fscrypt
+Updating tech/security/fscrypt
+Adding remote tech/security/ice https://github.com/qualcomm-linux/kernel-topics.git tech/security/ice
+Updating tech/security/ice
+Adding remote tech/storage/nvmem https://github.com/qualcomm-linux/kernel-topics.git tech/storage/nvmem
+Updating tech/storage/nvmem
+Adding remote tech/storage/phy https://github.com/qualcomm-linux/kernel-topics.git tech/storage/phy
+Updating tech/storage/phy
+Adding remote tech/storage/all https://github.com/qualcomm-linux/kernel-topics.git tech/storage/all
+Updating tech/storage/all
+Adding remote tech/virt/gunyah https://github.com/qualcomm-linux/kernel-topics.git tech/virt/gunyah
+Updating tech/virt/gunyah
+Adding remote tech/all/dt/qcs6490 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs6490
+Updating tech/all/dt/qcs6490
+Adding remote tech/all/dt/qcs9100 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs9100
+Updating tech/all/dt/qcs9100
+Adding remote tech/all/dt/qcs8300 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs8300
+Updating tech/all/dt/qcs8300
+Adding remote tech/all/dt/qcs615 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs615
+Updating tech/all/dt/qcs615
+Adding remote tech/all/dt/agatti https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/agatti
+Updating tech/all/dt/agatti
+Adding remote tech/all/dt/eliza https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/eliza
+Updating tech/all/dt/eliza
+Adding remote tech/all/dt/hamoa https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/hamoa
+Updating tech/all/dt/hamoa
+Adding remote tech/all/dt/glymur https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/glymur
+Updating tech/all/dt/glymur
+Adding remote tech/all/dt/kaanapali https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/kaanapali
+Updating tech/all/dt/kaanapali
+Adding remote tech/all/dt/pakala https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/pakala
+Updating tech/all/dt/pakala
+Adding remote tech/all/shikra https://github.com/qualcomm-linux/kernel-topics.git tech/all/shikra
+Updating tech/all/shikra
+Adding remote tech/all/config https://github.com/qualcomm-linux/kernel-topics.git tech/all/config
+Updating tech/all/config
+Adding remote tech/overlay/dt https://github.com/qualcomm-linux/kernel-topics.git tech/overlay/dt
+Updating tech/overlay/dt
+Adding remote tech/all/workaround https://github.com/qualcomm-linux/kernel-topics.git tech/all/workaround
+Updating tech/all/workaround
+Adding remote tech/mproc/all https://github.com/qualcomm-linux/kernel-topics.git tech/mproc/all
+Updating tech/mproc/all
+Adding remote tech/noup/debug/all https://github.com/qualcomm-linux/kernel-topics.git tech/noup/debug/all
+Updating tech/noup/debug/all
+Adding remote tech/hwe/unoq https://github.com/qualcomm-linux/kernel-topics.git tech/hwe/unoq
+Updating tech/hwe/unoq
+Adding remote early/hwe/nord https://github.com/qualcomm-linux/kernel-topics.git early/hwe/nord
+Updating early/hwe/nord
+Adding remote early/hwe/staging/nord https://github.com/qualcomm-linux/kernel-topics.git early/hwe/staging/nord
+Updating early/hwe/staging/nord
+Done, added 76 new remote(s).
+Updating the remotes ...
+Updating tech/bsp/clk
+Updating tech/bsp/devfreq
+Updating tech/bsp/ec
+Updating tech/bsp/interconnect
+Updating tech/bsp/sched
+Updating tech/mem/secure-buffer
+Updating tech/security/firmware-smc
+Updating tech/bsp/soc-infra
+Updating tech/debug/soc
+Updating tech/bsp/pinctrl
+Updating tech/bsp/remoteproc
+Updating tech/bus/peripherals
+Updating tech/bus/pci/all
+Updating tech/bus/pci/mhi
+Updating tech/bus/pci/phy
+Updating tech/bus/pci/pwrctl
+Updating tech/bus/usb/dwc
+Updating tech/bus/usb/gadget
+Updating tech/bus/usb/phy
+Updating tech/debug/eud
+Updating tech/debug/hwtracing
+Updating tech/debug/rdbg
+Updating tech/pmic/backlight
+Updating tech/pmic/mfd
+Updating tech/pmic/misc
+Updating tech/pmic/regulator
+Updating tech/pmic/supply
+Updating tech/mem/dma-buf
+Updating tech/mem/iommu
+Updating tech/mm/audio/all
+Updating tech/mm/audio/soundwire
+Updating tech/mm/camss
+Updating tech/mm/drm
+Updating tech/mm/fastrpc
+Updating tech/mm/phy
+Updating tech/mm/video
+Updating tech/mm/gpu
+Updating tech/mproc/rpmsg
+Updating tech/mproc/qmi
+Updating tech/net/ath
+Updating tech/net/eth
+Updating tech/net/rmnet
+Updating tech/net/qrtr
+Updating tech/net/phy
+Updating tech/net/bluetooth
+Updating tech/pm/opp
+Updating tech/pm/pmdomain
+Updating tech/pm/power
+Updating tech/pm/thermal
+Updating tech/security/crypto
+Updating tech/security/fscrypt
+Updating tech/security/ice
+Updating tech/storage/nvmem
+Updating tech/storage/phy
+Updating tech/storage/all
+Updating tech/virt/gunyah
+Updating tech/all/dt/qcs6490
+Updating tech/all/dt/qcs9100
+Updating tech/all/dt/qcs8300
+Updating tech/all/dt/qcs615
+Updating tech/all/dt/agatti
+Updating tech/all/dt/eliza
+Updating tech/all/dt/hamoa
+Updating tech/all/dt/glymur
+Updating tech/all/dt/kaanapali
+Updating tech/all/dt/pakala
+Updating tech/all/shikra
+Updating tech/all/config
+Updating tech/overlay/dt
+Updating tech/all/workaround
+Updating tech/mproc/all
+Updating tech/noup/debug/all
+Updating tech/hwe/unoq
+Updating early/hwe/nord
+Updating early/hwe/staging/nord
+Done, updated 0 remote(s).
+Updating baseline ...
+Fetching baseline
+latest tag/id is df2908090cda368b01ff43709f51890076c56157
+Done, updated baseline.
+Latest tag is df2908090cda368b01ff43709f51890076c56157
+Create a new integration branch based on df2908090cda368b01ff43709f51890076c56157
+Merging topic branches...
+------------------------------------------
+ ** Merging topic branch: tech/bsp/clk/tech/bsp/clk
+Merge successful : tech/bsp/clk : b6621533052784e753ea37738f720695d47222de : 14
+------------------------------------------
+ ** Merging topic branch: tech/bsp/devfreq/tech/bsp/devfreq
+Merge successful : tech/bsp/devfreq : 0837ca4afab5ff6397284116dfad794b0b7884d5 : 7
+------------------------------------------
+ ** Merging topic branch: tech/bsp/ec/tech/bsp/ec
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bsp/interconnect/tech/bsp/interconnect
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bsp/sched/tech/bsp/sched
+Merge successful : tech/bsp/sched : 9c2e4b84127fad717127330d24ab248fa60324c6 : 3
+------------------------------------------
+ ** Merging topic branch: tech/mem/secure-buffer/tech/mem/secure-buffer
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/security/firmware-smc/tech/security/firmware-smc
+Merge successful : tech/security/firmware-smc : 16b0235a686da585922566fe2aeee447e100fbfd : 9
+------------------------------------------
+ ** Merging topic branch: tech/bsp/soc-infra/tech/bsp/soc-infra
+Merge successful : tech/bsp/soc-infra : ff6ff7b65a2f4ba4822a6a5343f949b43cd6e87f : 22
+------------------------------------------
+ ** Merging topic branch: tech/debug/soc/tech/debug/soc
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bsp/pinctrl/tech/bsp/pinctrl
+Merge successful : tech/bsp/pinctrl : 79149ef6a826d6237346aa74eca65ccbe19d761f : 1
+------------------------------------------
+ ** Merging topic branch: tech/bsp/remoteproc/tech/bsp/remoteproc
+Merge successful : tech/bsp/remoteproc : 8c716bcd0b5eca15711a114434340d2f89cbf4d1 : 1
+------------------------------------------
+ ** Merging topic branch: tech/bus/peripherals/tech/bus/peripherals
+Merge successful : tech/bus/peripherals : c191e3d5ebc7f7b700781e0cbcf7b4bd25b05e5f : 10
+------------------------------------------
+ ** Merging topic branch: tech/bus/pci/all/tech/bus/pci/all
+Merge successful : tech/bus/pci/all : 99c5b3564dd6c75d2885c0a70083e079506a4b3a : 40
+------------------------------------------
+ ** Merging topic branch: tech/bus/pci/mhi/tech/bus/pci/mhi
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bus/pci/phy/tech/bus/pci/phy
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bus/pci/pwrctl/tech/bus/pci/pwrctl
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bus/usb/dwc/tech/bus/usb/dwc
+Merge successful : tech/bus/usb/dwc : d90fb648965d84287c830a389cc7c0981d3ecc3a : 4
+------------------------------------------
+ ** Merging topic branch: tech/bus/usb/gadget/tech/bus/usb/gadget
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/bus/usb/phy/tech/bus/usb/phy
+Merge failed, manual merge
+No files need merging
+[qcom-next 663cb68fc4c3] Merge remote-tracking branch tech/bus/usb/phy into qcom-next
+Merge successful : tech/bus/usb/phy : c3aa7d5c9b171a9fb9ae9d1a9adf4dab251508f9 : 35
+------------------------------------------
+ ** Merging topic branch: tech/debug/eud/tech/debug/eud
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/debug/hwtracing/tech/debug/hwtracing
+Merge failed, manual merge
+No files need merging
+[qcom-next 868bd5d9abdb] Merge remote-tracking branch tech/debug/hwtracing into qcom-next
+Merge successful : tech/debug/hwtracing : 257e1ef77cbc24733aea9f372c3ab4e718bb1e42 : 26
+------------------------------------------
+ ** Merging topic branch: tech/debug/rdbg/tech/debug/rdbg
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/pmic/backlight/tech/pmic/backlight
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/pmic/mfd/tech/pmic/mfd
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/pmic/misc/tech/pmic/misc
+Merge successful : tech/pmic/misc : e7bb3661d7c0c0d4b88fd96951d0a698a46953fd : 12
+------------------------------------------
+ ** Merging topic branch: tech/pmic/regulator/tech/pmic/regulator
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/pmic/supply/tech/pmic/supply
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/mem/dma-buf/tech/mem/dma-buf
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/mem/iommu/tech/mem/iommu
+Merge successful : tech/mem/iommu : cdc9e8034c64ae939077d3780be625bea6b923e9 : 9
+------------------------------------------
+ ** Merging topic branch: tech/mm/audio/all/tech/mm/audio/all
+Merge successful : tech/mm/audio/all : 762de76480c4d16a3a024861853c6f9740ba7682 : 2
+------------------------------------------
+ ** Merging topic branch: tech/mm/audio/soundwire/tech/mm/audio/soundwire
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/mm/camss/tech/mm/camss
+Merge successful : tech/mm/camss : f9a60f5efa1ef82d3272bae242ff9f46758af7f1 : 43
+------------------------------------------
+ ** Merging topic branch: tech/mm/drm/tech/mm/drm
+Merge successful : tech/mm/drm : a5b4a5e7c8a9192bb0a9a4b2a9d274420502a1a6 : 66
+------------------------------------------
+ ** Merging topic branch: tech/mm/fastrpc/tech/mm/fastrpc
+Merge successful : tech/mm/fastrpc : fab5742543b3ac30feddcc3e21abf5c5367813e3 : 4
+------------------------------------------
+ ** Merging topic branch: tech/mm/phy/tech/mm/phy
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/mm/video/tech/mm/video
+Merge successful : tech/mm/video : bfab35ed24034deed5d01ab0dbfde7b4d5f1b831 : 47
+------------------------------------------
+ ** Merging topic branch: tech/mm/gpu/tech/mm/gpu
+Merge successful : tech/mm/gpu : e065d5a06609e29946cba06a8c42b5e084c16e98 : 1
+------------------------------------------
+ ** Merging topic branch: tech/mproc/rpmsg/tech/mproc/rpmsg
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/mproc/qmi/tech/mproc/qmi
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/net/ath/tech/net/ath
+Merge successful : tech/net/ath : 284d6dc3cbd6f452d5e9b010a2416b61c2a35891 : 7
+------------------------------------------
+ ** Merging topic branch: tech/net/eth/tech/net/eth
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/net/rmnet/tech/net/rmnet
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/net/qrtr/tech/net/qrtr
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/net/phy/tech/net/phy
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/net/bluetooth/tech/net/bluetooth
+Merge failed, manual merge
+No files need merging
+[qcom-next 6579f113f3e9] Merge remote-tracking branch tech/net/bluetooth into qcom-next
+Merge successful : tech/net/bluetooth : e352848cad1444a9125ebad6768024cc8a9cc0c4 : 8
+------------------------------------------
+ ** Merging topic branch: tech/pm/opp/tech/pm/opp
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/pm/pmdomain/tech/pm/pmdomain
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/pm/power/tech/pm/power
+Merge successful : tech/pm/power : 0d87ce236fd0e4357b4d40af130488ab62786b03 : 10
+------------------------------------------
+ ** Merging topic branch: tech/pm/thermal/tech/pm/thermal
+Merge failed, manual merge
+No files need merging
+[qcom-next 7ad4db489bd9] Merge remote-tracking branch tech/pm/thermal into qcom-next
+Merge successful : tech/pm/thermal : a58f3b37758209c94129647802ca3519d9e833ee : 8
+------------------------------------------
+ ** Merging topic branch: tech/security/crypto/tech/security/crypto
+Merge successful : tech/security/crypto : 4c71afd9e46a785c7c00563832fb1550503b011c : 13
+------------------------------------------
+ ** Merging topic branch: tech/security/fscrypt/tech/security/fscrypt
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/security/ice/tech/security/ice
+Merge successful : tech/security/ice : dc34f45bbd867d317614efdfeae9274d6c956454 : 14
+------------------------------------------
+ ** Merging topic branch: tech/storage/nvmem/tech/storage/nvmem
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/storage/phy/tech/storage/phy
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/storage/all/tech/storage/all
+Merge successful : tech/storage/all : cb6192d423c77eba8073f625b128b9eb384e72fa : 7
+------------------------------------------
+ ** Merging topic branch: tech/virt/gunyah/tech/virt/gunyah
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/qcs6490/tech/all/dt/qcs6490
+Merge failed, manual merge
+No files need merging
+[qcom-next 4a1ca6d5aab5] Merge remote-tracking branch tech/all/dt/qcs6490 into qcom-next
+Merge successful : tech/all/dt/qcs6490 : 55b5c3ba504a4bfaffcc548b6e4bc6e66f79c3c2 : 20
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/qcs9100/tech/all/dt/qcs9100
+Merge successful : tech/all/dt/qcs9100 : 3e3223b1d5284537c11ac9ff48f78031b8a62ea4 : 22
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/qcs8300/tech/all/dt/qcs8300
+Merge failed, manual merge
+No files need merging
+[qcom-next c9552b3e67a1] Merge remote-tracking branch tech/all/dt/qcs8300 into qcom-next
+Merge successful : tech/all/dt/qcs8300 : 6a513e3822028da35889d58dd755152132440a6b : 28
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/qcs615/tech/all/dt/qcs615
+Merge successful : tech/all/dt/qcs615 : c3eea9f1b49f374d19aee3339200cef537b6173b : 13
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/agatti/tech/all/dt/agatti
+Merge failed, manual merge
+No files need merging
+[qcom-next 6a9edfb3a11f] Merge remote-tracking branch tech/all/dt/agatti into qcom-next
+Merge successful : tech/all/dt/agatti : 2ca1b63b35a7e70a4a80398286211dee17729739 : 2
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/eliza/tech/all/dt/eliza
+Merge successful : tech/all/dt/eliza : 27098423a78829a53d9e7e5a7778e10d745b491b : 13
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/hamoa/tech/all/dt/hamoa
+Merge successful : tech/all/dt/hamoa : 3f57af0cddd8d6040b52f9c03d5cf23179e94468 : 34
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/glymur/tech/all/dt/glymur
+Merge successful : tech/all/dt/glymur : a43a2eb43cca64d1be221530287b86697b1fd9cc : 27
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/kaanapali/tech/all/dt/kaanapali
+Merge successful : tech/all/dt/kaanapali : 35871da42c8e59fbcebc42600dec196b62b35f40 : 17
+------------------------------------------
+ ** Merging topic branch: tech/all/dt/pakala/tech/all/dt/pakala
+Merge successful : tech/all/dt/pakala : 9e50a875ebd877c40e4e9141c518f6fbf6c3ca7d : 12
+------------------------------------------
+ ** Merging topic branch: tech/all/shikra/tech/all/shikra
+Merge failed, manual merge
+No files need merging
+[qcom-next fca8cea29325] Merge remote-tracking branch tech/all/shikra into qcom-next
+Merge successful : tech/all/shikra : bba76541e8668cd4a78d116ff4bf95f8bca0534d : 119
+------------------------------------------
+ ** Merging topic branch: tech/all/config/tech/all/config
+Merge successful : tech/all/config : 5dbc9677a47b8446b963fcdd7a05f0a864536b60 : 81
+------------------------------------------
+ ** Merging topic branch: tech/overlay/dt/tech/overlay/dt
+Merge failed, manual merge
+No files need merging
+[qcom-next 6171ddfb3cc6] Merge remote-tracking branch tech/overlay/dt into qcom-next
+Merge successful : tech/overlay/dt : 3c5f17cab4bb8e486c6db816b960b3adc7218cc9 : 85
+------------------------------------------
+ ** Merging topic branch: tech/all/workaround/tech/all/workaround
+Merge failed, manual merge
+No files need merging
+[qcom-next da46c497505b] Merge remote-tracking branch tech/all/workaround into qcom-next
+Merge successful : tech/all/workaround : 42fd14009e3d450e147c82dc1ec176cbe10590c5 : 13
+------------------------------------------
+ ** Merging topic branch: tech/mproc/all/tech/mproc/all
+Nothing to merge: Already up to date.
+------------------------------------------
+ ** Merging topic branch: tech/noup/debug/all/tech/noup/debug/all
+Merge failed, manual merge
+No files need merging
+[qcom-next 495aedef62fd] Merge remote-tracking branch tech/noup/debug/all into qcom-next
+Merge successful : tech/noup/debug/all : f017bf6f887ed0f8d4dab8daf094d220bfef2135 : 33
+------------------------------------------
+ ** Merging topic branch: tech/hwe/unoq/tech/hwe/unoq
+Merge failed, manual merge
+No files need merging
+[qcom-next 3cb5771048a0] Merge remote-tracking branch tech/hwe/unoq into qcom-next
+Merge successful : tech/hwe/unoq : a2d85fe547167dbd8fc59618907c20a6f17d2e5a : 4
+------------------------------------------
+ ** Merging topic branch: early/hwe/nord/early/hwe/nord
+Merge failed, manual merge
+No files need merging
+[qcom-next fbd504978152] Merge remote-tracking branch early/hwe/nord into qcom-next
+Merge successful : early/hwe/nord : 814d7721171b5eac3bd9f50f3fc1a20f3e673e6b : 74
+------------------------------------------
+ ** Merging topic branch: early/hwe/staging/nord/early/hwe/staging/nord
+Merge successful : early/hwe/staging/nord : 56b4e2cbac74b3df22bfad8962b59ad85c835063 : 89
+Done, merged 45 topic(s).
+[main 5918c14] New rr-cache entries from ci-merge
+ 6 files changed, 34526 insertions(+)
+ create mode 100644 rr-cache/4469d9fea413a04e7a443ca408fe61a6bcafdc2c/thisimage
+ create mode 100644 rr-cache/7868657d6c6c16f47c8fcddca1f6c137db15dc09/thisimage
+ create mode 100644 rr-cache/7a94ccc6c619c340a2b9b2bd36a0d30e70a29088/thisimage
+ create mode 100644 rr-cache/ad2712641cdae70d0092223eb11bf608d3cb247e/thisimage
+ create mode 100644 rr-cache/ed06083e9a679e65acdad0139daf27d92eb4a2e9/thisimage
+ create mode 100644 rr-cache/ee442ccd59d053d8ddc0a859e2259beb02a47021/thisimage
