@@ -224,6 +224,9 @@ noinstr int cpuidle_enter_state(struct cpuidle_device *dev,
 	bool broadcast = !!(target_state->flags & CPUIDLE_FLAG_TIMER_STOP);
 	ktime_t time_start, time_end;
 
+	if (cpus_peek_for_pending_ipi(cpumask_of(dev->cpu)))
+		return -EBUSY;
+
 	instrumentation_begin();
 
 	/*
