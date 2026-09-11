@@ -50,6 +50,8 @@
 /delete-node/ &thermal_video_1;
 /delete-node/ &tsens6;
 /delete-node/ &tsens7;
+/delete-node/ &pcie3a;
+/delete-node/ &pcie3_phy;
 
 &aggre1_noc {
 	compatible = "qcom,mahua-aggre1-noc", "qcom,glymur-aggre1-noc";
