@@ -882,6 +882,7 @@
 	embedded-controller@76 {
 		compatible = "qcom,glymur-crd-ec", "qcom,hamoa-crd-ec";
 		reg = <0x76>;
+		#thermal-sensor-cells = <1>;
 
 		interrupts-extended = <&tlmm 66 IRQ_TYPE_EDGE_FALLING>;
 
