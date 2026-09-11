@@ -4,6 +4,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/pm_runtime.h>
 
 #include "iris_core.h"
 #include "iris_debugfs.h"
@@ -20,8 +21,21 @@ static int iris_fw_level_get(void *data, u64 *val)
 static int iris_fw_level_set(void *data, u64 val)
 {
 	struct iris_core *core = data;
+	bool debug_enabled;
+	u32 fw_debug;
 
-	WRITE_ONCE(core->fw_debug, (u32)val & IRIS_FW_DEBUG_LOGMASK);
+	fw_debug = (u32)val & IRIS_FW_DEBUG_LOGMASK;
+	debug_enabled = fw_debug & ~IRIS_FW_DEBUG_DEFAULT;
+
+	WRITE_ONCE(core->fw_debug, fw_debug);
+
+	if (debug_enabled) {
+		WRITE_ONCE(core->hw_response_timeout, 4 * HW_RESPONSE_TIMEOUT_VALUE);
+		pm_runtime_set_autosuspend_delay(core->dev, 4 * AUTOSUSPEND_DELAY_VALUE);
+	} else {
+		WRITE_ONCE(core->hw_response_timeout, HW_RESPONSE_TIMEOUT_VALUE);
+		pm_runtime_set_autosuspend_delay(core->dev, AUTOSUSPEND_DELAY_VALUE);
+	}
 
 	return 0;
 }

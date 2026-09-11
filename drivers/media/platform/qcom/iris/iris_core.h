@@ -71,6 +71,7 @@ struct dentry;
  * @debug_queue: shared interface queue to receive debug info from firmware
  * @root: debugfs root directory
  * @fw_debug: firmware debug log mask
+ * @hw_response_timeout: hardware response timeout
  * @lock: a lock for this structure
  * @response_packet: a pointer to response packet from fw to driver
  * @header_id: id of packet header
@@ -126,6 +127,7 @@ struct iris_core {
 	struct iris_iface_q_info		debug_queue;
 	struct dentry				*root;
 	u32					fw_debug;
+	u32					hw_response_timeout;
 	struct mutex				lock; /* lock for core related operations */
 	u8					*response_packet;
 	u32					header_id;

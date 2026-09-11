@@ -112,6 +112,7 @@ struct iris_hfi_prop_type_handle {
 #define IRIS_FW_DEBUG_FATAL	0x00000010
 #define IRIS_FW_DEBUG_PERF	0x00000020
 #define IRIS_FW_DEBUG_LOGMASK	0x0fffffff
+#define IRIS_FW_DEBUG_DEFAULT	(IRIS_FW_DEBUG_ERROR | IRIS_FW_DEBUG_FATAL)
 
 struct iris_hfi_sys_ops {
 	int (*sys_init)(struct iris_core *core);
