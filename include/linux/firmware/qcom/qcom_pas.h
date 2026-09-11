@@ -11,6 +11,10 @@
 #include <linux/err.h>
 #include <linux/types.h>
 
+/* Names reported by qcom_pas_get_backend() for the active PAS backend. */
+#define QCOM_PAS_BACKEND_SCM	"qcom_scm"
+#define QCOM_PAS_BACKEND_TEE	"qcom-pas-tee"
+
 struct qcom_pas_context {
 	struct device *dev;
 	u32 pas_id;
@@ -22,6 +26,7 @@ struct qcom_pas_context {
 	bool use_tzmem;
 };
 
+const char *qcom_pas_get_backend(void);
 bool qcom_pas_is_available(void);
 struct qcom_pas_context *devm_qcom_pas_context_alloc(struct device *dev,
 						     u32 pas_id,
