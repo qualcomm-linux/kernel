@@ -39,75 +39,6 @@
                 };
         };
 
-	sound {
-		compatible = "qcom,shikra-iqs-sndcard";
-		model = "shikra-iqs-evk";
-
-		pinctrl-0 = <&i2s0_default>, <&ext_mclk2_active>;
-		pinctrl-names = "default";
-
-		audio-routing = "IN34", "Headset Mic",
-				"Headset Mic", "MICBIAS",
-				"DMICL", "Int Mic",
-				"Int Mic", "MICBIAS",
-				"Headphone", "HPL",
-				"Headphone", "HPR",
-				"Speaker", "SPKL",
-				"Speaker", "SPKR",
-				"VA DMIC0", "vdd-micb",
-				"VA DMIC1", "vdd-micb",
-				"VA DMIC2", "vdd-micb",
-				"VA DMIC3", "vdd-micb";
-
-		pri-i2s-playback-dai-link {
-			link-name = "Analog Playback";
-
-			codec {
-				sound-dai = <&max98091>;
-			};
-
-			cpu {
-				sound-dai = <&q6apmbedai PRIMARY_MI2S_RX>;
-			};
-
-			platform {
-				sound-dai = <&q6apm>;
-			};
-		};
-
-		pri-i2s-capture-dai-link {
-			link-name = "Analog Capture";
-
-			codec {
-				sound-dai = <&max98091>;
-			};
-
-			cpu {
-				sound-dai = <&q6apmbedai PRIMARY_MI2S_TX>;
-			};
-
-			platform {
-				sound-dai = <&q6apm>;
-			};
-		};
-
-		va-dmic-dai-link {
-			link-name = "VA DMIC Capture";
-
-			codec {
-				sound-dai = <&vamacro 0>;
-			};
-
-			cpu {
-				sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
-			};
-
-			platform {
-				sound-dai = <&q6apm>;
-			};
-		};
-	};
-
 	vreg_bt_3p3_dummy: regulator-bt-3p3-dummy {
 		compatible = "regulator-fixed";
 		regulator-name = "bt_3p3_dummy";
@@ -390,21 +321,6 @@
 
 &i2c3 {
 	status = "okay";
-
-	max98091: audio-codec@10 {
-		compatible = "maxim,max98091";
-		reg = <0x10>;
-
-		pinctrl-0 = <&max98091_default>;
-		pinctrl-names = "default";
-
-		interrupts-extended = <&tlmm 28 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&q6prmcc LPASS_CLK_ID_MCLK_2 LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-		clock-names = "mclk";
-		assigned-clocks = <&q6prmcc LPASS_CLK_ID_MCLK_2 LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-		assigned-clock-rates = <12288000>;
-		#sound-dai-cells = <0>;
-	};
 };
 
 &i2c4 {
@@ -585,17 +501,6 @@
         regulator-allow-set-load;
 };
 
-&q6apmbedai {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	dai@16 {
-		reg = <PRIMARY_MI2S_RX>;
-		clocks = <&q6prmcc LPASS_CLK_ID_AUD_INTF0_IBIT LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-		clock-names = "bclk";
-	};
-};
-
 &remoteproc_cdsp {
 	firmware-name = "qcom/shikra/cdsp.mbn";
 
@@ -649,14 +554,6 @@
 
 &tlmm {
 	gpio-reserved-ranges = <6 4>, <14 4>, <30 2>, <115 2>, <49 1>, <155 11>;
-
-	dmic_eldo_en_default: dmic-eldo-default-active-state {
-		pins = "gpio71";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-disable;
-		output-high;
-	};
 
 	ethernet0_defaults: ethernet0-defaults-state {
 		rgmii-rx-pins {
@@ -718,20 +615,6 @@
 		line-name = "emac1-phy-en";
 	};
 
-	ext_mclk2_active: ext-mclk2-state {
-		pins = "gpio110";
-		function = "ext_mclk";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
-	i2s0_default: i2s0-default-active-state {
-		pins = "gpio105", "gpio106", "gpio107", "gpio108", "gpio109";
-		function = "i2s0";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
 	lt9611_irq_pin: lt9611-irq-state {
 		pins = "gpio85";
 		function = "gpio";
@@ -744,12 +627,6 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
-	};
-
-	max98091_default: max98091-default-state {
-		pins = "gpio28";
-		function = "gpio";
-		bias-pull-up;
 	};
 };
 
@@ -791,20 +668,6 @@
 &usb_qmpphy {
 	vdda-phy-supply = <&pm8150_l6>;
 	vdda-pll-supply = <&pm8150_l12>;
-
-	status = "okay";
-};
-
-&vamacro {
-	clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-		 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-	clock-names = "mclk",
-		      "npl";
-
-	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&dmic_eldo_en_default>;
-	pinctrl-names = "default";
-
-	qcom,dmic-sample-rate = <4800000>;
 
 	status = "okay";
 };
