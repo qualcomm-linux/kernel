@@ -197,6 +197,8 @@ static const struct pci_device_id pwrseq_m2_pci_ids[] = {
 	  .driver_data = (kernel_ulong_t)"qcom,wcn6855-bt" },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x1107, PCI_VENDOR_ID_QCOM, 0x337c),
 	  .driver_data = (kernel_ulong_t)"qcom,wcn7850-bt" },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x1112),
+	  .driver_data = (kernel_ulong_t)"qcom,qcc2072-bt" },
 	{ } /* Sentinel */
 };
 
@@ -376,6 +378,21 @@ static void pwrseq_pcie_m2_remove_serdev(struct pwrseq_pcie_m2_ctx *ctx,
 	mutex_unlock(&ctx->list_lock);
 }
 
+static bool pwrseq_pcie_m2_pci_parent_matches(struct pci_dev *pdev,
+					       struct device_node *pci_parent)
+{
+	struct device *dev = pdev->dev.parent;
+
+	while (dev) {
+		if (dev->of_node == pci_parent)
+			return true;
+		if (!dev_is_pci(dev))
+			break;
+		dev = dev->parent;
+	}
+	return false;
+}
+
 static int pwrseq_pcie_m2_notify(struct notifier_block *nb, unsigned long action,
 			      void *data)
 {
@@ -390,7 +407,7 @@ static int pwrseq_pcie_m2_notify(struct notifier_block *nb, unsigned long action
 	 */
 	struct device_node *pci_parent __free(device_node) =
 			of_graph_get_remote_node(dev_of_node(ctx->dev), 0, 0);
-	if (!pci_parent || (pci_parent != pdev->dev.parent->of_node))
+	if (!pci_parent || !pwrseq_pcie_m2_pci_parent_matches(pdev, pci_parent))
 		return NOTIFY_DONE;
 
 	switch (action) {
@@ -476,7 +493,7 @@ static int pwrseq_pcie_m2_create_serdev(struct pwrseq_pcie_m2_ctx *ctx)
 
 	/* Create serdev for existing PCI devices if required */
 	for_each_pci_dev(pdev) {
-		if (!pdev->dev.parent || pci_parent != pdev->dev.parent->of_node)
+		if (!pwrseq_pcie_m2_pci_parent_matches(pdev, pci_parent))
 			continue;
 
 		if (pci_match_id(pwrseq_m2_pci_ids, pdev)) {
