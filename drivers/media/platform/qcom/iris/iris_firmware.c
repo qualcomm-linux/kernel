@@ -14,6 +14,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/soc/qcom/mdt_loader.h>
+#include <linux/string.h>
 
 #include "iris_core.h"
 #include "iris_firmware.h"
@@ -169,6 +170,7 @@ err_release_fw:
 int iris_fw_load(struct iris_core *core)
 {
 	const struct tz_cp_config *cp_config;
+	const char *pas_backend;
 	int i, ret;
 
 	ret = iris_load_fw_to_memory(core);
@@ -176,6 +178,15 @@ int iris_fw_load(struct iris_core *core)
 		dev_err(core->dev, "firmware download failed %d\n", ret);
 		return ret;
 	}
+
+	/*
+	 * qcom_scm_mem_protect_video_var() only applies to the SCM backend;
+	 * other backends (e.g. OP-TEE) own secure memory protection and do
+	 * not service this call.
+	 */
+	pas_backend = qcom_pas_get_backend();
+	if (!pas_backend || strcmp(pas_backend, QCOM_PAS_BACKEND_SCM))
+		return 0;
 
 	for (i = 0; i < core->iris_platform_data->tz_cp_config_data_size; i++) {
 		cp_config = &core->iris_platform_data->tz_cp_config_data[i];
