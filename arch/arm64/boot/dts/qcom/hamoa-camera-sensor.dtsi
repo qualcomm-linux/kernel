@@ -18,7 +18,7 @@
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
 		rgltr-cntrl-support;
 		pwm-switch;
-		rgltr-min-voltage = <1808000>;
+		rgltr-min-voltage = <1800000>;
 		rgltr-max-voltage = <1808000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
@@ -57,7 +57,7 @@
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
 		rgltr-cntrl-support;
 		pwm-switch;
-		rgltr-min-voltage = <1808000 2912000>;
+		rgltr-min-voltage = <1800000 2912000>;
 		rgltr-max-voltage = <1808000 2912000>;
 		rgltr-load-current = <120000 120000>;
 		gpio-no-mux = <0>;
@@ -95,7 +95,7 @@
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
 		rgltr-cntrl-support;
 		pwm-switch;
-		rgltr-min-voltage = <1808000 1808000 1056000 2800000>;
+		rgltr-min-voltage = <1800000 1800000 1056000 2800000>;
 		rgltr-max-voltage = <1808000 1808000 1200000 2800000>;
 		rgltr-load-current = <120000 120000 120000 120000>;
 		gpio-no-mux = <0>;
