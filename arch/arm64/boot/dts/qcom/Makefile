@@ -424,6 +424,21 @@ shikra-iqs-evk-imx577-camera-dtbs	:= shikra-iqs-evk.dtb shikra-iqs-evk-imx577-ca
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqm-evk-imx577-camera.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqs-evk-imx577-camera.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-evk-imx577-camera.dtb
+
+shikra-cqs-evk-camx-dtbs := shikra-cqs-evk.dtb shikra-cqs-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += shikra-cqs-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM) += shikra-cqs-evk-camx.dtbo
+
+shikra-cqm-evk-camx-dtbs := shikra-cqm-evk.dtb shikra-cqs-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += shikra-cqm-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM) += shikra-cqm-evk-camx.dtbo
+
+shikra-iqs-evk-camx-dtbs := shikra-iqs-evk.dtb shikra-iqs-evk-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += shikra-iqs-evk-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM) += shikra-iqs-evk-camx.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sm4250-oneplus-billie2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm4450-qrd.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm6115-fxtec-pro1x.dtb
@@ -654,14 +669,7 @@ qcs9100-ride-r3-camx-dtbs:= qcs9100-ride-r3.dtb sa8775p-ride-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3-camx.dtb
 
-sa8775p-ride-camx-dtbs:= sa8775p-ride.dtb sa8775p-ride-camx.dtbo
-
-dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-camx.dtbo
-
-sa8775p-ride-r3-camx-dtbs:= sa8775p-ride-r3.dtb sa8775p-ride-camx.dtbo
-
-dtb-$(CONFIG_ARCH_QCOM)	+= sa8775p-ride-r3-camx.dtb
 
 talos-evk-camx-dtbs	:= talos-evk.dtb talos-evk-camx.dtbo
 
