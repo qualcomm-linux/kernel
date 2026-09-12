@@ -75,8 +75,8 @@ static inline void msm_dp_write_pn(struct msm_dp_panel_private *panel,
 				   u32 offset, u32 data)
 {
 	/*
-	 * To make sure interface reg writes happens before any other operation,
-	 * this function uses writel() instread of writel_relaxed()
+	 * Use writel() instead of writel_relaxed() to ensure the interface
+	 * register write reaches the hardware before subsequent operations.
 	 */
 	writel(data, panel->pixel_base + offset);
 }
@@ -85,8 +85,8 @@ static inline u32 msm_dp_read_pn(struct msm_dp_panel_private *panel,
 				 u32 offset)
 {
 	/*
-	 * To make sure interface reg writes happens before any other operation,
-	 * this function uses writel() instread of writel_relaxed()
+	 * Only reads a configuration register: no DMA or memory ordering is
+	 * required, so readl_relaxed() is sufficient.
 	 */
 	return readl_relaxed(panel->pixel_base + offset);
 }
