@@ -55,6 +55,7 @@ config RAS_CEC_DEBUG
 	  file that dumps out the current state of all pages logged so far.
 
 source "drivers/ras/amd/atl/Kconfig"
+source "drivers/ras/aest/Kconfig"
 
 config RAS_FMPM
 	tristate "FRU Memory Poison Manager"

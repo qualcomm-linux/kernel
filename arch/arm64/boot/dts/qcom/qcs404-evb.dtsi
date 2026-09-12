@@ -101,10 +101,12 @@
 &pcie {
 	status = "okay";
 
-	perst-gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
-
 	pinctrl-names = "default";
 	pinctrl-0 = <&perst_state>;
+};
+
+&pcie0_port0 {
+	reset-gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
 };
 
 &pcie_phy {

@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/msm/qcom,nord-mdss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Nord display subsystem (MDSS)
+
+maintainers:
+  - Linux Kernel
+
+description: |
+  Nord display subsystem consists of MDSS (display controller), DPU 1499A
+  (display processing unit), and display interface controllers (DP only, no DSI).
+  This is MDSS 12.1, DP-only, with 2 independent DP controllers.
+
+properties:
+  compatible:
+    const: qcom,nord-mdss
+
+  reg:
+    maxItems: 1
+
+  reg-names:
+    const: mdss
+
+  power-domains:
+    maxItems: 1
+
+  clocks:
+    minItems: 3
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: iface
+      - const: bus
+      - const: vsync
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+
+  iommus:
+    maxItems: 1
+
+  "#address-cells":
+    const: 2
+
+  "#size-cells":
+    const: 2
+
+  ranges: true
+
+patternProperties:
+  "^display-controller@[0-9a-f]+$":
+    type: object
+    description: DPU display controller
+
+  "^phy@[0-9a-f]+$":
+    type: object
+    description: DP PHY
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+  - "#address-cells"
+  - "#size-cells"
+
+examples:
+  - |
+    mdss@ae00000 {
+      compatible = "qcom,nord-mdss";
+      reg = <0 0xae00000 0 0xf0000>;
+      reg-names = "mdss";
+      power-domains = <&dispcc 0>;
+      clocks = <&dispcc 0>,
+               <&dispcc 1>,
+               <&dispcc 2>;
+      clock-names = "iface", "bus", "vsync";
+      interrupts = <0 83 4>;
+      interrupt-controller;
+      #interrupt-cells = <1>;
+      iommus = <&smmu 0x800 0x420>;
+      #address-cells = <2>;
+      #size-cells = <2>;
+      ranges;
+    };

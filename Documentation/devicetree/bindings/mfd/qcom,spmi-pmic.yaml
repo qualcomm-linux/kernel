@@ -74,6 +74,7 @@ properties:
           - qcom,pm8994
           - qcom,pm8998
           - qcom,pma8084
+          - qcom,pmau0102
           - qcom,pmc8180
           - qcom,pmc8180c
           - qcom,pmc8380
@@ -147,7 +148,11 @@ patternProperties:
 
   "^audio-codec@[0-9a-f]+$":
     type: object
-    $ref: /schemas/sound/qcom,pm8916-wcd-analog-codec.yaml#
+    oneOf:
+      - $ref: /schemas/sound/qcom,pm8916-wcd-analog-codec.yaml#
+      - properties:
+          compatible:
+            const: qcom,pm4125-codec
 
   "^battery@[0-9a-f]+$":
     type: object
@@ -193,6 +198,10 @@ patternProperties:
   "^rtc@[0-9a-f]+$":
     type: object
     $ref: /schemas/rtc/qcom-pm8xxx-rtc.yaml#
+
+  "^sensor@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/hwmon/qcom,pm7250b-bcl.yaml#
 
   "^temp-alarm@[0-9a-f]+$":
     type: object

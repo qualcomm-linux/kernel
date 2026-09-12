@@ -5,9 +5,10 @@
 #define __QCOM_SND_COMMON_H__
 
 #include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,qaif.h>
 #include <sound/soc.h>
 
-#define LPASS_MAX_PORT			(LPI_MI2S_TX_6 + 1)
+#define LPASS_MAX_PORT			(QAIF_CDC_DMA_VA_TX9 + 1)
 
 struct qcom_snd_tdm_slot_cfg {
 	unsigned int tx_mask;

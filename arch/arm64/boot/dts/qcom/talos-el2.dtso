@@ -5,6 +5,8 @@
  * Talos specific modifications required to boot in EL2.
  */
 
+#include <dt-bindings/media/qcom,qcs615-venus.h>
+
 /dts-v1/;
 /plugin/;
 
@@ -21,5 +23,6 @@
 };
 
 &venus {
-	status = "disabled";
+	iommu-map = <VENUS_FIRMWARE &apps_smmu 0xe42 0x0 0x1>;
+	status = "okay";
 };
