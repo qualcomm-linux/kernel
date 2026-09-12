@@ -5,7 +5,6 @@
 
 /dts-v1/;
 
-#include <dt-bindings/sound/qcom,qaif.h>
 #include "shikra-cqm-som.dtsi"
 #include "shikra-evk.dtsi"
 #include <dt-bindings/gpio/gpio.h>
@@ -46,7 +45,11 @@
 
 		audio-routing = "IN1_HPHL", "HPHL_OUT",
 				"IN2_HPHR", "HPHR_OUT",
+				"AMIC1", "MIC BIAS1",
 				"AMIC2", "MIC BIAS2",
+				"AMIC3", "MIC BIAS3",
+				"VA SWR_INPUT0", "ADC1_OUTPUT",
+				"VA SWR_INPUT1", "ADC2_OUTPUT",
 				"VA DMIC0", "vdd-micb",
 				"VA DMIC1", "vdd-micb",
 				"VA DMIC2", "vdd-micb",
@@ -65,7 +68,7 @@
 			};
 
 			cpu {
-				sound-dai = <&qaif_cpu QAIF_CDC_DMA_VA_TX0>;
+				sound-dai = <&qaif_cpu VA_CODEC_DMA_TX_1>;
 			};
 		};
 
@@ -79,7 +82,7 @@
 			};
 
 			cpu {
-				sound-dai = <&qaif_cpu QAIF_CDC_DMA_RX0>;
+				sound-dai = <&qaif_cpu RX_CODEC_DMA_RX_1>;
 			};
 		};
 
@@ -87,11 +90,18 @@
 			link-name = "WSA Speaker Playback";
 
 			codec {
-				sound-dai = <&wsa885x_i2c>;
+				sound-dai = <&wsa8855>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				dai-tdm-slot-rx-mask = <1 1>;
 			};
 
 			cpu {
-				sound-dai = <&qaif_cpu QAIF_MI2S_TDM_AIF2>;
+				sound-dai = <&qaif_cpu AIF_TDM_RX_2>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-tx-mask = <1 1>;
 			};
 		};
 
@@ -103,7 +113,7 @@
 			};
 
 			cpu {
-				sound-dai = <&qaif_cpu QAIF_CDC_DMA_VA_TX0>;
+				sound-dai = <&qaif_cpu VA_CODEC_DMA_TX_0>;
 			};
 		};
 	};
@@ -255,10 +265,6 @@
 	};
 };
 
-&gpr {
-	status = "disabled";
-};
-
 &gpu {
 	status = "okay";
 };
@@ -267,50 +273,27 @@
 	firmware-name = "qcom/shikra/a704_zap.mbn";
 };
 
+&gpr {
+	status = "disabled";
+};
+
 &i2c3 {
 	status = "okay";
 
-	wsa885x_i2c: speaker@c {
-		compatible = "qcom,wsa885x-i2c";
+	wsa8855: speaker@c {
+		compatible = "qcom,wsa8855";
 		reg = <0x0c>;
 
+		pinctrl-0 = <&wsa8855_spkr_sd_n>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&wsa885x_i2c_spkr_sd_n>;
 
-		interrupt-gpios = <&tlmm 77 GPIO_ACTIVE_HIGH>;
 		powerdown-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <77 IRQ_TYPE_EDGE_FALLING>;
 		vdd-1p8-supply = <&pm4125_l15>;
 		vdd-io-supply = <&pm4125_l15>;
-		qcom,battery-config = <2>;
+		qcom,battery-config = "1s";
 
-		qcom,wsa885x-init-table =
-			<0x8470 0x2
-			0x8470 0x0
-			0x8470 0x1
-			0x0004 0x1
-			0x8602 0x60
-			0x8622 0x60
-			0x8458 0x79
-			0x810B 0xD9
-			0x8111 0xD9
-			0x813C 0x08
-			0x8102 0x04
-			0x811C 0x29
-			0x811D 0x40
-			0x8129 0x40
-			0x811A 0x80
-			0x8126 0x80
-			0x8103 0x6
-			0x80CA 0x85
-			0x80CB 0xE
-			0x80CC 0xC
-			0x80D0 0x80
-			0x80BA 0xC0
-			0x841C 0x4E
-			0x8435 0x47
-			0x86CE 0x09
-			0x8667 0x34
-			0x800D 0x08>;
 		#sound-dai-cells = <0>;
 	};
 };
@@ -478,28 +461,6 @@
 	remote-endpoint = <&usb_qmpphy_out>;
 };
 
-&qaif_cpu {
-	status = "okay";
-
-	qaif_aif_if2: aif-interface@2 {
-		compatible = "qcom,qaif-tdm-dai";
-		reg = <QAIF_MI2S_TDM_AIF2>;
-		qcom,qaif-aif-sync-mode = <QAIF_AIF_SYNC_MODE_LONG>;
-		qcom,qaif-aif-sync-src = <QAIF_AIF_SYNC_SRC_MASTER>;
-		qcom,qaif-aif-sync-delay = <1>;
-		qcom,qaif-aif-slot-width-rx = <32>;
-		qcom,qaif-aif-slot-width-tx = <32>;
-		qcom,qaif-aif-slot-en-rx-mask = <0x3>;
-		qcom,qaif-aif-slot-en-tx-mask = <0x3>;
-		qcom,qaif-aif-ctrl-data-oe;
-		/* Lane 0: RX (mic); Lane 1: TX (speaker) */
-		qcom,qaif-aif-lane-config = <QAIF_AIF_LANE_ENABLE QAIF_AIF_LANE_DIR_RX>,
-					<QAIF_AIF_LANE_ENABLE QAIF_AIF_LANE_DIR_TX>;
-		/* frame length = slot-width (32) * bits-per-lane (2) = 64 bits */
-		qcom,qaif-aif-bits-per-lane = <2>;
-	};
-};
-
 &remoteproc_cdsp {
 	firmware-name = "qcom/shikra/cdsp.mbn";
 
@@ -594,7 +555,7 @@
 	pm4125_tx: codec@0,3 {
 		compatible = "sdw20217010c00";
 		reg = <0 3>;
-		qcom,tx-port-mapping = <2 2 3 4>;
+		qcom,tx-port-mapping = <2 3>;
 	};
 };
 
@@ -701,7 +662,7 @@
 		output-high;
 	};
 
-	wsa885x_i2c_spkr_sd_n: wsa885x-i2c-spkr-sd-n-active-state {
+	wsa8855_spkr_sd_n: wsa8855-spkr-sd-n-active-state {
 		pins = "gpio2";
 		function = "gpio";
 		input-disable;
@@ -759,14 +720,6 @@
 	status = "okay";
 };
 
-&vamacro {
-	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&tx_swr_active>;
-	pinctrl-names = "default";
-
-	qcom,dmic-sample-rate = <4800000>;
-	status = "okay";
-};
-
 &wifi {
 	vdd-0.8-cx-mx-supply = <&pm4125_l7>;
 	vdd-1.8-xo-supply = <&vreg_pmu_xo>;
@@ -775,5 +728,13 @@
 	qcom,calibration-variant = "Shikra_EVK";
 	firmware-name = "shikra";
 
+	status = "okay";
+};
+
+&vamacro {
+	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&tx_swr_active>;
+	pinctrl-names = "default";
+
+	qcom,dmic-sample-rate = <4800000>;
 	status = "okay";
 };

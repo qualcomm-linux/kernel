@@ -27,6 +27,18 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	lcd_bias: regulator-lcd-bias {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_bias";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&pm4125_l17>;
+		gpio = <&tlmm 151 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-0 = <&lcd_bias_en>;
+		pinctrl-names = "default";
+	};
+
 	sound {
 		compatible = "qcom,shikra-cqs-sndcard";
 		model = "shikra-cqs-evk";
@@ -37,7 +49,50 @@
 		audio-routing = "VA DMIC0", "vdd-micb",
 				"VA DMIC1", "vdd-micb",
 				"VA DMIC2", "vdd-micb",
-				"VA DMIC3", "vdd-micb";
+				"VA DMIC3", "vdd-micb",
+				"VA SWR_INPUT0", "ADC1_OUTPUT",
+				"VA SWR_INPUT1", "ADC2_OUTPUT",
+				"AMIC1", "MIC BIAS1",
+				"AMIC2", "MIC BIAS2",
+				"AMIC3", "MIC BIAS3",
+				"IN1_HPHL", "HPHL_OUT",
+				"IN2_HPHR", "HPHR_OUT";
+
+		wcd-playback-dai-link {
+			link-name = "Headphones Playback";
+
+			codec {
+				sound-dai = <&pmic4125_codec 0>,
+					<&swr0 0>,
+					<&rxmacro 0>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai RX_CODEC_DMA_RX_1>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		wcd-capture-dai-link {
+			link-name = "Headphones capture";
+
+			codec {
+				sound-dai = <&pmic4125_codec 1>,
+					<&swr1 0>,
+					<&vamacro 0>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_1>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
 
 		va-dmic-dai-link {
 			link-name = "VA DMIC Capture";
@@ -59,7 +114,7 @@
 			link-name = "WSA Playback";
 
 			codec {
-				sound-dai = <&wsa885x_i2c>;
+				sound-dai = <&wsa8855>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <32>;
 				dai-tdm-slot-rx-mask = <1 1>;
@@ -76,18 +131,6 @@
 				sound-dai = <&q6apm>;
 			};
 		};
-	};
-
-	lcd_bias: regulator-lcd-bias {
-		compatible = "regulator-fixed";
-		regulator-name = "lcd_bias";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&pm4125_l17>;
-		gpio = <&tlmm 151 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		pinctrl-0 = <&lcd_bias_en>;
-		pinctrl-names = "default";
 	};
 
 	vreg_0p9: regulator-0v9 {
@@ -145,7 +188,6 @@
 			};
 		};
 	};
-
 };
 
 &audiocorecc {
@@ -250,47 +292,19 @@
 &i2c3 {
 	status = "okay";
 
-	wsa885x_i2c: speaker@c {
-		compatible = "qcom,wsa885x-i2c";
+	wsa8855: speaker@c {
+		compatible = "qcom,wsa8855";
 		reg = <0x0c>;
 
+		pinctrl-0 = <&wsa8855_spkr_sd_n>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&wsa885x_i2c_spkr_sd_n>;
 
-		interrupt-gpios = <&tlmm 77 GPIO_ACTIVE_HIGH>;
 		powerdown-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <77 IRQ_TYPE_EDGE_FALLING>;
 		vdd-1p8-supply = <&pm4125_l15>;
 		vdd-io-supply = <&pm4125_l15>;
-		qcom,battery-config = <2>;
-
-		qcom,wsa885x-init-table =
-			<0x8470 0x2
-			0x8470 0x0
-			0x8470 0x1
-			0x0004 0x1
-			0x8602 0x60
-			0x8622 0x60
-			0x8458 0x79
-			0x810B 0xD9
-			0x8111 0xD9
-			0x813C 0x08
-			0x8102 0x04
-			0x811C 0x29
-			0x811D 0x40
-			0x8129 0x40
-			0x811A 0x80
-			0x8126 0x80
-			0x8103 0x6
-			0x80CA 0x85
-			0x80CB 0xE
-			0x80CC 0xC
-			0x80D0 0x80
-			0x80BA 0xC0
-			0x841C 0x4E
-			0x8435 0x47
-			0x86CE 0x09
-			0x8667 0x34
-			0x800D 0x08>;
+		qcom,battery-config = "1s";
 
 		#sound-dai-cells = <0>;
 	};
@@ -464,8 +478,7 @@
 	#size-cells = <0>;
 	dai@40 {
 		reg = <SECONDARY_TDM_RX_0>;
-		clocks = <&q6prmcc LPASS_CLK_ID_AUD_INTF2_IBIT
-				 LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clocks = <&q6prmcc LPASS_CLK_ID_AUD_INTF2_IBIT LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
 		clock-names = "bclk";
 	};
 };
@@ -485,6 +498,18 @@
 
 &remoteproc_mpss {
 	firmware-name = "qcom/shikra/cqs/qdsp6sw.mbn";
+
+	status = "okay";
+};
+
+&rxmacro {
+	clocks = <&q6prmcc LPASS_CLK_ID_RX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+		 <&q6prmcc LPASS_CLK_ID_RX_CORE_NPL_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+		 <&vamacro>;
+
+	clock-names = "mclk",
+		      "npl",
+		      "fsgen";
 
 	status = "okay";
 };
@@ -623,7 +648,7 @@
 		output-high;
 	};
 
-	wsa885x_i2c_spkr_sd_n: wsa885x-i2c-spkr-sd-n-active-state {
+	wsa8855_spkr_sd_n: wsa8855-spkr-sd-n-active-state {
 		pins = "gpio2";
 		function = "gpio";
 		drive-strength = <8>;
@@ -639,6 +664,49 @@
 		compatible = "st,st33htpm-spi", "tcg,tpm_tis-spi";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
+	};
+};
+
+&spmi_bus {
+	pmic@0 {
+		pmic4125_codec: audio-codec@f000 {
+			compatible = "qcom,pm4125-codec";
+			reg = <0xf000>;
+			vdd-io-supply = <&pm4125_l15>;
+			vdd-cp-supply = <&pm4125_s1>;
+			vdd-pa-vpos-supply = <&pm4125_s1>;
+
+			vdd-mic-bias-supply = <&pm4125_l22>;
+			qcom,micbias1-microvolt = <1800000>;
+			qcom,micbias2-microvolt = <1800000>;
+			qcom,micbias3-microvolt = <1800000>;
+
+			qcom,rx-device = <&pm4125_rx>;
+			qcom,tx-device = <&pm4125_tx>;
+			#sound-dai-cells = <1>;
+
+			status = "okay";
+		};
+	};
+};
+
+&swr0 {
+	status = "okay";
+
+	pm4125_rx: codec@0,4 {
+		compatible = "sdw20217010c00";
+		reg = <0 4>;
+		qcom,rx-port-mapping = <1 2 3 4 5 >;
+	};
+};
+
+&swr1 {
+	status = "okay";
+
+	pm4125_tx: codec@0,3 {
+		compatible = "sdw20217010c00";
+		reg = <0 3>;
+		qcom,tx-port-mapping = <2 3>;
 	};
 };
 
@@ -682,6 +750,17 @@
 	status = "okay";
 };
 
+&wifi {
+	vdd-0.8-cx-mx-supply = <&pm4125_l7>;
+	vdd-1.8-xo-supply = <&vreg_pmu_xo>;
+	vdd-1.3-rfa-supply = <&vreg_pmu_rf>;
+	vdd-3.3-ch0-supply = <&vreg_pmu_ch0>;
+	qcom,calibration-variant = "Shikra_EVK";
+	firmware-name = "shikra";
+
+	status = "okay";
+};
+
 &vamacro {
 	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&tx_swr_active>;
 	pinctrl-names = "default";
@@ -692,16 +771,5 @@
 		      "npl";
 
 	qcom,dmic-sample-rate = <4800000>;
-	status = "okay";
-};
-
-&wifi {
-	vdd-0.8-cx-mx-supply = <&pm4125_l7>;
-	vdd-1.8-xo-supply = <&vreg_pmu_xo>;
-	vdd-1.3-rfa-supply = <&vreg_pmu_rf>;
-	vdd-3.3-ch0-supply = <&vreg_pmu_ch0>;
-	qcom,calibration-variant = "Shikra_EVK";
-	firmware-name = "shikra";
-
 	status = "okay";
 };

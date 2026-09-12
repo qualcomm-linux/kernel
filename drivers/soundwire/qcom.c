@@ -25,8 +25,9 @@
 #define SWRM_COMP_SW_RESET					0x008
 #define SWRM_COMP_STATUS					0x014
 #define SWRM_LINK_MANAGER_EE					0x018
-#define SWRM_EE_CPU						1
-#define SWRM_MAX_EE						1
+#define SWRM_EE_CPU0						0
+#define SWRM_EE_CPU1						1
+#define SWRM_EE_CPU						SWRM_EE_CPU1
 #define SWRM_FRM_GEN_ENABLED					BIT(0)
 #define SWRM_VERSION_1_3_0					0x01030000
 #define SWRM_VERSION_1_5_1					0x01050001
@@ -225,8 +226,8 @@ struct qcom_swrm_ctrl {
 	u32 slave_status;
 	u32 wr_fifo_depth;
 	u32 rd_fifo_depth;
-	bool clock_stop_not_supported;
 	unsigned int reg_layout_local[SWRM_OFFSET_DP_SAMPLECTRL2_BANK + 1];
+	bool clock_stop_not_supported;
 };
 
 struct qcom_swrm_data {
@@ -235,6 +236,7 @@ struct qcom_swrm_data {
 	bool sw_clk_gate_required;
 	u32 max_reg;
 	const unsigned int *reg_layout;
+	u32 ee;
 };
 
 static const unsigned int swrm_v1_3_reg_layout[] = {
@@ -261,6 +263,7 @@ static const struct qcom_swrm_data swrm_v1_3_data = {
 	.default_cols = 16,
 	.max_reg = SWR_V1_3_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v1_3_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const struct qcom_swrm_data swrm_v1_5_data = {
@@ -268,6 +271,7 @@ static const struct qcom_swrm_data swrm_v1_5_data = {
 	.default_cols = 16,
 	.max_reg = SWR_V1_3_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v1_3_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const struct qcom_swrm_data swrm_v1_6_data = {
@@ -276,6 +280,7 @@ static const struct qcom_swrm_data swrm_v1_6_data = {
 	.sw_clk_gate_required = true,
 	.max_reg = SWR_V1_3_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v1_3_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const unsigned int swrm_v2_0_reg_layout[] = {
@@ -303,6 +308,7 @@ static const struct qcom_swrm_data swrm_v2_0_data = {
 	.sw_clk_gate_required = true,
 	.max_reg = SWR_V2_0_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v2_0_reg_layout,
+	.ee = SWRM_EE_CPU,
 };
 
 static const unsigned int swrm_v3_0_reg_layout[] = {
@@ -330,6 +336,16 @@ static const struct qcom_swrm_data swrm_v3_0_data = {
 	.sw_clk_gate_required = true,
 	.max_reg = SWR_V2_0_MSTR_MAX_REG_ADDR,
 	.reg_layout = swrm_v3_0_reg_layout,
+	.ee = SWRM_EE_CPU,
+};
+
+static const struct qcom_swrm_data swrm_shikra_data = {
+	.default_rows = 50,
+	.default_cols = 16,
+	.sw_clk_gate_required = true,
+	.max_reg = SWR_V2_0_MSTR_MAX_REG_ADDR,
+	.reg_layout = swrm_v3_0_reg_layout,
+	.ee = SWRM_EE_CPU0,
 };
 #define to_qcom_sdw(b)	container_of(b, struct qcom_swrm_ctrl, bus)
 
@@ -346,8 +362,10 @@ static void qcom_swrm_set_ee_register_layout(struct qcom_swrm_ctrl *ctrl,
 		return;
 
 	/*
-	 * Current register constants map EE1. For EE0, use the EE register
-	 * window stride to access status/IRQ/FIFO registers.
+	 * The register layout constants are defined for EE1 (the default for
+	 * most Qualcomm SoCs). For SoCs where the SoundWire master is assigned
+	 * to EE0, the interrupt, FIFO and status register windows are shifted
+	 * by one EE stride (0x1000) relative to the EE1 base addresses.
 	 */
 	ee_offset = ((int)ctrl->ee - SWRM_EE_CPU) * SWRM_V2_REG_EE_STRIDE;
 	if (!ee_offset)
@@ -1598,22 +1616,8 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data = of_device_get_match_data(dev);
-	ctrl->ee = SWRM_EE_CPU;
-	ret = of_property_read_u32(dev->of_node, "qcom,swr-master-ee-val", &ctrl->ee);
-	if (ret)
-		ret = of_property_read_u32(dev->of_node, "qcom,ee", &ctrl->ee);
-	if (ret)
-		ctrl->ee = SWRM_EE_CPU;
-	if (ctrl->ee > SWRM_MAX_EE) {
-		dev_warn(dev, "invalid SoundWire EE %u, using EE%u\n",
-			 ctrl->ee, SWRM_EE_CPU);
-		ctrl->ee = SWRM_EE_CPU;
-	}
+	ctrl->ee = data->ee;
 	ctrl->max_reg = data->max_reg;
-	/*
-	 * Defer EE register window selection until HW version is known.
-	 * For v2.0+ the IRQ/FIFO window is EE-banked.
-	 */
 	ctrl->reg_layout = data->reg_layout;
 	ctrl->rows_index = sdw_find_row_index(data->default_rows);
 	ctrl->cols_index = sdw_find_col_index(data->default_cols);
@@ -1890,6 +1894,7 @@ static const struct of_device_id qcom_swrm_of_match[] = {
 	{ .compatible = "qcom,soundwire-v1.7.0", .data = &swrm_v1_5_data },
 	{ .compatible = "qcom,soundwire-v2.0.0", .data = &swrm_v2_0_data },
 	{ .compatible = "qcom,soundwire-v3.1.0", .data = &swrm_v3_0_data },
+	{ .compatible = "qcom,shikra-soundwire", .data = &swrm_shikra_data },
 	{/* sentinel */},
 };
 
