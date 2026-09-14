@@ -20556,6 +20556,7 @@ R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-kernel-pscrr
+F:	Documentation/devicetree/bindings/nvmem/layouts/pscrr-nvmem.yaml
 F:	drivers/power/reset/pscrr/
 F:	include/linux/pscrr.h
 F:	tools/testing/selftests/pscrr/
