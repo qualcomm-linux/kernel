@@ -31,3 +31,17 @@ menuconfig PSCRR
 	  unless hardware provides the reset cause.
 
 	  If unsure, say N.
+
+if PSCRR
+
+config PSCRR_NVMEM
+	tristate "PSCRR NVMEM recorder provider"
+	depends on NVMEM_LAYOUTS
+	help
+	  PSCRR recorder that stores the power state change reason in a
+	  small NVMEM cell (such as an RTC scratch register) and reads it
+	  back on the next boot, so the cause survives a power cycle.
+
+	  If unsure, say N.
+
+endif # PSCRR
