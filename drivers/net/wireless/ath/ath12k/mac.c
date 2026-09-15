@@ -3780,6 +3780,79 @@ static int ath12k_mac_vif_recalc_sta_he_txbf(struct ath12k *ar,
 	return 0;
 }
 
+static int ath12k_mac_vif_recalc_sta_eht_txbf(struct ath12k *ar,
+					      struct ath12k_link_vif *arvif,
+					      struct ieee80211_link_sta *link_sta,
+					      u32 *ehtmode)
+{
+	const struct ieee80211_sta_eht_cap *peer_eht_cap;
+	const struct ieee80211_sta_eht_cap *own_eht_cap;
+	const struct ieee80211_sband_iftype_data *iftd;
+	struct ieee80211_vif *vif = arvif->ahvif->vif;
+	struct ieee80211_bss_conf *link_conf;
+	struct cfg80211_chan_def def;
+	enum nl80211_band band;
+	u8 mu_bformer;
+
+	*ehtmode = 0;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	link_conf = ath12k_mac_get_link_bss_conf(arvif);
+	if (!link_conf) {
+		ath12k_warn(ar->ab, "unable to access bss link conf in recalc eht txbf conf\n");
+		return -EINVAL;
+	}
+
+	if (!link_conf->eht_support || !link_sta->eht_cap.has_eht)
+		return 0;
+
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
+		return -EINVAL;
+
+	band = def.chan->band;
+	iftd = ieee80211_get_sband_iftype_data(&ar->mac.sbands[band], vif->type);
+	if (!iftd) {
+		ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+			   "unable to access iftype data in recalc eht txbf conf\n");
+		return 0;
+	}
+
+	own_eht_cap = &iftd->eht_cap;
+	peer_eht_cap = &link_sta->eht_cap;
+
+	if (!own_eht_cap->has_eht)
+		return 0;
+
+	*ehtmode |= u32_encode_bits(EHT_DL_MUOFDMA_ENABLE, EHT_MODE_DL_OFDMA) |
+		    u32_encode_bits(EHT_UL_MUOFDMA_ENABLE, EHT_MODE_UL_OFDMA);
+
+	if ((own_eht_cap->eht_cap_elem.phy_cap_info[0] &
+	     IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE) &&
+	    (peer_eht_cap->eht_cap_elem.phy_cap_info[0] &
+	     IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER))
+		*ehtmode |= u32_encode_bits(EHT_SU_BFEE_ENABLE, EHT_MODE_SU_TX_BFEE);
+
+	switch (link_sta->bandwidth) {
+	case IEEE80211_STA_RX_BW_320:
+		mu_bformer = IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_320MHZ;
+		break;
+	case IEEE80211_STA_RX_BW_160:
+		mu_bformer = IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ;
+		break;
+	default:
+		mu_bformer = IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ;
+		break;
+	}
+
+	if (u32_get_bits(*ehtmode, EHT_MODE_SU_TX_BFEE) &&
+	    (peer_eht_cap->eht_cap_elem.phy_cap_info[7] & mu_bformer))
+		*ehtmode |= u32_encode_bits(EHT_MU_BFEE_ENABLE, EHT_MODE_MU_TX_BFEE);
+
+	return 0;
+}
+
 static int ath12k_mac_set_eht_txbf_conf(struct ath12k_link_vif *arvif)
 {
 	struct ath12k_vif *ahvif = arvif->ahvif;
@@ -3923,6 +3996,7 @@ static void ath12k_bss_assoc(struct ath12k *ar,
 	struct ath12k_sta *ahsta;
 	struct ath12k_dp_link_peer *peer;
 	bool is_auth = false;
+	u32 ehtmode = 0;
 	u32 hemode = 0;
 	int ret;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ar->ab);
@@ -3977,6 +4051,14 @@ static void ath12k_bss_assoc(struct ath12k *ar,
 		return;
 	}
 
+	ret = ath12k_mac_vif_recalc_sta_eht_txbf(ar, arvif, link_sta, &ehtmode);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to recalc eht txbf for vdev %i on bss %pM: %d\n",
+			    arvif->vdev_id, bss_conf->bssid, ret);
+		rcu_read_unlock();
+		return;
+	}
+
 	rcu_read_unlock();
 
 	/* keep this before ath12k_wmi_send_peer_assoc_cmd() */
@@ -3985,6 +4067,15 @@ static void ath12k_bss_assoc(struct ath12k *ar,
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to submit vdev param txbf 0x%x: %d\n",
 			    hemode, ret);
+		return;
+	}
+
+	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
+					    WMI_VDEV_PARAM_SET_EHT_MU_MODE,
+					    ehtmode);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to submit vdev param eht txbf 0x%x: %d\n",
+			    ehtmode, ret);
 		return;
 	}
 
