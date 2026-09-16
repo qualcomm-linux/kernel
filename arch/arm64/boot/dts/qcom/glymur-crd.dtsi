@@ -609,6 +609,20 @@
 	};
 };
 
+&thermal_zones {
+	ec-soc-thermal {
+		thermal-sensors = <&ec 0>;
+	};
+
+	ec-kbd-thermal {
+		thermal-sensors = <&ec 1>;
+	};
+
+	ec-cover-thermal {
+		thermal-sensors = <&ec 2>;
+	};
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 
@@ -879,7 +893,7 @@
 
 	status = "okay";
 
-	embedded-controller@76 {
+	ec: embedded-controller@76 {
 		compatible = "qcom,glymur-crd-ec", "qcom,hamoa-crd-ec";
 		reg = <0x76>;
 		#thermal-sensor-cells = <1>;
