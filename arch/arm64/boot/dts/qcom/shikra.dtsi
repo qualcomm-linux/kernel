@@ -696,34 +696,6 @@
 				bias-pull-down;
 			};
 
-			mclk0_default: mclk0-default-state {
-				pins = "gpio34";
-				function = "cam_mclk";
-				drive-strength = <2>;
-				bias-disable;
-			};
-
-			mclk1_default: mclk1-default-state {
-				pins = "gpio35";
-				function = "cam_mclk";
-				drive-strength = <2>;
-				bias-disable;
-			};
-
-			mclk2_default: mclk2-default-state {
-				pins = "gpio96";
-				function = "cam_mclk";
-				drive-strength = <2>;
-				bias-disable;
-			};
-
-			mclk3_default: mclk3-default-state {
-				pins = "gpio98";
-				function = "cam_mclk";
-				drive-strength = <2>;
-				bias-disable;
-			};
-
 			qup_i2c0_data_clk: qup-i2c0-data-clk-state {
 				/* SDA, SCL */
 				pins = "gpio2", "gpio3";
