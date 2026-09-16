@@ -1428,7 +1428,6 @@ static bool csiphy_is_gen2(u32 version)
 
 	switch (version) {
 	case CAMSS_2290:
-	case CAMSS_2390:
 	case CAMSS_6150:
 	case CAMSS_7280:
 	case CAMSS_8250:
@@ -1470,7 +1469,6 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 		}
 		break;
 	case CAMSS_2290:
-	case CAMSS_2390:
 	case CAMSS_6150:
 		if (c->phy_cfg == V4L2_MBUS_CSI2_DPHY) {
 			regs->lane_regs = &lane_regs_qcm2290[0];
