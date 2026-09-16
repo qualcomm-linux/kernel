@@ -13,17 +13,89 @@
 #include "camss.h"
 #include "camss-vfe.h"
 
-#define IS_VFE_980(vfe)		((vfe)->camss->res->version == CAMSS_8750)
+struct vfe_gen4_hw_info {
+	u32 bus_reg_base;
+	u32 bus_reg_base_lite;
+	s32 test_bus_ctrl_offset; /* relative to the bus register base */
+	u8 rdi_wm_offset;
+	u8 rdi_wm_offset_lite;
+	u8 addr_shift; /* ADDR_IMAGE address unit */
+	bool has_wm_cgc_override;
+};
 
-#define BUS_REG_BASE_980	(vfe_is_lite(vfe) ? 0x200 : 0x800)
-#define BUS_REG_BASE_1080	(vfe_is_lite(vfe) ? 0x800 : 0x1000)
-#define BUS_REG_BASE \
-	    (IS_VFE_980(vfe) ? BUS_REG_BASE_980 : BUS_REG_BASE_1080)
+static const struct vfe_gen4_hw_info vfe_900_hw_info = {
+	.bus_reg_base = 0xA00,
+	.bus_reg_base_lite = 0x700,
+	.test_bus_ctrl_offset = -0x1BC,
+	.rdi_wm_offset = 0x1C,
+	.rdi_wm_offset_lite = 0x0,
+	.addr_shift = 0,
+	.has_wm_cgc_override = false,
+};
+
+static const struct vfe_gen4_hw_info vfe_980_hw_info = {
+	.bus_reg_base = 0x800,
+	.bus_reg_base_lite = 0x200,
+	.test_bus_ctrl_offset = 0x128,
+	.rdi_wm_offset = 0x17,
+	.rdi_wm_offset_lite = 0x0,
+	.addr_shift = 8,
+	.has_wm_cgc_override = true,
+};
+
+static const struct vfe_gen4_hw_info vfe_1080_hw_info = {
+	.bus_reg_base = 0x1000,
+	.bus_reg_base_lite = 0x800,
+	.test_bus_ctrl_offset = 0x128,
+	.rdi_wm_offset = 0x17,
+	.rdi_wm_offset_lite = 0x0,
+	.addr_shift = 8,
+	.has_wm_cgc_override = true,
+};
+
+static inline const struct vfe_gen4_hw_info *
+vfe_gen4_get_hw_info(struct vfe_device *vfe)
+{
+	switch (vfe->camss->res->version) {
+	case CAMSS_NORD:
+		return &vfe_900_hw_info;
+	case CAMSS_8750:
+		return &vfe_980_hw_info;
+	default:
+		return &vfe_1080_hw_info;
+	}
+}
+
+static inline u32 vfe_gen4_bus_reg_base(struct vfe_device *vfe)
+{
+	const struct vfe_gen4_hw_info *hw_info = vfe_gen4_get_hw_info(vfe);
+
+	return vfe_is_lite(vfe) ? hw_info->bus_reg_base_lite :
+		hw_info->bus_reg_base;
+}
+
+static inline u32 vfe_gen4_test_bus_ctrl(struct vfe_device *vfe)
+{
+	const struct vfe_gen4_hw_info *hw_info = vfe_gen4_get_hw_info(vfe);
+
+	return vfe_gen4_bus_reg_base(vfe) + hw_info->test_bus_ctrl_offset;
+}
+
+static inline u8 vfe_gen4_rdi_wm(struct vfe_device *vfe, u8 rdi)
+{
+	const struct vfe_gen4_hw_info *hw_info = vfe_gen4_get_hw_info(vfe);
+
+	return rdi + (vfe_is_lite(vfe) ? hw_info->rdi_wm_offset_lite :
+		hw_info->rdi_wm_offset);
+}
+
+/* VFE-gen4 Bus Register Base Addresses */
+#define BUS_REG_BASE				(vfe_gen4_bus_reg_base(vfe))
 
 #define VFE_BUS_WM_CGC_OVERRIDE			(BUS_REG_BASE + 0x08)
 #define		WM_CGC_OVERRIDE_ALL			(0x7FFFFFF)
 
-#define VFE_BUS_WM_TEST_BUS_CTRL		(BUS_REG_BASE + 0x128)
+#define VFE_BUS_WM_TEST_BUS_CTRL		(vfe_gen4_test_bus_ctrl(vfe))
 
 #define VFE_BUS_WM_CFG(n)			(BUS_REG_BASE + 0x500 + (n) * 0x100)
 #define		WM_CFG_EN				BIT(0)
@@ -87,18 +159,36 @@
  * RDI3			3
  * GAMMA		4
  * STATES_BE		5
+ *
+ * v900 full IFE write master client map: the RDI clients start at 28,
+ * after the 28 image/stats clients (0-27):
+ *
+ * MAIN C0/C1/C2/UV		0-3
+ * PIXEL_RAW			4
+ * W_IR				5
+ * AI_1 C0/C1/C2/UV		6-9
+ * AI_2 C0/C1/C2/UV		10-13
+ * HV_DS16 / HV_DS4		14-15
+ * STATS BG_IR..BLTM		16-27
+ * RDI0				28
+ * RDI1				29
+ * RDI2				30
+ * ... RDI11			39
+ *
+ * v900 IFE Lite matches the generic map above (RDI0 at client 0).
  */
-#define RDI_WM(n) ((vfe_is_lite(vfe) ? 0x0 : 0x17) + (n))
 
 static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 {
 	struct v4l2_pix_format_mplane *pix =
 		&line->video_out.active_fmt.fmt.pix_mp;
 
-	wm = RDI_WM(wm);
+	wm = vfe_gen4_rdi_wm(vfe, wm);
 
 	/* no clock gating at bus input */
-	writel(WM_CGC_OVERRIDE_ALL, vfe->base + VFE_BUS_WM_CGC_OVERRIDE);
+	if (vfe_gen4_get_hw_info(vfe)->has_wm_cgc_override)
+		writel(WM_CGC_OVERRIDE_ALL,
+		       vfe->base + VFE_BUS_WM_CGC_OVERRIDE);
 
 	writel(0x0, vfe->base + VFE_BUS_WM_TEST_BUS_CTRL);
 
@@ -127,15 +217,19 @@ static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 
 static void vfe_wm_stop(struct vfe_device *vfe, u8 wm)
 {
-	wm = RDI_WM(wm);
+	wm = vfe_gen4_rdi_wm(vfe, wm);
 	writel(0, vfe->base + VFE_BUS_WM_CFG(wm));
 }
 
 static void vfe_wm_update(struct vfe_device *vfe, u8 wm, u32 addr,
 			  struct vfe_line *line)
 {
-	wm = RDI_WM(wm);
-	writel(addr >> 8, vfe->base + VFE_BUS_WM_IMAGE_ADDR(wm));
+	const struct vfe_gen4_hw_info *hw_info = vfe_gen4_get_hw_info(vfe);
+
+	wm = vfe_gen4_rdi_wm(vfe, wm);
+
+	writel(addr >> hw_info->addr_shift,
+	       vfe->base + VFE_BUS_WM_IMAGE_ADDR(wm));
 
 	dev_dbg(vfe->camss->dev, "wm:%d, image buf addr:0x%x\n", wm, addr);
 }
