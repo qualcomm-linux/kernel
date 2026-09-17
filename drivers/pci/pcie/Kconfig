@@ -146,3 +146,19 @@ config PCIE_EDR
 	  the PCI Firmware Specification r3.2.  Enable this if you want to
 	  support hybrid DPC model which uses both firmware and OS to
 	  implement DPC.
+
+config PCIE_BW_ONDEMAND
+	bool "PCIe on-demand link speed scaling"
+	depends on PCIEPORTBUS && PM_DEVFREQ
+	default y
+	help
+	  Enable devfreq-based on-demand PCIe Link Speed scaling. Downstream
+	  device drivers report activity via pcie_bwctrl_note_activity();
+	  bwctrl uses this to scale Link Speed up or down through the
+	  simple_ondemand governor.
+
+	  Changing Link Speed requires link retraining, which briefly
+	  interrupts I/O and may affect other devices sharing the same Root
+	  Port/switch.
+
+	  If unsure, say N.

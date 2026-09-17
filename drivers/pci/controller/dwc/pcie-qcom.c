@@ -374,6 +374,10 @@ static void qcom_pcie_set_slot_nccs(struct dw_pcie *pci)
 	val |= PCI_EXP_SLTCAP_NCCS;
 	writel(val, pci->dbi_base + offset + PCI_EXP_SLTCAP);
 
+	val = readl(pci->dbi_base + offset + PCI_EXP_LNKCAP);
+	val |= PCI_EXP_LNKCAP_LBNC;
+	writel(val, pci->dbi_base + offset + PCI_EXP_LNKCAP);
+
 	dw_pcie_dbi_ro_wr_dis(pci);
 }
 
@@ -1288,6 +1292,10 @@ static int qcom_pcie_post_init_2_9_0(struct qcom_pcie *pcie)
 
 	val = readl(pci->dbi_base + offset + PCI_EXP_LNKCAP);
 	val &= ~PCI_EXP_LNKCAP_ASPMS;
+	writel(val, pci->dbi_base + offset + PCI_EXP_LNKCAP);
+
+	val = readl(pci->dbi_base + offset + PCI_EXP_LNKCAP);
+	val |= PCI_EXP_LNKCAP_LBNC;
 	writel(val, pci->dbi_base + offset + PCI_EXP_LNKCAP);
 
 	writel(PCI_EXP_DEVCTL2_COMP_TMOUT_DIS, pci->dbi_base + offset +

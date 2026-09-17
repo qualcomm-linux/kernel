@@ -21,6 +21,7 @@
 #include <linux/nodemask.h>
 #include <linux/once.h>
 #include <linux/pci.h>
+#include <linux/pci-bwctrl.h>
 #include <linux/suspend.h>
 #include <linux/t10-pi.h>
 #include <linux/types.h>
@@ -392,6 +393,25 @@ struct nvme_queue {
 	__le32 *dbbuf_cq_ei;
 	struct completion delete_done;
 };
+
+/*
+ * Report request byte transitions to bwctrl's on-demand PCIe Link Speed
+ * scaling. Admin-queue traffic (keep-alives, log page/identify, etc.) is
+ * excluded so link speed tracks actual data I/O, not driver housekeeping.
+ */
+static void nvme_pci_note_activity(struct nvme_queue *nvmeq, struct request *req,
+				   bool submit)
+{
+	s64 bytes = blk_rq_bytes(req);
+
+	if (!nvmeq->qid)
+		return;
+
+	if (!submit)
+		bytes = -bytes;
+
+	pcie_bwctrl_note_activity(to_pci_dev(nvmeq->dev->dev), bytes);
+}
 
 /* bits for iod->flags */
 enum nvme_iod_flags {
@@ -1457,6 +1477,7 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return ret;
 	spin_lock(&nvmeq->sq_lock);
 	nvme_sq_copy_cmd(nvmeq, &iod->cmd);
+	nvme_pci_note_activity(nvmeq, req, true);
 	nvme_write_sq_db(nvmeq, bd->last);
 	spin_unlock(&nvmeq->sq_lock);
 	return BLK_STS_OK;
@@ -1474,6 +1495,7 @@ static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct rq_list *rqlist)
 		struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
 		nvme_sq_copy_cmd(nvmeq, &iod->cmd);
+		nvme_pci_note_activity(nvmeq, req, true);
 	}
 	nvme_write_sq_db(nvmeq, true);
 	spin_unlock(&nvmeq->sq_lock);
@@ -1518,10 +1540,13 @@ static void nvme_queue_rqs(struct rq_list *rqlist)
 
 static __always_inline void nvme_pci_unmap_rq(struct request *req)
 {
+	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
+
 	if (blk_integrity_rq(req))
 		nvme_unmap_metadata(req);
 	if (blk_rq_nr_phys_segments(req))
 		nvme_unmap_data(req);
+	nvme_pci_note_activity(nvmeq, req, false);
 }
 
 static void nvme_pci_complete_rq(struct request *req)
@@ -3752,6 +3777,8 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev = nvme_pci_alloc_dev(pdev, id);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
+
+	pcie_bwctrl_register(pdev);
 
 	result = nvme_add_ctrl(&dev->ctrl);
 	if (result)

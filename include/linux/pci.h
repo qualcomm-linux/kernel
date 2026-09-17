@@ -428,6 +428,7 @@ struct pci_dev {
 	unsigned int	clear_retrain_link:1;	/* Need to clear Retrain Link
 						   bit manually */
 	unsigned int	no_bw_notif:1;	/* BW notifications may cause issues */
+	unsigned int	bwctrl_participate:1;	/* Driver opted into bwctrl bandwidth scaling */
 	unsigned int	d3hot_delay;	/* D3hot->D0 transition time in ms */
 	unsigned int	d3cold_delay;	/* D3cold->D0 transition time in ms */
 
@@ -664,6 +665,7 @@ struct pci_host_bridge {
 	unsigned int	msi_domain:1;		/* Bridge wants MSI domain */
 	unsigned int	broken_l1ss_resume:1;	/* Resuming from L1SS during
 						   system suspend is broken */
+	unsigned int	disable_aspm_for_retrain:1; /* Disable ASPM before link retain */
 
 	/* Resource alignment requirements */
 	resource_size_t (*align_resource)(struct pci_dev *dev,
