@@ -163,6 +163,14 @@
 			reg = <0x0 0xd0600000 0x0 0x100000>;
 			no-map;
 		};
+
+		audio_cma_mem: qcom,audio-ml {
+			compatible = "shared-dma-pool";
+			alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
+			reusable;
+			alignment = <0x0 0x400000>;
+			size = <0x0 0x1000000>;
+		};
 	};
 
 	gpio-keys {
