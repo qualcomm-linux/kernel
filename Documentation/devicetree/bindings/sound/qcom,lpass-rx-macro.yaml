@@ -66,6 +66,7 @@ allOf:
         compatible:
           enum:
             - qcom,sc7280-lpass-rx-macro
+            - qcom,shikra-lpass-rx-macro
     then:
       properties:
         clock-names:

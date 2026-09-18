@@ -10,8 +10,6 @@
 #define LPASS_MACRO_FLAG_HAS_NPL_CLOCK		BIT(0)
 /* The soundwire block should be internally reset at probe */
 #define LPASS_MACRO_FLAG_RESET_SWR		BIT(1)
-/* FS counter control bit[7] must be toggled (v4.0) */
-#define LPASS_MACRO_FLAG_BYPASS_FS_CONTROL	BIT(2)
 
 enum lpass_version {
 	LPASS_VER_9_0_0,
@@ -32,7 +30,7 @@ enum lpass_codec_version {
 	LPASS_CODEC_VERSION_2_7,
 	LPASS_CODEC_VERSION_2_8,
 	LPASS_CODEC_VERSION_2_9,
-	LPASS_CODEC_VERSION_4_0,
+	LPASS_CODEC_VERSION_4_1,
 };
 
 struct lpass_macro {
@@ -71,8 +69,10 @@ static inline const char *lpass_macro_get_codec_version_string(int version)
 		return "v2.7";
 	case LPASS_CODEC_VERSION_2_8:
 		return "v2.8";
-	case LPASS_CODEC_VERSION_4_0:
-		return "v4.0";
+	case LPASS_CODEC_VERSION_2_9:
+		return "v2.9";
+	case LPASS_CODEC_VERSION_4_1:
+		return "v4.1";
 	default:
 		break;
 	}

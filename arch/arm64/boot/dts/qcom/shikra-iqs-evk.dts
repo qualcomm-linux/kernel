@@ -795,20 +795,6 @@
 	status = "okay";
 };
 
-&vamacro {
-	clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-		 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-	clock-names = "mclk",
-		      "npl";
-
-	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&dmic_eldo_en_default>;
-	pinctrl-names = "default";
-
-	qcom,dmic-sample-rate = <4800000>;
-
-	status = "okay";
-};
-
 &wifi {
 	vdd-0.8-cx-mx-supply = <&pm8150_s4>;
 	vdd-1.8-xo-supply = <&vreg_pmu_xo>;
@@ -846,4 +832,18 @@
 		 */
 		output-high;
 	};
+};
+
+&vamacro {
+	clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+		 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+	clock-names = "mclk",
+		      "npl";
+
+	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&dmic_eldo_en_default>;
+	pinctrl-names = "default";
+
+	qcom,dmic-sample-rate = <4800000>;
+
+	status = "okay";
 };
