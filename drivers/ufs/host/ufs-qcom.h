@@ -331,6 +331,9 @@ struct ufs_qcom_host {
 	struct ufs_hba *hba;
 	struct ufs_pa_layer_attr dev_req_params;
 	struct clk_bulk_data *clks;
+	struct clk *tx_lane0_sync_clk;
+	struct clk *rx_lane0_sync_clk;
+	struct clk *rx_lane1_sync_clk;
 	u32 num_clks;
 	bool is_lane_clks_enabled;
 

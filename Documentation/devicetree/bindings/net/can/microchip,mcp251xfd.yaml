@@ -62,6 +62,12 @@ properties:
   "#gpio-cells":
     const: 2
 
+patternProperties:
+  "^.+-hog(-[0-9]+)?$":
+    type: object
+    required:
+      - gpio-hog
+
 required:
   - compatible
   - reg

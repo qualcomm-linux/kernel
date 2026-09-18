@@ -1032,11 +1032,11 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	for (int i = 0; (gbif_cx && gbif_cx[i].offset); i++)
 		gpu_write(gpu, gbif_cx[i].offset, gbif_cx[i].value);
 
-	if (adreno_is_a8xx(adreno_gpu)) {
-		gpu_write(gpu, REG_A6XX_GBIF_CX_CONFIG, 0x20023000);
+	if (adreno_is_a8xx(adreno_gpu) || adreno_is_a753(adreno_gpu)) {
+		gpu_write(gpu, REG_A7XX_GBIF_CX_CONFIG, 0x20023000);
 		gmu_write(gmu, REG_A6XX_GMU_MRC_GBIF_QOS_CTRL, 0x33);
 	} else if (adreno_is_a722(adreno_gpu))
-		gpu_rmw(gpu, REG_A6XX_GBIF_CX_CONFIG, GENMASK(31, 29),
+		gpu_rmw(gpu, REG_A7XX_GBIF_CX_CONFIG, GENMASK(31, 29),
 			FIELD_PREP(GENMASK(31, 29), 2));
 
 	/* Set up the lowest idle level on the GMU */

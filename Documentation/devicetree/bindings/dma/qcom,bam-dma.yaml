@@ -12,6 +12,15 @@ maintainers:
 
 allOf:
   - $ref: dma-controller.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: qcom,shikra-bam-dma
+    then:
+      properties:
+        qcom,vmid: false
 
 properties:
   compatible:
@@ -29,6 +38,8 @@ properties:
           - enum:
               # SDM845, SM6115, SM8150, SM8250 and QCM2290
               - qcom,bam-v1.7.4
+              # Shikra
+              - qcom,shikra-bam-dma
           - const: qcom,bam-v1.7.0
 
   clocks:
@@ -80,6 +91,21 @@ properties:
     description:
       Indicates that the bam is powered up by a remote processor but must be
       initialized by the local processor.
+
+  qcom,vmid:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
+    items:
+      minimum: 1
+      maximum: 63
+    description:
+      Destination VMIDs of the remote processor(s) that read the per-channel
+      descriptor FIFOs as an AXI master. When present, the driver SCM-assigns
+      each FIFO to these VMIDs so the remote access does not trigger an XPU
+      violation. HLOS is always retained as the source owner and must not be
+      listed. Optional even when the qcom,shikra-bam-dma compatible is
+      present; not valid on any other compatible in this schema.
 
   reg:
     maxItems: 1

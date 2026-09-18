@@ -8,34 +8,28 @@
 #include <linux/reset.h>
 
 #include "iris_instance.h"
+#include "iris_resources.h"
 #include "iris_vpu_common.h"
 
 #include "iris_vpu_register_defines.h"
 
-static u64 iris_vpu2_calc_freq(struct iris_inst *inst, size_t data_size)
+static int iris_vpu2_init_cb_devs(struct iris_core *core)
 {
-	struct platform_inst_caps *caps = inst->core->iris_platform_data->inst_caps;
-	struct v4l2_format *inp_f = inst->fmt_src;
-	u32 mbs_per_second, mbpf, height, width;
-	unsigned long vpp_freq, vsp_freq;
-	u32 fps = inst->frame_rate;
+	struct device *dev;
 
-	width = max(inp_f->fmt.pix_mp.width, inst->crop.width);
-	height = max(inp_f->fmt.pix_mp.height, inst->crop.height);
+	dev = iris_create_cb_dev(core, "video-firmware");
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
-	mbpf = NUM_MBS_PER_FRAME(height, width);
-	mbs_per_second = mbpf * fps;
+	core->fw_dev = dev;
 
-	vpp_freq = mbs_per_second * caps->mb_cycles_vpp;
+	return 0;
+}
 
-	/* 21 / 20 is overhead factor */
-	vpp_freq += vpp_freq / 20;
-	vsp_freq = mbs_per_second * caps->mb_cycles_vsp;
-
-	/* 10 / 7 is overhead factor */
-	vsp_freq += ((fps * data_size * 8) * 10) / 7;
-
-	return max(vpp_freq, vsp_freq);
+static void iris_vpu2_deinit_cb_devs(struct iris_core *core)
+{
+	if (core->fw_dev)
+		platform_device_unregister(to_platform_device(core->fw_dev));
 }
 
 const struct vpu_ops iris_vpu2_ops = {
@@ -43,6 +37,10 @@ const struct vpu_ops iris_vpu2_ops = {
 	.power_on_hw = iris_vpu_power_on_hw,
 	.power_off_controller = iris_vpu_power_off_controller,
 	.power_on_controller = iris_vpu_power_on_controller,
-	.calc_freq = iris_vpu2_calc_freq,
+	.calc_freq = iris_vpu2_calculate_frequency,
 	.set_hwmode = iris_vpu_set_hwmode,
+	.set_preset_registers = iris_vpu_set_preset_registers,
+	.interrupt_init = iris_vpu_interrupt_init,
+	.init_cb_devs = iris_vpu2_init_cb_devs,
+	.deinit_cb_devs = iris_vpu2_deinit_cb_devs,
 };

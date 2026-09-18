@@ -4,6 +4,7 @@
 
 #include <dt-bindings/sound/qcom,lpass.h>
 #include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,qaif.h>
 #include <linux/module.h>
 #include <sound/soc.h>
 #include "sdw.h"
@@ -41,6 +42,8 @@ static bool qcom_snd_is_sdw_dai(int id)
 	switch (id) {
 	case LPASS_CDC_DMA_TX3:
 	case LPASS_CDC_DMA_RX0:
+	case QAIF_CDC_DMA_VA_TX0:
+	case QAIF_CDC_DMA_RX0:
 		return true;
 	default:
 		break;
