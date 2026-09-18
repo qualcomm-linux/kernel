@@ -5,6 +5,7 @@
 
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/firmware/qcom/qcom_pas.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/iommu.h>
 #include <linux/of.h>
@@ -13,6 +14,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/soc/qcom/mdt_loader.h>
+#include <linux/string.h>
 
 #include "iris_core.h"
 #include "iris_firmware.h"
@@ -100,7 +102,7 @@ static const struct firmware *iris_detect_firmware(struct iris_core *core,
 
 static int iris_load_fw_to_memory(struct iris_core *core)
 {
-	struct qcom_scm_pas_context *ctx;
+	struct qcom_pas_context *ctx;
 	const struct firmware *firmware = NULL;
 	struct device *dev = core->dev;
 	struct resource res;
@@ -119,7 +121,7 @@ static int iris_load_fw_to_memory(struct iris_core *core)
 
 	dev = core->fw.dev ? : core->dev;
 
-	ctx = devm_qcom_scm_pas_context_alloc(dev, IRIS_PAS_ID, mem_phys, res_size);
+	ctx = devm_qcom_pas_context_alloc(dev, IRIS_PAS_ID, mem_phys, res_size);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -138,7 +140,7 @@ static int iris_load_fw_to_memory(struct iris_core *core)
 	}
 
 	ret = qcom_mdt_pas_load(ctx, firmware, fw_name, NULL);
-	qcom_scm_pas_metadata_release(ctx);
+	qcom_pas_metadata_release(ctx);
 	if (ret)
 		goto err_release_fw;
 
@@ -149,7 +151,7 @@ static int iris_load_fw_to_memory(struct iris_core *core)
 			goto err_release_fw;
 	}
 
-	ret = qcom_scm_pas_prepare_and_auth_reset(ctx);
+	ret = qcom_pas_prepare_and_auth_reset(ctx);
 	if (ret)
 		goto err_iommu_unmap;
 
@@ -168,6 +170,7 @@ err_release_fw:
 int iris_fw_load(struct iris_core *core)
 {
 	const struct tz_cp_config *cp_config;
+	const char *pas_backend;
 	int i, ret;
 
 	ret = iris_load_fw_to_memory(core);
@@ -175,6 +178,15 @@ int iris_fw_load(struct iris_core *core)
 		dev_err(core->dev, "firmware download failed %d\n", ret);
 		return ret;
 	}
+
+	/*
+	 * qcom_scm_mem_protect_video_var() only applies to the SCM backend;
+	 * other backends (e.g. OP-TEE) own secure memory protection and do
+	 * not service this call.
+	 */
+	pas_backend = qcom_pas_get_backend();
+	if (!pas_backend || strcmp(pas_backend, QCOM_PAS_BACKEND_SCM))
+		return 0;
 
 	for (i = 0; i < core->iris_platform_data->tz_cp_config_data_size; i++) {
 		cp_config = &core->iris_platform_data->tz_cp_config_data[i];
@@ -194,13 +206,13 @@ int iris_fw_load(struct iris_core *core)
 
 int iris_fw_unload(struct iris_core *core)
 {
-	struct qcom_scm_pas_context *ctx = core->fw.ctx;
+	struct qcom_pas_context *ctx = core->fw.ctx;
 	int ret;
 
 	if (!ctx)
 		return -EINVAL;
 
-	ret = qcom_scm_pas_shutdown(ctx->pas_id);
+	ret = qcom_pas_shutdown(ctx->pas_id);
 	if (core->fw.iommu_domain)
 		iommu_unmap(core->fw.iommu_domain, 0, ctx->mem_size);
 
@@ -210,7 +222,7 @@ int iris_fw_unload(struct iris_core *core)
 
 int iris_set_hw_state(struct iris_core *core, bool resume)
 {
-	return qcom_scm_set_remote_state(resume, 0);
+	return qcom_pas_set_remote_state(resume, 0);
 }
 
 int iris_fw_init(struct iris_core *core)
