@@ -718,6 +718,12 @@
 	};
 };
 
+&iris {
+	firmware-name = "qcom/vpu/vpu36_p4_s7.mbn";
+
+	status = "okay";
+};
+
 &mdss0 {
 	status = "okay";
 };
