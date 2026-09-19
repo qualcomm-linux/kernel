@@ -388,7 +388,6 @@ static int ufs_qcom_enable_lane_clks(struct ufs_qcom_host *host)
 		goto out_disable_rx_lane0;
 
 	host->is_lane_clks_enabled = true;
-
 	return 0;
 
 out_disable_rx_lane0:
