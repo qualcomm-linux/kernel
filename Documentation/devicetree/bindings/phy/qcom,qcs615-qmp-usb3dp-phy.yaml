@@ -18,6 +18,7 @@ properties:
   compatible:
     enum:
       - qcom,qcs615-qmp-usb3-dp-phy
+      - qcom,shikra-qmp-usb3-dp-phy
 
   reg:
     maxItems: 1
@@ -33,12 +34,18 @@ properties:
       - const: pipe
 
   resets:
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
 
   reset-names:
-    items:
-      - const: phy_phy
-      - const: dp_phy
+    oneOf:
+      - items:
+          - const: phy_phy
+          - const: dp_phy
+      - items:
+          - const: phy_phy
+          - const: dp_phy
+          - const: phy
 
   vdda-phy-supply: true
 
@@ -53,6 +60,19 @@ properties:
     const: 1
     description:
       See include/dt-bindings/phy/phy-qcom-qmp.h
+
+  orientation-switch: true
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Output endpoint of the PHY
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Incoming endpoint from the USB controller
 
   qcom,tcsr-reg:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -75,6 +95,22 @@ required:
   - "#clock-cells"
   - "#phy-cells"
   - qcom,tcsr-reg
+
+allOf:
+  - $ref: /schemas/usb/usb-switch.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,qcs615-qmp-usb3-dp-phy
+    then:
+      properties:
+        resets:
+          maxItems: 2
+        reset-names:
+          maxItems: 2
+        orientation-switch: false
+        ports: false
 
 additionalProperties: false
 

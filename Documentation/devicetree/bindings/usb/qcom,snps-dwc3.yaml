@@ -422,7 +422,6 @@ allOf:
               - qcom,msm8996-dwc3
               - qcom,qcs404-dwc3
               - qcom,sdm660-dwc3
-              - qcom,shikra-dwc3
               - qcom,sm6115-dwc3
               - qcom,sm6125-dwc3
     then:
@@ -498,6 +497,7 @@ allOf:
               - qcom,sdx55-dwc3
               - qcom,sdx65-dwc3
               - qcom,sdx75-dwc3
+              - qcom,shikra-dwc3
               - qcom,sm4250-dwc3
               - qcom,sm6350-dwc3
               - qcom,sm8150-dwc3

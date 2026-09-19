@@ -41,6 +41,11 @@ patternProperties:
             $ref: "#/$defs/qcom-shikra-tlmm-state"
         additionalProperties: false
 
+  "-hog(-[0-9]+)?$":
+    type: object
+    required:
+      - gpio-hog
+
 $defs:
   qcom-shikra-tlmm-state:
     type: object
