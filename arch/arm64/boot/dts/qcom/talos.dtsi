@@ -5186,6 +5186,7 @@
 					  "ss_phy_irq";
 
 			iommus = <&apps_smmu 0x140 0x0>;
+			dma-coherent;
 			power-domains = <&gcc USB30_PRIM_GDSC>;
 			required-opps = <&rpmhpd_opp_nom>;
 
@@ -5245,6 +5246,7 @@
 					  "dm_hs_phy_irq";
 
 			iommus = <&apps_smmu 0xe0 0x0>;
+			dma-coherent;
 			power-domains = <&gcc USB20_SEC_GDSC>;
 			required-opps = <&rpmhpd_opp_nom>;
 
