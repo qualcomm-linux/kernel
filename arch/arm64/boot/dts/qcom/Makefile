@@ -577,6 +577,16 @@ dtb-$(CONFIG_ARCH_QCOM)	+= monaco-rtss-mb.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-staging.dtbo
 
+nord-ride-sx-camx-dtbs    := nord-ride-sx.dtb nord-ride-sx-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)   += nord-ride-sx-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)   += nord-ride-sx-camx.dtbo
+
+nord-rrd-camx-dtbs        := nord-rrd.dtb nord-rrd-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)   += nord-rrd-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM)   += nord-rrd-camx.dtbo
+
 purwa-evk-camx-dtbs     := purwa-iot-evk.dtb purwa-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= purwa-evk-camx.dtb
