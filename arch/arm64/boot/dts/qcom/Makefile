@@ -188,8 +188,19 @@ dtb-$(CONFIG_ARCH_QCOM)	+= msm8998-sony-xperia-yoshino-maple.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8998-sony-xperia-yoshino-poplar.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8998-xiaomi-sagit.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= nord-ride.dtb
+
+nord-ride-el2-dtbs	:= nord-ride.dtb nord-el2.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= nord-ride-el2.dtb
+
 dtb-$(CONFIG_ARCH_QCOM)	+= nord-ride-sx.dtb
+
+nord-ride-sx-el2-dtbs	:= nord-ride-sx.dtb nord-el2.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= nord-ride-sx-el2.dtb
+
 dtb-$(CONFIG_ARCH_QCOM)	+= nord-rrd.dtb
+
+nord-rrd-el2-dtbs	:= nord-rrd.dtb nord-el2.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= nord-rrd-el2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= purwa-iot-evk.dtb
 
 purwa-iot-evk-el2-dtbs	:= purwa-iot-evk.dtb x1-el2.dtbo
