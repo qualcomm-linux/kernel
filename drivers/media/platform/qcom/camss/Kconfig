@@ -8,3 +8,5 @@ config VIDEO_QCOM_CAMSS
 	select VIDEOBUF2_DMA_SG
 	select V4L2_FWNODE
 	select PHY_QCOM_MIPI_CSI2
+
+source "drivers/media/platform/qcom/camss/ope/Kconfig"
