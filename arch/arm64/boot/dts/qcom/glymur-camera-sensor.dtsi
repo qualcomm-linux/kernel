@@ -9,6 +9,7 @@
 	/*cam0-ov08x*/
 	qcom,cam-sensor0 {
 		compatible = "qcom,cam-sensor";
+		aon-camera-id = <AON_CAM1>;
 		csiphy-sd-index = <4>;
 		sensor-position-roll = <0>;
 		sensor-position-pitch = <0>;
