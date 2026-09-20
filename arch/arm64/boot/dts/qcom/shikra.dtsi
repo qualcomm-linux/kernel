@@ -12,6 +12,7 @@
 #include <dt-bindings/interconnect/qcom,icc.h>
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
 #include <dt-bindings/dma/qcom-gpi.h>
+#include <dt-bindings/firmware/qcom,scm.h>
 #include <dt-bindings/interconnect/qcom,rpm-icc.h>
 #include <dt-bindings/interconnect/qcom,shikra.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -452,6 +453,13 @@
 		#size-cells = <2>;
 		ranges;
 
+		bam_dmux_pool: restricted-dma-pool {
+			compatible = "restricted-dma-pool";
+			size = <0x0 0x40000>;
+			alignment = <0x0 0x40000>;
+			alloc-ranges = <0x0 0x80000000 0x0 0x80000000>;
+		};
+
 		hyp_mem: hyp@80000000 {
 			reg = <0x0 0x80000000 0x0 0x1600000>;
 			no-map;
@@ -595,6 +603,23 @@
 
 		modem_smp2p_in: slave-kernel {
 			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	smsm {
+		compatible = "qcom,smsm";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		mboxes = <0>, <&apcs_glb 13>;
+		apps_smsm: apps@0 {
+			reg = <0>;
+			#qcom,smem-state-cells = <1>;
+		};
+		modem_smsm: modem@1 {
+			reg = <1>;
+			interrupts = <GIC_SPI 69 IRQ_TYPE_EDGE_RISING 0>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
@@ -2550,6 +2575,20 @@
 				qcom,remote-pid = <1>;
 				label = "mpss";
 			};
+
+			bam_dmux: bam-dmux {
+				compatible = "qcom,bam-dmux";
+				interrupt-parent = <&modem_smsm>;
+				interrupts = <1 IRQ_TYPE_EDGE_BOTH>,
+					     <11 IRQ_TYPE_EDGE_BOTH>;
+				interrupt-names = "pc", "pc-ack";
+				qcom,smem-states = <&apps_smsm 1>, <&apps_smsm 11>;
+				qcom,smem-state-names = "pc", "pc-ack";
+				dmas = <&bam_dmux_dma 4>, <&bam_dmux_dma 5>;
+				dma-names = "tx", "rx";
+				memory-region = <&bam_dmux_pool>;
+				qcom,vmid = <QCOM_SCM_VMID_NAV>;
+			};
 		};
 
 		remoteproc_cdsp: remoteproc@b300000 {
@@ -4438,6 +4477,18 @@
 			compatible = "qcom,shikra-audiocore-csr";
 			reg = <0x0 0x0a0b4000 0x0 0x1000>;
 			#reset-cells = <1>;
+		};
+
+		bam_dmux_dma: dma-controller@6044000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x0 0x06044000 0x0 0x19000>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_EDGE_RISING 0>;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+			num-channels = <6>;
+			qcom,num-ees = <1>;
+			qcom,powered-remotely;
+			memory-region = <&bam_dmux_pool>;
 		};
 
 		sram@c11e000 {
