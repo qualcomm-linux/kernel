@@ -77,6 +77,70 @@
 	status = "okay";
 };
 
+&camss {
+	clocks = <&camcc CAM_CC_CAMNOC_RT_AXI_CLK>,
+		 <&camcc CAM_CC_CSID_CLK>,
+		 <&camcc CAM_CC_CSID_CSIPHY_RX_CLK>,
+		 <&nwgcc NW_GCC_CAMERA_HF_AXI_CLK>,
+		 <&camcc CAM_CC_TOP_AHB_CLK>,
+		 <&camcc CAM_CC_TOP_FAST_AHB_CLK>,
+		 <&camcc CAM_CC_TOP_IFE_0_CLK>,
+		 <&camcc CAM_CC_TOP_IFE_1_CLK>,
+		 <&camcc CAM_CC_TOP_IFE_2_CLK>,
+		 <&camcc CAM_CC_TOP_IFE_LITE_CLK>,
+		 <&camcc CAM_CC_IFE_0_MAIN_CLK>,
+		 <&camcc CAM_CC_IFE_0_MAIN_FAST_AHB_CLK>,
+		 <&camcc CAM_CC_IFE_1_MAIN_CLK>,
+		 <&camcc CAM_CC_IFE_1_MAIN_FAST_AHB_CLK>,
+		 <&camcc CAM_CC_IFE_2_MAIN_CLK>,
+		 <&camcc CAM_CC_IFE_2_MAIN_FAST_AHB_CLK>,
+		 <&camcc CAM_CC_IFE_LITE_CLK>,
+		 <&camcc CAM_CC_IFE_LITE_AHB_CLK>,
+		 <&camcc CAM_CC_IFE_LITE_CPHY_RX_CLK>,
+		 <&camcc CAM_CC_IFE_LITE_CSID_CLK>,
+		 <&camcc CAM_CC_TPG_CSIPHY_RX_CLK>,
+		 <&camcc CAM_CC_QDSS_DEBUG_XO_CLK>;
+	clock-names = "camnoc_rt_axi",
+		      "csid",
+		      "csid_csiphy_rx",
+		      "gcc_axi_hf",
+		      "top_ahb",
+		      "top_fast_ahb",
+		      "top_ife0",
+		      "top_ife1",
+		      "top_ife2",
+		      "top_ife_lite",
+		      "vfe0",
+		      "vfe0_fast_ahb",
+		      "vfe1",
+		      "vfe1_fast_ahb",
+		      "vfe2",
+		      "vfe2_fast_ahb",
+		      "vfe_lite",
+		      "vfe_lite_ahb",
+		      "vfe_lite_cphy_rx",
+		      "vfe_lite_csid",
+		      "tpg_csiphy_rx",
+		      "qdss_debug_xo";
+
+	interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+			 &config_noc SLAVE_CAMERA_CFG QCOM_ICC_TAG_ACTIVE_ONLY>,
+			<&mmss_noc MASTER_CAMNOC_HF QCOM_ICC_TAG_ALWAYS
+			 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+	interconnect-names = "ahb",
+			     "hf_mnoc";
+
+	power-domains = <&camcc CAM_CC_IFE_0_GDSC>,
+			<&camcc CAM_CC_IFE_1_GDSC>,
+			<&camcc CAM_CC_IFE_2_GDSC>,
+			<&camcc CAM_CC_TITAN_TOP_GDSC>;
+	power-domain-names = "ife0",
+			     "ife1",
+			     "ife2",
+			     "top";
+
+};
+
 &i2c0 {
 	clocks = <&segcc SE_GCC_QUPV3_WRAP0_S0_CLK>;
 	clock-names = "se";
