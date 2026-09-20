@@ -598,6 +598,10 @@
 	};
 };
 
+&camss {
+	status = "okay";
+};
+
 &i2c7 {
 	clock-frequency = <400000>;
 
