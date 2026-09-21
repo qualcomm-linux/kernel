@@ -110,14 +110,31 @@ static struct notifier_block aest_cpu_pm_nb = {
 	.notifier_call = aest_cpu_pm_notify,
 };
 
+/*
+ * platform_driver_register() walks matching devices synchronously in
+ * the calling thread (this driver does not opt into async probing, and
+ * aest_device_probe() never returns -EPROBE_DEFER), so repeated probes
+ * are strictly sequential, not concurrent -- a plain bool is sufficient
+ * and no additional locking is required here.
+ */
+static bool aest_cpu_pm_nb_registered;
+
 static void aest_cpu_pm_init(void)
 {
+	if (aest_cpu_pm_nb_registered)
+		return;
+
 	cpu_pm_register_notifier(&aest_cpu_pm_nb);
+	aest_cpu_pm_nb_registered = true;
 }
 
 static void aest_cpu_pm_exit(void)
 {
+	if (!aest_cpu_pm_nb_registered)
+		return;
+
 	cpu_pm_unregister_notifier(&aest_cpu_pm_nb);
+	aest_cpu_pm_nb_registered = false;
 }
 #else
 static inline void aest_cpu_pm_init(void) { }

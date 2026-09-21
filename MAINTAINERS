@@ -8676,6 +8676,19 @@ T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	drivers/gpu/drm/ttm/
 F:	include/drm/ttm/
 
+GPU BUDDY ALLOCATOR
+M:	Matthew Auld <matthew.auld@intel.com>
+M:	Arun Pravin <arunpravin.paneerselvam@amd.com>
+R:	Christian Koenig <christian.koenig@amd.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
+F:	drivers/gpu/drm_buddy.c
+F:	drivers/gpu/buddy.c
+F:	drivers/gpu/tests/gpu_buddy_test.c
+F:	include/linux/gpu_buddy.h
+F:	include/drm/drm_buddy.h
+
 DRM AUTOMATED TESTING
 M:	Helen Koike <helen.fornazier@gmail.com>
 M:	Vignesh Raman <vignesh.raman@collabora.com>
@@ -14637,7 +14650,6 @@ M:	Qunqin Zhao <zhaoqunqin@loongson.cn>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	drivers/char/tpm/tpm_loongson.c
-F:	drivers/crypto/loongson/
 F:	drivers/mfd/loongson-se.c
 F:	include/linux/mfd/loongson-se.h
 
@@ -21092,14 +21104,14 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/net/qcom,bam-dmux.yaml
 F:	drivers/net/wwan/qcom_bam_dmux.c
 
+
 QUALCOMM BCL HARDWARE MONITOR DRIVER
 M:	Manaf Meethalavalappu Pallikunhi <manaf.pallikunhi@oss.qualcomm.com>
 L:	linux-hwmon@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/hwmon/qcom,bcl-hwmon.yaml
+F:	Documentation/devicetree/bindings/hwmon/qcom,pm7250b-bcl.yaml
 F:	drivers/hwmon/qcom-bcl-hwmon.c
-F:	drivers/hwmon/qcom-bcl-hwmon.h
 
 QUALCOMM BLUETOOTH DRIVER
 L:	linux-arm-msm@vger.kernel.org
@@ -21227,6 +21239,15 @@ L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/i2c/qcom,i2c-geni-qcom.yaml
 F:	drivers/i2c/busses/i2c-qcom-geni.c
+
+QUALCOMM I2C TARGET CONTROLLER DRIVER
+M:	Viken Dadhaniya <viken.dadhaniya@oss.qualcomm.com>
+M:	Mukesh Kumar Savaliya <mukesh.savaliya@oss.qualcomm.com>
+L:	linux-i2c@vger.kernel.org
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/i2c/qcom,qdu1000-i2c-target.yaml
+F:	drivers/i2c/busses/i2c-qcom-target.c
 
 QUALCOMM I2C CCI DRIVER
 M:	Loic Poulain <loic.poulain@oss.qualcomm.com>

@@ -12,6 +12,7 @@
 #include <linux/crc8.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/devcoredump.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interconnect.h>
 #include <linux/interrupt.h>
@@ -34,8 +35,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/units.h>
+#include <linux/vmalloc.h>
 
 #include "../../pci.h"
 #include "../pci-host-common.h"
@@ -45,6 +48,8 @@
 /* PARF registers */
 #define PARF_SYS_CTRL				0x00
 #define PARF_PM_CTRL				0x20
+#define PARF_PM_STTS				0x24
+#define PARF_PM_STTS_1				0x28
 #define PARF_PCS_DEEMPH				0x34
 #define PARF_PCS_SWING				0x38
 #define PARF_PHY_CTRL				0x40
@@ -57,13 +62,21 @@
 #define PARF_AXI_MSTR_WR_ADDR_HALT_V2		0x1a8
 #define PARF_Q2A_FLUSH				0x1ac
 #define PARF_LTSSM				0x1b0
+#define PARF_INT_ALL_STATUS			0x228
+#define PARF_STATUS				0x230
 #define PARF_SID_OFFSET				0x234
 #define PARF_BDF_TRANSLATE_CFG			0x24c
+#define PARF_CLKREQ_OVERRIDE			0x2b0
 #define PARF_DBI_BASE_ADDR_V2			0x350
 #define PARF_DBI_BASE_ADDR_V2_HI		0x354
 #define PARF_SLV_ADDR_SPACE_SIZE_V2		0x358
 #define PARF_SLV_ADDR_SPACE_SIZE_V2_HI		0x35c
 #define PARF_NO_SNOOP_OVERRIDE			0x3d4
+#define PARF_CORE_ERRORS			0x3c0
+#define PARF_L1SS_SLEEP_MODE_HANDLER_STATUS	0x4d0
+#define PARF_L1SS_SLEEP_MODE_HANDLER_CFG	0x4d4
+#define PARF_INT_ALL_2_STATUS			0x500
+#define PARF_LINK_DOWN_AXI_ECAM_BLOCK_STATUS	0x630
 #define PARF_ATU_BASE_ADDR			0x634
 #define PARF_ATU_BASE_ADDR_HI			0x638
 #define PARF_DEVICE_TYPE			0x1000
@@ -80,8 +93,12 @@
 
 /* MHI registers */
 #define PARF_DEBUG_CNT_PM_LINKST_IN_L2		0xc04
+#define PARF_DEBUG_CNT_PM_LINKST_IN_L1SUB	0xc08
 #define PARF_DEBUG_CNT_PM_LINKST_IN_L1		0xc0c
 #define PARF_DEBUG_CNT_PM_LINKST_IN_L0S		0xc10
+#define PARF_DEBUG_CNT_AUX_CLK_APP_REQ_EXIT_L1		0xc14
+#define PARF_DEBUG_CNT_AUX_CLK_APP_READY_ENTER_L23	0xc18
+#define PARF_DEBUG_CNT_AUX_CLK_APP_READY_ENTER_L1	0xc1c
 #define PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L1	0xc84
 #define PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L2	0xc88
 
@@ -174,6 +191,9 @@
 
 #define PERST_DELAY_US				1000
 
+/* Dump buffer size for the link-down register dump */
+#define QCOM_PCIE_DUMP_BUF_SIZE			SZ_8K
+
 #define QCOM_PCIE_CRC8_POLYNOMIAL		(BIT(2) | BIT(1) | BIT(0))
 
 #define QCOM_PCIE_LINK_SPEED_TO_BW(speed) \
@@ -261,18 +281,26 @@ struct qcom_pcie_ops {
   * @override_no_snoop: Override NO_SNOOP attribute in TLP to enable cache
   * snooping
   * @firmware_managed: Set if the Root Complex is firmware managed
+  * @has_ext_parf_regs: Set if the PARF block implements the extended
+  * register set used by qcom_pcie_dump_regs().
   */
 struct qcom_pcie_cfg {
 	const struct qcom_pcie_ops *ops;
 	bool override_no_snoop;
 	bool firmware_managed;
 	bool no_l0s;
+	bool has_ext_parf_regs;
+};
+
+struct qcom_pcie_perst {
+	struct list_head list;
+	struct gpio_desc *desc;
 };
 
 struct qcom_pcie_port {
 	struct list_head list;
-	struct gpio_desc *reset;
 	struct phy *phy;
+	struct list_head perst;
 };
 
 struct qcom_pcie {
@@ -292,11 +320,14 @@ struct qcom_pcie {
 
 static void __qcom_pcie_perst_assert(struct qcom_pcie *pcie, bool assert)
 {
+	struct qcom_pcie_perst *perst;
 	struct qcom_pcie_port *port;
 	int val = assert ? 1 : 0;
 
-	list_for_each_entry(port, &pcie->ports, list)
-		gpiod_set_value_cansleep(port->reset, val);
+	list_for_each_entry(port, &pcie->ports, list) {
+		list_for_each_entry(perst, &port->perst, list)
+			gpiod_set_value_cansleep(perst->desc, val);
+	}
 
 	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
 }
@@ -1532,12 +1563,14 @@ static const struct qcom_pcie_cfg cfg_1_0_0 = {
 
 static const struct qcom_pcie_cfg cfg_1_9_0 = {
 	.ops = &ops_1_9_0,
+	.has_ext_parf_regs = true,
 };
 
 static const struct qcom_pcie_cfg cfg_1_34_0 = {
 	.ops = &ops_1_9_0,
 	.override_no_snoop = true,
 	.no_l0s = true,
+	.has_ext_parf_regs = true,
 };
 
 static const struct qcom_pcie_cfg cfg_2_1_0 = {
@@ -1559,6 +1592,7 @@ static const struct qcom_pcie_cfg cfg_2_4_0 = {
 
 static const struct qcom_pcie_cfg cfg_2_7_0 = {
 	.ops = &ops_2_7_0,
+	.has_ext_parf_regs = true,
 };
 
 static const struct qcom_pcie_cfg cfg_2_9_0 = {
@@ -1568,6 +1602,7 @@ static const struct qcom_pcie_cfg cfg_2_9_0 = {
 static const struct qcom_pcie_cfg cfg_sc8280xp = {
 	.ops = &ops_1_21_0,
 	.no_l0s = true,
+	.has_ext_parf_regs = true,
 };
 
 static const struct qcom_pcie_cfg cfg_fw_managed = {
@@ -1682,6 +1717,321 @@ static int qcom_pcie_set_max_opp(struct device *dev)
 	return ret;
 }
 
+#define QCOM_PCIE_DUMP_REGS_PER_LINE	4
+
+static const u32 qcom_pcie_parf_dump_regs[] = {
+	PARF_LTSSM,
+	PARF_INT_ALL_STATUS,
+	PARF_SYS_CTRL,
+};
+
+static const u32 qcom_pcie_ext_parf_dump_regs[] = {
+	PARF_PM_STTS,
+	PARF_PM_STTS_1,
+	PARF_INT_ALL_STATUS,
+	PARF_INT_ALL_2_STATUS,
+	PARF_CLKREQ_OVERRIDE,
+	PARF_L1SS_SLEEP_MODE_HANDLER_STATUS,
+	PARF_L1SS_SLEEP_MODE_HANDLER_CFG,
+	PARF_CORE_ERRORS,
+	PARF_LINK_DOWN_AXI_ECAM_BLOCK_STATUS,
+	PARF_STATUS,
+	PARF_SYS_CTRL,
+};
+
+static const u32 qcom_pcie_mhi_dump_regs[] = {
+	PARF_DEBUG_CNT_PM_LINKST_IN_L2,
+	PARF_DEBUG_CNT_PM_LINKST_IN_L1SUB,
+	PARF_DEBUG_CNT_PM_LINKST_IN_L1,
+	PARF_DEBUG_CNT_PM_LINKST_IN_L0S,
+	PARF_DEBUG_CNT_AUX_CLK_APP_REQ_EXIT_L1,
+	PARF_DEBUG_CNT_AUX_CLK_APP_READY_ENTER_L23,
+	PARF_DEBUG_CNT_AUX_CLK_APP_READY_ENTER_L1,
+	PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L1,
+	PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L2,
+};
+
+static int qcom_pcie_has_storage_ep_cb(struct pci_dev *pdev, void *data)
+{
+	bool *found = data;
+
+	if (pdev->class >> 16 == PCI_BASE_CLASS_STORAGE) {
+		*found = true;
+		return 1;
+	}
+
+	return 0;
+}
+
+static bool qcom_pcie_has_storage_ep(struct qcom_pcie *pcie)
+{
+	struct dw_pcie_rp *pp = &pcie->pci->pp;
+	bool found = false;
+
+	pci_walk_bus(pp->bridge->bus, qcom_pcie_has_storage_ep_cb, &found);
+
+	return found;
+}
+
+/*
+ * qcom_pcie_dump_advance_col - advance @col and append a separator to @buf.
+ *
+ * @col tracks the current column within the active section and must be
+ * reset to 0 by the caller at the start of each new section; a newline is
+ * emitted every QCOM_PCIE_DUMP_REGS_PER_LINE entries to keep the dump
+ * compact in dmesg.
+ */
+static size_t qcom_pcie_dump_advance_col(char *buf, size_t buf_size, int *col)
+{
+	*col += 1;
+
+	return scnprintf(buf, buf_size,
+			 (*col % QCOM_PCIE_DUMP_REGS_PER_LINE) ? "  " : "\n");
+}
+
+static size_t qcom_pcie_dump_reg_val(char *buf, size_t buf_size, int *col,
+				     u32 offset, u32 val)
+{
+	size_t len;
+
+	len = scnprintf(buf, buf_size, "0x%03x: 0x%08x", offset, val);
+	len += qcom_pcie_dump_advance_col(buf + len, buf_size - len, col);
+
+	return len;
+}
+
+/* Same as qcom_pcie_dump_reg_val(), but tags the entry with a lane number
+ * since the RAS-DES SD-EQ status registers are read once per lane at a
+ * fixed offset, so the offset alone can't tell entries apart.
+ */
+static size_t qcom_pcie_dump_lane_reg_val(char *buf, size_t buf_size, int *col,
+					  int lane, u32 offset, u32 val)
+{
+	size_t len;
+
+	len = scnprintf(buf, buf_size, "L%d/0x%03x: 0x%08x", lane, offset, val);
+	len += qcom_pcie_dump_advance_col(buf + len, buf_size - len, col);
+
+	return len;
+}
+
+static size_t qcom_pcie_dump_reg_table(void __iomem *base, const u32 *regs,
+				       int nregs, char *buf, size_t buf_size)
+{
+	size_t len = 0;
+	int col = 0;
+	int i;
+
+	for (i = 0; i < nregs; i++)
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					      regs[i], readl_relaxed(base + regs[i]));
+
+	if (col % QCOM_PCIE_DUMP_REGS_PER_LINE)
+		len += scnprintf(buf + len, buf_size - len, "\n");
+
+	return len;
+}
+
+/*
+ * qcom_pcie_fill_dump_buf - fill @buf with key PCIe register values captured
+ * at Link Down time.
+ *
+ * Returns the number of bytes written into @buf.
+ */
+static size_t qcom_pcie_fill_dump_buf(struct qcom_pcie *pcie, char *buf,
+				      size_t buf_size)
+{
+	struct dw_pcie *pci = pcie->pci;
+	u16 exp_cap, aer_cap, l1ss_cap, secpci_cap, pl16gt_cap, pl32gt_cap;
+	size_t len = 0;
+	int col = 0;
+	u32 val;
+
+	len += scnprintf(buf + len, buf_size - len, "DBI registers:\n");
+
+	exp_cap = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	if (exp_cap) {
+		val = dw_pcie_readl_dbi(pci, exp_cap + PCI_EXP_LNKCAP);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     exp_cap + PCI_EXP_LNKCAP, val);
+
+		val = dw_pcie_readl_dbi(pci, exp_cap + PCI_EXP_LNKCTL);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     exp_cap + PCI_EXP_LNKCTL, val);
+
+		val = dw_pcie_readl_dbi(pci, exp_cap + PCI_EXP_LNKCTL2);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     exp_cap + PCI_EXP_LNKCTL2, val);
+	}
+
+	aer_cap = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_ERR);
+	if (aer_cap) {
+		val = dw_pcie_readl_dbi(pci, aer_cap + PCI_ERR_UNCOR_STATUS);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     aer_cap + PCI_ERR_UNCOR_STATUS, val);
+
+		val = dw_pcie_readl_dbi(pci, aer_cap + PCI_ERR_COR_STATUS);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     aer_cap + PCI_ERR_COR_STATUS, val);
+	}
+
+	l1ss_cap = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_L1SS);
+	if (l1ss_cap) {
+		val = dw_pcie_readl_dbi(pci, l1ss_cap + PCI_L1SS_CTL1);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     l1ss_cap + PCI_L1SS_CTL1, val);
+	}
+
+	secpci_cap = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_SECPCI);
+	if (secpci_cap) {
+		val = dw_pcie_readl_dbi(pci, secpci_cap + PCI_SECPCI_LE_CTRL);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     secpci_cap + PCI_SECPCI_LE_CTRL, val);
+
+		val = dw_pcie_readl_dbi(pci, secpci_cap + PCI_SECPCI_LE_CTRL + 4);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     secpci_cap + PCI_SECPCI_LE_CTRL + 4, val);
+	}
+
+	pl16gt_cap = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_PL_16GT);
+	if (pl16gt_cap) {
+		val = dw_pcie_readl_dbi(pci, pl16gt_cap + PCI_PL_16GT_LE_CTRL);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     pl16gt_cap + PCI_PL_16GT_LE_CTRL, val);
+
+		val = dw_pcie_readl_dbi(pci, pl16gt_cap + PCI_PL_16GT_STATUS);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     pl16gt_cap + PCI_PL_16GT_STATUS, val);
+	}
+
+	pl32gt_cap = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_PL_32GT);
+	if (pl32gt_cap) {
+		val = dw_pcie_readl_dbi(pci, pl32gt_cap + PCI_PL_32GT_LE_CTRL);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     pl32gt_cap + PCI_PL_32GT_LE_CTRL, val);
+
+		val = dw_pcie_readl_dbi(pci, pl32gt_cap + PCI_PL_32GT_STATUS);
+		len += qcom_pcie_dump_reg_val(buf + len, buf_size - len, &col,
+					     pl32gt_cap + PCI_PL_32GT_STATUS, val);
+	}
+
+	/*
+	 * Gen5 (32 GT/s) local/remote pre/post cursor status, read through the
+	 * SD-EQ registers inside the DWC RAS-DES vendor-specific extended
+	 * capability. For each lane, write the lane selector into
+	 * PCIE_RAS_DES_SD_EQ_CONTROL1 then read back
+	 * PCIE_RAS_DES_SD_EQ_STATUS2/3, which carry the local/remote pre/post
+	 * cursor values.
+	 */
+	if (pcie_link_speed[pci->max_link_speed] == PCIE_SPEED_32_0GT) {
+		u16 rasdes_cap = dw_pcie_find_rasdes_capability(pci);
+
+		if (rasdes_cap) {
+			int num_lanes = dw_pcie_link_get_max_link_width(pci);
+			int lane;
+
+			for (lane = 0; lane < num_lanes; lane++) {
+				dw_pcie_writel_dbi(pci,
+						   rasdes_cap + PCIE_RAS_DES_SD_EQ_CONTROL1,
+						   lane & PCIE_RAS_DES_SD_EQ_CONTROL1_LANE_SEL);
+
+				val = dw_pcie_readl_dbi(pci,
+							rasdes_cap + PCIE_RAS_DES_SD_EQ_STATUS2);
+				len += qcom_pcie_dump_lane_reg_val(buf + len, buf_size - len, &col,
+							lane,
+							rasdes_cap + PCIE_RAS_DES_SD_EQ_STATUS2,
+							val);
+
+				val = dw_pcie_readl_dbi(pci,
+							rasdes_cap + PCIE_RAS_DES_SD_EQ_STATUS3);
+				len += qcom_pcie_dump_lane_reg_val(buf + len, buf_size - len, &col,
+							lane,
+							rasdes_cap + PCIE_RAS_DES_SD_EQ_STATUS3,
+							val);
+			}
+		}
+	}
+
+	if (col % QCOM_PCIE_DUMP_REGS_PER_LINE)
+		len += scnprintf(buf + len, buf_size - len, "\n");
+
+	len += scnprintf(buf + len, buf_size - len, "\nPARF registers:\n");
+	if (pcie->cfg->has_ext_parf_regs)
+		len += qcom_pcie_dump_reg_table(pcie->parf, qcom_pcie_ext_parf_dump_regs,
+						ARRAY_SIZE(qcom_pcie_ext_parf_dump_regs),
+						buf + len, buf_size - len);
+	else
+		len += qcom_pcie_dump_reg_table(pcie->parf, qcom_pcie_parf_dump_regs,
+						ARRAY_SIZE(qcom_pcie_parf_dump_regs),
+						buf + len, buf_size - len);
+
+	if (!pcie->mhi)
+		return len;
+
+	len += scnprintf(buf + len, buf_size - len, "\nMHI registers:\n");
+	len += qcom_pcie_dump_reg_table(pcie->mhi, qcom_pcie_mhi_dump_regs,
+					ARRAY_SIZE(qcom_pcie_mhi_dump_regs),
+					buf + len, buf_size - len);
+
+	return len;
+}
+
+/*
+ * qcom_pcie_dump_regs - capture a PCIe register dump on Link Down.
+ *
+ * If a storage endpoint is present downstream, print the dump directly to
+ * dmesg via dev_err() so it is immediately visible even if userspace is not
+ * available to read a devcoredump after a storage failure. Otherwise hand
+ * the buffer to the devcoredump framework so it is accessible under
+ * /sys/class/devcoredump/ for offline analysis.
+ */
+static void __maybe_unused qcom_pcie_dump_regs(struct qcom_pcie *pcie)
+{
+	struct device *dev = pcie->pci->dev;
+	bool storage_ep = qcom_pcie_has_storage_ep(pcie);
+	char *buf, *line, *pos;
+	size_t len;
+
+	buf = vmalloc(QCOM_PCIE_DUMP_BUF_SIZE);
+	if (!buf)
+		return;
+
+	len = qcom_pcie_fill_dump_buf(pcie, buf, QCOM_PCIE_DUMP_BUF_SIZE);
+
+	if (storage_ep) {
+		/*
+		 * printk() truncates messages longer than LOG_LINE_MAX, so
+		 * print the dump one line at a time instead of as a single
+		 * dev_err() call.
+		 */
+		dev_err(dev, "PCIe Link Down register dump:\n");
+		pos = buf;
+		while ((line = strsep(&pos, "\n")))
+			dev_err(dev, "%s\n", line);
+		vfree(buf);
+	} else {
+		dev_coredumpv(dev, buf, len, GFP_KERNEL);
+	}
+}
+
+static int qcom_pcie_regdump_show(struct seq_file *s, void *data)
+{
+	struct qcom_pcie *pcie = (struct qcom_pcie *)dev_get_drvdata(s->private);
+	char *buf;
+	size_t len;
+
+	buf = vmalloc(QCOM_PCIE_DUMP_BUF_SIZE);
+	if (!buf)
+		return -ENOMEM;
+
+	len = qcom_pcie_fill_dump_buf(pcie, buf, QCOM_PCIE_DUMP_BUF_SIZE);
+	seq_write(s, buf, len);
+
+	vfree(buf);
+
+	return 0;
+}
+
 static int qcom_pcie_link_transition_count(struct seq_file *s, void *data)
 {
 	struct qcom_pcie *pcie = (struct qcom_pcie *)dev_get_drvdata(s->private);
@@ -1715,8 +2065,11 @@ static void qcom_pcie_init_debugfs(struct qcom_pcie *pcie)
 		return;
 
 	pcie->debugfs = debugfs_create_dir(name, NULL);
-	debugfs_create_devm_seqfile(dev, "link_transition_count", pcie->debugfs,
-				    qcom_pcie_link_transition_count);
+	if (pcie->mhi)
+		debugfs_create_devm_seqfile(dev, "link_transition_count", pcie->debugfs,
+					    qcom_pcie_link_transition_count);
+	debugfs_create_devm_seqfile(dev, "regdump", pcie->debugfs,
+				    qcom_pcie_regdump_show);
 }
 
 static void qcom_pci_free_msi(void *ptr)
@@ -1743,6 +2096,12 @@ static int qcom_pcie_ecam_host_init(struct pci_config_window *cfg)
 	pci->dbi_base = cfg->win;
 	pp->num_vectors = MSI_DEF_NUM_VECTORS;
 
+	/*
+	 * dw_pcie_msi_host_init() is called directly here, bypassing
+	 * dw_pcie_host_init() where pp->lock is normally initialized.
+	 */
+	raw_spin_lock_init(&pp->lock);
+
 	ret = dw_pcie_msi_host_init(pp);
 	if (ret)
 		return ret;
@@ -1762,18 +2121,94 @@ static const struct pci_ecam_ops pci_qcom_ecam_ops = {
 	}
 };
 
+static bool qcom_pcie_is_child_node(struct device *dev,
+				    struct device_node *node)
+{
+	struct device_node *parent;
+
+	for (parent = of_get_parent(node); parent;
+	     parent = of_get_next_parent(parent)) {
+		if (parent == dev->of_node) {
+			of_node_put(parent);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/* Parse PERST# from all nodes in depth first manner starting from @np */
+static int qcom_pcie_parse_perst(struct qcom_pcie *pcie,
+				 struct qcom_pcie_port *port,
+				 struct device_node *np)
+{
+	struct device *dev = pcie->pci->dev;
+	struct qcom_pcie_perst *perst;
+	struct device_node *gpio_np;
+	struct gpio_desc *reset;
+	int ret;
+
+	if (!of_find_property(np, "reset-gpios", NULL))
+		goto parse_child_node;
+
+	/*
+	 * Skip GPIOs provided by a PCIe device which is a child of the Root
+	 * Complex (e.g., a PCIe switch with GPIO controller capability). Such
+	 * controllers won't be available at RC probe time and their PERST#
+	 * should be controlled by the respective PCI client driver
+	 * implementation.
+	 */
+	gpio_np = of_parse_phandle(np, "reset-gpios", 0);
+	if (!gpio_np) {
+		dev_err(dev, "Failed to parse GPIO provider\n");
+		return -EINVAL;
+	}
+
+	if (qcom_pcie_is_child_node(dev, gpio_np)) {
+		of_node_put(gpio_np);
+		goto parse_child_node;
+	}
+	of_node_put(gpio_np);
+
+	reset = devm_fwnode_gpiod_get(dev, of_fwnode_handle(np), "reset",
+				      GPIOD_OUT_HIGH, "PERST#");
+	if (IS_ERR(reset)) {
+		/*
+		 * FIXME: GPIOLIB currently supports exclusive GPIO access only.
+		 * Non exclusive access is broken. But shared PERST# requires
+		 * non-exclusive access. So once GPIOLIB properly supports it,
+		 * implement it here.
+		 */
+		if (PTR_ERR(reset) == -EBUSY)
+			dev_err(dev, "Shared PERST# is not supported\n");
+
+		return PTR_ERR(reset);
+	}
+
+	perst = devm_kzalloc(dev, sizeof(*perst), GFP_KERNEL);
+	if (!perst)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&perst->list);
+	perst->desc = reset;
+	list_add_tail(&perst->list, &port->perst);
+
+parse_child_node:
+	for_each_available_child_of_node_scoped(np, child) {
+		ret = qcom_pcie_parse_perst(pcie, port, child);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int qcom_pcie_parse_port(struct qcom_pcie *pcie, struct device_node *node)
 {
 	struct device *dev = pcie->pci->dev;
 	struct qcom_pcie_port *port;
-	struct gpio_desc *reset;
 	struct phy *phy;
 	int ret;
-
-	reset = devm_fwnode_gpiod_get(dev, of_fwnode_handle(node),
-				      "reset", GPIOD_OUT_HIGH, "PERST#");
-	if (IS_ERR(reset))
-		return PTR_ERR(reset);
 
 	phy = devm_of_phy_get(dev, node, NULL);
 	if (IS_ERR(phy))
@@ -1787,7 +2222,12 @@ static int qcom_pcie_parse_port(struct qcom_pcie *pcie, struct device_node *node
 	if (ret)
 		return ret;
 
-	port->reset = reset;
+	INIT_LIST_HEAD(&port->perst);
+
+	ret = qcom_pcie_parse_perst(pcie, port, node);
+	if (ret)
+		return ret;
+
 	port->phy = phy;
 	INIT_LIST_HEAD(&port->list);
 	list_add_tail(&port->list, &pcie->ports);
@@ -1797,9 +2237,10 @@ static int qcom_pcie_parse_port(struct qcom_pcie *pcie, struct device_node *node
 
 static int qcom_pcie_parse_ports(struct qcom_pcie *pcie)
 {
+	struct qcom_pcie_perst *perst, *tmp_perst;
+	struct qcom_pcie_port *port, *tmp_port;
 	struct device *dev = pcie->pci->dev;
-	struct qcom_pcie_port *port, *tmp;
-	int ret = -ENOENT;
+	int ret = -ENODEV;
 
 	for_each_available_child_of_node_scoped(dev->of_node, of_port) {
 		if (!of_node_is_type(of_port, "pci"))
@@ -1812,7 +2253,9 @@ static int qcom_pcie_parse_ports(struct qcom_pcie *pcie)
 	return ret;
 
 err_port_del:
-	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+	list_for_each_entry_safe(port, tmp_port, &pcie->ports, list) {
+		list_for_each_entry_safe(perst, tmp_perst, &port->perst, list)
+			list_del(&perst->list);
 		phy_exit(port->phy);
 		list_del(&port->list);
 	}
@@ -1823,6 +2266,7 @@ err_port_del:
 static int qcom_pcie_parse_legacy_binding(struct qcom_pcie *pcie)
 {
 	struct device *dev = pcie->pci->dev;
+	struct qcom_pcie_perst *perst;
 	struct qcom_pcie_port *port;
 	struct gpio_desc *reset;
 	struct phy *phy;
@@ -1844,18 +2288,28 @@ static int qcom_pcie_parse_legacy_binding(struct qcom_pcie *pcie)
 	if (!port)
 		return -ENOMEM;
 
-	port->reset = reset;
+	perst = devm_kzalloc(dev, sizeof(*perst), GFP_KERNEL);
+	if (!perst)
+		return -ENOMEM;
+
 	port->phy = phy;
 	INIT_LIST_HEAD(&port->list);
 	list_add_tail(&port->list, &pcie->ports);
+
+	perst->desc = reset;
+	INIT_LIST_HEAD(&port->perst);
+	INIT_LIST_HEAD(&perst->list);
+	list_add_tail(&perst->list, &port->perst);
 
 	return 0;
 }
 
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
+	struct qcom_pcie_perst *perst, *tmp_perst;
+	struct qcom_pcie_port *port, *tmp_port;
 	const struct qcom_pcie_cfg *pcie_cfg;
-	struct qcom_pcie_port *port, *tmp;
+	unsigned long max_freq = ULONG_MAX;
 	struct device *dev = &pdev->dev;
 	struct qcom_pcie *pcie;
 	struct dw_pcie_rp *pp;
@@ -1982,7 +2436,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	ret = qcom_pcie_parse_ports(pcie);
 	if (ret) {
-		if (ret != -ENOENT) {
+		if (ret != -ENODEV) {
 			dev_err_probe(pci->dev, ret,
 				      "Failed to parse Root Port: %d\n", ret);
 			goto err_pm_runtime_put;
@@ -2008,13 +2462,14 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	qcom_pcie_icc_opp_update(pcie);
 
-	if (pcie->mhi)
-		qcom_pcie_init_debugfs(pcie);
+	qcom_pcie_init_debugfs(pcie);
 
 	return 0;
 
 err_phy_exit:
-	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+	list_for_each_entry_safe(port, tmp_port, &pcie->ports, list) {
+		list_for_each_entry_safe(perst, tmp_perst, &port->perst, list)
+			list_del(&perst->list);
 		phy_exit(port->phy);
 		list_del(&port->list);
 	}
@@ -2093,6 +2548,14 @@ static int qcom_pcie_resume_noirq(struct device *dev)
 		return 0;
 
 	if (pcie->pci->suspended) {
+		if (pcie->use_pm_opp) {
+			ret = qcom_pcie_set_max_opp(dev);
+			if (ret) {
+				dev_err(dev, "Failed to set max OPP: %d\n", ret);
+				return ret;
+			}
+		}
+
 		ret = icc_enable(pcie->icc_cpu);
 		if (ret) {
 			dev_err(dev, "Failed to enable CPU-PCIe interconnect path: %d\n", ret);

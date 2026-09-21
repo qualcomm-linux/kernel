@@ -49,6 +49,10 @@ properties:
       - const: dsi1_phy_pll_out_dsiclk
       - const: sleep_clk
 
+  power-domains:
+    items:
+      - description: CX domain
+
 required:
   - compatible
   - clocks
@@ -57,6 +61,17 @@ required:
 
 allOf:
   - $ref: qcom,gcc.yaml#
+  # The Shikra variant carried by this branch does not describe the CX domain
+  # yet, so only demand it on plain qcm2290.
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: qcom,shikra-dispcc
+    then:
+      required:
+        - power-domains
 
 unevaluatedProperties: false
 
@@ -65,6 +80,7 @@ examples:
     #include <dt-bindings/clock/qcom,dispcc-qcm2290.h>
     #include <dt-bindings/clock/qcom,gcc-qcm2290.h>
     #include <dt-bindings/clock/qcom,rpmcc.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
     clock-controller@5f00000 {
             compatible = "qcom,qcm2290-dispcc";
             reg = <0x5f00000 0x20000>;
@@ -86,6 +102,7 @@ examples:
                           "dsi1_phy_pll_out_byteclk",
                           "dsi1_phy_pll_out_dsiclk",
                           "sleep_clk";
+            power-domains = <&rpmpd RPMPD_VDDCX>;
             #clock-cells = <1>;
             #reset-cells = <1>;
             #power-domain-cells = <1>;

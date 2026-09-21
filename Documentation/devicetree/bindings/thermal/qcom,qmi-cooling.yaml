@@ -43,6 +43,7 @@ properties:
     enum:
       - qcom,qmi-cooling-modem
       - qcom,qmi-cooling-cdsp
+      - qcom,qmi-cooling-cdsp1
 
   vdd:
     $ref: "#/definitions/tmd"
@@ -60,7 +61,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: qcom,qmi-cooling-cdsp
+            enum:
+              - qcom,qmi-cooling-cdsp
+              - qcom,qmi-cooling-cdsp1
     then:
       properties:
         cdsp_sw:

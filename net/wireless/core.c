@@ -34,6 +34,9 @@
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
 
+/* maximum length of radio debugfs directory name */
+#define RADIO_DEBUGFSDIR_MAX_LEN	8
+
 MODULE_AUTHOR("Johannes Berg");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("wireless configuration support");
@@ -1038,6 +1041,18 @@ int wiphy_register(struct wiphy *wiphy)
 	/* add to debugfs */
 	rdev->wiphy.debugfsdir = debugfs_create_dir(wiphy_name(&rdev->wiphy),
 						    ieee80211_debugfs_dir);
+	if (wiphy->n_radio > 0) {
+		int idx;
+		char radio_name[RADIO_DEBUGFSDIR_MAX_LEN];
+
+		for (idx = 0; idx < wiphy->n_radio; idx++) {
+			scnprintf(radio_name, sizeof(radio_name), "radio%d",
+				  idx);
+			wiphy->radio_cfg[idx].radio_debugfsdir =
+				debugfs_create_dir(radio_name,
+						   rdev->wiphy.debugfsdir);
+		}
+	}
 
 	cfg80211_debugfs_rdev_add(rdev);
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
@@ -1195,6 +1210,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	/* this has nothing to do now but make sure it's gone */
 	cancel_work_sync(&rdev->wiphy_work);
 
+	cancel_work_sync(&rdev->sched_scan_res_wk);
 	cancel_work_sync(&rdev->rfkill_block);
 	cancel_work_sync(&rdev->conn_work);
 	flush_work(&rdev->event_work);
@@ -1443,7 +1459,7 @@ void cfg80211_init_wdev(struct wireless_dev *wdev)
 	INIT_LIST_HEAD(&wdev->mgmt_registrations);
 	INIT_LIST_HEAD(&wdev->pmsr_list);
 	spin_lock_init(&wdev->pmsr_lock);
-	INIT_WORK(&wdev->pmsr_free_wk, cfg80211_pmsr_free_wk);
+	wiphy_work_init(&wdev->pmsr_free_wk, cfg80211_pmsr_free_wk);
 
 #ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.default_key = -1;
@@ -1578,7 +1594,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		}
 		/* since we just did cfg80211_leave() nothing to do there */
 		cancel_work_sync(&wdev->disconnect_wk);
-		cancel_work_sync(&wdev->pmsr_free_wk);
 		break;
 	case NETDEV_DOWN:
 		wiphy_lock(&rdev->wiphy);
