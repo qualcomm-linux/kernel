@@ -66,6 +66,7 @@ extern const struct iris_firmware_data iris_hfi_gen2_ar50lt_data;
 extern const struct platform_inst_slice_caps iris_vpu2_vpu3x_slice_caps;
 extern const struct platform_inst_slice_caps iris_ar50lt_slice_caps;
 
+extern const struct iris_platform_data eliza_data;
 extern const struct iris_platform_data glymur_data;
 extern const struct iris_platform_data hawi_data;
 extern const struct iris_platform_data kaanapali_data;
