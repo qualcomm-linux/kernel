@@ -250,6 +250,39 @@
 &i2c3 {
 	status = "okay";
 
+	typec@40 {
+		compatible = "cypress,cypd6129";
+		reg = <0x40>;
+		interrupts-extended = <&tlmm 136 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&usb0_intr_state>;
+		pinctrl-names = "default";
+		wakeup-source;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ccg_typec_con0: connector@0 {
+			compatible = "usb-c-connector";
+			reg = <0>;
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					ucsi_ccg_port: endpoint {
+						remote-endpoint = <&usb_2_dwc3_hs>
+					};
+				};
+			};
+		};
+	};
+
 	wsa885x_i2c: speaker@c {
 		compatible = "qcom,wsa885x-i2c";
 		reg = <0x0c>;
@@ -657,6 +690,16 @@
 	vdda-phy-dpdm-supply = <&pm4125_l21>;
 
 	status = "okay";
+};
+
+&usb_2 {
+	status = "okay";
+
+	port {
+		usb_2_dwc3_hs: endpoint {
+		       remote-endpoint = <&ucsi_ccg_port0_hs>;
+	       };
+	};
 };
 
 &usb_2_hsphy {
