@@ -10,7 +10,6 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/regulator/consumer.h>
 
 #include "phy-qcom-qmp-pcs-sgmii.h"
 #include "phy-qcom-qmp-qserdes-com-v5.h"
@@ -27,7 +26,6 @@
 #define QSERDES_COM_C_PLL_LOCKED			BIT(1)
 
 struct qcom_dwmac_sgmii_phy_data {
-	struct regulator *vdda_0p9;
 	struct regmap *regmap;
 	struct clk *refclk;
 	int speed;
@@ -268,23 +266,19 @@ static int qcom_dwmac_sgmii_phy_calibrate(struct phy *phy)
 
 static int qcom_dwmac_sgmii_phy_power_on(struct phy *phy)
 {
-	int ret;
 	struct qcom_dwmac_sgmii_phy_data *data = phy_get_drvdata(phy);
+	int ret;
 
-	ret = regulator_enable(data->vdda_0p9);
-	if (ret)
-		goto out_ret;
+	return clk_prepare_enable(data->refclk);
+	if (ret < 0)
+		return ret;
 
-	ret = clk_prepare_enable(data->refclk);
-	if (ret)
-		goto out_reg_disable;
+	ret = qcom_dwmac_sgmii_phy_calibrate(phy);
+	if (ret < 0)
+		clk_disable_unprepare(data->refclk);
 
 	return 0;
 
-out_reg_disable:
-	regulator_disable(data->vdda_0p9);
-out_ret:
-	return ret;
 }
 
 static int qcom_dwmac_sgmii_phy_power_off(struct phy *phy)
@@ -299,17 +293,17 @@ static int qcom_dwmac_sgmii_phy_power_off(struct phy *phy)
 
 	clk_disable_unprepare(data->refclk);
 
-	regulator_disable(data->vdda_0p9);
-
 	return 0;
 }
-
 static int qcom_dwmac_sgmii_phy_set_speed(struct phy *phy, int speed)
 {
 	struct qcom_dwmac_sgmii_phy_data *data = phy_get_drvdata(phy);
 
 	if (speed != data->speed)
 		data->speed = speed;
+
+	if (phy->power_count == 0)
+		return 0;
 
 	return qcom_dwmac_sgmii_phy_calibrate(phy);
 }
@@ -337,6 +331,7 @@ static int qcom_dwmac_sgmii_phy_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	void __iomem *base;
 	struct phy *phy;
+	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -360,10 +355,6 @@ static int qcom_dwmac_sgmii_phy_probe(struct platform_device *pdev)
 	data->refclk = devm_clk_get(dev, "sgmi_ref");
 	if (IS_ERR(data->refclk))
 		return PTR_ERR(data->refclk);
-
-	data->vdda_0p9 = devm_regulator_get(dev, "vdda-0p9");
-	if (IS_ERR(data->vdda_0p9))
-		return PTR_ERR(data->vdda_0p9);
 
 	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(provider))

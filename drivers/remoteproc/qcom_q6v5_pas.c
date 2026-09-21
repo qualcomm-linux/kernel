@@ -277,6 +277,7 @@ release_dtb_metadata:
 	if (pas->dtb_pas_id)
 		qcom_scm_pas_metadata_release(pas->dtb_pas_ctx);
 
+release_dtb_firmware:
 	release_firmware(pas->dtb_firmware);
 
 	return ret;
