@@ -3,6 +3,7 @@
 // Copyright (c) 2018, The Linux Foundation. All rights reserved.
 
 #include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,qaif.h>
 #include <linux/module.h>
 #include <sound/jack.h>
 #include <linux/input-event-codes.h>
@@ -156,7 +157,7 @@ int qcom_snd_apply_dai_tdm_slots_cfg(struct snd_soc_pcm_runtime *rtd,
 					       codec_cfg->rx_mask,
 					       codec_cfg->slots,
 					       codec_cfg->slot_width);
-		if (ret)
+		if (ret && ret != -ENOTSUPP && ret != -EOPNOTSUPP)
 			return ret;
 	}
 
@@ -371,6 +372,7 @@ int qcom_snd_wcd_jack_setup(struct snd_soc_pcm_runtime *rtd,
 
 	switch (cpu_dai->id) {
 	case LPI_MI2S_RX_0:
+	case QAIF_CDC_DMA_RX0:
 	case TX_CODEC_DMA_TX_0:
 	case TX_CODEC_DMA_TX_1:
 	case TX_CODEC_DMA_TX_2:

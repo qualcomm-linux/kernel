@@ -10,7 +10,15 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 description: |
-  This binding describes the Qualcomm APM DAIs in DSP
+  This binding describes the Qualcomm APM DAIs in DSP.
+
+  The DSP that runs the APM must be able to reach the PCM buffers. On
+  existing targets the DSP runs in a stage-1 context and the buffers are
+  described to the SMMU via iommus. On targets whose APM DSP runs in a
+  stage-2 protected context that cannot use the SMMU, the buffers are
+  reachable only after hypervisor (SCM) memory assignment to the fixed
+  set of consumer VMIDs that own that protected context, described by
+  qcom,vmids. The two access models are mutually exclusive.
 
 properties:
   compatible:
@@ -20,9 +28,42 @@ properties:
     minItems: 1
     maxItems: 2
 
+  memory-region:
+    description:
+      Reserved-memory carveouts (shared-dma-pool, no-map) that hold the
+      PCM buffers and must be SCM-assigned to the VMIDs in qcom,vmids.
+      The first entry is the control-path buffer; the second entry is
+      the data-path buffer. Only used together with qcom,vmids.
+    minItems: 1
+    maxItems: 2
+
+  qcom,vmids:
+    description:
+      Virtual Machine IDs (VMIDs) of the processors that consume the PCM
+      buffers and therefore must be granted access through SCM memory
+      assignment. Required on targets whose APM DSP runs in a stage-2
+      protected context and cannot use the SMMU; mutually exclusive with
+      iommus. SCM assignment replaces the buffer's current owners with the
+      supplied set, so the driver always adds HLOS to the destination list
+      itself to retain host access; HLOS must not be listed here. All
+      listed VMIDs and HLOS receive read-write access.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 2
+    uniqueItems: true
+
 required:
   - compatible
-  - iommus
+
+oneOf:
+  - required:
+      - iommus
+  - required:
+      - qcom,vmids
+
+dependentRequired:
+  memory-region:
+    - qcom,vmids
 
 additionalProperties: false
 
@@ -31,4 +72,31 @@ examples:
     dais {
         compatible = "qcom,q6apm-dais";
         iommus = <&apps_smmu 0x1801 0x0>;
+    };
+  - |
+    #include <dt-bindings/firmware/qcom,scm.h>
+
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        audio_heap_mem: audio-heap@a1000000 {
+            compatible = "shared-dma-pool";
+            reg = <0x0 0xa1000000 0x0 0x100000>;
+            no-map;
+        };
+
+        audio_mdsp_carveout_mem: audio-carveout@a1100000 {
+            compatible = "shared-dma-pool";
+            reg = <0x0 0xa1100000 0x0 0x400000>;
+            no-map;
+        };
+    };
+
+    dais {
+        compatible = "qcom,q6apm-dais";
+        /* index 0: control path, index 1: data path */
+        memory-region = <&audio_heap_mem>, <&audio_mdsp_carveout_mem>;
+        qcom,vmids = <QCOM_SCM_VMID_LPASS QCOM_SCM_VMID_MSS_MSA>;
     };
