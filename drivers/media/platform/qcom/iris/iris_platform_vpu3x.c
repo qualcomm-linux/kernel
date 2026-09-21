@@ -117,6 +117,7 @@ const struct iris_platform_data glymur_data = {
 	.inst_iris_fmts = iris_fmts_vpu3x_dec,
 	.inst_iris_fmts_size = ARRAY_SIZE(iris_fmts_vpu3x_dec),
 	.inst_caps = &platform_inst_cap_sm8550,
+	.slice_caps = &iris_vpu2_vpu3x_slice_caps,
 	.tz_cp_config_data = iris_glymur_tz_cp_config,
 	.tz_cp_config_data_size = ARRAY_SIZE(iris_glymur_tz_cp_config),
 	.num_vpp_pipe = 4,
