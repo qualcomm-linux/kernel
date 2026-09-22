@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (C) 2015 ARM Ltd.
+ */
+#ifndef __ASM_ARM_CMN_H
+#define __ASM_ARM_CMN_H
+
+#include <asm/sysreg.h>
+
+/* Common register stuff */
+#define CMN_NODE_INFO			0x0000
+#define CMN_NI_NODE_TYPE		GENMASK_ULL(15, 0)
+#define CMN_NI_NODE_ID			GENMASK_ULL(31, 16)
+#define CMN_NI_LOGICAL_ID		GENMASK_ULL(47, 32)
+
+enum cmn_node_type {
+	CMN_TYPE_INVALID,
+	CMN_TYPE_DVM,
+	CMN_TYPE_CFG,
+	CMN_TYPE_DTC,
+	CMN_TYPE_HNI,
+	CMN_TYPE_HNF,
+	CMN_TYPE_XP,
+	CMN_TYPE_SBSX,
+	CMN_TYPE_MPAM_S,
+	CMN_TYPE_MPAM_NS,
+	CMN_TYPE_RNI,
+	CMN_TYPE_RND = 0xd,
+	CMN_TYPE_RNSAM = 0xf,
+	CMN_TYPE_MTSX,
+	CMN_TYPE_HNP,
+	CMN_TYPE_CXRA = 0x100,
+	CMN_TYPE_CXHA,
+	CMN_TYPE_CXLA,
+	CMN_TYPE_CCRA,
+	CMN_TYPE_CCHA,
+	CMN_TYPE_CCLA,
+	CMN_TYPE_CCLA_RNI,
+	CMN_TYPE_HNS = 0x200,
+	CMN_TYPE_HNS_MPAM_S,
+	CMN_TYPE_HNS_MPAM_NS,
+	CMN_TYPE_APB = 0x1000,
+	/* Not a real node type */
+	CMN_TYPE_WP = 0x7770
+};
+
+#endif /* __ASM_ARM_CMN_H */

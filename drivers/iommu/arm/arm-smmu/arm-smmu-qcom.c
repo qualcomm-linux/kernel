@@ -129,6 +129,18 @@ static void qcom_adreno_smmu_get_fault_info(const void *cookie,
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 
+	/*
+	 * A fault can only fire while the SMMU is active (GPU is issuing
+	 * transactions). Use get_if_active so that if by a rare race the
+	 * device has already suspended, we skip the register reads rather
+	 * than triggering a cold resume which would call device_reset and
+	 * destroy the fault state we are trying to capture.
+	 */
+	if (pm_runtime_get_if_active(smmu->dev) <= 0) {
+		dev_warn(smmu->dev, "get_fault_info: device not active, skipping\n");
+		return;
+	}
+
 	info->fsr = arm_smmu_cb_read(smmu, cfg->cbndx, ARM_SMMU_CB_FSR);
 	info->fsynr0 = arm_smmu_cb_read(smmu, cfg->cbndx, ARM_SMMU_CB_FSYNR0);
 	info->fsynr1 = arm_smmu_cb_read(smmu, cfg->cbndx, ARM_SMMU_CB_FSYNR1);
@@ -136,6 +148,8 @@ static void qcom_adreno_smmu_get_fault_info(const void *cookie,
 	info->cbfrsynra = arm_smmu_gr1_read(smmu, ARM_SMMU_GR1_CBFRSYNRA(cfg->cbndx));
 	info->ttbr0 = arm_smmu_cb_readq(smmu, cfg->cbndx, ARM_SMMU_CB_TTBR0);
 	info->contextidr = arm_smmu_cb_read(smmu, cfg->cbndx, ARM_SMMU_CB_CONTEXTIDR);
+
+	pm_runtime_put_autosuspend(smmu->dev);
 }
 
 static void qcom_adreno_smmu_set_stall(const void *cookie, bool enabled)
@@ -439,6 +453,15 @@ static int qcom_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 	int cbndx = smmu_domain->cfg.cbndx;
 
 	smmu_domain->cfg.flush_walk_prefer_tlbiasid = true;
+	/*
+	 * Qualcomm SMMU-500 has an issue with TLBIVA/TLBIVAL where only
+	 * the base-page-size entry at the base IOVA is invalidated. Glymur
+	 * SoCs boot by default at EL2 and is the currently the only SoC
+	 * affected by it. Force the minimum page granule to ensure the full
+	 * range is covered.
+	 */
+	if (of_device_is_compatible(smmu->dev->of_node, "qcom,glymur-smmu-500"))
+		smmu_domain->cfg.force_min_tlbival_granule = true;
 
 	client_match = qsmmu->data->client_match;
 
