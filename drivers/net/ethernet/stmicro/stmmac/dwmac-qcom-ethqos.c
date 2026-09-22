@@ -9,6 +9,8 @@
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_opp.h>
+#include <linux/pcs/pcs-xpcs.h>
+#include <linux/property.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
@@ -1052,6 +1054,47 @@ static int ethqos_scmi_setup(struct qcom_ethqos *ethqos,
 	return 0;
 }
 
+static int qcom_ethqos_pcs_init(struct stmmac_priv *priv)
+{
+	struct fwnode_handle *pcsnode;
+	struct dw_xpcs *xpcs;
+
+	pcsnode = fwnode_find_reference(dev_fwnode(priv->device),
+					"pcs-handle", 0);
+	xpcs = xpcs_create_fwnode(pcsnode);
+	fwnode_handle_put(pcsnode);
+	if (IS_ERR(xpcs))
+		return PTR_ERR(xpcs);
+
+	priv->hw->xpcs = xpcs;
+
+	return 0;
+}
+
+static void qcom_ethqos_pcs_exit(struct stmmac_priv *priv)
+{
+	if (!priv->hw->xpcs)
+		return;
+
+	xpcs_destroy(priv->hw->xpcs);
+	priv->hw->xpcs = NULL;
+}
+
+static struct phylink_pcs *
+qcom_ethqos_select_pcs(struct stmmac_priv *priv, phy_interface_t interface)
+{
+	struct phylink_pcs *pcs;
+
+	if (!priv->hw->xpcs)
+		return ERR_PTR(-ENODEV);
+
+	pcs = xpcs_to_phylink_pcs(priv->hw->xpcs);
+	if (!test_bit(interface, pcs->supported_interfaces))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return pcs;
+}
+
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1146,6 +1189,12 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	/* Enable TSO on queue0 and enable TBS on rest of the queues */
 	for (i = 1; i < plat_dat->tx_queues_to_use; i++)
 		plat_dat->tx_queues_cfg[i].tbs_en = 1;
+
+	if (fwnode_property_present(dev_fwnode(dev), "pcs-handle")) {
+		plat_dat->pcs_init = qcom_ethqos_pcs_init;
+		plat_dat->pcs_exit = qcom_ethqos_pcs_exit;
+		plat_dat->select_pcs = qcom_ethqos_select_pcs;
+	}
 
 	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
