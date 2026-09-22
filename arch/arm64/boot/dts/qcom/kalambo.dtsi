@@ -20,6 +20,28 @@
 /delete-node/ &cpu_pd4;
 /delete-node/ &cpu_pd5;
 /delete-node/ &cpu_scp_lpri1;
+/delete-node/ &apss_funnel_in0;
+
+/ {
+	/delete-node/ etm-0;
+	/delete-node/ etm-1;
+	/delete-node/ etm-2;
+	/delete-node/ etm-3;
+	/delete-node/ etm-4;
+	/delete-node/ etm-5;
+};
+
+&soc {
+	/delete-node/ funnel@1d021000;
+	/delete-node/ tmc@1d029000;
+	/delete-node/ funnel@1d081000;
+	/delete-node/ replicator@1d090000;
+	/delete-node/ replicator@1d0a0000;
+	/delete-node/ replicator@1d0b0000;
+	/delete-node/ replicator@1d0c0000;
+	/delete-node/ replicator@1d0d0000;
+	/delete-node/ replicator@1d0e0000;
+};
 
 &bwmon_cluster0 {
 	status = "disabled";
