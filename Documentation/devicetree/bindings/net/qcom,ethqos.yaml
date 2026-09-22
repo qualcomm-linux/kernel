@@ -11,8 +11,8 @@ maintainers:
   - Konrad Dybcio <konradybcio@kernel.org>
 
 description:
-  dwmmac based Qualcomm ethernet devices which support Gigabit
-  ethernet (version v2.3.0 and onwards).
+  DWMAC and XGMAC based Qualcomm Ethernet devices supporting Gigabit and
+  multi-gigabit Ethernet.
 
 properties:
   compatible:
@@ -27,6 +27,7 @@ properties:
           - const: qcom,sa8775p-ethqos
       - enum:
           - qcom,qcs404-ethqos
+          - qcom,nord-ethqos
           - qcom,sa8775p-ethqos
           - qcom,sc8280xp-ethqos
           - qcom,shikra-ethqos
@@ -67,11 +68,14 @@ properties:
       - enum:
           - rgmii
           - phyaux
-      - const: axi-noc
+      - enum:
+          - axi-noc
+          - eee
       - const: pcie-tile-axi-noc
 
   iommus:
-    maxItems: 1
+    minItems: 1
+    maxItems: 10
 
   dma-coherent: true
 
@@ -109,6 +113,38 @@ allOf:
       properties:
         compatible:
           contains:
+            const: qcom,nord-ethqos
+    then:
+      properties:
+        clocks:
+          minItems: 5
+          maxItems: 5
+        clock-names:
+          minItems: 5
+          maxItems: 5
+          items:
+            - const: stmmaceth
+            - const: pclk
+            - const: ptp_ref
+            - const: phyaux
+            - const: eee
+              description: |
+                Due to a hardware quirk, PCS link-up depends on the EEE
+                clock being enabled.
+        iommus:
+          minItems: 10
+          maxItems: 10
+      required:
+        - power-domains
+    else:
+      properties:
+        iommus:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: qcom,shikra-ethqos
     then:
       properties:
@@ -124,7 +160,19 @@ allOf:
             - const: pcie-tile-axi-noc
       required:
         - operating-points-v2
-    else:
+
+  - if:
+      not:
+        anyOf:
+          - properties:
+              compatible:
+                contains:
+                  const: qcom,shikra-ethqos
+          - properties:
+              compatible:
+                contains:
+                  const: qcom,nord-ethqos
+    then:
       properties:
         clocks:
           maxItems: 4
