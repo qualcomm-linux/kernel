@@ -24,8 +24,16 @@
 /* Page select register for the indirect MMIO CSRs access */
 #define DW_VR_CSR_VIEWPORT		0xff
 
+struct dw_xpcs_plat_ops {
+	int (*reg_read)(struct platform_device *pdev, void __iomem *reg_base,
+			int dev, int reg);
+	int (*reg_write)(struct platform_device *pdev, void __iomem *reg_base,
+			 int dev, int reg, u16 val);
+};
+
 struct dw_xpcs_plat {
 	struct platform_device *pdev;
+	const struct dw_xpcs_plat_ops *ops;
 	struct mii_bus *bus;
 	bool reg_indir;
 	int reg_width;
@@ -169,6 +177,10 @@ static int xpcs_mmio_read_c22(struct mii_bus *bus, int addr, int reg)
 	if (addr != 0)
 		return -ENODEV;
 
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_read(pxpcs->pdev, pxpcs->reg_base,
+					    MDIO_MMD_VEND2, reg);
+
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_read_reg_indirect(pxpcs, MDIO_MMD_VEND2, reg);
 	else
@@ -181,6 +193,10 @@ static int xpcs_mmio_write_c22(struct mii_bus *bus, int addr, int reg, u16 val)
 
 	if (addr != 0)
 		return -ENODEV;
+
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_write(pxpcs->pdev, pxpcs->reg_base,
+					     MDIO_MMD_VEND2, reg, val);
 
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_write_reg_indirect(pxpcs, MDIO_MMD_VEND2, reg, val);
@@ -195,6 +211,10 @@ static int xpcs_mmio_read_c45(struct mii_bus *bus, int addr, int dev, int reg)
 	if (addr != 0)
 		return -ENODEV;
 
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_read(pxpcs->pdev, pxpcs->reg_base,
+					    dev, reg);
+
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_read_reg_indirect(pxpcs, dev, reg);
 	else
@@ -208,6 +228,10 @@ static int xpcs_mmio_write_c45(struct mii_bus *bus, int addr, int dev,
 
 	if (addr != 0)
 		return -ENODEV;
+
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_write(pxpcs->pdev, pxpcs->reg_base,
+					     dev, reg, val);
 
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_write_reg_indirect(pxpcs, dev, reg, val);
