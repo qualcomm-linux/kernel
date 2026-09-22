@@ -89,6 +89,11 @@ properties:
 
   vdda-qref-supply: true
 
+  vdda-refgen-supply: true
+
+  # Only required on platforms where the hardware voting doesn't work properly
+  refgen-supply: true
+
   vdda-refgen0p9-supply: true
 
   vdda-refgen1p2-supply: true
@@ -249,6 +254,28 @@ allOf:
       properties:
         "#clock-cells":
           const: 0
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcs8300-qmp-gen4x2-pcie-phy
+              - qcom,sa8775p-qmp-gen4x2-pcie-phy
+              - qcom,sa8775p-qmp-gen4x4-pcie-phy
+    then:
+      required:
+        - vdda-refgen-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcs8300-qmp-gen4x2-pcie-phy
+    then:
+      required:
+        - refgen-supply
 
   - if:
       properties:
