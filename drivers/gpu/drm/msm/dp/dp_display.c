@@ -263,6 +263,10 @@ static int msm_dp_display_lttpr_init(struct msm_dp_display_private *dp, u8 *dpcd
 		return 0;
 
 	lttpr_count = drm_dp_lttpr_count(dp->link->lttpr_common_caps);
+
+	if (lttpr_count <= 0)
+		return 0;
+
 	rc = drm_dp_lttpr_init(dp->aux, lttpr_count);
 	if (rc) {
 		DRM_ERROR("failed to set LTTPRs transparency mode, rc=%d\n", rc);
@@ -746,10 +750,13 @@ int msm_dp_display_prepare_link(struct msm_dp *msm_dp_display)
 	if (!msm_dp_display->active_stream_cnt) {
 		msm_dp_display_host_phy_init(dp);
 		force_link_train = true;
+		dp->ctrl->plugged = dp->plugged;
 
 		rc = msm_dp_ctrl_on_link(dp->ctrl, dp->panel);
 		if (rc)
 			DRM_ERROR("Failed link training (rc=%d)\n", rc);
+		else
+			force_link_train = false;
 		// TODO: schedule drm_connector_set_link_status_property()
 	}
 
