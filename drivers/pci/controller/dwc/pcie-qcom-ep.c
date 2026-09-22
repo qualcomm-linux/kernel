@@ -225,7 +225,7 @@ struct qcom_pcie_ep {
 	int perst_irq;
 };
 
-static int qcom_pcie_ep_core_reset(struct qcom_pcie_ep *pcie_ep)
+static int qcom_pcie_ep_phy_core_reset(struct qcom_pcie_ep *pcie_ep)
 {
 	struct dw_pcie *pci = &pcie_ep->pci;
 	struct device *dev = pci->dev;
@@ -238,6 +238,12 @@ static int qcom_pcie_ep_core_reset(struct qcom_pcie_ep *pcie_ep)
 	}
 
 	usleep_range(CORE_RESET_TIME_US_MIN, CORE_RESET_TIME_US_MAX);
+
+	ret = phy_reset(pcie_ep->phy);
+	if (ret) {
+		dev_err(dev, "Cannot reset phy\n");
+		return ret;
+	}
 
 	ret = reset_control_deassert(pcie_ep->core_reset);
 	if (ret) {
@@ -329,25 +335,25 @@ static int qcom_pcie_enable_resources(struct qcom_pcie_ep *pcie_ep)
 	struct dw_pcie *pci = &pcie_ep->pci;
 	int ret;
 
-	ret = clk_bulk_prepare_enable(pcie_ep->num_clks, pcie_ep->clks);
+	ret = phy_init(pcie_ep->phy);
 	if (ret)
 		return ret;
 
-	ret = qcom_pcie_ep_core_reset(pcie_ep);
+	ret = clk_bulk_prepare_enable(pcie_ep->num_clks, pcie_ep->clks);
 	if (ret)
-		goto err_disable_clk;
+		goto err_phy_exit;
 
-	ret = phy_init(pcie_ep->phy);
+	ret = qcom_pcie_ep_phy_core_reset(pcie_ep);
 	if (ret)
 		goto err_disable_clk;
 
 	ret = phy_set_mode_ext(pcie_ep->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_EP);
 	if (ret)
-		goto err_phy_exit;
+		goto err_disable_clk;
 
 	ret = phy_power_on(pcie_ep->phy);
 	if (ret)
-		goto err_phy_exit;
+		goto err_disable_clk;
 
 	/*
 	 * Some Qualcomm platforms require interconnect bandwidth constraints
@@ -367,10 +373,10 @@ static int qcom_pcie_enable_resources(struct qcom_pcie_ep *pcie_ep)
 
 err_phy_off:
 	phy_power_off(pcie_ep->phy);
-err_phy_exit:
-	phy_exit(pcie_ep->phy);
 err_disable_clk:
 	clk_bulk_disable_unprepare(pcie_ep->num_clks, pcie_ep->clks);
+err_phy_exit:
+	phy_exit(pcie_ep->phy);
 
 	return ret;
 }
@@ -379,8 +385,8 @@ static void qcom_pcie_disable_resources(struct qcom_pcie_ep *pcie_ep)
 {
 	icc_set_bw(pcie_ep->icc_mem, 0, 0);
 	phy_power_off(pcie_ep->phy);
-	phy_exit(pcie_ep->phy);
 	clk_bulk_disable_unprepare(pcie_ep->num_clks, pcie_ep->clks);
+	phy_exit(pcie_ep->phy);
 }
 
 static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
