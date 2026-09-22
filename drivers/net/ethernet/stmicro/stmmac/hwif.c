@@ -388,8 +388,11 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	mac->vlan = mac->vlan ? : entry->vlan;
 
 	priv->hw = mac;
+	mac->dwxgmac_addrs = priv->plat->dwxgmac_addrs;
 	priv->fpe_cfg.reg = entry->regs.fpe_reg;
-	priv->ptpaddr = priv->ioaddr + entry->regs.ptp_off;
+	priv->ptpaddr = priv->ioaddr +
+		(priv->plat->dwxgmac_addrs ?
+		 priv->plat->dwxgmac_addrs->timestamp_base : entry->regs.ptp_off);
 	priv->mmcaddr = priv->ioaddr + entry->regs.mmc_off;
 	memcpy(&priv->ptp_clock_ops, entry->ptp,
 	       sizeof(struct ptp_clock_info));

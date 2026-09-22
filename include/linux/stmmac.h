@@ -188,6 +188,16 @@ struct dwmac4_addrs {
 	u32 mtl_low_cred_offset;
 };
 
+/* Address layout for XGMAC MTL, DMA, and timestamp registers */
+struct dwxgmac_addrs {
+	u32 dma_even_chan_base;
+	u32 dma_odd_chan_base;
+	u32 dma_chan_offset;
+	u32 mtl_chan_base;
+	u32 mtl_chan_offset;
+	u32 timestamp_base;
+};
+
 enum dwmac_core_type {
 	DWMAC_CORE_MAC100,
 	DWMAC_CORE_GMAC,
@@ -359,6 +369,7 @@ struct plat_stmmacenet_data {
 	int msi_rx_base_vec;
 	int msi_tx_base_vec;
 	const struct dwmac4_addrs *dwmac4_addrs;
+	const struct dwxgmac_addrs *dwxgmac_addrs;
 	unsigned int flags;
 	struct stmmac_dma_cfg __dma_cfg;
 };
