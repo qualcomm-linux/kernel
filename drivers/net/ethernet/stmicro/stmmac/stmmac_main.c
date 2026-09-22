@@ -50,6 +50,7 @@
 #include "stmmac.h"
 #include "stmmac_pcs.h"
 #include "stmmac_xdp.h"
+#include "dw25gmac.h"
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
@@ -3356,6 +3357,25 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 				    tx_q->dma_tx_phy, chan);
 
 		stmmac_set_queue_tx_tail_ptr(priv, tx_q, chan, 0);
+	}
+
+	/*
+	 * DW25GMAC (HDMA) requires every hardware VDMA to have a valid TC
+	 * mapping before descriptor-cache base addresses are computed. Keep
+	 * channels not exposed to Linux genuinely offline: their descriptor
+	 * cache size is zero, their start bit is clear, and an unused RX PDMA
+	 * is explicitly disabled through RXPEN.
+	 */
+	if (priv->plat->core_type == DWMAC_CORE_25GMAC) {
+		u32 rx_sup = priv->dma_cap.number_rx_channel;
+		u32 tx_sup = priv->dma_cap.number_tx_channel;
+		u32 och;
+
+		for (och = rx_channels_count; och < rx_sup; och++)
+			dw25gmac_dma_map_rx_offline_chan(priv, priv->ioaddr, och);
+		for (och = tx_channels_count; och < tx_sup; och++)
+			dw25gmac_dma_map_tx_offline_chan(priv, priv->ioaddr, och);
+		dw25gmac_desc_cache_compute(priv->ioaddr);
 	}
 
 	return ret;

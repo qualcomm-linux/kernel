@@ -124,6 +124,10 @@ struct stmmac_dma_cfg {
 	bool multi_msi_en;
 	/* atds: stmmac core internal */
 	bool atds;
+	/* Optional DW25GMAC VDMA and PDMA traffic-class mappings. */
+	const u8 *vdma_tc_map;
+	const u8 *pdma_tc_map;
+	u32 dma_map_size;
 };
 
 #define AXI_BLEN	7

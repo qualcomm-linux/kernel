@@ -5,6 +5,10 @@
 #ifndef __STMMAC_DW25GMAC_H__
 #define __STMMAC_DW25GMAC_H__
 
+/* DMA_MODE register bits specific to DW25GMAC */
+#define XXVGMAC_DSCB			BIT(16)	/* Descriptor Cache Size Computation Busy */
+#define XXVGMAC_HMIC			BIT(17)	/* HDMA CSR memory initialization complete */
+
 /* Hardware features */
 #define XXVGMAC_HWFEAT_VDMA_RXCNT	GENMASK(16, 12)
 #define XXVGMAC_HWFEAT_VDMA_TXCNT	GENMASK(22, 18)
@@ -38,6 +42,7 @@ enum dma_ch_ind_modes {
 #define XXVGMAC_RPBLX8_MODE		BIT(19)
 #define XXVGMAC_RP2TCMP			GENMASK(18, 16)
 #define XXVGMAC_OWRQ			GENMASK(13, 8)
+#define XXVGMAC_RXPEN			BIT(31)		/* RX PDMA enable (in RXEXTCFG) */
 
 /* Tx Descriptor control */
 #define XXVGMAC_TXDCSZ			GENMASK(2, 0)
@@ -89,4 +94,9 @@ void dw25gmac_dma_init_rx_chan(struct stmmac_priv *priv,
 			       void __iomem *ioaddr,
 			       struct stmmac_dma_cfg *dma_cfg,
 			       dma_addr_t dma_addr, u32 chan);
+void dw25gmac_dma_map_tx_offline_chan(struct stmmac_priv *priv,
+				      void __iomem *ioaddr, u32 chan);
+void dw25gmac_dma_map_rx_offline_chan(struct stmmac_priv *priv,
+				      void __iomem *ioaddr, u32 chan);
+void dw25gmac_desc_cache_compute(void __iomem *ioaddr);
 #endif /* __STMMAC_DW25GMAC_H__ */

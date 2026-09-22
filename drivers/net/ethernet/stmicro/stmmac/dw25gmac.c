@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2024-2026 Broadcom Corporation
  */
+#include <linux/iopoll.h>
 #include "stmmac.h"
 #include "dwxgmac2.h"
 #include "dw25gmac.h"
@@ -21,6 +22,23 @@ u32 dw25gmac_decode_vdma_count(u32 regval)
 		return 0;
 }
 
+static u32 dw25gmac_tc(const struct stmmac_dma_cfg *dma_cfg,
+		       const u8 *map, u32 chan)
+{
+	if (map && chan < dma_cfg->dma_map_size)
+		return map[chan];
+
+	return chan < 8 ? chan : chan - 7;
+}
+
+static int dw25gmac_dma_ch_ind_wait(void __iomem *ioaddr)
+{
+	u32 value;
+
+	return readl_poll_timeout(ioaddr + XXVGMAC_DMA_CH_IND_CONTROL, value,
+				  !(value & XGMAC_OB), 10, 20000);
+}
+
 static int rd_dma_ch_ind(void __iomem *ioaddr, u8 mode, u32 channel)
 {
 	u32 reg_val = 0;
@@ -29,6 +47,9 @@ static int rd_dma_ch_ind(void __iomem *ioaddr, u8 mode, u32 channel)
 	reg_val |= FIELD_PREP(XXVGMAC_ADDR_OFFSET, channel);
 	reg_val |= XXVGMAC_CMD_TYPE | XXVGMAC_OB;
 	writel(reg_val, ioaddr + XXVGMAC_DMA_CH_IND_CONTROL);
+	if (dw25gmac_dma_ch_ind_wait(ioaddr))
+		pr_err_ratelimited("dw25gmac: indirect read timed out\n");
+
 	return readl(ioaddr + XXVGMAC_DMA_CH_IND_DATA);
 }
 
@@ -41,6 +62,8 @@ static void wr_dma_ch_ind(void __iomem *ioaddr, u8 mode, u32 channel, u32 val)
 	reg_val |= FIELD_PREP(XXVGMAC_ADDR_OFFSET, channel);
 	reg_val |= XGMAC_OB;
 	writel(reg_val, ioaddr + XXVGMAC_DMA_CH_IND_CONTROL);
+	if (dw25gmac_dma_ch_ind_wait(ioaddr))
+		pr_err_ratelimited("dw25gmac: indirect write timed out\n");
 }
 
 void dw25gmac_dma_init(void __iomem *ioaddr,
@@ -50,6 +73,10 @@ void dw25gmac_dma_init(void __iomem *ioaddr,
 	u32 hw_cap;
 	u32 value;
 	u32 i;
+
+	if (readl_poll_timeout(ioaddr + XGMAC_DMA_MODE, value,
+			       value & XXVGMAC_HMIC, 10, 200000))
+		pr_warn("dw25gmac: timeout waiting for HMIC\n");
 
 	value = readl(ioaddr + XGMAC_DMA_SYSBUS_MODE);
 	value &= ~(XGMAC_AAL | XGMAC_EAME);
@@ -84,13 +111,61 @@ void dw25gmac_dma_init(void __iomem *ioaddr,
 	}
 }
 
+static void
+dw25gmac_dma_map_tx_chan(struct stmmac_priv *priv, void __iomem *ioaddr,
+			 u32 chan)
+{
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
+	const struct stmmac_dma_cfg *dma_cfg = priv->plat->dma_cfg;
+	u32 pdma_tc, vdma_tc;
+	u32 value;
+
+	pdma_tc = dw25gmac_tc(dma_cfg, dma_cfg->pdma_tc_map, chan);
+	vdma_tc = dw25gmac_tc(dma_cfg, dma_cfg->vdma_tc_map, chan);
+
+	value = rd_dma_ch_ind(ioaddr, MODE_TXEXTCFG, chan);
+	value = u32_replace_bits(value, pdma_tc, XXVGMAC_TP2TCMP);
+	value = u32_replace_bits(value, 15, XXVGMAC_ORRQ);
+	wr_dma_ch_ind(ioaddr, MODE_TXEXTCFG, chan, value);
+
+	value = readl(ioaddr + XGMAC_DMA_CH_TX_CONTROL(addrs, chan));
+	value = u32_replace_bits(value, vdma_tc, XXVGMAC_TVDMA2TCMP);
+	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(addrs, chan));
+}
+
+static void
+dw25gmac_dma_map_rx_chan(struct stmmac_priv *priv, void __iomem *ioaddr,
+			 u32 chan, bool enable_pdma)
+{
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
+	const struct stmmac_dma_cfg *dma_cfg = priv->plat->dma_cfg;
+	u32 pdma_tc, vdma_tc;
+	u32 value;
+
+	pdma_tc = dw25gmac_tc(dma_cfg, dma_cfg->pdma_tc_map, chan);
+	vdma_tc = dw25gmac_tc(dma_cfg, dma_cfg->vdma_tc_map, chan);
+
+	value = rd_dma_ch_ind(ioaddr, MODE_RXEXTCFG, chan);
+	value = u32_replace_bits(value, pdma_tc, XXVGMAC_RP2TCMP);
+	value = u32_replace_bits(value, 15, XXVGMAC_OWRQ);
+	if (enable_pdma)
+		value |= XXVGMAC_RXPEN;
+	else
+		value &= ~XXVGMAC_RXPEN;
+	wr_dma_ch_ind(ioaddr, MODE_RXEXTCFG, chan, value);
+
+	value = readl(ioaddr + XGMAC_DMA_CH_RX_CONTROL(addrs, chan));
+	value = u32_replace_bits(value, vdma_tc, XXVGMAC_RVDMA2TCMP);
+	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(addrs, chan));
+}
+
 void dw25gmac_dma_init_tx_chan(struct stmmac_priv *priv,
 			       void __iomem *ioaddr,
 			       struct stmmac_dma_cfg *dma_cfg,
 			       dma_addr_t dma_addr, u32 chan)
 {
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
 	u32 value;
-	u32 tc;
 
 	/* Descriptor cache size and prefetch threshold size */
 	value = rd_dma_ch_ind(ioaddr, MODE_TXDESCCTRL, chan);
@@ -101,25 +176,12 @@ void dw25gmac_dma_init_tx_chan(struct stmmac_priv *priv,
 	value |= FIELD_PREP(XXVGMAC_TDPS, XXVGMAC_TDPS_HALF);
 	wr_dma_ch_ind(ioaddr, MODE_TXDESCCTRL, chan, value);
 
-	/* Use one-to-one mapping between VDMA, TC, and PDMA. */
-	tc = chan;
-
-	/* 1-to-1 PDMA to TC mapping */
-	value = rd_dma_ch_ind(ioaddr, MODE_TXEXTCFG, chan);
-	value &= ~XXVGMAC_TP2TCMP;
-	value |= FIELD_PREP(XXVGMAC_TP2TCMP, tc);
-	wr_dma_ch_ind(ioaddr, MODE_TXEXTCFG, chan, value);
-
-	/* 1-to-1 VDMA to TC mapping */
-	value = readl(ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
-	value &= ~XXVGMAC_TVDMA2TCMP;
-	value |= FIELD_PREP(XXVGMAC_TVDMA2TCMP, tc);
-	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
+	dw25gmac_dma_map_tx_chan(priv, ioaddr, chan);
 
 	writel(upper_32_bits(dma_addr),
-	       ioaddr + XGMAC_DMA_CH_TxDESC_HADDR(chan));
+	       ioaddr + XGMAC_DMA_CH_TxDESC_HADDR(addrs, chan));
 	writel(lower_32_bits(dma_addr),
-	       ioaddr + XGMAC_DMA_CH_TxDESC_LADDR(chan));
+	       ioaddr + XGMAC_DMA_CH_TxDESC_LADDR(addrs, chan));
 }
 
 void dw25gmac_dma_init_rx_chan(struct stmmac_priv *priv,
@@ -127,8 +189,8 @@ void dw25gmac_dma_init_rx_chan(struct stmmac_priv *priv,
 			       struct stmmac_dma_cfg *dma_cfg,
 			       dma_addr_t dma_addr, u32 chan)
 {
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
 	u32 value;
-	u32 tc;
 
 	/* Descriptor cache size and prefetch threshold size */
 	value = rd_dma_ch_ind(ioaddr, MODE_RXDESCCTRL, chan);
@@ -139,23 +201,57 @@ void dw25gmac_dma_init_rx_chan(struct stmmac_priv *priv,
 	value |= FIELD_PREP(XXVGMAC_RDPS, XXVGMAC_RDPS_HALF);
 	wr_dma_ch_ind(ioaddr, MODE_RXDESCCTRL, chan, value);
 
-	/* Use one-to-one mapping between VDMA, TC, and PDMA. */
-	tc = chan;
-
-	/* 1-to-1 PDMA to TC mapping */
-	value = rd_dma_ch_ind(ioaddr, MODE_RXEXTCFG, chan);
-	value &= ~XXVGMAC_RP2TCMP;
-	value |= FIELD_PREP(XXVGMAC_RP2TCMP, tc);
-	wr_dma_ch_ind(ioaddr, MODE_RXEXTCFG, chan, value);
-
-	/* 1-to-1 VDMA to TC mapping */
-	value = readl(ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
-	value &= ~XXVGMAC_RVDMA2TCMP;
-	value |= FIELD_PREP(XXVGMAC_RVDMA2TCMP, tc);
-	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
+	dw25gmac_dma_map_rx_chan(priv, ioaddr, chan, true);
 
 	writel(upper_32_bits(dma_addr),
-	       ioaddr + XGMAC_DMA_CH_RxDESC_HADDR(chan));
+	       ioaddr + XGMAC_DMA_CH_RxDESC_HADDR(addrs, chan));
 	writel(lower_32_bits(dma_addr),
-	       ioaddr + XGMAC_DMA_CH_RxDESC_LADDR(chan));
+	       ioaddr + XGMAC_DMA_CH_RxDESC_LADDR(addrs, chan));
+}
+
+void dw25gmac_dma_map_tx_offline_chan(struct stmmac_priv *priv,
+				      void __iomem *ioaddr, u32 chan)
+{
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
+	u32 value;
+
+	value = rd_dma_ch_ind(ioaddr, MODE_TXDESCCTRL, chan);
+	value &= ~(XXVGMAC_TXDCSZ | XXVGMAC_TDPS);
+	wr_dma_ch_ind(ioaddr, MODE_TXDESCCTRL, chan, value);
+
+	dw25gmac_dma_map_tx_chan(priv, ioaddr, chan);
+
+	value = readl(ioaddr + XGMAC_DMA_CH_TX_CONTROL(addrs, chan));
+	value &= ~XGMAC_TXST;
+	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(addrs, chan));
+}
+
+void dw25gmac_dma_map_rx_offline_chan(struct stmmac_priv *priv,
+				      void __iomem *ioaddr, u32 chan)
+{
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
+	u32 value;
+
+	value = rd_dma_ch_ind(ioaddr, MODE_RXDESCCTRL, chan);
+	value &= ~(XXVGMAC_RXDCSZ | XXVGMAC_RDPS);
+	wr_dma_ch_ind(ioaddr, MODE_RXDESCCTRL, chan, value);
+
+	dw25gmac_dma_map_rx_chan(priv, ioaddr, chan, false);
+
+	value = readl(ioaddr + XGMAC_DMA_CH_RX_CONTROL(addrs, chan));
+	value &= ~XGMAC_RXST;
+	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(addrs, chan));
+}
+
+void dw25gmac_desc_cache_compute(void __iomem *ioaddr)
+{
+	u32 value;
+
+	value = readl(ioaddr + XGMAC_DMA_MODE);
+	value |= XXVGMAC_DSCB;
+	writel(value, ioaddr + XGMAC_DMA_MODE);
+
+	if (readl_poll_timeout(ioaddr + XGMAC_DMA_MODE, value,
+			       !(value & XXVGMAC_DSCB), 10, 200))
+		pr_warn("dw25gmac: timeout waiting for DSCB completion\n");
 }
