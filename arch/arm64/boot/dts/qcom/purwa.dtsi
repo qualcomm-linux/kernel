@@ -8,10 +8,18 @@
 
 #include <dt-bindings/clock/qcom,x1p42100-videocc.h>
 
+/delete-node/ &apss_funnel_in2;
 /delete-node/ &bwmon_cluster0;
 /delete-node/ &camss_csiphy1_in_port;
 /delete-node/ &camss_csiphy2_in_port;
 /delete-node/ &camss_csiphy4_in_port;
+/delete-node/ &cluster2_etf;
+/delete-node/ &cluster2_funnel_l1;
+/delete-node/ &cluster2_funnel_l2;
+/delete-node/ &cluster2_rep_2_0;
+/delete-node/ &cluster2_rep_2_1;
+/delete-node/ &cluster2_rep_2_2;
+/delete-node/ &cluster2_rep_2_3;
 /delete-node/ &cluster_pd2;
 /delete-node/ &cpu_map_cluster2;
 /delete-node/ &cpu8;
@@ -24,6 +32,10 @@
 /delete-node/ &cpu_pd11;
 /delete-node/ &csiphy1;
 /delete-node/ &csiphy2;
+/delete-node/ &etm8;
+/delete-node/ &etm9;
+/delete-node/ &etm10;
+/delete-node/ &etm11;
 /delete-node/ &gpu_opp_table;
 /delete-node/ &gpu_speed_bin;
 /delete-node/ &iris_opp_table;
