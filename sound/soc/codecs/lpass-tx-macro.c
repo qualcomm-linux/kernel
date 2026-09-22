@@ -2477,8 +2477,21 @@ static const struct tx_macro_data lpass_ver_11 = {
 	.extra_routes_num	= ARRAY_SIZE(tx_audio_map_v9_2),
 };
 
+static const struct tx_macro_data lpass_ver_11_glymur = {
+	.flags                  = LPASS_MACRO_FLAG_HAS_NPL_CLOCK |
+				  LPASS_MACRO_FLAG_RESET_SWR,
+	.ver                    = LPASS_VER_11_0_0,
+	.extra_widgets          = tx_macro_dapm_widgets_v9_2,
+	.extra_widgets_num      = ARRAY_SIZE(tx_macro_dapm_widgets_v9_2),
+	.extra_routes           = tx_audio_map_v9_2,
+	.extra_routes_num       = ARRAY_SIZE(tx_audio_map_v9_2),
+};
+
 static const struct of_device_id tx_macro_dt_match[] = {
 	{
+		.compatible = "qcom,glymur-lpass-tx-macro",
+		.data = &lpass_ver_11_glymur,
+	}, {
 		/*
 		 * The block is actually LPASS v9.4, but keep LPASS v9 match
 		 * data and audio widgets, due to compatibility reasons.
@@ -2512,6 +2525,7 @@ static const struct of_device_id tx_macro_dt_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tx_macro_dt_match);
+
 static struct platform_driver tx_macro_driver = {
 	.driver = {
 		.name = "tx_macro",
