@@ -1025,6 +1025,10 @@
 	firmware-name = "qcom/hawi/gen81100_zap.mbn";
 };
 
+&iris {
+	status = "okay";
+};
+
 &pcie0 {
 	status = "okay";
 };
