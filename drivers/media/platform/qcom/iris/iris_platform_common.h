@@ -67,6 +67,7 @@ extern const struct platform_inst_slice_caps iris_vpu2_vpu3x_slice_caps;
 extern const struct platform_inst_slice_caps iris_ar50lt_slice_caps;
 
 extern const struct iris_platform_data glymur_data;
+extern const struct iris_platform_data hawi_data;
 extern const struct iris_platform_data kaanapali_data;
 extern const struct iris_platform_data maili_data;
 extern const struct iris_platform_data milos_data;
@@ -317,6 +318,8 @@ struct iris_platform_data {
 	const struct iris_power_domain_data *vcodec_vpp0_data;
 	const struct iris_power_domain_data *vcodec_vpp1_data;
 	const struct iris_power_domain_data *apv_data;
+	const struct iris_power_domain_data *mm_int_data;
+	const struct iris_power_domain_data *cx_int_data;
 	const char * const *opp_pd_tbl;
 	unsigned int opp_pd_tbl_size;
 	const char * const *opp_clk_tbl;
