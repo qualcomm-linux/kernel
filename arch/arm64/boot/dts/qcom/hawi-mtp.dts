@@ -962,6 +962,14 @@
 	};
 };
 
+&gpu {
+	status = "okay";
+};
+
+&gpu_zap_shader {
+	firmware-name = "qcom/hawi/gen81100_zap.mbn";
+};
+
 &pcie0 {
 	status = "okay";
 };
