@@ -7,9 +7,11 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 #include "maili.dtsi"
 #include "pm8010-kaanapali.dtsi"	/* SPMI1: SID-C/D */
 #include "pmd8028-kaanapali.dtsi"	/* SPMI1: SID-4 */
@@ -124,6 +126,122 @@
 				};
 			};
 		};
+	};
+
+	maili_sound: sound {
+		compatible = "qcom,maili-sndcard", "qcom,sm8450-sndcard";
+		model = "MAILI-MTP";
+
+		audio-routing = "IN1_HPHL", "HPHL_OUT",
+				"IN2_HPHR", "HPHR_OUT",
+				"AMIC2", "MIC BIAS2",
+				"VA DMIC0", "MIC BIAS1",
+				"VA DMIC1", "MIC BIAS1",
+				"VA DMIC2", "MIC BIAS3",
+				"VA DMIC3", "MIC BIAS3",
+				"TX SWR_INPUT", "ADC2_OUTPUT";
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&lpi_i2s1_active>;
+		pinctrl-1 = <&lpi_i2s1_sleep>;
+
+		va-dmic-dai-link {
+			link-name = "VA DMIC Capture";
+
+			codec {
+				sound-dai = <&lpass_vamacro 0>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		wcd-capture-dai-link {
+			link-name = "WCD Capture";
+
+			codec {
+				sound-dai = <&wcd939x 1>, <&swr2 0>, <&lpass_txmacro 0>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai TX_CODEC_DMA_TX_3>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		wcd-playback-dai-link {
+			link-name = "WCD Playback";
+
+			codec {
+				sound-dai = <&wcd939x 0>, <&swr1 0>, <&lpass_rxmacro 0>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai RX_CODEC_DMA_RX_0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		wsa-playback-dai-link {
+			link-name = "WSA Playback";
+
+			codec {
+				sound-dai = <&wsa885x>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				dai-tdm-slot-rx-mask = <1 1>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai AIF_TDM_RX_1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				dai-tdm-slot-rx-mask = <1 1>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+	};
+
+	wcd939x: audio-codec {
+		compatible = "qcom,wcd9395-codec", "qcom,wcd9390-codec";
+
+		pinctrl-0 = <&wcd_default>;
+		pinctrl-names = "default";
+
+		qcom,mbhc-buttons-vthreshold-microvolt = <75000 150000 237000 500000
+							 500000 500000 500000 500000>;
+		qcom,mbhc-headphone-vthreshold-microvolt = <50000>;
+		qcom,mbhc-headset-vthreshold-microvolt = <1700000>;
+		qcom,micbias1-microvolt = <1800000>;
+		qcom,micbias2-microvolt = <1800000>;
+		qcom,micbias3-microvolt = <1800000>;
+		qcom,micbias4-microvolt = <1800000>;
+		qcom,rx-device = <&wcd_rx>;
+		qcom,tx-device = <&wcd_tx>;
+
+		reset-gpios = <&tlmm 161 GPIO_ACTIVE_LOW>;
+
+		vdd-buck-supply = <&vreg_l15b_1p8>;
+		vdd-io-supply = <&vreg_l15b_1p8>;
+		vdd-mic-bias-supply = <&vreg_bob1>;
+		vdd-px-supply = <&vreg_l3f_1p2>;
+		vdd-rxtx-supply = <&vreg_l15b_1p8>;
+
+		#sound-dai-cells = <1>;
 	};
 
 	sdcard_vdd_3p0: sdcard-vdd-3p0 {
@@ -743,6 +861,70 @@
 	};
 };
 
+&i2c3 {
+
+	status = "okay";
+
+	wsa885x: speaker@c {
+		compatible = "qcom,wsa8855";
+		reg = <0x0c>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <98 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&wsa885x_spkr_sd_n &wsa885x_irq_gpio>;
+		pinctrl-names = "default";
+
+		powerdown-gpios = <&pmh0110_f_e0_gpios 11 GPIO_ACTIVE_LOW>;
+
+		vdd-1p8-supply = <&vreg_l2d_1p8>;
+		vdd-io-supply = <&vreg_l4g_1p2>;
+
+		qcom,battery-config = "1s";
+
+		#sound-dai-cells = <0>;
+
+		status = "okay";
+	};
+};
+
+&lpass_vamacro {
+	pinctrl-0 = <&dmic01_default>, <&dmic23_default>;
+	pinctrl-names = "default";
+
+	vdd-micb-supply = <&vreg_l10b_1p8>;
+	qcom,dmic-sample-rate = <4800000>;
+};
+
+&q6apmbedai {
+	dai@40 {
+		reg = <AIF_TDM_RX_1>;
+		clocks = <&q6prmcc LPASS_CLK_ID_QAIF_IF1_IBIT
+			  LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "bclk";
+	};
+};
+
+&swr1 {
+	status = "okay";
+	wcd_rx: codec@0,4 {
+		compatible = "sdw20217010e00";
+		reg = <0 4>;
+
+		qcom,rx-port-mapping = <1 2 3 4 5 9>;
+	};
+};
+
+&swr2 {
+	status = "okay";
+
+	wcd_tx: codec@0,3 {
+		compatible = "sdw20217010e00";
+		reg = <0 3>;
+		qcom,tx-port-mapping = <3 3 3 4>;
+	};
+};
+
 &pcie0 {
 	status = "okay";
 };
@@ -817,6 +999,16 @@
 		bias-pull-up;
 		input-enable;
 		power-source = <1>;
+	};
+};
+
+&pmh0110_f_e0_gpios {
+	wsa885x_spkr_sd_n: wsa885x-spkr-sd-n-state {
+		pins = "gpio11";
+		function = "normal";
+		input-disable;
+		output-enable;
+		power-source = <1>; /* 1.8V */
 	};
 };
 
@@ -906,6 +1098,20 @@
 			       <119 2>,	/* SoCCP */
 			       <144 2>,	/* CXM UART */
 			       <211 1>; /* NFC Secure IO */
+
+	wcd_default: wcd-reset-n-active-state {
+		pins = "gpio161";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
+	};
+
+	wsa885x_irq_gpio: wsa885x-irq-state {
+		pins = "gpio98";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
 };
 
 &uart7 {
