@@ -12,6 +12,7 @@
 #include "qcom-dcc-kodiak-config.h"
 #include "qcom-dcc-pakala-config.h"
 #include "qcom-dcc-shikra-config.h"
+#include "qcom-dcc-nord-config.h"
 
 #define DEV_NAME "qcom-dcc"
 
@@ -117,6 +118,16 @@ static int __init dcc_dev_init(void)
 	case 758:
 	case 759:
 		ret = platform_device_add_data(dcc_pdev, &shikra_pdata, sizeof(shikra_pdata));
+		if (ret)
+			goto fail;
+		break;
+	case 648:
+	case 690:
+	case 691:
+	case 692:
+	case 798:
+	case 803:
+		ret = platform_device_add_data(dcc_pdev, &nord_pdata, sizeof(nord_pdata));
 		if (ret)
 			goto fail;
 		break;
