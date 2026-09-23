@@ -90,34 +90,49 @@ static inline u8 vfe_gen4_rdi_wm(struct vfe_device *vfe, u8 rdi)
 }
 
 /* VFE-gen4 Bus Register Base Addresses */
-#define BUS_REG_BASE				(vfe_gen4_bus_reg_base(vfe))
+#define IS_VFE_1190(vfe)	((vfe)->camss->res->version == CAMSS_HAWI)
+#define BUS_REG_BASE_1080	(vfe_is_lite(vfe) ? 0x800 : 0x1000)
 
-#define VFE_BUS_WM_CGC_OVERRIDE			(BUS_REG_BASE + 0x08)
+/* VFE-gen4 Bus Register Base Addresses */
+#define BUS_REG_BASE_1190	(0x800)
+#define BUS_REG_BASE		(IS_VFE_1190(vfe) ? BUS_REG_BASE_1190 : \
+						    BUS_REG_BASE_1080)
+
+#define BUS_REG_OFFSET_1080(n)		(0x500 + (n) * 0x100)
+#define BUS_REG_OFFSET_1190(n)		(0x1000 + (n) * 0x200)
+#define BUS_REG_OFFSET(n)		(IS_VFE_1190(vfe) ? \
+						BUS_REG_OFFSET_1190(n) : \
+						BUS_REG_OFFSET_1080(n))
+
+#define VFE_BUS_WM_CGC_OVERRIDE		(BUS_REG_BASE + \
+					(IS_VFE_1190(vfe) ? 0x4 : 0x8))
 #define		WM_CGC_OVERRIDE_ALL			(0x7FFFFFF)
 
 #define VFE_BUS_WM_TEST_BUS_CTRL		(vfe_gen4_test_bus_ctrl(vfe))
 
-#define VFE_BUS_WM_CFG(n)			(BUS_REG_BASE + 0x500 + (n) * 0x100)
+#define VFE_BUS_WM_CFG(n)			(BUS_REG_BASE + BUS_REG_OFFSET(n))
 #define		WM_CFG_EN				BIT(0)
 #define		WM_VIR_FRM_EN				BIT(1)
 #define		WM_CFG_MODE				BIT(16)
-#define VFE_BUS_WM_IMAGE_ADDR(n)		(BUS_REG_BASE + 0x504 + (n) * 0x100)
-#define VFE_BUS_WM_FRAME_INCR(n)		(BUS_REG_BASE + 0x508 + (n) * 0x100)
-#define VFE_BUS_WM_IMAGE_CFG_0(n)		(BUS_REG_BASE + 0x50C + (n) * 0x100)
+#define VFE_BUS_WM_IMAGE_ADDR(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x4)
+#define VFE_BUS_WM_FRAME_INCR(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x8)
+#define VFE_BUS_WM_IMAGE_CFG_0(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0xC)
 #define		WM_IMAGE_CFG_0_DEFAULT_WIDTH		(0xFFFF)
-#define VFE_BUS_WM_IMAGE_CFG_2(n)		(BUS_REG_BASE + 0x514 + (n) * 0x100)
+#define VFE_BUS_WM_IMAGE_CFG_2(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x14)
 #define		WM_IMAGE_CFG_2_DEFAULT_STRIDE		(0xFFFF)
-#define VFE_BUS_WM_PACKER_CFG(n)		(BUS_REG_BASE + 0x518 + (n) * 0x100)
+#define VFE_BUS_WM_PACKER_CFG(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x18)
 
-#define VFE_BUS_WM_IRQ_SUBSAMPLE_PERIOD(n)	(BUS_REG_BASE + 0x530 + (n) * 0x100)
-#define VFE_BUS_WM_IRQ_SUBSAMPLE_PATTERN(n)	(BUS_REG_BASE + 0x534 + (n) * 0x100)
+#define VFE_BUS_WM_IRQ_SUBSAMPLE_PERIOD(n)	(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x30)
+#define VFE_BUS_WM_IRQ_SUBSAMPLE_PATTERN(n)	(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x34)
 
 /* VFE lite has no such registers */
-#define VFE_BUS_WM_FRAMEDROP_PERIOD(n)		(BUS_REG_BASE + 0x538 + (n) * 0x100)
-#define VFE_BUS_WM_FRAMEDROP_PATTERN(n)		(BUS_REG_BASE + 0x53C + (n) * 0x100)
+#define VFE_BUS_WM_FRAMEDROP_PERIOD(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x38)
+#define VFE_BUS_WM_FRAMEDROP_PATTERN(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + 0x3C)
 
-#define VFE_BUS_WM_MMU_PREFETCH_CFG(n)		(BUS_REG_BASE + 0x560 + (n) * 0x100)
-#define VFE_BUS_WM_MMU_PREFETCH_MAX_OFFSET(n)	(BUS_REG_BASE + 0x564 + (n) * 0x100)
+#define VFE_BUS_WM_MMU_PREFETCH_CFG(n)		(BUS_REG_BASE + BUS_REG_OFFSET(n) + \
+						(IS_VFE_1190(vfe) ? 0x64 : 0x60))
+#define VFE_BUS_WM_MMU_PREFETCH_MAX_OFFSET(n)	(BUS_REG_BASE + BUS_REG_OFFSET(n) + \
+						(IS_VFE_1190(vfe) ? 0x68 : 0x64))
 
 /*
  * IFE write master client IDs
