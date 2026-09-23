@@ -97,6 +97,7 @@
 			q6apmdai: dais {
 				compatible = "qcom,q6apm-dais";
 				iommus = <&apps_smmu 0x1801 0x0>;
+				memory-region = <&audio_cma_mem>;
 			};
 
 			q6apmbedai: bedais {
