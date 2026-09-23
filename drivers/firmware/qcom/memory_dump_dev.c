@@ -69,6 +69,7 @@ enum dump_ids {
 	ETF_SWAO	= 0xf1,
 	ETF_SLPI	= 0xf3,
 	ETF_LPASS	= 0xf4,
+	CPUCP		= 0xf5,
 	FCM		= 0xee,
 	ETR_REG		= 0x100,
 	ETF_REG		= 0x101,
@@ -112,6 +113,7 @@ enum dump_ids {
 	SPR_CPU10	= 0x1fa,
 	SPR_CPU11	= 0x1fb,
 	SCANDUMP_SMMU	= 0x220,
+	SCANDUMP_GPU	= 0x221,
 	CACHE_CPU0	= 0x230,
 	CACHE_CPU1	= 0x231,
 	CACHE_CPU2	= 0x232,
@@ -128,6 +130,21 @@ enum dump_ids {
 	CACHE_CLUSTER1	= 0x241,
 	CACHE_CLUSTER2	= 0x242,
 	C_CONTEXT	= 0x250,
+	CPUSS_CLUSTER0	= 0x270,
+	CPUSS_CLUSTER1	= 0x271,
+	CPUSS_CLUSTER2	= 0x272,
+	CPUSS_CPU0	= 0x280,
+	CPUSS_CPU1	= 0x281,
+	CPUSS_CPU2	= 0x282,
+	CPUSS_CPU3	= 0x283,
+	CPUSS_CPU4	= 0x284,
+	CPUSS_CPU5	= 0x285,
+	CPUSS_CPU6	= 0x286,
+	CPUSS_CPU7	= 0x287,
+	CPUSS_CPU8	= 0x288,
+	CPUSS_CPU9	= 0x289,
+	CPUSS_CPU10	= 0x28a,
+	CPUSS_CPU11	= 0x28b,
 };
 
 static const struct dump_item lemans_items[] = {
@@ -506,6 +523,83 @@ static const struct dump_item shikra_items[] = {
 	{ ETF_LPASS, 0x8000, "etf-lpass" },
 };
 
+static const struct dump_item nord_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c1-context" },
+	{ C200_CONTEXT, 0x800, "c2-context" },
+	{ C300_CONTEXT, 0x800, "c3-context" },
+	{ C400_CONTEXT, 0x800, "c4-context" },
+	{ C500_CONTEXT, 0x800, "c5-context" },
+	{ C600_CONTEXT, 0x800, "c6-context" },
+	{ C700_CONTEXT, 0x800, "c7-context" },
+	{ C800_CONTEXT, 0x800, "c8-context" },
+	{ C900_CONTEXT, 0x800, "c9-context" },
+	{ C1000_CONTEXT, 0x800, "c10-context" },
+	{ C1100_CONTEXT, 0x800, "c11-context" },
+	{ C1200_CONTEXT, 0x800, "c12-context" },
+	{ C1300_CONTEXT, 0x800, "c13-context" },
+	{ C1400_CONTEXT, 0x800, "c14-context" },
+	{ C1500_CONTEXT, 0x800, "c15-context" },
+	{ C1600_CONTEXT, 0x800, "c16-context" },
+	{ C1700_CONTEXT, 0x800, "c17-context" },
+	{ PMIC, 0x80000, "pmic" },
+	{ MISC_DATA, 0x1000, "misc-data" },
+	{ RPM_SW, 0x28000, "rpm-sw" },
+	{ RPMH, 0x2000000, "rpmh" },
+	{ FCM, 0x8400, "fcm" },
+	{ TMC_ETF, 0x10000, "tmc-etf" },
+	{ ETF_SWAO, 0x8400, "etf-swao" },
+	{ ETR_REG, 0x1000, "etr-reg" },
+	{ ETR1_REG, 0x1000, "etr1-reg" },
+	{ ETF_REG, 0x1000, "etf-reg" },
+	{ ETFSWAO_REG, 0x1000, "etfswao-reg" },
+	{ C0_SCANDUMP, 0x380000, "apps-scandump" },
+	{ FSM_DATA, 0x400, "fsm-data" },
+	{ SCANDUMP_SMMU, 0x40000, "scandump-smmu" },
+	{ CACHE_CPU0, 0x100000, "cache-cpu0" },
+	{ CACHE_CPU1, 0x100000, "cache-cpu1" },
+	{ CACHE_CPU2, 0x100000, "cache-cpu2" },
+	{ CACHE_CPU3, 0x100000, "cache-cpu3" },
+	{ CACHE_CPU4, 0x100000, "cache-cpu4" },
+	{ CACHE_CPU5, 0x100000, "cache-cpu5" },
+	{ CACHE_CPU6, 0x100000, "cache-cpu6" },
+	{ CACHE_CPU7, 0x100000, "cache-cpu7" },
+	{ CACHE_CPU8, 0x100000, "cache-cpu8" },
+	{ CACHE_CPU9, 0x100000, "cache-cpu9" },
+	{ CACHE_CPU10, 0x100000, "cache-cpu10" },
+	{ CACHE_CPU11, 0x100000, "cache-cpu11" },
+	{ CPUCP, 0x80000, "cpucp" },
+	{ CPUSS_CLUSTER0, 0x40000, "cpuss-cluster0" },
+	{ CPUSS_CLUSTER1, 0x40000, "cpuss-cluster1" },
+	{ CPUSS_CLUSTER2, 0x40000, "cpuss-cluster2" },
+	{ CPUSS_CPU0, 0x40000, "cpuss-cpu0" },
+	{ CPUSS_CPU1, 0x40000, "cpuss-cpu1" },
+	{ CPUSS_CPU2, 0x40000, "cpuss-cpu2" },
+	{ CPUSS_CPU3, 0x40000, "cpuss-cpu3" },
+	{ CPUSS_CPU4, 0x40000, "cpuss-cpu4" },
+	{ CPUSS_CPU5, 0x40000, "cpuss-cpu5" },
+	{ CPUSS_CPU6, 0x40000, "cpuss-cpu6" },
+	{ CPUSS_CPU7, 0x40000, "cpuss-cpu7" },
+	{ CPUSS_CPU8, 0x40000, "cpuss-cpu8" },
+	{ CPUSS_CPU9, 0x40000, "cpuss-cpu9" },
+	{ CPUSS_CPU10, 0x40000, "cpuss-cpu10" },
+	{ CPUSS_CPU11, 0x40000, "cpuss-cpu11" },
+	{ SPR_CPU0, 0x2000, "spr-cpu0" },
+	{ SPR_CPU1, 0x2000, "spr-cpu1" },
+	{ SPR_CPU2, 0x2000, "spr-cpu2" },
+	{ SPR_CPU3, 0x2000, "spr-cpu3" },
+	{ SPR_CPU4, 0x2000, "spr-cpu4" },
+	{ SPR_CPU5, 0x2000, "spr-cpu5" },
+	{ SPR_CPU6, 0x2000, "spr-cpu6" },
+	{ SPR_CPU7, 0x2000, "spr-cpu7" },
+	{ SPR_CPU8, 0x2000, "spr-cpu8" },
+	{ SPR_CPU9, 0x2000, "spr-cpu9" },
+	{ SPR_CPU10, 0x2000, "spr-cpu10" },
+	{ SPR_CPU11, 0x2000, "spr-cpu11" },
+	{ CPUSS_REG, 0xa00000, "cpuss-reg" },
+	{ SCANDUMP_GPU, 0x300000, "scandump-gpu" },
+};
+
 static const struct dump_table lemans_dump_table = {
 	.items		= lemans_items,
 	.num_of_items	= ARRAY_SIZE(lemans_items),
@@ -558,6 +652,13 @@ static const struct dump_table shikra_dump_table = {
 static const struct dump_table glymur_dump_table = {
 	.items		= glymur_items,
 	.num_of_items	= ARRAY_SIZE(glymur_items),
+	.imem_base	= 0x14680010,
+	.imem_size	= 0x8,
+};
+
+static const struct dump_table nord_dump_table = {
+	.items		= nord_items,
+	.num_of_items	= ARRAY_SIZE(nord_items),
 	.imem_base	= 0x14680010,
 	.imem_size	= 0x8,
 };
@@ -659,6 +760,17 @@ static int __init mem_dump_dev_init(void)
 	case 719:
 		ret = platform_device_add_data(mem_dump_pdev,
 				&glymur_dump_table, sizeof(glymur_dump_table));
+		if (ret)
+			goto fail;
+		break;
+	case 648:
+	case 690:
+	case 691:
+	case 692:
+	case 798:
+	case 803:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&nord_dump_table, sizeof(nord_dump_table));
 		if (ret)
 			goto fail;
 		break;
