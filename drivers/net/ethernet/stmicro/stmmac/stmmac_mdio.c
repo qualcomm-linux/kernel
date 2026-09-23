@@ -552,7 +552,8 @@ static u32 stmmac_clk_csr_set(struct stmmac_priv *priv)
 	rates = stmmac_std_csr_to_mdc;
 	if (priv->plat->flags & STMMAC_FLAG_HAS_SUN8I)
 		rates = stmmac_sun8i_csr_to_mdc;
-	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC ||
+	    priv->plat->core_type == DWMAC_CORE_25GMAC)
 		rates = stmmac_xgmac_csr_to_mdc;
 
 	for (i = 0; rates[i].rate; i++)
@@ -619,7 +620,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	new_bus->name = "stmmac";
 
-	if (priv->plat->core_type == DWMAC_CORE_XGMAC) {
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC ||
+	    priv->plat->core_type == DWMAC_CORE_25GMAC) {
 		new_bus->read = &stmmac_xgmac2_mdio_read_c22;
 		new_bus->write = &stmmac_xgmac2_mdio_write_c22;
 		new_bus->read_c45 = &stmmac_xgmac2_mdio_read_c45;
@@ -663,7 +665,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 	}
 
 	/* Looks like we need a dummy read for XGMAC only and C45 PHYs */
-	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC ||
+	    priv->plat->core_type == DWMAC_CORE_25GMAC)
 		stmmac_xgmac2_mdio_read_c45(new_bus, 0, 0, 0);
 
 	/* If fixed-link is set, skip PHY scanning */

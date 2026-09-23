@@ -1581,9 +1581,11 @@ int dw25gmac_setup(struct stmmac_priv *priv)
 	dwxgmac2_common_setup(priv, "DW25GMAC");
 
 	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
-			 MAC_1000FD | MAC_2500FD | MAC_5000FD |
-			 MAC_10000FD | MAC_25000FD;
+				 MAC_10 | MAC_100 | MAC_1000FD | MAC_2500FD | MAC_5000FD |
+				 MAC_10000FD | MAC_25000FD;
 	mac->link.duplex = 0;
+	mac->link.speed10 = XGMAC_CONFIG_SS_10_MII;
+	mac->link.speed100 = XGMAC_CONFIG_SS_100_MII;
 	mac->link.speed1000 = XGMAC_CONFIG_SS_1000_GMII;
 	mac->link.speed2500 = XGMAC_CONFIG_SS_2500_GMII;
 	mac->link.xgmii.speed2500 = XGMAC_CONFIG_SS_2500;
