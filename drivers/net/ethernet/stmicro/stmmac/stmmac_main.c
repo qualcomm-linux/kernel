@@ -1014,6 +1014,8 @@ static unsigned long stmmac_mac_get_caps(struct phylink_config *config,
 		priv->hw->link.caps &= ~(MAC_1000HD | MAC_100HD | MAC_10HD);
 
 	config->mac_capabilities = priv->hw->link.caps;
+	if (interface == PHY_INTERFACE_MODE_USXGMII)
+		config->mac_capabilities |= MAC_10FD | MAC_100FD;
 
 	if (priv->plat->max_speed)
 		phylink_limit_mac_speed(config, priv->plat->max_speed);
