@@ -41,6 +41,10 @@ struct qcom_dwmac_sgmii_phy_data {
 	phy_interface_t interface;
 };
 
+struct qcom_dwmac_sgmii_phy_match_data {
+	phy_interface_t default_interface;
+};
+
 static void qcom_dwmac_sgmii_phy_init_1g(struct regmap *regmap)
 {
 	regmap_write(regmap, QSERDES_PCS + QPHY_PCS_SW_RESET, 0x01);
@@ -227,6 +231,40 @@ qcom_dwmac_sgmii_phy_poll_status(struct regmap *regmap, unsigned int reg,
 					val & bit, 1500, 750000);
 }
 
+static int qcom_dwmac_sgmii_phy_poll_sgmii_ready(struct device *dev,
+						  struct regmap *regmap)
+{
+	if (qcom_dwmac_sgmii_phy_poll_status(regmap,
+					     QSERDES_QMP_PLL + QSERDES_V5_COM_C_READY_STATUS,
+					     QSERDES_COM_C_READY)) {
+		dev_err(dev, "QSERDES_COM_C_READY_STATUS timed-out");
+		return -ETIMEDOUT;
+	}
+
+	if (qcom_dwmac_sgmii_phy_poll_status(regmap,
+					     QSERDES_PCS + QPHY_PCS_PCS_READY_STATUS,
+					     QSERDES_PCS_READY)) {
+		dev_err(dev, "PCS_READY timed-out");
+		return -ETIMEDOUT;
+	}
+
+	if (qcom_dwmac_sgmii_phy_poll_status(regmap,
+					     QSERDES_PCS + QPHY_PCS_PCS_READY_STATUS,
+					     QSERDES_PCS_SGMIIPHY_READY)) {
+		dev_err(dev, "SGMIIPHY_READY timed-out");
+		return -ETIMEDOUT;
+	}
+
+	if (qcom_dwmac_sgmii_phy_poll_status(regmap,
+					     QSERDES_QMP_PLL + QSERDES_V5_COM_CMN_STATUS,
+					     QSERDES_COM_C_PLL_LOCKED)) {
+		dev_err(dev, "PLL Lock Status timed-out");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static int qcom_dwmac_sgmii_phy_calibrate(struct phy *phy)
 {
 	struct qcom_dwmac_sgmii_phy_data *data = phy_get_drvdata(phy);
@@ -246,35 +284,7 @@ static int qcom_dwmac_sgmii_phy_calibrate(struct phy *phy)
 		return -EINVAL;
 	}
 
-	if (qcom_dwmac_sgmii_phy_poll_status(data->regmap,
-					     QSERDES_QMP_PLL + QSERDES_V5_COM_C_READY_STATUS,
-					     QSERDES_COM_C_READY)) {
-		dev_err(dev, "QSERDES_COM_C_READY_STATUS timed-out");
-		return -ETIMEDOUT;
-	}
-
-	if (qcom_dwmac_sgmii_phy_poll_status(data->regmap,
-					     QSERDES_PCS + QPHY_PCS_PCS_READY_STATUS,
-					     QSERDES_PCS_READY)) {
-		dev_err(dev, "PCS_READY timed-out");
-		return -ETIMEDOUT;
-	}
-
-	if (qcom_dwmac_sgmii_phy_poll_status(data->regmap,
-					     QSERDES_PCS + QPHY_PCS_PCS_READY_STATUS,
-					     QSERDES_PCS_SGMIIPHY_READY)) {
-		dev_err(dev, "SGMIIPHY_READY timed-out");
-		return -ETIMEDOUT;
-	}
-
-	if (qcom_dwmac_sgmii_phy_poll_status(data->regmap,
-					     QSERDES_QMP_PLL + QSERDES_V5_COM_CMN_STATUS,
-					     QSERDES_COM_C_PLL_LOCKED)) {
-		dev_err(dev, "PLL Lock Status timed-out");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	return qcom_dwmac_sgmii_phy_poll_sgmii_ready(dev, data->regmap);
 }
 
 static int qcom_dwmac_sgmii_phy_power_on(struct phy *phy)
@@ -374,6 +384,7 @@ static const struct regmap_config qcom_dwmac_sgmii_phy_regmap_cfg = {
 
 static int qcom_dwmac_sgmii_phy_probe(struct platform_device *pdev)
 {
+	const struct qcom_dwmac_sgmii_phy_match_data *match_data;
 	struct qcom_dwmac_sgmii_phy_data *data;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *provider;
@@ -385,7 +396,11 @@ static int qcom_dwmac_sgmii_phy_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->interface = PHY_INTERFACE_MODE_SGMII;
+	match_data = device_get_match_data(dev);
+	if (!match_data)
+		return -EINVAL;
+
+	data->interface = match_data->default_interface;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -419,8 +434,15 @@ static int qcom_dwmac_sgmii_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct qcom_dwmac_sgmii_phy_match_data sa8775p_match_data = {
+	.default_interface = PHY_INTERFACE_MODE_SGMII,
+};
+
 static const struct of_device_id qcom_dwmac_sgmii_phy_of_match[] = {
-	{ .compatible = "qcom,sa8775p-dwmac-sgmii-phy" },
+	{
+		.compatible = "qcom,sa8775p-dwmac-sgmii-phy",
+		.data = &sa8775p_match_data,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_dwmac_sgmii_phy_of_match);
