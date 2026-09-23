@@ -71,6 +71,8 @@ struct dentry;
  * @vcodec_vpp0: power domain and clocks for the vcodec VPP0
  * @vcodec_vpp1: power domain and clocks for the vcodec VPP1
  * @apv: power domain and clocks for the APV hardware block
+ * @mm_int: power domain and clocks for the MM interconnect block
+ * @cx_int: power domain and clocks for the CX interconnect block
  * @opp_pmdomain_tbl: table of opp power domains
  * @resets: table of iris reset clocks
  * @controller_resets: table of controller reset clocks
@@ -123,6 +125,8 @@ struct iris_core {
 	struct iris_power_domain		*vcodec_vpp0;
 	struct iris_power_domain		*vcodec_vpp1;
 	struct iris_power_domain		*apv;
+	struct iris_power_domain		*mm_int;
+	struct iris_power_domain		*cx_int;
 	struct dev_pm_domain_list		*opp_pmdomain_tbl;
 	struct reset_control_bulk_data		*resets;
 	struct reset_control_bulk_data		*controller_resets;
