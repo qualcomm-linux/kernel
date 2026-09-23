@@ -2877,8 +2877,6 @@
 							compatible = "qcom,q6apm-dais";
 							memory-region = <&audio_heap_mem
 									 &audio_mdsp_carveout_mem>;
-							qcom,vmid = <QCOM_SCM_VMID_LPASS
-								     QCOM_SCM_VMID_MSS_MSA>;
 						};
 					};
 
