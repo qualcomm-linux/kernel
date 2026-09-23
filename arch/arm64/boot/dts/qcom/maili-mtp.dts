@@ -1114,6 +1114,14 @@
 	};
 };
 
+&gpu {
+	status = "okay";
+};
+
+&gpu_zap_shader {
+	firmware-name = "qcom/maili/gen81100_zap.mbn";
+};
+
 &uart7 {
 	status = "okay";
 };
