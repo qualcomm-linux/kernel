@@ -20549,6 +20549,17 @@ F:	Documentation/devicetree/bindings/connector/pcie-m2-e-connector.yaml
 F:	Documentation/devicetree/bindings/connector/pcie-m2-m-connector.yaml
 F:	drivers/power/sequencing/pwrseq-pcie-m2.c
 
+POWER STATE CHANGE REASON RECORDING (PSCRR)
+M:	Oleksij Rempel <o.rempel@pengutronix.de>
+M:	Faruque Ansari <faruque.ansari@oss.qualcomm.com>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-kernel-pscrr
+F:	drivers/power/reset/pscrr/
+F:	include/linux/pscrr.h
+F:	tools/testing/selftests/pscrr/
+
 POWER STATE COORDINATION INTERFACE (PSCI)
 M:	Mark Rutland <mark.rutland@arm.com>
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>

@@ -346,3 +346,5 @@ config POWER_MLXBF
 	  This driver supports reset or low power mode handling for Mellanox BlueField.
 
 endif
+
+source "drivers/power/reset/pscrr/Kconfig"
