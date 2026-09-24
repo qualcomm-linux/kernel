@@ -244,6 +244,8 @@ enum psc_reason {
 #define PSCR_MAX_REASON	(PSCR_REASON_COUNT - 1)
 
 const char *psc_reason_to_str(enum psc_reason reason);
+const char *psc_reason_to_token(enum psc_reason reason);
+int psc_reason_from_token(const char *token, enum psc_reason *reason);
 
 /**
  * enum hw_protection_action - Hardware protection action
