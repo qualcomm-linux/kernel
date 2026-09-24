@@ -111,6 +111,7 @@ u32 iris_hfi_gen2_get_color_info(u32 matrix_coeff, u32 transfer_char, u32 primar
 
 void iris_hfi_gen2_packet_sys_init(struct iris_core *core, struct iris_hfi_header *hdr);
 void iris_hfi_gen2_packet_image_version(struct iris_core *core, struct iris_hfi_header *hdr);
+void iris_hfi_gen2_packet_set_debug(struct iris_core *core, struct iris_hfi_header *hdr);
 void iris_hfi_gen2_packet_session_command(struct iris_inst *inst, u32 pkt_type,
 					  u32 flags, u32 port, u32 session_id,
 					  u32 payload_type, void *payload,

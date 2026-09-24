@@ -56,7 +56,16 @@ properties:
           - const: qcom,apq8084
 
       - items:
+          - const: qcom,eliza-cqs-evk-emmc
           - const: qcom,eliza-cqs-evk
+          - const: qcom,eliza-cqs-som-emmc
+          - const: qcom,eliza-cqs-som
+          - const: qcom,eliza
+
+      - items:
+          - const: qcom,eliza-cqs-evk-ufs
+          - const: qcom,eliza-cqs-evk
+          - const: qcom,eliza-cqs-som-ufs
           - const: qcom,eliza-cqs-som
           - const: qcom,eliza
 
@@ -88,6 +97,7 @@ properties:
           - enum:
               - asus,zenbook-a16-ux3607oa
               - qcom,glymur-crd
+              - qcom,glymur-qcb
           - const: qcom,glymur
 
       - items:
@@ -402,6 +412,13 @@ properties:
               - xiaomi,sagit
           - const: qcom,msm8998
 
+      - items:
+          - enum:
+              - qcom,iq10-rrd
+              - qcom,sa8797p-ride
+              - qcom,sa8797p-ride-embedded
+          - const: qcom,nord
+
       - description: Qualcomm Technologies, Inc. Robotics RB1
         items:
           - enum:
@@ -433,6 +450,7 @@ properties:
       - items:
           - enum:
               - arduino,monza
+              - qcom,monaco-ac-evk
               - qcom,monaco-evk
               - qcom,qcs8300-ride
           - const: qcom,qcs8300
@@ -1058,6 +1076,13 @@ properties:
 
       - items:
           - enum:
+              - qcom,talos-lyra-evk
+          - const: qcom,talos-lyra-evk-som
+          - const: qcom,qcs615
+          - const: qcom,sm6150
+
+      - items:
+          - enum:
               - sony,pdx213
           - const: qcom,sm6350
 
@@ -1231,6 +1256,13 @@ properties:
       - items:
           - const: microsoft,surface-pro-12in
           - const: qcom,x1p42100
+
+      - items:
+          - enum:
+              - advantech,som-db5830
+          - const: advantech,som-6820
+          - const: qcom,iq-x7181-evk-som
+          - const: qcom,x1e80100
 
       - items:
           - enum:

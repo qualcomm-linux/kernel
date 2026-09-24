@@ -2930,11 +2930,11 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 
 		pm_runtime_get_sync(dev);
 		_anx7625_hpd_polling(platform, 5000 * 100);
-	}
 
-	if (platform->pdata.intp_irq)
-		anx7625_reg_write(platform, platform->i2c.rx_p0_client,
-				  INTERFACE_CHANGE_INT_MASK, 0);
+		if (platform->pdata.intp_irq)
+			anx7625_reg_write(platform, platform->i2c.rx_p0_client,
+					  INTERFACE_CHANGE_INT_MASK, 0);
+	}
 
 	/* After getting runtime handle */
 	ret = anx7625_typec_register(platform);

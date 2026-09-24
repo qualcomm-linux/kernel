@@ -773,6 +773,33 @@ struct coresight_device *coresight_get_sink(struct coresight_path *path)
 }
 EXPORT_SYMBOL_GPL(coresight_get_sink);
 
+/**
+ * coresight_get_in_port: Find the input port number at @remote where the @csdev
+ * device is connected to.
+ *
+ * @csdev: csdev of the device.
+ * @remote: csdev of the remote device which is connected to @csdev.
+ *
+ * Return: port number upon success or -EINVAL for fail.
+ */
+int coresight_get_in_port(struct coresight_device *csdev,
+			  struct coresight_device *remote)
+{
+	struct coresight_platform_data *pdata = remote->pdata;
+	int i;
+
+	for (i = 0; i < pdata->nr_inconns; ++i) {
+		if (!pdata->in_conns[i])
+			continue;
+
+		if (pdata->in_conns[i]->src_dev == csdev)
+			return pdata->in_conns[i]->dest_port;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(coresight_get_in_port);
+
 u32 coresight_get_sink_id(struct coresight_device *csdev)
 {
 	if (!csdev->ea)
@@ -822,14 +849,16 @@ struct coresight_device *coresight_get_sink_by_id(u32 id)
  *
  * @csdev: The coresight device to get a reference on.
  *
- * Return true in successful case and power up the device.
- * Return false when failed to get reference of module.
+ * Return true on success and power up the device.
+ * Return false if a reference cannot be obtained or the device cannot be
+ * powered up.
  */
 static bool coresight_get_ref(struct coresight_device *csdev)
 {
 	struct device *dev = &csdev->dev;
 	struct device *parent = csdev->dev.parent;
 	struct device_driver *drv;
+	int ret;
 
 	/* Make sure csdev can't go away */
 	get_device(dev);
@@ -843,9 +872,14 @@ static bool coresight_get_ref(struct coresight_device *csdev)
 		goto err_module;
 
 	/* Make sure the device is powered on */
-	pm_runtime_get_sync(parent);
+	ret = pm_runtime_resume_and_get(parent);
+	if (ret < 0)
+		goto err_pm;
+
 	return true;
 
+err_pm:
+	module_put(drv->owner);
 err_module:
 	put_device(parent);
 	put_device(dev);
@@ -953,8 +987,12 @@ int coresight_path_assign_trace_id(struct coresight_path *path,
 		/* Assign a trace ID to the path for the first device that wants to do it */
 		trace_id = coresight_get_trace_id(nd->csdev, mode, sink);
 
-		/* 0 means the device has no ID assignment, so keep searching */
-		if (trace_id == 0)
+		/*
+		 * 0 means the device has no ID assignment, and -EOPNOTSUPP
+		 * means the device explicitly declines to assign one (e.g. a
+		 * pass-through NoC) - in both cases keep searching downstream.
+		 */
+		if (trace_id == 0 || trace_id == -EOPNOTSUPP)
 			continue;
 
 		if (!IS_VALID_CS_TRACE_ID(trace_id))

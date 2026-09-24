@@ -127,7 +127,9 @@ int iris_vb2_queue_setup(struct vb2_queue *q,
 		goto unlock;
 
 	if (!inst->once_per_session_set) {
-		inst->once_per_session_set = true;
+		ret = iris_hfi_set_debug(core);
+		if (ret)
+			dev_warn(core->dev, "failed to set firmware debug level: %d\n", ret);
 
 		ret = inst->hfi_session_ops->session_open(inst);
 		if (ret) {
@@ -135,6 +137,8 @@ int iris_vb2_queue_setup(struct vb2_queue *q,
 			dev_err(core->dev, "session open failed\n");
 			goto unlock;
 		}
+
+		inst->once_per_session_set = true;
 
 		ret = iris_inst_change_state(inst, IRIS_INST_INIT);
 		if (ret)
@@ -173,6 +177,10 @@ int iris_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
 	iris_scale_power(inst);
 
 	ret = iris_check_session_supported(inst);
+	if (ret)
+		goto error;
+
+	ret = iris_set_core_id(inst);
 	if (ret)
 		goto error;
 

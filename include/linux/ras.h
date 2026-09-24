@@ -63,4 +63,12 @@ amd_convert_umc_mca_addr_to_sys_addr(struct atl_err *err) { return -EINVAL; }
 #define GET_LOGICAL_INDEX(mpidr) -EINVAL
 #endif /* CONFIG_ARM || CONFIG_ARM64 */
 
+#if IS_ENABLED(CONFIG_AEST)
+void aest_register_decode_chain(struct notifier_block *nb);
+void aest_unregister_decode_chain(struct notifier_block *nb);
+#else
+static inline void aest_register_decode_chain(struct notifier_block *nb) {}
+static inline void aest_unregister_decode_chain(struct notifier_block *nb) {}
+#endif /* CONFIG_AEST */
+
 #endif /* __RAS_H__ */
