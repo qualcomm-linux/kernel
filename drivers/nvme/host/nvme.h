@@ -1096,6 +1096,9 @@ extern const struct attribute_group nvme_dev_attrs_group;
 extern const struct attribute_group nvme_dev_diag_attrs_group;
 extern const struct attribute_group *nvme_subsys_attrs_groups[];
 extern const struct attribute_group *nvme_dev_attr_groups[];
+#ifdef CONFIG_NVME_SPEED_SWITCH
+extern const struct attribute_group nvme_speed_attr_group;
+#endif
 extern const struct block_device_operations nvme_bdev_ops;
 
 void nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl);

@@ -325,7 +325,7 @@ void nvme_speed_switch_init(struct nvme_ctrl *ctrl)
 {
 	struct nvme_speed_switch *sw = &ctrl->speed_switch;
 	struct pci_dev *pdev;
-	int max_speed;
+	int max_speed, ret;
 
 	if (!dev_is_pci(ctrl->dev)) {
 		dev_err(ctrl->device, "link rate switching requires a PCI device\n");
@@ -370,6 +370,18 @@ void nvme_speed_switch_init(struct nvme_ctrl *ctrl)
 	timer_setup(&sw->timer, nvme_speed_switch_timer_fn, 0);
 	atomic_set(&sw->timer_active, NVME_SPEED_TIMER_INACTIVE);
 	WRITE_ONCE(sw->enabled, true);
+
+	ret = sysfs_create_group(&ctrl->device->kobj, &nvme_speed_attr_group);
+	if (ret) {
+		dev_err(ctrl->device,
+			"failed to create link rate switching sysfs group (%d)\n",
+			ret);
+		timer_delete_sync(&sw->timer);
+		free_percpu(sw->stats);
+		sw->stats = NULL;
+		WRITE_ONCE(sw->enabled, false);
+		return;
+	}
 	sw->initialized = true;
 
 	dev_info(ctrl->device,
@@ -399,6 +411,7 @@ void nvme_speed_switch_exit(struct nvme_ctrl *ctrl)
 	WRITE_ONCE(sw->enabled, false);
 	timer_delete_sync(&sw->timer);
 	cancel_work_sync(&sw->work);
+	sysfs_remove_group(&ctrl->device->kobj, &nvme_speed_attr_group);
 
 	free_percpu(sw->stats);
 	sw->stats = NULL;
