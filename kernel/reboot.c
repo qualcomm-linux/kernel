@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/kexec.h>
 #include <linux/kmsg_dump.h>
+#include <linux/power/power_on_reason.h>
 #include <linux/rcupdate.h>
 #include <linux/reboot.h>
 #include <linux/sched/signal.h>
