@@ -339,6 +339,33 @@ enum nvme_ctrl_flags {
 	NVME_CTRL_FROZEN		= 6,
 };
 
+#ifdef CONFIG_NVME_SPEED_SWITCH
+struct nvme_speed_switch_stats {
+	u64 read_bytes;
+	u64 write_bytes;
+};
+
+struct nvme_speed_switch {
+	bool initialized;
+	bool enabled;
+	u8 max_speed;
+	u8 cur_speed;
+	u8 target_speed;
+	u8 min_speed;
+	u32 monitor_interval;	/* ms */
+	u32 threshold;		/* KB */
+	struct timer_list timer;
+	struct work_struct work;
+	struct nvme_speed_switch_stats __percpu *stats;
+	atomic_t timer_active;
+};
+
+enum nvme_speed_timer_state {
+	NVME_SPEED_TIMER_INACTIVE,
+	NVME_SPEED_TIMER_ACTIVE,
+};
+#endif
+
 struct nvme_ctrl {
 	bool comp_seen;
 	bool identified;
@@ -480,7 +507,22 @@ struct nvme_ctrl {
 	enum nvme_dctype dctype;
 
 	u16			awupf; /* 0's based value. */
+#ifdef CONFIG_NVME_SPEED_SWITCH
+	struct nvme_speed_switch speed_switch;
+#endif
 };
+
+#ifdef CONFIG_NVME_SPEED_SWITCH
+void nvme_update_io_stats(struct nvme_ctrl *ctrl, struct request *req);
+void nvme_speed_switch_start(struct nvme_ctrl *ctrl);
+void nvme_speed_switch_init(struct nvme_ctrl *ctrl);
+void nvme_speed_switch_exit(struct nvme_ctrl *ctrl);
+#else
+static inline void nvme_update_io_stats(struct nvme_ctrl *ctrl, struct request *req) {}
+static inline void nvme_speed_switch_start(struct nvme_ctrl *ctrl) {}
+static inline void nvme_speed_switch_init(struct nvme_ctrl *ctrl) {}
+static inline void nvme_speed_switch_exit(struct nvme_ctrl *ctrl) {}
+#endif
 
 static inline enum nvme_ctrl_state nvme_ctrl_state(struct nvme_ctrl *ctrl)
 {
