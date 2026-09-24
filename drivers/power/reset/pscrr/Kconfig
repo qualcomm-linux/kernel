@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig PSCRR
+	bool "Power State Change Reasons Recording (PSCRR) Framework"
+	depends on POWER_RESET
+	help
+	  Enables the Power State Change Reasons Recording (PSCRR) framework.
+
+	  PSCRR records why the system last shut down or rebooted into
+	  non-volatile storage, so the reason survives the reset and can be
+	  read by the bootloader or early user space on the next boot. Reasons
+	  come from software (thermal or regulator hardware-protection events,
+	  a watchdog pretimeout, a kernel panic, a controlled reboot) or from
+	  hardware reset-cause registers (PMIC, SoC reset controller, watchdog).
+
+	  It helps whenever the real cause would otherwise be lost or ambiguous
+	  on the next boot, for example:
+
+	  - the reset is abrupt and block storage (eMMC/NAND) may not survive
+	    it; on systems that can detect the event in time - such as an
+	    imminent power loss with a short backup-capacitor window - the
+	    reason can still be persisted first;
+
+	  - the hardware does not preserve the cause and the boot looks like a
+	    plain power-on reset, e.g. a watchdog pretimeout that escalates
+	    into a panic reboot would otherwise be indistinguishable from a
+	    POR.
+
+	  The framework is extensible and exposes software-defined and
+	  hardware-reported reasons through one interface. Sudden power cuts,
+	  CPU freezes or other uncontrolled resets may still go unrecorded
+	  unless hardware provides the reset cause.
+
+	  If unsure, say N.
