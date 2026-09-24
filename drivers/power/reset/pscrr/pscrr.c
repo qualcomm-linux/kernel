@@ -42,6 +42,7 @@
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
+#include <linux/panic_notifier.h>
 #include <linux/pscrr.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
@@ -524,6 +525,29 @@ static struct notifier_block pscrr_reboot_nb = {
 	.notifier_call = pscrr_reboot_notifier,
 };
 
+/*
+ * Panic notifier: record that the machine went down through a kernel panic, so
+ * the cause is visible on the next boot. Runs in atomic panic context, so the
+ * provider list is walked without pscrr_lock - providers no longer come or go
+ * once the machine is going down.
+ */
+static int pscrr_panic_notifier(struct notifier_block *nb,
+				unsigned long action, void *unused)
+{
+	struct pscrr_provider_dir *dir;
+
+	set_psc_reason(PSCR_KERNEL_PANIC);
+
+	list_for_each_entry(dir, &pscrr_dirs, node)
+		pscrr_do_record(dir, get_psc_reason());
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block pscrr_panic_nb = {
+	.notifier_call = pscrr_panic_notifier,
+};
+
 /*----------------------------------------------------------------------*/
 /* Built-in provider: device-tree /chosen/reset-source                  */
 /*----------------------------------------------------------------------*/
@@ -616,6 +640,8 @@ static int __init pscrr_core_init(void)
 		return ret;
 	}
 
+	atomic_notifier_chain_register(&panic_notifier_list, &pscrr_panic_nb);
+
 	pscrr_register_reset_source();
 
 	return 0;
@@ -624,6 +650,7 @@ static int __init pscrr_core_init(void)
 static void __exit pscrr_core_exit(void)
 {
 	pscrr_provider_unregister(&pscrr_reset_source_provider);
+	atomic_notifier_chain_unregister(&panic_notifier_list, &pscrr_panic_nb);
 	unregister_reboot_notifier(&pscrr_reboot_nb);
 	kobject_put(pscrr_root);
 	pscrr_root = NULL;
