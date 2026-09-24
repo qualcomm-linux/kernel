@@ -43,21 +43,37 @@
 		reg = <0x1a>;
 
 		reset-gpios = <&tlmm 33 GPIO_ACTIVE_LOW>;
-		pinctrl-0 = <&mclk1_default>;
+		pinctrl-0 = <&cam_mclk1_default &cam1_reset_default>;
 		pinctrl-names = "default";
 
 		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
 		assigned-clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
 		assigned-clock-rates = <24000000>;
 
+		/*
+		 * avdd and dvdd are supplied by on-board regulators on the
+		 * IMX577 module from the connector's 3.3 V rail; they are
+		 * not SoC-controlled. dovdd (1.8 V) powers the carrier board
+		 * level-shifter that translates CCI I2C and reset lines
+		 * between the SoC and the connector.
+		 */
 		dovdd-supply = <&pm8150_l15>;
 
 		port {
 			imx577_ep1: endpoint {
 				link-frequencies = /bits/ 64 <600000000>;
-				data-lanes = <0 1 2 3>;
+				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&csiphy1_ep>;
 			};
 		};
+	};
+};
+
+&tlmm {
+	cam1_reset_default: cam1-reset-default-state {
+		pins = "gpio33";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };
