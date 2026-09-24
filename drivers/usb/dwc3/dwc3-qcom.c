@@ -21,7 +21,6 @@
 #include <linux/usb/hcd.h>
 #include <linux/pm_domain.h>
 #include <linux/usb.h>
-#include <linux/property.h>
 #include <linux/usb/qcom_eud.h>
 #include "core.h"
 #include "glue.h"
@@ -448,16 +447,6 @@ static irqreturn_t qcom_dwc3_resume_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int dwc3_qcom_set_swnode(struct device *dev)
-{
-	const struct property_entry props[] = {
-		PROPERTY_ENTRY_BOOL("xhci-skip-phy-init-quirk"),
-		{}
-	};
-
-	return device_create_managed_software_node(dev, props, NULL);
-}
-
 static void dwc3_qcom_select_utmi_clk(struct dwc3_qcom *qcom)
 {
 	/* Configure dwc3 to use UTMI clock as PIPE clock not present */
@@ -735,10 +724,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	if (ignore_pipe_clk)
 		dwc3_qcom_select_utmi_clk(qcom);
 
-	ret = dwc3_qcom_set_swnode(dev);
-	if (ret)
-		goto clk_disable;
-
 	qcom->mode = usb_get_dr_mode(dev);
 
 	if (qcom->mode == USB_DR_MODE_HOST) {
@@ -761,6 +746,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	probe_data.res = &res;
 	probe_data.ignore_clocks_and_resets = true;
 	probe_data.properties = DWC3_DEFAULT_PROPERTIES;
+	probe_data.properties.skip_phy_init = true;
 	ret = dwc3_core_probe(&probe_data);
 	if (ret)  {
 		ret = dev_err_probe(dev, ret, "failed to register DWC3 Core\n");
