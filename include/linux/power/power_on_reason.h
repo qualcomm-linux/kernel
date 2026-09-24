@@ -21,5 +21,6 @@
 #define POWER_ON_REASON_EC_PANIC "EC panic"
 #define POWER_ON_REASON_EXTERNAL "external reset"
 #define POWER_ON_REASON_KERNEL_PANIC "kernel panic"
+#define POWER_ON_REASON_WATCHDOG_PRETIMEOUT "watchdog pretimeout"
 
 #endif /* POWER_ON_REASON_H */

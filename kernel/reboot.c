@@ -1113,6 +1113,7 @@ static const struct psc_reason_desc psc_reason_descs[] = {
 	[PSCR_CPU_CLK_FAIL]	 = { "cpu-clock-failure", POWER_ON_REASON_CPU_CLK_FAIL },
 	[PSCR_XTAL_FAIL]	 = { "crystal-failure",	  POWER_ON_REASON_XTAL_FAIL },
 	[PSCR_KERNEL_PANIC]	 = { "kernel-panic",	  POWER_ON_REASON_KERNEL_PANIC },
+	[PSCR_WATCHDOG_PRETIMEOUT] = { "watchdog-pretimeout", POWER_ON_REASON_WATCHDOG_PRETIMEOUT },
 };
 static_assert(ARRAY_SIZE(psc_reason_descs) == PSCR_REASON_COUNT,
 	      "psc_reason_descs[] must have an entry for every psc_reason");
