@@ -354,6 +354,11 @@ struct nvme_speed_switch {
 	u8 min_speed;
 	u32 monitor_interval;	/* ms */
 	u32 threshold;		/* KB */
+	u32 up_cnt;
+	u32 down_cnt;
+	u32 up_threshold;
+	u32 down_threshold;
+	u32 idle_cnt;
 	struct timer_list timer;
 	struct work_struct work;
 	struct nvme_speed_switch_stats __percpu *stats;

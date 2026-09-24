@@ -228,10 +228,15 @@ static void nvme_clear_io_stats(struct nvme_speed_switch *sw)
 
 /*
  * Aggregate the per-CPU I/O counters of the last monitoring window and
- * decide the target rate: the maximum rate if the window exceeded the
- * threshold, the minimum rate otherwise.
+ * decide the target rate.  Hysteresis counters are used to avoid
+ * excessive rate switching when the workload fluctuates around the
+ * threshold: the rate is only upgraded after the threshold was exceeded
+ * for a number of consecutive windows, and only downgraded after it
+ * stayed below the threshold for a number of consecutive windows.  When
+ * no I/O was observed for 10 seconds the monitoring is stopped.
  */
-static int nvme_check_io_and_decide_speed(struct nvme_speed_switch *sw)
+static int nvme_check_io_and_decide_speed(struct nvme_speed_switch *sw,
+					  bool *io_activity)
 {
 	struct nvme_ctrl *ctrl = container_of(sw, struct nvme_ctrl, speed_switch);
 	u64 read_bytes = 0, write_bytes = 0;
@@ -247,31 +252,62 @@ static int nvme_check_io_and_decide_speed(struct nvme_speed_switch *sw)
 		stat->write_bytes = 0;
 	}
 
+	if (read_bytes || write_bytes) {
+		*io_activity = true;
+		sw->idle_cnt = 0;
+	} else {
+		sw->idle_cnt++;
+	}
+
+	/* Stop monitoring after 10 seconds of inactivity (100 windows of 100ms). */
+	if (sw->idle_cnt >= 100)
+		*io_activity = false;
+
 	read_kb = read_bytes / 1024;
 	write_kb = write_bytes / 1024;
 	dev_dbg(ctrl->device,
 		"I/O in window: read=%lu KB, write=%lu KB, threshold=%u KB\n",
 		read_kb, write_kb, READ_ONCE(sw->threshold));
 
-	if (read_kb >= sw->threshold || write_kb >= sw->threshold)
-		return sw->max_speed;
+	if (read_kb >= sw->threshold || write_kb >= sw->threshold) {
+		sw->up_cnt++;
+		sw->down_cnt = 0;
+	} else {
+		sw->down_cnt++;
+		sw->up_cnt = 0;
+	}
 
-	return sw->min_speed;
+	if (sw->up_cnt > READ_ONCE(sw->up_threshold)) {
+		sw->up_cnt = 0;
+		return sw->max_speed;
+	}
+
+	if (sw->down_cnt > READ_ONCE(sw->down_threshold) || !*io_activity) {
+		sw->down_cnt = 0;
+		return sw->min_speed;
+	}
+
+	return READ_ONCE(sw->cur_speed);
 }
 
 static void nvme_speed_switch_timer_fn(struct timer_list *t)
 {
 	struct nvme_speed_switch *sw = container_of(t, struct nvme_speed_switch, timer);
+	bool io_activity = true;
 
 	if (!READ_ONCE(sw->enabled)) {
 		atomic_set(&sw->timer_active, NVME_SPEED_TIMER_INACTIVE);
 		return;
 	}
 
-	sw->target_speed = nvme_check_io_and_decide_speed(sw);
+	sw->target_speed = nvme_check_io_and_decide_speed(sw, &io_activity);
 	if (sw->target_speed != READ_ONCE(sw->cur_speed))
 		schedule_work(&sw->work);
 
+	if (!io_activity) {
+		atomic_set(&sw->timer_active, NVME_SPEED_TIMER_INACTIVE);
+		return;
+	}
 	mod_timer(t, jiffies + msecs_to_jiffies(READ_ONCE(sw->monitor_interval)));
 }
 
@@ -279,6 +315,10 @@ static void nvme_speed_switch_params_init(struct nvme_speed_switch *sw)
 {
 	sw->monitor_interval = 100;
 	sw->min_speed = PCI_EXP_LNKSTA_CLS_2_5GB;
+	/* Upgrade immediately once the threshold is exceeded. */
+	sw->up_threshold = 0;
+	/* Downgrade after 10 consecutive below-threshold windows. */
+	sw->down_threshold = 10;
 }
 
 void nvme_speed_switch_init(struct nvme_ctrl *ctrl)
