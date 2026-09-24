@@ -420,9 +420,6 @@ static const struct dump_item hamoa_items[] = {
 	{ CACHE_CPU9, 0x2aa000, "cache-cpu9" },
 	{ CACHE_CPU10, 0x2aa000, "cache-cpu10" },
 	{ CACHE_CPU11, 0x2aa000, "cache-cpu11" },
-	{ CACHE_CLUSTER0, 0x2430000, "cache-cluster0" },
-	{ CACHE_CLUSTER1, 0x2430000, "cache-cluster1" },
-	{ CACHE_CLUSTER2, 0x2430000, "cache-cluster2" },
 	{ C_CONTEXT, 0x2af0, "cpu-context" },
 };
 
@@ -475,9 +472,6 @@ static const struct dump_item glymur_items[] = {
 	{ CACHE_CPU9, 0x2aa000, "cache-cpu9" },
 	{ CACHE_CPU10, 0x2aa000, "cache-cpu10" },
 	{ CACHE_CPU11, 0x2aa000, "cache-cpu11" },
-	{ CACHE_CLUSTER0, 0x2430000, "cache-cluster0" },
-	{ CACHE_CLUSTER1, 0x2430000, "cache-cluster1" },
-	{ CACHE_CLUSTER2, 0x2430000, "cache-cluster2" },
 	{ C_CONTEXT, 0x4050, "cpu-context" },
 };
 

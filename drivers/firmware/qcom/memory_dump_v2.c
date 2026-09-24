@@ -982,7 +982,7 @@ static int cpuss_dump_init(struct platform_device *pdev,
 struct cma *memdump_cma;
 void __init reserve_memdump_cma(void)
 {
-	unsigned long long cma_size = 0x3000000;
+	unsigned long long cma_size = 0x5000000;
 	unsigned long long request_size = roundup(cma_size, PAGE_SIZE);
 
 	if (cma_declare_contiguous(0, request_size, 0, 0, 0, false,
