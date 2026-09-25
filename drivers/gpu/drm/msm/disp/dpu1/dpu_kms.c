@@ -1104,6 +1104,9 @@ static const struct msm_kms_funcs kms_funcs = {
 	.irq_postinstall = dpu_irq_postinstall,
 	.irq_uninstall   = dpu_core_irq_uninstall,
 	.irq             = dpu_core_irq,
+#ifdef CONFIG_PREEMPT_RT
+	.irq_thread      = dpu_core_irq_thread,
+#endif
 	.enable_commit   = dpu_kms_enable_commit,
 	.disable_commit  = dpu_kms_disable_commit,
 	.check_mode_changed = dpu_kms_check_mode_changed,

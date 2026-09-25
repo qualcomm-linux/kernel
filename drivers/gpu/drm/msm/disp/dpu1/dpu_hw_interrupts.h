@@ -54,14 +54,21 @@ struct dpu_hw_intr_entry {
  * @ops:              function pointer mapping for IRQ handling
  * @cache_irq_mask:   array of IRQ enable masks reg storage created during init
  * @save_irq_status:  array of IRQ status reg storage created during init
- * @irq_lock:         spinlock for accessing IRQ resources
+ * @irq_lock:         raw spinlock for accessing IRQ resources.
+ * @irq_pending_mask: per-register bitmask of enabled+fired IRQs that the
+ *                    hardirq primary handler has acked in hardware but not
+ *                    yet handed off to the IRQ thread for callback dispatch
+ *                    (CONFIG_PREEMPT_RT only)
  * @irq_cb_tbl:       array of IRQ callbacks
  */
 struct dpu_hw_intr {
 	struct dpu_hw_blk_reg_map hw;
 	u32 cache_irq_mask[MDP_INTR_MAX];
 	u32 *save_irq_status;
-	spinlock_t irq_lock;
+	raw_spinlock_t irq_lock;
+#ifdef CONFIG_PREEMPT_RT
+	u32 irq_pending_mask[MDP_INTR_MAX];
+#endif
 	unsigned long irq_mask;
 	const struct dpu_intr_reg *intr_set;
 
