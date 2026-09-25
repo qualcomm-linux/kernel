@@ -15,6 +15,7 @@
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_domain.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -2262,6 +2263,9 @@ struct qmp_phy_cfg {
 	unsigned int pcs_usb_offset;
 
 	bool invert_cc_polarity;
+
+	/* GDSC is kept on until the common PHY block is fully exited */
+	bool use_synced_poweroff;
 };
 
 struct qmp_combo {
@@ -3027,6 +3031,8 @@ static const struct qmp_phy_cfg glymur_usb3dpphy_cfg = {
 	.num_resets		= ARRAY_SIZE(msm8996_usb3phy_reset_l),
 	.vreg_list		= qmp_phy_vreg_refgen,
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_refgen),
+
+	.use_synced_poweroff	= true,
 };
 
 static int qmp_combo_dp_serdes_init(struct qmp_combo *qmp)
@@ -3775,6 +3781,17 @@ static int qmp_combo_com_exit(struct qmp_combo *qmp, bool force)
 	if (!force && --qmp->init_count)
 		return 0;
 
+	/*
+	 * Keep the PHY GDSC on while the PHY is runtime suspended so that
+	 * host-mode bus suspend can resume without losing PHY state.  Once the
+	 * common PHY block is fully exited, allow the GDSC to power off.
+	 */
+	if (!force && cfg->use_synced_poweroff) {
+		dev_vdbg(qmp->dev,
+				     "setting synced USB PHY GDSC power-off flag\n");
+		dev_pm_genpd_synced_poweroff(qmp->dev);
+	}
+
 	reset_control_bulk_assert(cfg->num_resets, qmp->resets);
 
 	clk_disable_unprepare(qmp->pipe_clk);
@@ -4113,9 +4130,58 @@ static int __maybe_unused qmp_combo_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int qmp_combo_pm_suspend(struct device *dev)
+{
+	struct qmp_combo *qmp = dev_get_drvdata(dev);
+
+	dev_vdbg(dev, "PM Suspending QMP phy, mode:%d\n", qmp->phy_mode);
+
+	if (!qmp->init_count || pm_runtime_suspended(dev)) {
+		dev_err(dev, "PHY not initialized, bailing out\n");
+		return 0;
+	}
+
+	qmp_combo_enable_autonomous_mode(qmp);
+
+	clk_disable_unprepare(qmp->pipe_clk);
+	clk_bulk_disable_unprepare(qmp->num_clks, qmp->clks);
+
+	return 0;
+}
+
+static int qmp_combo_pm_resume(struct device *dev)
+{
+	struct qmp_combo *qmp = dev_get_drvdata(dev);
+	int ret = 0;
+
+	dev_vdbg(dev, "PM Resuming QMP phy, mode:%d\n", qmp->phy_mode);
+
+	if (!qmp->init_count) {
+		dev_err(dev, "PHY not initialized, bailing out\n");
+		return 0;
+	}
+
+	ret = clk_bulk_prepare_enable(qmp->num_clks, qmp->clks);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(qmp->pipe_clk);
+	if (ret) {
+		dev_err(dev, "pipe_clk enable failed, err=%d\n", ret);
+		clk_bulk_disable_unprepare(qmp->num_clks, qmp->clks);
+		return ret;
+	}
+
+	qmp_combo_disable_autonomous_mode(qmp);
+
+	return 0;
+
+}
+
 static const struct dev_pm_ops qmp_combo_pm_ops = {
 	SET_RUNTIME_PM_OPS(qmp_combo_runtime_suspend,
 			   qmp_combo_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(qmp_combo_pm_suspend, qmp_combo_pm_resume)
 };
 
 static int qmp_combo_reset_init(struct qmp_combo *qmp)
