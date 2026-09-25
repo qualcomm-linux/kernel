@@ -229,7 +229,7 @@ static int dt_aest_build_interrupt(struct device_node *np,
 
 		of_property_read_string_index(np, "interrupt-names", 1, &name);
 
-		pr_warn("node %pOF: failed to map ERI IRQ: %d (interrupt-names[1]=\"%s\", want \"%s\")\n",
+		pr_debug("node %pOF: failed to map ERI IRQ: %d (interrupt-names[1]=\"%s\", want \"%s\")\n",
 			np, eri_irq, name ?: "<missing>", "eri");
 	}
 
