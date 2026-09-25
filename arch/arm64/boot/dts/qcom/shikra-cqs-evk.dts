@@ -694,6 +694,7 @@
 		vddxo-supply = <&vreg_pmu_xo>;
 		vddrf-supply = <&vreg_pmu_rf>;
 		vddch0-supply = <&vreg_pmu_ch0>;
+		clocks = <&rpmcc RPM_SMD_RF_CLK2>;
 	};
 };
 
