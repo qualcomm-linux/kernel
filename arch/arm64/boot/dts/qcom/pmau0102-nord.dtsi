@@ -30,6 +30,7 @@
 			#size-cells = <0>;
 			interrupts-extended = <&spmi_bus 0x4 0x72 0x1 IRQ_TYPE_EDGE_RISING>;
 			#io-channel-cells = <1>;
+			#thermal-sensor-cells = <1>;
 
 			channel@400 {
 				reg = <ADC5_GEN3_REF_GND(4)>;
@@ -47,6 +48,14 @@
 				reg = <ADC5_GEN3_DIE_TEMP(4)>;
 				label = "pmau0102_e_die_temp";
 				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@444 {
+				reg = <ADC5_GEN3_AMUX1_THM_100K_PU(4)>;
+				label = "pmau0102_e_sdram3_therm";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,adc-tm;
 			};
 		};
 
@@ -242,6 +251,7 @@
 			#size-cells = <0>;
 			interrupts-extended = <&spmi_bus 0x8 0x72 0x1 IRQ_TYPE_EDGE_RISING>;
 			#io-channel-cells = <1>;
+			#thermal-sensor-cells = <1>;
 
 			channel@800 {
 				reg = <ADC5_GEN3_REF_GND(8)>;
@@ -259,6 +269,22 @@
 				reg = <ADC5_GEN3_DIE_TEMP(8)>;
 				label = "pmau0102_i_die_temp";
 				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@844 {
+				reg = <ADC5_GEN3_AMUX1_THM_100K_PU(8)>;
+				label = "pmau0102_i_sdram1_therm";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,adc-tm;
+			};
+
+			channel@845 {
+				reg = <ADC5_GEN3_AMUX2_THM_100K_PU(8)>;
+				label = "pmau0102_i_ufs_therm";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,adc-tm;
 			};
 		};
 
@@ -447,6 +473,24 @@
 			};
 		};
 
+		pmau0102_e_sdram3_thermal: pau-e-sdram3-therm {
+			thermal-sensors = <&pmau0102_e_adc ADC5_GEN3_AMUX1_THM_100K_PU(4)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
 		pmau0102_f_thermal: pmau0102-f-thermal {
 			polling-delay-passive = <100>;
 			thermal-sensors = <&pmau0102_f_mbg_temp>;
@@ -491,6 +535,42 @@
 					temperature = <115000>;
 					hysteresis = <5000>;
 					type = "passive";
+				};
+			};
+		};
+
+		pmau0102_i_sdram1_thermal: pau-i-sdram1-therm {
+			thermal-sensors = <&pmau0102_i_adc ADC5_GEN3_AMUX1_THM_100K_PU(8)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
+		};
+
+		pmau0102_i_ufs_thermal: pau-i-ufs-therm {
+			thermal-sensors = <&pmau0102_i_adc ADC5_GEN3_AMUX2_THM_100K_PU(8)>;
+
+			trips {
+				trip0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				trip1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "hot";
 				};
 			};
 		};
