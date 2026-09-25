@@ -977,18 +977,19 @@ void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp)
 				    msm_dp_display->aux_base, "dp_aux");
 	msm_disp_snapshot_add_block(disp_state, msm_dp_display->link_len,
 				    msm_dp_display->link_base, "dp_link");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->mst2link_len,
-				    msm_dp_display->mst2link_base, "dp_mst2link");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->mst3link_len,
-				    msm_dp_display->mst3link_base, "dp_mst3link");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[0], "dp_p0");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[1], "dp_p1");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[2], "dp_p2");
-	msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
-				    msm_dp_display->pixel_base[3], "dp_p3");
+	if (msm_dp_display->mst2link_base)
+		msm_disp_snapshot_add_block(disp_state, msm_dp_display->mst2link_len,
+					    msm_dp_display->mst2link_base, "dp_mst2link");
+	if (msm_dp_display->mst3link_base)
+		msm_disp_snapshot_add_block(disp_state, msm_dp_display->mst3link_len,
+					    msm_dp_display->mst3link_base, "dp_mst3link");
+
+	for (int i = 0; i < DP_STREAM_MAX; i++) {
+		if (!msm_dp_ctrl_stream_clks_on(msm_dp_display->ctrl, i))
+			continue;
+		msm_disp_snapshot_add_block(disp_state, msm_dp_display->pixel_len,
+					    msm_dp_display->pixel_base[i], "dp_p%d", i);
+	}
 }
 
 void msm_dp_display_set_psr(struct msm_dp *msm_dp_display, bool enter)
@@ -1320,28 +1321,34 @@ static int msm_dp_display_get_io(struct msm_dp_display_private *display)
 	}
 
 	display->pixel_base[0] = msm_dp_ioremap(pdev, 3, &display->pixel_len);
-	if (IS_ERR(display->pixel_base[0])) {
-		DRM_ERROR("unable to remap p0 region: %pe\n", display->pixel_base[0]);
+	if (IS_ERR(display->pixel_base[0]))
 		return PTR_ERR(display->pixel_base[0]);
-	}
 
-	for (i = DP_STREAM_1; i < display->max_stream; i++) {
-		/* pixels clk reg index start from 3*/
+	for (i = DP_STREAM_1; i < DP_STREAM_MAX; i++) {
 		display->pixel_base[i] = msm_dp_ioremap(pdev, i + 3, &display->pixel_len);
 		if (IS_ERR(display->pixel_base[i])) {
-			DRM_DEBUG_DP("unable to remap p%d region: %pe\n", i,
-				     display->pixel_base[i]);
-			break;
+			int ret = PTR_ERR(display->pixel_base[i]);
+
+			if (ret == -EINVAL) {
+				/* optional resource not present in DT */
+				display->pixel_base[i] = NULL;
+				break;
+			}
+			return ret;
 		}
 	}
 
 	display->mst2link_base = msm_dp_ioremap(pdev, 7, &display->mst2link_len);
-	if (IS_ERR(display->mst2link_base))
-		DRM_DEBUG_DP("unable to remap link region: %pe\n", display->mst2link_base);
+	if (IS_ERR(display->mst2link_base)) {
+		DRM_DEBUG_DP("unable to remap mst2link region: %pe\n", display->mst2link_base);
+		display->mst2link_base = NULL;
+	}
 
 	display->mst3link_base = msm_dp_ioremap(pdev, 8, &display->mst3link_len);
-	if (IS_ERR(display->mst3link_base))
-		DRM_DEBUG_DP("unable to remap link region: %pe\n", display->mst3link_base);
+	if (IS_ERR(display->mst3link_base)) {
+		DRM_DEBUG_DP("unable to remap mst3link region: %pe\n", display->mst3link_base);
+		display->mst3link_base = NULL;
+	}
 
 	return 0;
 }
