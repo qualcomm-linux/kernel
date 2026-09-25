@@ -9,3 +9,5 @@ config VIDEO_QCOM_CAMSS
 	select V4L2_FWNODE
 	select GENERIC_PHY
 	imply PHY_QCOM_MIPI_CSI2
+
+source "drivers/media/platform/qcom/camss/ope/Kconfig"
