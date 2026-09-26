@@ -92,51 +92,6 @@ properties:
   opp-table:
     type: object
 
-  '#address-cells':
-    const: 2
-
-  '#size-cells':
-    const: 2
-
-  non-pixel:
-    type: object
-    description:
-      Non pixel context bank is needed when video hardware have distinct iommus for non pixel
-      buffers. Non pixel buffers are compressed and internal buffers.
-    properties:
-      iommus:
-        maxItems: 1
-      memory-region:
-        maxItems: 1
-    required:
-      - iommus
-      - memory-region
-    additionalProperties: false
-
-  pixel:
-    type: object
-    description:
-      Pixel context bank is needed when video hardware have distinct iommus for pixel buffers.
-      Pixel buffers are uncompressed buffers.
-    properties:
-      iommus:
-        maxItems: 1
-    required:
-      - iommus
-    additionalProperties: false
-
-  video-firmware:
-    type: object
-    description:
-      Firmware context bank represents the firmware processing domain of the VPU. Required to boot
-      VPU when no hypervisor is present.
-    properties:
-      iommus:
-        maxItems: 1
-    required:
-      - iommus
-    additionalProperties: false
-
 required:
   - compatible
   - power-domain-names
@@ -146,14 +101,8 @@ required:
   - reset-names
   - dma-coherent
 
-oneOf:
-  - required:
-      - iommus
-  - required:
-      - non-pixel
-      - pixel
-
 allOf:
+  - $ref: qcom,venus-common.yaml#
   - if:
       properties:
         compatible:
@@ -234,15 +183,17 @@ examples:
 
         operating-points-v2 = <&iris_opp_table>;
 
-        #address-cells = <2>;
-        #size-cells = <2>;
-        iris_non_pixel: non-pixel {
-            iommus = <&apps_smmu 0x1940 0x0000>;
-            memory-region = <&iris_resv>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        dma-ranges = <0x0 0x0 0xe0000000>;
+
+        non-pixel {
+            iommus = <&apps_smmu 0x1940 0x0>;
+            iommu-ranges = <0x25800000 0xba800000>;
         };
 
-        iris_pixel: pixel {
-            iommus = <&apps_smmu 0x1947 0x0000>;
+        pixel {
+            iommus = <&apps_smmu 0x1947 0x0>;
         };
 
         iris_opp_table: opp-table {
