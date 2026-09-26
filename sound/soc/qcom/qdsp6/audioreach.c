@@ -703,7 +703,6 @@ static int audioreach_codec_dma_set_media_format(struct q6apm_graph *graph,
 	int pm_sz = APM_HW_EP_PMODE_CFG_PSIZE;
 	int size = ic_sz + ep_sz + fs_sz + pm_sz;
 	void *p;
-	int i;
 
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
@@ -742,12 +741,7 @@ static int audioreach_codec_dma_set_media_format(struct q6apm_graph *graph,
 
 	intf_cfg->cfg.lpaif_type = module->hw_interface_type;
 	intf_cfg->cfg.intf_index = module->hw_interface_idx;
-	intf_cfg->cfg.active_channels_mask = 0;
-	/* Convert the physical channel mapping into a bit field */
-	for (i = 0; i < PCM_MAX_NUM_CHANNEL; i++)
-		if (cfg->channel_map[i])
-			intf_cfg->cfg.active_channels_mask |= BIT(i);
-
+	intf_cfg->cfg.active_channels_mask = (1 << cfg->num_channels) - 1;
 	p += ic_sz;
 
 	pm_cfg = p;
@@ -846,7 +840,7 @@ static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
 	uint32_t num_channels = cfg->num_channels;
 	int payload_size = APM_MFC_CFG_PSIZE(media_format, num_channels) +
 				APM_MODULE_PARAM_DATA_SIZE;
-	int i, j;
+	int i;
 	void *p;
 
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
@@ -866,12 +860,8 @@ static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
 	media_format->sample_rate = cfg->sample_rate;
 	media_format->bit_width = cfg->bit_width;
 	media_format->num_channels = cfg->num_channels;
-	/* Convert the physical mapping to a logical mapping of the channels */
-	for (i = 0, j = 0; i < PCM_MAX_NUM_CHANNEL && j < cfg->num_channels; i++) {
-		if (!cfg->channel_map[i])
-			continue;
-		media_format->channel_mapping[j++] = cfg->channel_map[i];
-	}
+	for (i = 0; i < num_channels; i++)
+		media_format->channel_mapping[i] = cfg->channel_map[i];
 
 	return q6apm_send_cmd_sync(graph->apm, pkt, 0);
 }
@@ -1167,7 +1157,6 @@ static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
 	struct apm_pcm_module_media_fmt_cmd *cfg;
 	struct apm_module_param_data *param_data;
 	int payload_size;
-	int i, j;
 
 	payload_size = APM_PCM_MODULE_FMT_CMD_PSIZE(num_channels);
 
@@ -1196,12 +1185,7 @@ static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
 	media_cfg->num_channels = mcfg->num_channels;
 	media_cfg->q_factor = mcfg->bit_width - 1;
 	media_cfg->bits_per_sample = mcfg->bit_width;
-	/* Convert the physical mapping to a logical mapping of the channels */
-	for (i = 0, j = 0; i < PCM_MAX_NUM_CHANNEL && j < mcfg->num_channels; i++) {
-		if (!mcfg->channel_map[i])
-			continue;
-		media_cfg->channel_mapping[j++] = mcfg->channel_map[i];
-	}
+	memcpy(media_cfg->channel_mapping, mcfg->channel_map, mcfg->num_channels);
 
 	return q6apm_send_cmd_sync(graph->apm, pkt, 0);
 }
@@ -1251,7 +1235,6 @@ static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
 	struct payload_media_fmt_pcm *cfg;
 	struct media_format *header;
 	int rc, payload_size;
-	int i, j;
 	void *p;
 
 	payload_size = APM_SHMEM_FMT_CFG_PSIZE(num_channels) + APM_MODULE_PARAM_DATA_SIZE;
@@ -1286,12 +1269,7 @@ static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
 		cfg->q_factor = mcfg->bit_width - 1;
 		cfg->endianness = PCM_LITTLE_ENDIAN;
 		cfg->num_channels = mcfg->num_channels;
-		/* Convert the physical mapping to a logical mapping of the channels */
-		for (i = 0, j = 0; i < PCM_MAX_NUM_CHANNEL && j < cfg->num_channels; i++) {
-			if (!mcfg->channel_map[i])
-				continue;
-			cfg->channel_mapping[j++] = mcfg->channel_map[i];
-		}
+		memcpy(cfg->channel_mapping, mcfg->channel_map, mcfg->num_channels);
 	} else {
 		rc = audioreach_set_compr_media_format(header, p, mcfg);
 		if (rc)
@@ -1368,7 +1346,7 @@ static int audioreach_speaker_protection_vi(struct q6apm_graph *graph,
 	struct apm_module_sp_vi_ex_mode_cfg *ex_cfg;
 	int op_sz, cm_sz, ex_sz;
 	struct apm_module_param_data *param_data;
-	int rc, i, payload_size, j;
+	int rc, i, payload_size;
 	struct gpr_pkt *pkt;
 	void *p;
 
@@ -1409,19 +1387,14 @@ static int audioreach_speaker_protection_vi(struct q6apm_graph *graph,
 	param_data->param_size = cm_sz - APM_MODULE_PARAM_DATA_SIZE;
 
 	cm_cfg->cfg.num_channels = num_channels * 2;
-	/* Convert the physical mapping to a logical mapping of the channels */
-	for (i = 0, j = 0; i < PCM_MAX_NUM_CHANNEL && j < num_channels; i++) {
-		if (!mcfg->channel_map[i])
-			continue;
+	for (i = 0; i < num_channels; i++) {
 		/*
 		 * Map speakers into Vsense and then Isense of each channel.
 		 * E.g. for PCM_CHANNEL_FL and PCM_CHANNEL_FR to:
 		 * [1, 2, 3, 4]
 		 */
-		cm_cfg->cfg.channel_mapping[2 * j] = (mcfg->channel_map[i] - 1) * 2 + 1;
-		cm_cfg->cfg.channel_mapping[2 * j + 1] = (mcfg->channel_map[i] - 1) * 2 + 2;
-
-		++j;
+		cm_cfg->cfg.channel_mapping[2 * i] = (mcfg->channel_map[i] - 1) * 2 + 1;
+		cm_cfg->cfg.channel_mapping[2 * i + 1] = (mcfg->channel_map[i] - 1) * 2 + 2;
 	}
 
 	p += cm_sz;
