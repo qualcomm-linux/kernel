@@ -55,9 +55,17 @@ static bool modeset = true;
 MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disable)");
 module_param(modeset, bool, 0600);
 
-static bool separate_gpu_kms;
-MODULE_PARM_DESC(separate_gpu_kms, "Use separate DRM device for the GPU (0=single DRM device for both GPU and display (default), 1=two DRM devices)");
-module_param(separate_gpu_kms, bool, 0400);
+/*
+ * separate_gpu_kms (tristate):
+ *   -1 (default): decide automatically based on hardware topology. Split devices
+ *                 if there is more than one GPU or more than one display master.
+ *    0: force single DRM device (bind display + GPU)
+ *    1: force separate DRM devices
+ */
+static int separate_gpu_kms = -1;
+MODULE_PARM_DESC(separate_gpu_kms,
+		 "Use separate DRM device for the GPU (-1=auto (default), 0=single DRM device, 1=separate DRM devices)");
+module_param(separate_gpu_kms, int, 0400);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static bool transparent_hugepage = true;
@@ -84,9 +92,50 @@ static void msm_gem_thp_init(struct drm_device *dev)
 		drm_warn(dev, "Can't use Transparent Hugepage (%d)\n", err);
 }
 
-bool msm_gpu_no_components(void)
+static const struct of_device_id msm_gpu_match[];
+static inline bool msm_gpu_node_present(struct device_node *np)
 {
-	return separate_gpu_kms;
+	return np && of_device_is_available(np) && adreno_has_gpu(np);
+}
+
+static int msm_count_gpus(void)
+{
+	struct device_node *np;
+	int count = 0;
+
+	for_each_matching_node(np, msm_gpu_match) {
+		if (msm_gpu_node_present(np))
+			count++;
+	}
+
+	return count;
+}
+
+static bool msm_separate_gpu_kms_auto(void)
+{
+	int gpus = msm_count_gpus();
+	int display_subsystems = msm_count_mdss() + msm_count_mdp4();
+
+	if (gpus <= 0 || display_subsystems <= 0)
+		return false;
+
+	/* Single card if there is exactly one GPU and one display subsystem */
+	return gpus > 1 || display_subsystems > 1;
+}
+
+bool msm_separate_gpu_kms_components(void)
+{
+	if (msm_count_gpus() == 0)
+		return true;
+
+	switch (separate_gpu_kms) {
+	case 0:
+		return false;
+	case 1:
+		return true;
+	default:
+		return msm_separate_gpu_kms_auto();
+	}
 }
 
 static void msm_drm_priv_release(struct device *dev, void *res)
@@ -1101,7 +1150,7 @@ static int msm_drm_bind(struct device *dev)
 
 	if (!priv->kms_init)
 		drv = &msm_gpu_driver;
-	else if (msm_gpu_no_components())
+	else if (msm_separate_gpu_kms_components())
 		drv = &msm_kms_driver;
 	else
 		drv = &msm_driver;
@@ -1144,7 +1193,7 @@ int msm_drv_probe(struct device *master_dev,
 			return ret;
 	}
 
-	if (!kms_init || !msm_gpu_no_components()) {
+	if (!kms_init || !msm_separate_gpu_kms_components()) {
 		ret = add_gpu_components(master_dev, gpu_np, &match);
 		if (ret)
 			return ret;

@@ -273,7 +273,7 @@ static int adreno_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!of_device_is_compatible(pdev->dev.of_node, "amd,imageon") &&
-	    !msm_gpu_no_components())
+	    !msm_separate_gpu_kms_components())
 		return component_add(&pdev->dev, &a3xx_ops);
 
 	if (!adreno_has_gpu(pdev->dev.of_node))
@@ -294,7 +294,7 @@ static void adreno_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &a3xx_ops);
 	if (of_device_is_compatible(pdev->dev.of_node, "amd,imageon") ||
-	    msm_gpu_no_components())
+	    msm_separate_gpu_kms_components())
 		msm_gpu_remove(pdev);
 }
 
