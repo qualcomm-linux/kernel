@@ -1110,6 +1110,19 @@ retry:
 	return idx;
 }
 
+static inline unsigned int cpufreq_frequency_table_max(struct cpufreq_policy *policy)
+{
+	int idx;
+
+	if (!policy->freq_table)
+		return policy->cpuinfo.max_freq;
+
+	idx = cpufreq_frequency_table_target(policy, UINT_MAX, 0, UINT_MAX,
+					 CPUFREQ_RELATION_H);
+
+	return policy->freq_table[idx].frequency;
+}
+
 static inline int cpufreq_table_count_valid_entries(const struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *pos;
