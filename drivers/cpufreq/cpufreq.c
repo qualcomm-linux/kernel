@@ -575,6 +575,7 @@ static ssize_t show_local_boost(struct cpufreq_policy *policy, char *buf)
 static int policy_set_boost(struct cpufreq_policy *policy, bool enable)
 {
 	unsigned int max_freq;
+	unsigned int max_table_freq;
 	int ret;
 
 	if (policy->boost_enabled == enable)
@@ -588,13 +589,14 @@ static int policy_set_boost(struct cpufreq_policy *policy, bool enable)
 		return ret;
 	}
 
-	if (policy->freq_table) {
-		max_freq = enable ? policy->cpuinfo.max_table_freq :
-				    policy->cpuinfo.max_base_freq;
+	max_table_freq = cpufreq_frequency_table_max(policy);
+
+	if (policy_has_boost_freq(policy)) {
+		max_freq = enable ? max_table_freq : policy->cpuinfo.max_base_freq;
 
 		if (!max_freq)
 			/* when the freq table contains only boost frequencies */
-			max_freq = policy->cpuinfo.max_table_freq;
+			max_freq = max_table_freq;
 	} else {
 		max_freq = policy->cpuinfo.max_freq;
 	}
