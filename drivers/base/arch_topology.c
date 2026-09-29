@@ -405,7 +405,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 
 	for_each_cpu(cpu, policy->related_cpus) {
 		per_cpu(capacity_freq_ref, cpu) = max(policy->cpuinfo.max_freq,
-						      policy->cpuinfo.max_table_freq);
+						      cpufreq_frequency_table_max(policy));
 		freq_inv_set_max_ratio(cpu,
 				       per_cpu(capacity_freq_ref, cpu) * HZ_PER_KHZ);
 	}
