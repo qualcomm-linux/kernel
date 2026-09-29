@@ -1274,6 +1274,11 @@ static int arm_smmu_map_pages(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return -ENODEV;
 
+	/* Non-coherent walkers cannot safely use cacheable page-table attributes. */
+	if (smmu->impl && smmu->impl->prot_mask &&
+	    !(smmu->features & ARM_SMMU_FEAT_COHERENT_WALK))
+		prot &= ~smmu->impl->prot_mask;
+
 	arm_smmu_rpm_get(smmu);
 	ret = ops->map_pages(ops, iova, paddr, pgsize, pgcount, prot, gfp, mapped);
 	arm_smmu_rpm_put(smmu);
@@ -1397,7 +1402,7 @@ static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
 	return ops->iova_to_phys(ops, iova);
 }
 
-static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
+bool arm_smmu_capable_default(struct device *dev, enum iommu_cap cap)
 {
 	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
 
@@ -1418,6 +1423,17 @@ static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
 		return false;
 	}
 }
+
+bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
+{
+	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
+
+	if (cfg->smmu->impl && cfg->smmu->impl->capable)
+		return cfg->smmu->impl->capable(dev, cap);
+
+	return arm_smmu_capable_default(dev, cap);
+}
+EXPORT_SYMBOL_GPL(arm_smmu_capable);
 
 static
 struct arm_smmu_device *arm_smmu_get_by_fwnode(struct fwnode_handle *fwnode)
