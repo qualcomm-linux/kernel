@@ -45,6 +45,7 @@ enum cpufreq_table_sorting {
 struct cpufreq_cpuinfo {
 	unsigned int		max_freq;
 	unsigned int		min_freq;
+	unsigned int		max_base_freq; /* Highest non-boost frequency in the table */
 
 	/* in 10^(-9) s = nanoseconds */
 	unsigned int		transition_latency;
@@ -793,6 +794,8 @@ struct cpufreq_frequency_table {
 
 
 int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy);
+
+bool policy_has_boost_freq(struct cpufreq_policy *policy);
 
 int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy);
 
