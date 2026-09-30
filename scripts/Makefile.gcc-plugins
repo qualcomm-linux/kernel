@@ -23,6 +23,11 @@ gcc-plugin-external-$(CONFIG_GCC_PLUGIN_RANDSTRUCT)		\
 gcc-plugin-external-$(CONFIG_GCC_PLUGIN_STACKLEAK)		\
 	+= stackleak_plugin.so
 
+
+# Disable recording GCC options in debug info when building external modules to
+# avoid leaking absolute host build paths
+gcc-plugin-cflags-$(if $(KBUILD_EXTMOD),y) += -gno-record-gcc-switches
+
 # All enabled GCC plugins are collected here for building in
 # scripts/gcc-scripts/Makefile.
 GCC_PLUGIN := $(gcc-plugin-y) $(gcc-plugin-external-y)
