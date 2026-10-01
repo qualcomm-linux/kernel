@@ -1066,6 +1066,12 @@
 	};
 };
 
+&iris {
+	firmware-name = "qcom/vpu/vpu40_p2_s7.mbn";
+
+	status = "okay";
+};
+
 &gpu {
 	status = "okay";
 };
