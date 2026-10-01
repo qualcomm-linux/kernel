@@ -1556,10 +1556,10 @@
 			assigned-clocks = <&gcc GCC_PCIE_AUX_CLK>;
 			assigned-clock-rates = <19200000>;
 
-			interconnects = <&system_noc MASTER_PCIE2_0 QCOM_ICC_TAG_ALWAYS
-					&mc_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ALWAYS>,
-					<&mem_noc MASTER_AMPSS_M0 QCOM_ICC_TAG_ACTIVE_ONLY
-					&config_noc SLAVE_PCIE2_0 QCOM_ICC_TAG_ACTIVE_ONLY>;
+			interconnects = <&system_noc MASTER_PCIE2_0 RPM_ALWAYS_TAG
+					&mc_virt SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
+					<&mem_noc MASTER_AMPSS_M0 RPM_ACTIVE_TAG
+					&config_noc SLAVE_PCIE2_0 RPM_ACTIVE_TAG>;
 
 			interconnect-names = "pcie-mem",
 					     "cpu-pcie";
@@ -1584,7 +1584,7 @@
 				/* GEN 1 x1 */
 				opp-2500000 {
 					opp-hz = /bits/ 64 <2500000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_low_svs>;
 					opp-peak-kBps = <250000 1>;
 					opp-level = <1>;
 				};
@@ -1592,7 +1592,7 @@
 				/* GEN 2 x1 */
 				opp-5000000 {
 					opp-hz = /bits/ 64 <5000000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_low_svs>;
 					opp-peak-kBps = <500000 1>;
 					opp-level = <2>;
 				};
