@@ -5,8 +5,10 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/bits.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -15,6 +17,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/workqueue.h>
 
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/rpmh.h>
@@ -160,6 +163,27 @@ struct rpmh_vreg_hw_data {
  * @voltage_selector:		Selector used for get_voltage_sel() and
  *				set_voltage_sel() callbacks
  * @mode:			RPMh VRM regulator current framework mode
+ * @rdev:			Regulator device pointer registered for this
+ *				regulator
+ * @delayed_off_work:		Delayed worker used to defer sending a disable
+ *				request to RPMh, so that a quick subsequent
+ *				enable vote can cancel it instead of causing a
+ *				disable/enable bounce on the rail
+ * @debounce_delay:		Time in microseconds to wait for an enable vote
+ *				after a disable vote, before actually sending
+ *				the disable request to RPMh
+ * @off_on_delay:		Minimum time in microseconds to wait after the
+ *				disable request for this regulator has actually
+ *				been sent to RPMh, before allowing it to be
+ *				enabled again.  This is tracked locally instead
+ *				of via rdesc.off_on_delay whenever
+ *				debounce_delay is configured so that it can be
+ *				measured from the real disable time instead of
+ *				from the time the debounced disable request was
+ *				merely queued.
+ * @last_off:			Time at which the disable request for this
+ *				regulator was last actually sent to RPMh.  Only
+ *				used when debounce_delay is configured.
  */
 struct rpmh_vreg {
 	struct device			*dev;
@@ -172,6 +196,11 @@ struct rpmh_vreg {
 	bool				bypassed;
 	int				voltage_selector;
 	unsigned int			mode;
+	struct regulator_dev		*rdev;
+	struct delayed_work		delayed_off_work;
+	unsigned int			debounce_delay;
+	unsigned int			off_on_delay;
+	ktime_t				last_off;
 };
 
 /**
@@ -293,10 +322,9 @@ static int rpmh_regulator_is_enabled(struct regulator_dev *rdev)
 	return vreg->enabled;
 }
 
-static int rpmh_regulator_set_enable_state(struct regulator_dev *rdev,
-					bool enable)
+static int _rpmh_regulator_set_enable_state(struct rpmh_vreg *vreg,
+					    struct regulator_dev *rdev, bool enable)
 {
-	struct rpmh_vreg *vreg = rdev_get_drvdata(rdev);
 	struct tcs_cmd cmd = {
 		.addr = vreg->addr + RPMH_REGULATOR_REG_ENABLE,
 		.data = enable,
@@ -306,7 +334,8 @@ static int rpmh_regulator_set_enable_state(struct regulator_dev *rdev,
 	if (vreg->enabled == -EINVAL &&
 	    vreg->voltage_selector != -ENOTRECOVERABLE) {
 		ret = _rpmh_regulator_vrm_set_voltage_sel(rdev,
-						vreg->voltage_selector, true);
+							  vreg->voltage_selector,
+							  true);
 		if (ret < 0)
 			return ret;
 	}
@@ -318,13 +347,54 @@ static int rpmh_regulator_set_enable_state(struct regulator_dev *rdev,
 	return ret;
 }
 
+static int rpmh_regulator_set_enable_state(struct regulator_dev *rdev,
+					   bool enable)
+{
+	struct rpmh_vreg *vreg = rdev_get_drvdata(rdev);
+
+	return _rpmh_regulator_set_enable_state(vreg, rdev, enable);
+}
+
+static void rpmh_delayed_off_work(struct work_struct *work)
+{
+	struct rpmh_vreg *vreg = container_of(work,
+					struct rpmh_vreg, delayed_off_work.work);
+
+	if (!_rpmh_regulator_set_enable_state(vreg, vreg->rdev, false))
+		vreg->last_off = ktime_get_boottime();
+}
+
 static int rpmh_regulator_enable(struct regulator_dev *rdev)
 {
+	struct rpmh_vreg *vreg = rdev_get_drvdata(rdev);
+	s64 remaining;
+
+	if (vreg->debounce_delay) {
+		if (cancel_delayed_work_sync(&vreg->delayed_off_work))
+			return 0;
+
+		if (vreg->off_on_delay) {
+			remaining = ktime_us_delta(ktime_add_us(vreg->last_off,
+								vreg->off_on_delay),
+								ktime_get_boottime());
+			if (remaining > 0)
+				fsleep(remaining);
+		}
+	}
+
 	return rpmh_regulator_set_enable_state(rdev, true);
 }
 
 static int rpmh_regulator_disable(struct regulator_dev *rdev)
 {
+	struct rpmh_vreg *vreg = rdev_get_drvdata(rdev);
+
+	if (vreg->debounce_delay) {
+		queue_delayed_work(system_percpu_wq, &vreg->delayed_off_work,
+				   usecs_to_jiffies(vreg->debounce_delay));
+		return 0;
+	}
+
 	return rpmh_regulator_set_enable_state(rdev, false);
 }
 
@@ -481,6 +551,13 @@ static const struct regulator_ops rpmh_regulator_xob_ops = {
 	.is_enabled		= rpmh_regulator_is_enabled,
 };
 
+static void rpmh_regulator_cancel_delayed_off_work(void *data)
+{
+	struct rpmh_vreg *vreg = data;
+
+	cancel_delayed_work_sync(&vreg->delayed_off_work);
+}
+
 /**
  * rpmh_regulator_init_vreg() - initialize all attributes of an rpmh-regulator
  * @vreg:		Pointer to the individual rpmh-regulator resource
@@ -504,6 +581,7 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	const struct rpmh_vreg_init_data *rpmh_data;
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
+	u32 off_on_delay = 0;
 	int ret;
 
 	vreg->dev = dev;
@@ -552,8 +630,24 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->always_wait_for_ack = of_property_read_bool(node,
 						"qcom,always-wait-for-ack");
 
-	of_property_read_u32(node, "regulator-off-on-delay-us",
-			     &vreg->rdesc.off_on_delay);
+	of_property_read_u32(node, "regulator-off-on-delay-us", &off_on_delay);
+
+	of_property_read_u32(node, "qcom,regulator-off-debounce-delay-us",
+			     &vreg->debounce_delay);
+
+	if (vreg->debounce_delay) {
+		/*
+		 * The disable request to RPMh is deferred until the debounce
+		 * delay elapses, so off_on_delay must be measured from that
+		 * point rather than from when disable() returns.  Enforce it
+		 * locally instead of delegating to the regulator core.
+		 */
+		vreg->off_on_delay = off_on_delay;
+
+		INIT_DELAYED_WORK(&vreg->delayed_off_work, rpmh_delayed_off_work);
+	} else {
+		vreg->rdesc.off_on_delay = off_on_delay;
+	}
 
 	vreg->rdesc.owner	= THIS_MODULE;
 	vreg->rdesc.type	= REGULATOR_VOLTAGE;
@@ -582,6 +676,14 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 		dev_err(dev, "%pOFn: devm_regulator_register() failed, ret=%d\n",
 			node, ret);
 		return ret;
+	}
+	vreg->rdev = rdev;
+
+	if (vreg->debounce_delay) {
+		ret = devm_add_action_or_reset(dev, rpmh_regulator_cancel_delayed_off_work,
+					       vreg);
+		if (ret)
+			return ret;
 	}
 
 	dev_dbg(dev, "%pOFn regulator registered for RPMh resource %s @ 0x%05X\n",
