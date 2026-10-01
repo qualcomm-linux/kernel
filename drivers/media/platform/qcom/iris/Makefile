@@ -25,10 +25,12 @@ qcom-iris-objs += iris_buffer.o \
              iris_vb2.o \
              iris_vdec.o \
              iris_venc.o \
+             iris_platform_kaanapali.o \
              iris_platform_glymur.o \
              iris_vpu2.o \
              iris_vpu3x.o \
              iris_vpu4x.o \
+             iris_platform_vpu4x.o \
              iris_vpu_ar50lt.o \
              iris_vpu_buffer.o \
              iris_vpu_common.o \
