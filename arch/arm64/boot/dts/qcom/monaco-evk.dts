@@ -345,6 +345,9 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			regulator-allow-set-load;
 			regulator-allowed-modes = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-off-on-delay-us = <10000>;
+			regulator-enable-ramp-delay = <10000>;
+			qcom,regulator-off-debounce-delay-us = <15000>;
 		};
 
 		vreg_l9a: ldo9 {
