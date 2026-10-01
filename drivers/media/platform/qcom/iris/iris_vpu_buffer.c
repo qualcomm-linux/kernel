@@ -2134,6 +2134,63 @@ static u32 hfi_vpu4x_buffer_line_vp9d(u32 frame_width, u32 frame_height, u32 _yu
 	return lb_size + dpb_obp_size;
 }
 
+static u32 hfi_vpu4x_buffer_line_h265d(u32 frame_width, u32 frame_height, bool is_opb,
+				       u32 num_vpp_pipes)
+{
+	u32 num_lcu_per_pipe, se_left_lb, vsp_left_lb, top_lb, qp_size;
+	u32 fe_left_lb = 0, dpb_obp = 0, lcu_size = LCU_SIZE_16;
+	int i;
+
+	for (i = 0; i < num_vpp_pipes; i++) {
+		num_lcu_per_pipe = (DIV_ROUND_UP(frame_height, lcu_size) / num_vpp_pipes);
+		if (i == 0)
+			num_lcu_per_pipe += (DIV_ROUND_UP(frame_height, lcu_size) % num_vpp_pipes);
+
+		fe_left_lb += DMA_ALIGNMENT * FE_LFT_CTRL_BYTES_PER_PACKETS * num_lcu_per_pipe *
+			      FE_LFT_CTRL_LINE_NUMBERS;
+		fe_left_lb += DMA_ALIGNMENT * FE_LFT_DB_LUMA_CHROMA_BYTES_PER_PACKETS *
+			      num_lcu_per_pipe * FE_LFT_DB_DATA_LINE_NUMBERS;
+		fe_left_lb += DMA_ALIGNMENT * FE_LFT_SAO_LUMA_BYTES_PER_PACKETS *
+			      num_lcu_per_pipe;
+		fe_left_lb += DMA_ALIGNMENT * FE_LFT_SAO_CHROMA_BYTES_PER_PACKETS *
+			      num_lcu_per_pipe;
+		fe_left_lb += DMA_ALIGNMENT * FE_LFT_LR_LUMA_CHROMA_BYTES_PER_PACKETS *
+			      num_lcu_per_pipe * FE_LFT_LR_DATA_LINE_NUMBERS;
+	}
+
+	if (is_opb)
+		dpb_obp = size_dpb_opb(frame_height, lcu_size) * num_vpp_pipes;
+
+	se_left_lb = max3(((frame_height + LCU_SIZE_16 - 1) / H265_MIN_SE_CTRL_BLOCK_SIZE) *
+			  MAX_SE_NBR_CTRL_LCU16_LINE_BUFFER_SIZE,
+			  ((frame_height + LCU_SIZE_32 - 1) / H265_MIN_SE_CTRL_BLOCK_SIZE) *
+			  MAX_SE_NBR_CTRL_LCU32_LINE_BUFFER_SIZE,
+			  ((frame_height + LCU_SIZE_64 - 1) / H265_MIN_SE_CTRL_BLOCK_SIZE) *
+			  MAX_SE_NBR_CTRL_LCU64_LINE_BUFFER_SIZE);
+
+	vsp_left_lb = ALIGN(DIV_ROUND_UP(frame_height, LCU_SIZE_64) *
+			    H265_NUM_TILE_ROW, DMA_ALIGNMENT);
+
+	top_lb = DMA_ALIGNMENT * FE_TOP_CTRL_BYTES_PER_PACKETS *
+		 DIV_ROUND_UP(frame_width, lcu_size) * FE_TOP_CTRL_LINE_NUMBERS;
+	top_lb += DMA_ALIGNMENT * FE_TOP_LUMA_BYTES_PER_PACKETS *
+		  DIV_ROUND_UP(frame_width, lcu_size) * FE_TOP_DATA_LUMA_LINE_NUMBERS;
+	top_lb += DMA_ALIGNMENT * FE_TOP_CHROMA_BYTES_PER_PACKETS *
+		  (DIV_ROUND_UP(frame_width, lcu_size) + 1) * FE_TOP_DATA_CHROMA_LINE_NUMBERS;
+	top_lb += ALIGN(((frame_width + LCU_SIZE_64 - 1) / H265_MIN_SE_CTRL_BLOCK_SIZE) *
+			MAX_SE_NBR_CTRL_LCU64_LINE_BUFFER_SIZE, DMA_ALIGNMENT);
+	top_lb += ALIGN(ALIGN(frame_width, LCU_SIZE_64) * PE_TOP_RECON_DATA_BYTES_PER_PACKETS,
+			DMA_ALIGNMENT);
+	top_lb += size_h265d_lb_vsp_top(frame_width, frame_height);
+
+	qp_size = size_h265d_qp(frame_width, frame_height);
+
+	return ((ALIGN(dpb_obp, DMA_ALIGNMENT) + ALIGN(se_left_lb, DMA_ALIGNMENT) +
+		ALIGN(vsp_left_lb, DMA_ALIGNMENT)) * num_vpp_pipes) +
+		ALIGN(fe_left_lb, DMA_ALIGNMENT) + ALIGN(top_lb, DMA_ALIGNMENT) +
+		ALIGN(qp_size, DMA_ALIGNMENT);
+}
+
 static u32 iris_vpu4x_dec_line_size(struct iris_inst *inst)
 {
 	u32 num_vpp_pipes = inst->core->iris_platform_data->num_vpp_pipe;
@@ -2149,7 +2206,7 @@ static u32 iris_vpu4x_dec_line_size(struct iris_inst *inst)
 	if (inst->codec == V4L2_PIX_FMT_H264)
 		return hfi_buffer_line_h264d(width, height, is_opb, num_vpp_pipes);
 	else if (inst->codec == V4L2_PIX_FMT_HEVC)
-		return hfi_buffer_line_h265d(width, height, is_opb, num_vpp_pipes);
+		return hfi_vpu4x_buffer_line_h265d(width, height, is_opb, num_vpp_pipes);
 	else if (inst->codec == V4L2_PIX_FMT_VP9)
 		return hfi_vpu4x_buffer_line_vp9d(width, height, out_min_count, is_opb,
 						  num_vpp_pipes);

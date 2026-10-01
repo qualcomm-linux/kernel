@@ -161,6 +161,22 @@ struct iris_inst;
 #define BITS_PER_CTRL_PACK             128
 #define NUM_CTRL_PACK_LCU              10
 
+#define LCU_SIZE_16 16
+#define LCU_SIZE_32 32
+#define LCU_SIZE_64 64
+
+#define H265_MIN_SE_CTRL_BLOCK_SIZE		8
+#define FE_LFT_CTRL_BYTES_PER_PACKETS		1
+#define FE_LFT_DB_LUMA_CHROMA_BYTES_PER_PACKETS	2
+#define FE_LFT_SAO_LUMA_BYTES_PER_PACKETS	1
+#define FE_LFT_SAO_CHROMA_BYTES_PER_PACKETS	2
+#define FE_LFT_LR_LUMA_CHROMA_BYTES_PER_PACKETS	8
+
+#define FE_TOP_CTRL_BYTES_PER_PACKETS	    1
+#define FE_TOP_LUMA_BYTES_PER_PACKETS	    2
+#define FE_TOP_CHROMA_BYTES_PER_PACKETS	    2
+#define PE_TOP_RECON_DATA_BYTES_PER_PACKETS 6
+
 static inline u32 size_h264d_lb_fe_top_data(u32 frame_width)
 {
 	return MAX_FE_NBR_DATA_LUMA_LINE_BUFFER_SIZE * ALIGN(frame_width, 16) * 3;
