@@ -136,7 +136,6 @@ properties:
     unevaluatedProperties: false
     description: BOB regulator node.
     properties:
-      regulator-off-on-delay-us: true
       qcom,regulator-off-debounce-delay-us:
         description:
           Time in microseconds to wait for an enable vote after a disable
@@ -155,7 +154,6 @@ patternProperties:
     unevaluatedProperties: false
     description: smps/ldo regulator nodes(s).
     properties:
-      regulator-off-on-delay-us: true
       qcom,regulator-off-debounce-delay-us:
         description:
           Time in microseconds to wait for an enable vote after a disable
