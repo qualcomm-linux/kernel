@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_domain.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -1411,6 +1412,9 @@ struct qmp_phy_cfg {
 
 	/* Offset from PCS to PCS_USB region */
 	unsigned int pcs_usb_offset;
+
+	/* GDSC is kept on until the common PHY block is fully exited */
+	bool use_synced_poweroff;
 };
 
 struct qmp_usb {
@@ -1863,6 +1867,7 @@ static const struct qmp_phy_cfg glymur_usb3_uniphy_cfg = {
 	.vreg_list		= qmp_phy_vreg_l,
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
 	.regs			= qmp_v7_usb3phy_regs_layout,
+	.use_synced_poweroff	= true,
 };
 
 static int qmp_usb_serdes_init(struct qmp_usb *qmp)
@@ -1928,6 +1933,16 @@ static int qmp_usb_exit(struct phy *phy)
 	clk_bulk_disable_unprepare(qmp->num_clks, qmp->clks);
 
 	regulator_bulk_disable(cfg->num_vregs, qmp->vregs);
+
+	/*
+	 * Keep the PHY GDSC on while the PHY is runtime suspended so that
+	 * host-mode bus suspend can resume without losing PHY state.  Once the
+	 * common PHY block is fully exited, allow the GDSC to power off.
+	 */
+	if (cfg->use_synced_poweroff) {
+		dev_vdbg(qmp->dev, "setting synced USB PHY GDSC power-off flag\n");
+		dev_pm_genpd_synced_poweroff(qmp->dev);
+	}
 
 	return 0;
 }
