@@ -119,6 +119,19 @@
 		};
 	};
 
+	cpus {
+		domain-idle-states {
+			system_suspend: domain-suspend {
+				compatible = "domain-idle-state";
+				arm,psci-suspend-param = <0x4200C344>;
+				entry-latency-us = <706562>;
+				exit-latency-us = <706562>;
+				min-residency-us = <709987>;
+				system-state;
+			};
+		};
+	};
+
 	dmic: audio-codec-0 {
 		compatible = "dmic-codec";
 		#sound-dai-cells = <0>;
@@ -862,6 +875,10 @@
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 	};
+};
+
+&system_pd {
+	domain-idle-states = <&system_sleep>, <&system_suspend>;
 };
 
 &tlmm {
