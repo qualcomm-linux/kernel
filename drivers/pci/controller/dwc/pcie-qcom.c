@@ -408,6 +408,26 @@ static void qcom_pcie_clear_aspm_l0s(struct dw_pcie *pci)
 	dw_pcie_dbi_ro_wr_dis(pci);
 }
 
+static void qcom_pcie_set_link_bw_notif_cap(struct dw_pcie *pci)
+{
+	u16 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	u32 val;
+
+	dw_pcie_dbi_ro_wr_en(pci);
+
+	/*
+	 * The controller hardwires Link Bandwidth Notification Capability to 0,
+	 * even though the Root Port can retrain to any of the speeds advertised
+	 * in LNKCAP2.  Set the bit so that the PCIe port driver binds bwctrl and
+	 * registers the link speed thermal cooling device.
+	 */
+	val = readl(pci->dbi_base + offset + PCI_EXP_LNKCAP);
+	val |= PCI_EXP_LNKCAP_LBNC;
+	writel(val, pci->dbi_base + offset + PCI_EXP_LNKCAP);
+
+	dw_pcie_dbi_ro_wr_dis(pci);
+}
+
 static void qcom_pcie_set_slot_cap(struct dw_pcie *pci)
 {
 	u16 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
@@ -1170,6 +1190,7 @@ static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
 				pcie->parf + PARF_NO_SNOOP_OVERRIDE);
 
 	qcom_pcie_set_slot_cap(pcie->pci);
+	qcom_pcie_set_link_bw_notif_cap(pcie->pci);
 
 	qcom_pcie_init_outbound_blocker(pcie);
 
