@@ -4107,7 +4107,7 @@ static const char * const sm8550_qmp_phy_vreg_l[] = {
 };
 
 static const char * const sa8775p_qmp_phy_vreg_l[] = {
-	"vdda-phy", "vdda-pll", "vdda-qref", "vdda-refgen",
+	"vdda-phy", "vdda-pll", "vdda-qref", "vdda-refgen", "refgen",
 };
 
 /* list of resets */
