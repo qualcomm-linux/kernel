@@ -212,6 +212,14 @@ DEFINE_EVENT(mhi_process_event_ring, mhi_ctrl_event,
 	TP_ARGS(mhi_cntrl, rp)
 );
 
+DEFINE_EVENT(mhi_process_event_ring, mhi_bw_scale_event,
+
+	TP_PROTO(struct mhi_controller *mhi_cntrl, struct mhi_ring_element *rp),
+
+	TP_ARGS(mhi_cntrl, rp)
+);
+
+
 DECLARE_EVENT_CLASS(mhi_update_channel_state,
 
 	TP_PROTO(struct mhi_controller *mhi_cntrl, struct mhi_chan *mhi_chan, int state,

@@ -17,6 +17,7 @@
 #define OTP_INVALID_BOARD_ID	0xFFFF
 #define OTP_VALID_DUALMAC_BOARD_ID_MASK		0x1000
 #define MHI_CB_INVALID	0xff
+#define MHI_BW_SCALE_CHAN_DB 126
 
 void ath12k_mhi_set_mhictrl_reset(struct ath12k_base *ab)
 {
@@ -184,6 +185,30 @@ static void ath12k_mhi_op_write_reg(struct mhi_controller *mhi_cntrl,
 	writel(val, addr);
 }
 
+static int ath12k_mhi_op_get_misc_doorbell(struct mhi_controller *mhi_cntrl,
+                                          enum mhi_er_data_type type)
+{
+       if (type == MHI_ER_BW_SCALE)
+               return MHI_BW_SCALE_CHAN_DB;
+
+       return -EOPNOTSUPP;
+}
+
+static int ath12k_mhi_op_bw_scale(struct mhi_controller *mhi_cntrl,
+                                 struct mhi_link_info *link_info)
+{
+       enum pci_bus_speed speed = pci_lnkctl2_bus_speed(link_info->target_link_speed);
+       struct ath12k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
+       struct pci_dev *pci_dev = to_pci_dev(ab->dev);
+       struct pci_dev *pdev;
+
+       pdev = pci_upstream_bridge(pci_dev);
+       if (!pdev)
+               return -ENODEV;
+
+       return pcie_set_target_speed(pdev, speed, true);
+}
+
 int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 {
 	struct ath12k_base *ab = ab_pci->ab;
@@ -261,6 +286,8 @@ int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 	mhi_ctrl->status_cb = ath12k_mhi_op_status_cb;
 	mhi_ctrl->read_reg = ath12k_mhi_op_read_reg;
 	mhi_ctrl->write_reg = ath12k_mhi_op_write_reg;
+	mhi_ctrl->bw_scale = ath12k_mhi_op_bw_scale;
+    mhi_ctrl->get_misc_doorbell = ath12k_mhi_op_get_misc_doorbell;
 
 	ret = mhi_register_controller(mhi_ctrl, ab->hw_params->mhi_config);
 	if (ret) {

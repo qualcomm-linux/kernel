@@ -1085,11 +1085,6 @@ static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
 
 static int qcom_pcie_enable_aspm(struct pci_dev *pdev, void *userdata)
 {
-	/*
-	 * Downstream devices need to be in D0 state before enabling PCI PM
-	 * substates.
-	 */
-	pci_set_power_state_locked(pdev, PCI_D0);
 	pci_enable_link_state_locked(pdev, PCIE_LINK_STATE_ALL);
 
 	return 0;
@@ -1399,6 +1394,8 @@ static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 	qcom_pcie_configure_ports(pcie);
 
 	qcom_pcie_perst_deassert(pcie);
+
+	pp->bridge->disable_aspm_for_retrain = true;
 
 	if (pcie->cfg->ops->config_sid) {
 		ret = pcie->cfg->ops->config_sid(pcie);
