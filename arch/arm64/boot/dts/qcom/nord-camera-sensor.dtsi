@@ -120,9 +120,7 @@
 			};
 		};
 	};
-};
 
-&cam_cci1 {
 	/* GMSL deserializer 1 */
 	qcom,cam-gmsl-deserializer1 {
 		cell-index = <1>;
@@ -144,7 +142,7 @@
 		gpio-req-tbl-num = <0>;
 		gpio-req-tbl-flags = <0>;
 		gpio-req-tbl-label = "CAM_RESET1";
-		cci-master = <0>;
+		cci-master = <1>;
 		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -239,7 +237,7 @@
 	};
 };
 
-&cam_cci2 {
+&cam_cci1 {
 	/* GMSL deserializer 2 */
 	qcom,cam-gmsl-deserializer2 {
 		cell-index = <2>;
@@ -354,9 +352,7 @@
 			};
 		};
 	};
-};
 
-&cam_cci3 {
 	/* GMSL deserializer 3 */
 	qcom,cam-gmsl-deserializer3 {
 		cell-index = <3>;
@@ -378,7 +374,7 @@
 		gpio-req-tbl-num = <0>;
 		gpio-req-tbl-flags = <0>;
 		gpio-req-tbl-label = "CAM_RESET3";
-		cci-master = <0>;
+		cci-master = <1>;
 		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -473,7 +469,7 @@
 	};
 };
 
-&cam_cci4 {
+&cam_cci2 {
 	/* GMSL deserializer 4 */
 	qcom,cam-gmsl-deserializer4 {
 		cell-index = <4>;
@@ -593,6 +589,7 @@
 &soc {
 	qcom,cam-res-mgr {
 		compatible = "qcom,cam-res-mgr";
+		gpios-shared = <565 566 567 568 569>;
 		status = "okay";
 	};
 };
