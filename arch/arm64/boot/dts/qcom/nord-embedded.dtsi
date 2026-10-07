@@ -2406,10 +2406,10 @@
 		compatible = "qcom,nord-iris", "qcom,glymur-iris";
 		reg = <0x0 0x0aa00000 0x0 0xf0000>;
 
-		clocks = <&nwgcc NW_GCC_VIDEO_AXI0_CLK>,
+		clocks = <&nwgcc NW_GCC_VIDEO_AXI0C_CLK>,
 			 <&videocc VIDEO_CC_MVS0C_CLK>,
 			 <&videocc VIDEO_CC_MVS0_CLK>,
-			 <&nwgcc NW_GCC_VIDEO_AXI0C_CLK>,
+			 <&nwgcc NW_GCC_VIDEO_AXI0_CLK>,
 			 <&videocc VIDEO_CC_MVS0C_FREERUN_CLK>,
 			 <&videocc VIDEO_CC_MVS0_FREERUN_CLK>,
 			 <&nwgcc NW_GCC_VIDEO_AXI1_CLK>,
@@ -2451,8 +2451,8 @@
 				     "mmcx",
 				     "vcodec1";
 
-		resets = <&nwgcc NW_GCC_VIDEO_AXI0_CLK_ARES>,
-			 <&nwgcc NW_GCC_VIDEO_AXI0C_CLK_ARES>,
+		resets = <&nwgcc NW_GCC_VIDEO_AXI0C_CLK_ARES>,
+			 <&nwgcc NW_GCC_VIDEO_AXI0_CLK_ARES>,
 			 <&videocc VIDEO_CC_MVS0C_FREERUN_CLK_ARES>,
 			 <&videocc VIDEO_CC_MVS0_FREERUN_CLK_ARES>,
 			 <&nwgcc NW_GCC_VIDEO_AXI1_CLK_ARES>,
