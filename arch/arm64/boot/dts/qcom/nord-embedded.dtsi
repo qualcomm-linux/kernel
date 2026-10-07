@@ -2938,8 +2938,8 @@
 				     "mmcx",
 				     "vcodec1";
 
-		resets = <&nwgcc NW_GCC_VIDEO_AXI0_CLK_ARES>,
-			 <&nwgcc NW_GCC_VIDEO_AXI0C_CLK_ARES>,
+		resets = <&nwgcc NW_GCC_VIDEO_AXI0C_CLK_ARES>,
+			 <&nwgcc NW_GCC_VIDEO_AXI0_CLK_ARES>,
 			 <&videocc VIDEO_CC_MVS0C_FREERUN_CLK_ARES>,
 			 <&videocc VIDEO_CC_MVS0_FREERUN_CLK_ARES>,
 			 <&nwgcc NW_GCC_VIDEO_AXI1_CLK_ARES>,
