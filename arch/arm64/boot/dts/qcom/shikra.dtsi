@@ -4808,6 +4808,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			label = "cti_riscv";
+			status = "disabled";
 		};
 
 		tpdm@9860000 {
