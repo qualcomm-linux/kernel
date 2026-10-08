@@ -12,7 +12,7 @@
 #include <dt-bindings/net/ti-dp83867.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. Shikra CQM EVK";
+	model = "Qualcomm Technologies, Inc. Bibek Shikra CQM EVK";
 	compatible = "qcom,shikra-cqm-evk", "qcom,shikra-cqm-som", "qcom,shikra";
 	chassis-type = "embedded";
 
