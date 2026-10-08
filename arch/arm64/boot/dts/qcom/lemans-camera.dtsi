@@ -2318,6 +2318,266 @@
 		};
 	};
 
+	cci_timer0_active: cci-timer0-active {
+		mux {
+			pins = "gpio68";
+			function = "cci_timer0";
+		};
+
+		config {
+			pins = "gpio68";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer0_suspend: cci-timer0-suspend {
+		mux {
+			pins = "gpio68";
+			function = "cci_timer0";
+		};
+
+		config {
+			pins = "gpio68";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer1_active: cci-timer1-active {
+		mux {
+			pins = "gpio69";
+			function = "cci_timer1";
+		};
+
+		config {
+			pins = "gpio69";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer1_suspend: cci-timer1-suspend {
+		mux {
+			pins = "gpio69";
+			function = "cci_timer1";
+		};
+
+		config {
+			pins = "gpio69";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer2_active: cci-timer2-active {
+		mux {
+			pins = "gpio70";
+			function = "cci_timer2";
+		};
+
+		config {
+			pins = "gpio70";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer2_suspend: cci-timer2-suspend {
+		mux {
+			pins = "gpio70";
+			function = "cci_timer2";
+		};
+
+		config {
+			pins = "gpio70";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer3_active: cci-timer3-active {
+		mux {
+			pins = "gpio71";
+			function = "cci_timer3";
+		};
+
+		config {
+			pins = "gpio71";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer3_suspend: cci-timer3-suspend {
+		mux {
+			pins = "gpio71";
+			function = "cci_timer3";
+		};
+
+		config {
+			pins = "gpio71";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer4_active: cci-timer4-active {
+		mux {
+			pins = "gpio52";
+			function = "cci_timer4";
+		};
+
+		config {
+			pins = "gpio52";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer4_suspend: cci-timer4-suspend {
+		mux {
+			pins = "gpio52";
+			function = "cci_timer4";
+		};
+
+		config {
+			pins = "gpio52";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer5_active: cci-timer5-active {
+		mux {
+			pins = "gpio53";
+			function = "cci_timer5";
+		};
+
+		config {
+			pins = "gpio53";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer5_suspend: cci-timer5-suspend {
+		mux {
+			pins = "gpio53";
+			function = "cci_timer5";
+		};
+
+		config {
+			pins = "gpio53";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer6_active: cci-timer6-active {
+		mux {
+			pins = "gpio54";
+			function = "cci_timer6";
+		};
+
+		config {
+			pins = "gpio54";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer6_suspend: cci-timer6-suspend {
+		mux {
+			pins = "gpio54";
+			function = "cci_timer6";
+		};
+
+		config {
+			pins = "gpio54";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer7_active: cci-timer7-active {
+		mux {
+			pins = "gpio55";
+			function = "cci_timer7";
+		};
+
+		config {
+			pins = "gpio55";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer7_suspend: cci-timer7-suspend {
+		mux {
+			pins = "gpio55";
+			function = "cci_timer7";
+		};
+
+		config {
+			pins = "gpio55";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer8_active: cci-timer8-active {
+		mux {
+			pins = "gpio56";
+			function = "cci_timer8";
+		};
+
+		config {
+			pins = "gpio56";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer8_suspend: cci-timer8-suspend {
+		mux {
+			pins = "gpio56";
+			function = "cci_timer8";
+		};
+
+		config {
+			pins = "gpio56";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer9_active: cci-timer9-active {
+		mux {
+			pins = "gpio57";
+			function = "cci_timer9";
+		};
+
+		config {
+			pins = "gpio57";
+			bias-disable;
+			drive-strength = <6>;
+		};
+	};
+
+	cci_timer9_suspend: cci-timer9-suspend {
+		mux {
+			pins = "gpio57";
+			function = "cci_timer9";
+		};
+
+		config {
+			pins = "gpio57";
+			bias-pull-down;
+			drive-strength = <6>;
+		};
+	};
+
 	cci0_active: cci0-active {
 		mux {
 			/* CLK, DATA */
