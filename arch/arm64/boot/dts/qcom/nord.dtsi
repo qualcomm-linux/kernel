@@ -2549,6 +2549,49 @@
 			reg = <0x0 0x01f60000 0x0 0xa0000>;
 		};
 
+		gpu_0: gpu@3d00000 {
+			compatible = "qcom,adreno-43051701", "qcom,adreno";
+			reg = <0x0 0x03d00000 0x0 0x40000>,
+			      <0x0 0x03d9e000 0x0 0x2000>,
+			      <0x0 0x03d61000 0x0 0x800>;
+			reg-names = "kgsl_3d0_reg_memory",
+				    "cx_mem",
+				    "cx_dbgc";
+
+			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
+
+			iommus = <&adreno_smmu_0 0 0x0>,
+				 <&adreno_smmu_0 1 0x0>;
+
+			qcom,gmu = <&gmu_0>;
+			#cooling-cells = <2>;
+
+			status = "disabled";
+
+			gpu_0_zap_shader: zap-shader {
+				memory-region = <&gpu_microcode_mem>;
+			};
+		};
+
+		gmu_0: gmu@3d6a000 {
+			compatible = "qcom,adreno-gmu-753.1", "qcom,adreno-gmu";
+			reg = <0x0 0x03d6a000 0x0 0x35000>,
+			      <0x0 0x03d50000 0x0 0x10000>,
+			      <0x0 0x0b2a0000 0x0 0x10000>;
+			reg-names = "gmu",
+				    "rscc",
+				    "gmu_pdc";
+
+			interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hfi",
+					  "gmu";
+
+			iommus = <&adreno_smmu_0 5 0x0>;
+
+			status = "disabled";
+		};
+
 		adreno_smmu_0: iommu@3da0000 {
 			compatible = "qcom,nord-smmu-500",
 				     "qcom,adreno-smmu",
