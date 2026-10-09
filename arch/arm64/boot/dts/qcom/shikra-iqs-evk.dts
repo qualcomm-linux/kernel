@@ -176,6 +176,7 @@
 		vddch0-supply = <&vreg_wcn_3p3>;
 
 		swctrl-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
 
 		regulators {
 			vreg_pmu_io: ldo0 {
