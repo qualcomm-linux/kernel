@@ -176,6 +176,9 @@
 		vddch0-supply = <&vreg_wcn_3p3>;
 
 		swctrl-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&tlmm 88 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "wakeup";
+		wakeup-source;
 
 		regulators {
 			vreg_pmu_io: ldo0 {
