@@ -644,6 +644,22 @@ static const struct dcc_register_entry shikra_dcc_entries_ll3[] = {
 	{ "R 0xfd8010c" },
 	{ "R 0xfd91060 8" },
 	{ "R 0xfd92064 8" },
+
+	/* thermal */
+	{ "R 0x4410004 1" },
+	{ "R 0x4411014 1" },
+	{ "R 0x44110E0 1" },
+	{ "R 0x44110EC 1" },
+	{ "R 0x44110A0 16" },
+	{ "R 0x44110E8 1" },
+	{ "R 0x4411170 1" },
+	{ "R 0x4412010 1" },
+	{ "R 0xEC81000 1" },
+	{ "R 0x4412100 16" },
+	{ "R 0xFB784A0 12" },
+	{ "R 0xFB78D10 12" },
+	{ "R 0xFB78F90 10" },
+	{ "R 0xFB79A10 4" },
 };
 
 static const struct dcc_link_config shikra_link_configs[] = {
