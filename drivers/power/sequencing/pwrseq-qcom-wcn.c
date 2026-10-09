@@ -7,11 +7,14 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/irq.h>
 #include <linux/jiffies.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
+#include <linux/pm_wakeup.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pwrseq/provider.h>
 #include <linux/string.h>
@@ -34,6 +37,7 @@ struct pwrseq_qcom_wcn_ctx {
 	struct regulator_bulk_data *regs;
 	struct regulator *vddio;
 	struct gpio_desc *bt_gpio;
+	struct gpio_desc *swctrl_gpio;
 	struct gpio_desc *wlan_gpio;
 	struct gpio_desc *xo_clk_gpio;
 	struct clk *clk;
@@ -454,11 +458,18 @@ static int pwrseq_qcom_wcn3990_match(struct pwrseq_device *pwrseq,
 	return pwrseq_qcom_wcn_match_regulator(pwrseq, dev, "vdd-1.8-xo-supply");
 }
 
+static void pwrseq_qcom_wcn_clear_wake_irq(void *data)
+{
+	dev_pm_clear_wake_irq(data);
+}
+
 static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pwrseq_qcom_wcn_ctx *ctx;
 	struct pwrseq_config config;
+	unsigned int irq_type;
+	int swctrl_irq;
 	int i, ret;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -495,6 +506,40 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->bt_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->bt_gpio),
 				     "Failed to get the Bluetooth enable GPIO\n");
+
+	if (of_property_read_bool(dev->of_node, "wakeup-source")) {
+		ctx->swctrl_gpio = devm_gpiod_get(dev, "swctrl", GPIOD_IN);
+		if (IS_ERR(ctx->swctrl_gpio))
+			return dev_err_probe(dev, PTR_ERR(ctx->swctrl_gpio),
+					     "Failed to get the SW_CTRL GPIO\n");
+
+		swctrl_irq = gpiod_to_irq(ctx->swctrl_gpio);
+		if (swctrl_irq < 0)
+			return dev_err_probe(dev, swctrl_irq,
+					     "Failed to get the SW_CTRL IRQ\n");
+
+		irq_type = gpiod_is_active_low(ctx->swctrl_gpio) ?
+			   IRQ_TYPE_LEVEL_LOW : IRQ_TYPE_LEVEL_HIGH;
+		ret = irq_set_irq_type(swctrl_irq, irq_type);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to set the SW_CTRL IRQ type\n");
+
+		ret = devm_device_init_wakeup(dev);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to enable wakeup\n");
+
+		ret = dev_pm_set_dedicated_wake_irq(dev, swctrl_irq);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to set the SW_CTRL wake IRQ\n");
+
+		ret = devm_add_action_or_reset(dev,
+					       pwrseq_qcom_wcn_clear_wake_irq, dev);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * FIXME: This should actually be GPIOD_OUT_LOW, but doing so would
