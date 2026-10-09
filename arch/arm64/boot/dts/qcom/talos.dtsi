@@ -5185,6 +5185,7 @@
 			phys = <&usb_1_hsphy>, <&usb_qmpphy>;
 			phy-names = "usb2-phy", "usb3-phy";
 
+			dma-coherent;
 			power-domains = <&gcc USB30_PRIM_GDSC>;
 			required-opps = <&rpmhpd_opp_nom>;
 
@@ -5241,6 +5242,7 @@
 			phys = <&usb_2_hsphy>;
 			phy-names = "usb2-phy";
 
+			dma-coherent;
 			power-domains = <&gcc USB20_SEC_GDSC>;
 			required-opps = <&rpmhpd_opp_nom>;
 
