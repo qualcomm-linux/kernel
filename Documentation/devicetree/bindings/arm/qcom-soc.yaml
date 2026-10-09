@@ -11,10 +11,10 @@ maintainers:
 
 description: |
   Guidelines for new compatibles for SoC blocks/components.
-  When adding new compatibles in new bindings, use the format::
+  When adding new compatibles in new bindings, use the format:
     qcom,SoC-IP
 
-  For example::
+  For example:
    qcom,sdm845-llcc-bwmon
 
   When adding new compatibles to existing bindings, use the format in the
@@ -25,7 +25,7 @@ select:
     compatible:
       oneOf:
         - pattern: "^qcom,.*(apq|ipq|mdm|msm|qcm|qcs|q[dr]u|sa|sar|sc|sd[amx]|sm|x1[ep])[0-9]+.*$"
-        - pattern: "^qcom,.*(glymur|milos).*$"
+        - pattern: "^qcom,.*(eliza|kaanapali|glymur|hawi|mahua|maili|milos|nord|shikra).*$"
   required:
     - compatible
 
@@ -36,7 +36,7 @@ properties:
       - pattern: "^qcom,(apq|ipq|mdm|msm|qcm|qcs|q[dr]u|sa|sc|sd[amx]|sm|x1[ep])[0-9]+(pro)?-.*$"
       - pattern: "^qcom,sar[0-9]+[a-z]?-.*$"
       - pattern: "^qcom,(sa|sc)8[0-9]+[a-z][a-z]?-.*$"
-      - pattern: "^qcom,(glymur|milos)-.*$"
+      - pattern: "^qcom,(eliza|kaanapali|glymur|hawi|mahua|maili|milos|nord|shikra)-.*$"
 
       # Legacy namings - variations of existing patterns/compatibles are OK,
       # but do not add completely new entries to these:
@@ -66,5 +66,9 @@ properties:
           - qcom,ipq806x-sata-phy
           - qcom,ipq806x-usb-phy-ss
           - qcom,ipq806x-usb-phy-hs
+
+      # In general non-SoC Qualcomm devices do not need to be listed here,
+      # however in a few cases they got selected by patterns in "select":
+      - pattern: "^qcom,wsa[0-9]+$"
 
 additionalProperties: true
