@@ -5493,8 +5493,6 @@
 					      <&intc GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 12 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 11 IRQ_TYPE_LEVEL_HIGH>,
-					      <&pdc 14 IRQ_TYPE_LEVEL_HIGH>,
-					      <&pdc 13 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 78 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 77 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "dwc_usb3",
@@ -5504,8 +5502,6 @@
 					  "hs_phy_2",
 					  "dp_hs_phy_1",
 					  "dm_hs_phy_1",
-					  "dp_hs_phy_2",
-					  "dm_hs_phy_2",
 					  "ss_phy_1",
 					  "ss_phy_2";
 
