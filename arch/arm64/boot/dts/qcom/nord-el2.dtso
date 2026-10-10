@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Nord (SA8797P) specific modifications required to boot in EL2.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/*
+ * When running Linux directly at EL2 the SMMU is owned by the kernel.
+ * Provide the firmware-loading stream IDs for each remote processor so
+ * the kernel can program the SMMU directly (instead of relying on the
+ * hypervisor).
+ */
+
+&remoteproc_adsp {
+	iommus = <&apps_smmu_0 0x09e0 0x0>;
+};
+
+&remoteproc_adsp1 {
+	iommus = <&apps_smmu_0 0x0a00 0x0>;
+};
+
+&remoteproc_adsp2 {
+	iommus = <&apps_smmu_0 0x0a30 0x0>;
+};
+
+&remoteproc_cdsp0 {
+	iommus = <&apps_smmu_2 0x0300 0x0>;
+};
+
+&remoteproc_cdsp1 {
+	iommus = <&apps_smmu_2 0x0700 0x0>;
+};
+
+&remoteproc_cdsp2 {
+	iommus = <&apps_smmu_2 0x0b00 0x0>;
+};
+
+&remoteproc_cdsp3 {
+	iommus = <&apps_smmu_2 0x0f00 0x0>;
+};
