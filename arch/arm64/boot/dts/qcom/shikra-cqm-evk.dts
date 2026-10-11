@@ -139,6 +139,8 @@
 		vddrf-supply = <&pm4125_l10>;
 		vddch0-supply = <&pm4125_l22>;
 
+		clocks = <&rpmcc RPM_SMD_RF_CLK2>;
+
 		swctrl-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
 
 		regulators {

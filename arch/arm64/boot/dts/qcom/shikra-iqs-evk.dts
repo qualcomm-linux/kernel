@@ -175,6 +175,8 @@
 		vddrf-supply = <&pm8150_l8>;
 		vddch0-supply = <&vreg_wcn_3p3>;
 
+		clocks = <&rpmcc RPM_SMD_RF_CLK1>;
+
 		swctrl-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
 
 		regulators {
