@@ -25,3 +25,8 @@
 &remoteproc_cdsp3 {
 	iommus = <&apps_smmu_2 0x0f60 0x0>;
 };
+&remoteproc_soccp {
+	iommus = <&apps_smmu_0 0x1960 0x5>,
+		 <&apps_smmu_0 0x1966 0x0>;
+};
+
