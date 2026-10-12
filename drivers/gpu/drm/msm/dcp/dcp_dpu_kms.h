@@ -50,6 +50,9 @@ int dcp_dpu_kms_prepare_crtc_session(struct dcp_dpu_kms *dcp_kms,
 				     struct drm_crtc *crtc);
 
 int dcp_dpu_drm_obj_init(struct dcp_dpu_kms *dcp_kms);
+void dcp_dpu_kms_cleanup_bridges(struct dcp_dpu_kms *dcp_kms);
+int dcp_dpu_kms_init_dsi_bridges(struct dcp_dpu_kms *dcp_kms,
+				 struct component_match **matchptr);
 extern const struct msm_kms_funcs dcp_dpu_kms_funcs;
 int dcp_kms_init(struct drm_device *ddev);
 
