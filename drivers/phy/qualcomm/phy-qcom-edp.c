@@ -48,9 +48,8 @@
 /* Nord uses a different register layout; non-Nord value is 0x00e0 */
 #define DP_PHY_STATUS                           0x00e0
 #define DP_PHY_STATUS_NORD                      0x0110
-#define DP_PHY_LDO_CFG                          0x00f0
+#define DP_PHY_LDO_CFG_NORD                     0x00f0
 
-/* Nord-specific TX lane registers */
 #define DP_PHY_TX_LN0_DRV_LVL_NORD             0x00e4
 #define DP_PHY_TX_LN1_DRV_LVL_NORD             0x00e8
 #define TXn_TX_BAND_NORD                        0x0024
