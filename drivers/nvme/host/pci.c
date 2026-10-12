@@ -1455,6 +1455,9 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	ret = nvme_prep_rq(req);
 	if (unlikely(ret))
 		return ret;
+
+	nvme_update_io_stats(&dev->ctrl, req);
+
 	spin_lock(&nvmeq->sq_lock);
 	nvme_sq_copy_cmd(nvmeq, &iod->cmd);
 	nvme_write_sq_db(nvmeq, bd->last);
@@ -1473,6 +1476,7 @@ static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct rq_list *rqlist)
 	while ((req = rq_list_pop(rqlist))) {
 		struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
+		nvme_update_io_stats(&nvmeq->dev->ctrl, req);
 		nvme_sq_copy_cmd(nvmeq, &iod->cmd);
 	}
 	nvme_write_sq_db(nvmeq, true);
