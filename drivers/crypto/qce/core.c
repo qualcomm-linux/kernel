@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/pm_clock.h>
 #include <linux/types.h>
 #include <crypto/internal/hash.h>
 
@@ -91,10 +90,11 @@ static int qce_handle_queue(struct qce_device *qce,
 			    struct crypto_async_request *req)
 {
 	struct crypto_async_request *async_req, *backlog;
-	int ret = 0, err;
+	int ret, err;
 
-	ret = pm_runtime_resume_and_get(qce->dev);
-	if (ret < 0)
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(qce->dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+	if (ret)
 		return ret;
 
 	scoped_guard(mutex, &qce->lock) {
@@ -103,7 +103,7 @@ static int qce_handle_queue(struct qce_device *qce,
 
 		/* busy, do not dequeue request */
 		if (qce->req)
-			goto qce_suspend;
+			return ret;
 
 		backlog = crypto_get_backlog(&qce->queue);
 		async_req = crypto_dequeue_request(&qce->queue);
@@ -112,7 +112,7 @@ static int qce_handle_queue(struct qce_device *qce,
 	}
 
 	if (!async_req)
-		goto qce_suspend;
+		return ret;
 
 	if (backlog) {
 		scoped_guard(mutex, &qce->lock)
@@ -125,8 +125,6 @@ static int qce_handle_queue(struct qce_device *qce,
 		schedule_work(&qce->done_work);
 	}
 
-qce_suspend:
-	pm_runtime_put_autosuspend(qce->dev);
 	return ret;
 }
 
@@ -225,47 +223,47 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	/* PM clock helpers: register device clocks */
-	ret = devm_pm_clk_create(dev);
-	if (ret)
-		return ret;
+	qce->core = devm_clk_get_optional(qce->dev, "core");
+	if (IS_ERR(qce->core))
+		return PTR_ERR(qce->core);
 
-	ret = pm_clk_add(dev, "core");
-	if (ret)
-		return ret;
+	qce->iface = devm_clk_get_optional(qce->dev, "iface");
+	if (IS_ERR(qce->iface))
+		return PTR_ERR(qce->iface);
 
-	ret = pm_clk_add(dev, "iface");
-	if (ret)
-		return ret;
-
-	ret = pm_clk_add(dev, "bus");
-	if (ret)
-		return ret;
+	qce->bus = devm_clk_get_optional(qce->dev, "bus");
+	if (IS_ERR(qce->bus))
+		return PTR_ERR(qce->bus);
 
 	qce->mem_path = devm_of_icc_get(dev, "memory");
 	if (IS_ERR(qce->mem_path))
 		return PTR_ERR(qce->mem_path);
 
-	/* Enable runtime PM after clocks and ICC are acquired */
+	/*
+	 * Enable runtime PM after clocks and ICC path are acquired so that
+	 * the resume callback can enable clocks and apply the ICC bandwidth
+	 * vote before any hardware access takes place.
+	 */
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_resume_and_get(dev);
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
 	if (ret)
 		return ret;
 
 	ret = devm_qce_dma_request(qce);
 	if (ret)
-		goto err_pm;
+		return ret;
 
 	ret = qce_check_version(qce);
 	if (ret)
-		goto err_pm;
+		return ret;
 
 	ret = devm_mutex_init(qce->dev, &qce->lock);
 	if (ret)
-		goto err_pm;
+		return ret;
 
 	INIT_WORK(&qce->done_work, qce_req_done_work);
 	crypto_init_queue(&qce->queue, QCE_QUEUE_LENGTH);
@@ -275,7 +273,7 @@ static int qce_crypto_probe(struct platform_device *pdev)
 
 	ret = devm_qce_register_algs(qce);
 	if (ret)
-		goto err_pm;
+		return ret;
 
 	qce->dma_size = resource_size(res);
 	qce->base_dma = dma_map_resource(dev, res->start, qce->dma_size,
@@ -283,58 +281,74 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	qce->base_phys = res->start;
 	ret = dma_mapping_error(dev, qce->base_dma);
 	if (ret)
-		goto err_pm;
+		return ret;
 
 	ret = devm_add_action_or_reset(qce->dev, qce_crypto_unmap_dma, qce);
 	if (ret)
-		goto err_pm;
+		return ret;
 
-	/* Configure autosuspend after successful init */
 	pm_runtime_set_autosuspend_delay(dev, 100);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
-
-	return 0;
-
-err_pm:
-	pm_runtime_put(dev);
-
-	return ret;
-}
-
-static int __maybe_unused qce_runtime_suspend(struct device *dev)
-{
-	struct qce_device *qce = dev_get_drvdata(dev);
-
-	icc_disable(qce->mem_path);
 
 	return 0;
 }
 
-static int __maybe_unused qce_runtime_resume(struct device *dev)
+static int qce_runtime_suspend(struct device *dev)
 {
 	struct qce_device *qce = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret;
 
-	ret = icc_enable(qce->mem_path);
+	clk_disable_unprepare(qce->core);
+	clk_disable_unprepare(qce->iface);
+	clk_disable_unprepare(qce->bus);
+
+	ret = icc_set_bw(qce->mem_path, 0, 0);
+	if (ret) {
+		clk_prepare_enable(qce->bus);
+		clk_prepare_enable(qce->iface);
+		clk_prepare_enable(qce->core);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int qce_runtime_resume(struct device *dev)
+{
+	struct qce_device *qce = dev_get_drvdata(dev);
+	int ret;
+
+	ret = icc_set_bw(qce->mem_path, QCE_DEFAULT_MEM_BANDWIDTH,
+			 QCE_DEFAULT_MEM_BANDWIDTH);
 	if (ret)
 		return ret;
 
-	ret = icc_set_bw(qce->mem_path, QCE_DEFAULT_MEM_BANDWIDTH, QCE_DEFAULT_MEM_BANDWIDTH);
+	ret = clk_prepare_enable(qce->core);
 	if (ret)
-		goto err_icc;
+		goto err_core;
+
+	ret = clk_prepare_enable(qce->iface);
+	if (ret)
+		goto err_iface;
+
+	ret = clk_prepare_enable(qce->bus);
+	if (ret)
+		goto err_bus;
 
 	return 0;
 
-err_icc:
-	icc_disable(qce->mem_path);
+err_bus:
+	clk_disable_unprepare(qce->iface);
+err_iface:
+	clk_disable_unprepare(qce->core);
+err_core:
+	icc_set_bw(qce->mem_path, 0, 0);
 	return ret;
 }
 
 static const struct dev_pm_ops qce_crypto_pm_ops = {
-	SET_RUNTIME_PM_OPS(qce_runtime_suspend, qce_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(qce_runtime_suspend, qce_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct of_device_id qce_crypto_of_match[] = {
@@ -350,7 +364,7 @@ static struct platform_driver qce_crypto_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = qce_crypto_of_match,
-		.pm = &qce_crypto_pm_ops,
+		.pm = pm_ptr(&qce_crypto_pm_ops),
 	},
 };
 module_platform_driver(qce_crypto_driver);

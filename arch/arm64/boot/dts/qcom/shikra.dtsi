@@ -1399,8 +1399,6 @@
 			qcom,controlled-remotely;
 			num-channels = <16>;
 			qcom,num-ees = <4>;
-			clocks = <&rpmcc RPM_SMD_CE1_CLK>;
-			clock-names = "bam_clk";
 		};
 
 		crypto: crypto@1b3a000 {
