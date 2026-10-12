@@ -142,6 +142,10 @@
 #define MAX_FIFO_RD_RETRY					3
 #define SWR_OVERFLOW_RETRY_COUNT				30
 #define SWRM_LINK_STATUS_RETRY_CNT				100
+/* Software-enumeration fallback when the HW auto-enumerator fails. */
+#define SWRM_SW_ENUM_RETRIES					3
+#define SWRM_SW_ENUM_ATTEMPTS					4
+#define SWRM_SW_ENUM_SETTLE_MS					120
 
 enum {
 	MASTER_ID_WSA = 1,
@@ -221,6 +225,8 @@ struct qcom_swrm_ctrl {
 	u32 slave_status;
 	u32 wr_fifo_depth;
 	bool clock_stop_not_supported;
+	/* Remaining software-enumeration attempts for this bring-up. */
+	int sw_enum_retries;
 };
 
 struct qcom_swrm_data {
@@ -687,6 +693,176 @@ static int qcom_swrm_enumerate(struct sdw_bus *bus)
 	return 0;
 }
 
+/*
+ * Return the bus peripheral answering at ping address 0, or NULL. The DevID is
+ * read over the command FIFO (qcom_swrm_cmd_fifo_rd_cmd() retries and flushes
+ * between tries) rather than by the core's single raw transfer, which underflows
+ * on a flaky cold boot.
+ */
+static struct sdw_slave *qcom_swrm_match_slave_at_zero(struct qcom_swrm_ctrl *ctrl)
+{
+	struct sdw_bus *bus = &ctrl->bus;
+	struct sdw_slave *slave;
+	struct sdw_slave_id id;
+	u8 buf[SDW_NUM_DEV_ID_REGISTERS] = {0};
+	u64 addr;
+	int i;
+
+	/*
+	 * Serialise the raw FIFO reads against normal transfers: the FIFO
+	 * command-id state is shared and the core holds bus->msg_lock across
+	 * every sdw_transfer(). sdw_handle_slave_status() below takes it the
+	 * same way from this IRQ path, so acquiring it here is deadlock-free.
+	 */
+	mutex_lock(&bus->msg_lock);
+	for (i = 0; i < SDW_NUM_DEV_ID_REGISTERS; i++) {
+		if (qcom_swrm_cmd_fifo_rd_cmd(ctrl, 0, SDW_SCP_DEVID_0 + i,
+					      1, &buf[i]) != SDW_CMD_OK) {
+			mutex_unlock(&bus->msg_lock);
+			return NULL;
+		}
+	}
+	mutex_unlock(&bus->msg_lock);
+
+	/* Same byte order the generic enumerator uses (see bus.c). */
+	addr = buf[5] | (buf[4] << 8) | (buf[3] << 16) |
+	       ((u64)buf[2] << 24) | ((u64)buf[1] << 32) | ((u64)buf[0] << 40);
+	if (!addr)
+		return NULL;
+
+	sdw_extract_slave_id(bus, addr, &id);
+
+	list_for_each_entry(slave, &bus->slaves, node)
+		if (sdw_compare_devid(slave, id) == 0)
+			return slave;
+
+	dev_dbg(ctrl->dev,
+		"sw-enum: ignoring unknown DevID at addr 0 (mfg 0x%04x part 0x%04x)\n",
+		id.mfg_id, id.part_id);
+	return NULL;
+}
+
+/*
+ * Assign the device number in the driver instead of via the core's
+ * sdw_program_device_num(), which re-reads the DevID at address 0 and on a
+ * flaky boot mints a phantom slave that steals the number the real codec needs.
+ * Returns the dev_num, or <0 on no match / already numbered / write failure.
+ */
+static int qcom_swrm_sw_program_device(struct qcom_swrm_ctrl *ctrl)
+{
+	struct sdw_bus *bus = &ctrl->bus;
+	struct sdw_slave *slave;
+	int devnum;
+	int ret;
+
+	slave = qcom_swrm_match_slave_at_zero(ctrl);
+	if (!slave)
+		return -ENODEV;
+	/*
+	 * Mirror sdw_program_device_num(): only program a slave the core has
+	 * not yet seen attached, so enumeration state-machine stages are not
+	 * skipped. dev_num additionally guards against re-numbering one we just
+	 * programmed (it stays UNATTACHED until it re-attaches at the new one).
+	 */
+	if (slave->status != SDW_SLAVE_UNATTACHED || slave->dev_num)
+		return -EBUSY;
+
+	mutex_lock(&bus->bus_lock);
+	devnum = find_first_zero_bit(bus->assigned, SDW_MAX_DEVICES);
+	if (devnum >= SDW_MAX_DEVICES) {
+		mutex_unlock(&bus->bus_lock);
+		return -ENOSPC;
+	}
+	set_bit(devnum, bus->assigned);
+	mutex_unlock(&bus->bus_lock);
+
+	mutex_lock(&bus->msg_lock);
+	ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, devnum, 0, SDW_SCP_DEVNUMBER);
+	mutex_unlock(&bus->msg_lock);
+	if (ret != SDW_CMD_OK) {
+		mutex_lock(&bus->bus_lock);
+		clear_bit(devnum, bus->assigned);
+		mutex_unlock(&bus->bus_lock);
+		return -EIO;
+	}
+
+	slave->dev_num = devnum;
+	slave->dev_num_sticky = devnum;
+	if (slave->prop.clk_stop_mode1)
+		ctrl->clock_stop_not_supported = true;
+
+	dev_dbg(ctrl->dev, "sw-enum: programmed %s as dev_num %d\n",
+		dev_name(&slave->dev), devnum);
+	return devnum;
+}
+
+/*
+ * Software-enumeration fallback for AUTO_ENUM_FAILED: the HW table is empty so
+ * no device number was assigned, but the peripheral still answers the command
+ * FIFO. Program the device at ping address 0 (status slot 0, which
+ * qcom_swrm_get_device_status() skips); retry after a bounded settle since a
+ * cold-boot slave can take a few hundred ms to answer; then call the core only
+ * to initialise devices that re-attached at their new number.
+ */
+static void qcom_swrm_sw_enumerate(struct qcom_swrm_ctrl *ctrl)
+{
+	int programmed = 0;
+	int attempts_done;
+	int attempt;
+	int pass;
+	u32 val;
+	u32 i;
+
+	/* Recomputed from the slaves we match, as the HW path does. */
+	ctrl->clock_stop_not_supported = false;
+
+	for (attempt = 0; attempt < SWRM_SW_ENUM_ATTEMPTS; attempt++) {
+		bool waiting = false;
+
+		for (pass = 0; pass <= SDW_MAX_DEVICES; pass++) {
+			ctrl->reg_read(ctrl, SWRM_MCP_SLV_STATUS, &val);
+			ctrl->slave_status = val;
+
+			/* Populate status for ALL slots, slot 0 included. */
+			for (i = 0; i <= SDW_MAX_DEVICES; i++)
+				ctrl->status[i] =
+					(val >> (i * SWRM_MCP_SLV_STATUS_SZ)) &
+					SWRM_MCP_SLV_STATUS_MASK;
+
+			if (ctrl->status[0] == SDW_SLAVE_ATTACHED) {
+				if (qcom_swrm_sw_program_device(ctrl) < 0) {
+					/* No match yet - settle and retry. */
+					waiting = true;
+					break;
+				}
+				programmed++;
+				/* Let it re-attach at its new dev_num. */
+				usleep_range(1500, 1600);
+				continue;
+			}
+
+			/*
+			 * Nothing at address 0. Slot 0 is UNATTACHED here, so
+			 * the core never reads it; init the re-attached devices.
+			 */
+			sdw_handle_slave_status(&ctrl->bus, ctrl->status);
+			break;
+		}
+
+		if (!waiting)
+			break;
+
+		msleep(SWRM_SW_ENUM_SETTLE_MS);
+	}
+
+	attempts_done = min(attempt + 1, SWRM_SW_ENUM_ATTEMPTS);
+	dev_info(ctrl->dev,
+		 "sw-enum: %d device(s) programmed in software over %d attempt(s) slv_status=0x%x\n",
+		 programmed, attempts_done, ctrl->slave_status);
+
+	complete(&ctrl->enumeration);
+}
+
 static irqreturn_t qcom_swrm_wake_irq_handler(int irq, void *dev_id)
 {
 	struct qcom_swrm_ctrl *ctrl = dev_id;
@@ -719,6 +895,7 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 	u32 i;
 	int devnum;
 	int ret = IRQ_HANDLED;
+	bool sw_reenum = false;
 	clk_prepare_enable(ctrl->hclk);
 
 	ctrl->reg_read(ctrl, ctrl->reg_layout[SWRM_REG_INTERRUPT_STATUS],
@@ -820,6 +997,20 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 			case SWRM_INTERRUPT_STATUS_SPECIAL_CMD_ID_FINISHED:
 				complete(&ctrl->broadcast);
 				break;
+			case SWRM_INTERRUPT_STATUS_AUTO_ENUM_FAILED:
+				/*
+				 * HW auto-enumerator failed to read a DEVID.
+				 * Fall back to software enumeration after the
+				 * status loop (the peripheral answers the
+				 * command FIFO even when the HW table is empty).
+				 */
+				sw_reenum = true;
+				break;
+			case SWRM_INTERRUPT_STATUS_AUTO_ENUM_TABLE_IS_FULL:
+				dev_err_ratelimited(ctrl->dev,
+						    "%s: SWR auto-enum table full\n",
+						    __func__);
+				break;
 			case SWRM_INTERRUPT_STATUS_BUS_RESET_FINISHED_V2:
 				break;
 			case SWRM_INTERRUPT_STATUS_CLK_STOP_FINISHED_V2:
@@ -851,6 +1042,14 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 			       &intr_sts);
 		intr_sts_masked = intr_sts & ctrl->intr_mask;
 	} while (intr_sts_masked);
+
+	if (sw_reenum && ctrl->sw_enum_retries > 0) {
+		ctrl->sw_enum_retries--;
+		dev_info(ctrl->dev,
+			 "sw-enum: hardware auto-enum failed, enumerating in software (%d left)\n",
+			 ctrl->sw_enum_retries);
+		qcom_swrm_sw_enumerate(ctrl);
+	}
 
 	clk_disable_unprepare(ctrl->hclk);
 	return ret;
@@ -1678,6 +1877,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
+	ctrl->sw_enum_retries = SWRM_SW_ENUM_RETRIES;
 	qcom_swrm_init(ctrl);
 	wait_for_completion_timeout(&ctrl->enumeration,
 				    msecs_to_jiffies(TIMEOUT_MS));
@@ -1736,6 +1936,7 @@ static int __maybe_unused swrm_runtime_resume(struct device *dev)
 		ctrl->reg_write(ctrl, SWRM_COMP_SW_RESET, 0x01);
 		usleep_range(100, 105);
 
+		ctrl->sw_enum_retries = SWRM_SW_ENUM_RETRIES;
 		qcom_swrm_init(ctrl);
 
 		usleep_range(100, 105);
