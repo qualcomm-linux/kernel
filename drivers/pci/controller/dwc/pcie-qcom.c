@@ -462,6 +462,59 @@ static enum dw_pcie_ltssm qcom_pcie_2_1_0_get_ltssm(struct qcom_pcie *pcie)
 	return (enum dw_pcie_ltssm)FIELD_GET(ELBI_SYS_STTS_LTSSM_STATE_MASK, val);
 }
 
+
+static void qcom_pcie_phy_exit(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_port *port;
+
+	list_for_each_entry(port, &pcie->ports, list)
+		phy_exit(port->phy);
+}
+
+static int qcom_pcie_phy_init(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_port *port, *failed_port = NULL;
+	struct device *dev = pcie->pci->dev;
+	int ret;
+
+	list_for_each_entry(port, &pcie->ports, list) {
+		ret = phy_init(port->phy);
+		if (ret) {
+			dev_err(dev, "phy init failed (%d)\n", ret);
+			failed_port = port;
+			goto err_exit_phy;
+		}
+	}
+
+	return 0;
+
+err_exit_phy:
+	list_for_each_entry(port, &pcie->ports, list) {
+		if (port == failed_port)
+			break;
+		phy_exit(port->phy);
+	}
+
+	return ret;
+}
+
+static int qcom_pcie_phy_reset(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_port *port;
+	struct device *dev = pcie->pci->dev;
+	int ret;
+
+	list_for_each_entry(port, &pcie->ports, list) {
+		ret = phy_reset(port->phy);
+		if (ret) {
+			dev_err(dev, "phy reset failed (%d)\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int qcom_pcie_get_resources_2_1_0(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_2_1_0 *res = &pcie->res.v2_1_0;
@@ -745,11 +798,23 @@ static int qcom_pcie_init_2_3_2(struct qcom_pcie *pcie)
 	ret = clk_bulk_prepare_enable(res->num_clks, res->clks);
 	if (ret) {
 		dev_err(dev, "cannot prepare/enable clocks\n");
-		regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
-		return ret;
+		goto err_disable_regulators;
 	}
 
+	ret = qcom_pcie_phy_reset(pcie);
+	if (ret)
+		goto err_disable_clocks;
+
+	writel(DEVICE_TYPE_RC, pcie->parf + PARF_DEVICE_TYPE);
+
 	return 0;
+
+err_disable_clocks:
+	clk_bulk_disable_unprepare(res->num_clks, res->clks);
+err_disable_regulators:
+	regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
+
+	return ret;
 }
 
 static int qcom_pcie_post_init_2_3_2(struct qcom_pcie *pcie)
@@ -911,18 +976,28 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 	struct device *dev = pci->dev;
 	int ret;
 
+	ret = clk_bulk_prepare_enable(res->num_clks, res->clks);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable clocks\n");
+		return ret;
+	}
+
 	ret = reset_control_bulk_assert(ARRAY_SIZE(res->rst), res->rst);
 	if (ret < 0) {
 		dev_err(dev, "cannot assert resets\n");
-		return ret;
+		goto err_disable_clocks;
 	}
 
 	usleep_range(2000, 2500);
 
+	ret = qcom_pcie_phy_reset(pcie);
+	if (ret)
+		goto err_assert_resets;
+
 	ret = reset_control_bulk_deassert(ARRAY_SIZE(res->rst), res->rst);
 	if (ret < 0) {
 		dev_err(dev, "cannot deassert resets\n");
-		return ret;
+		goto err_assert_resets;
 	}
 
 	/*
@@ -931,11 +1006,7 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 	 */
 	usleep_range(2000, 2500);
 
-	ret = clk_bulk_prepare_enable(res->num_clks, res->clks);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable clocks\n");
-		goto err_assert_resets;
-	}
+	writel(DEVICE_TYPE_RC, pcie->parf + PARF_DEVICE_TYPE);
 
 	return 0;
 
@@ -945,6 +1016,8 @@ err_assert_resets:
 	 * the original failure in 'ret'.
 	 */
 	reset_control_bulk_assert(ARRAY_SIZE(res->rst), res->rst);
+err_disable_clocks:
+	clk_bulk_disable_unprepare(res->num_clks, res->clks);
 
 	return ret;
 }
@@ -1018,7 +1091,6 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 	struct qcom_pcie_resources_2_7_0 *res = &pcie->res.v2_7_0;
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
-	u32 val;
 	int ret;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(res->supplies), res->supplies);
@@ -1037,6 +1109,10 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 		goto err_disable_clocks;
 	}
 
+	ret = qcom_pcie_phy_reset(pcie);
+	if (ret)
+		goto err_disable_clocks;
+
 	usleep_range(1000, 1500);
 
 	ret = reset_control_deassert(res->rst);
@@ -1050,6 +1126,21 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 
 	/* configure PCIe to RC mode */
 	writel(DEVICE_TYPE_RC, pcie->parf + PARF_DEVICE_TYPE);
+
+	return 0;
+err_disable_clocks:
+	clk_bulk_disable_unprepare(res->num_clks, res->clks);
+err_disable_regulators:
+	regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
+
+	return ret;
+}
+
+static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
+{
+	const struct qcom_pcie_cfg *pcie_cfg = pcie->cfg;
+	struct dw_pcie *pci = pcie->pci;
+	u32 val;
 
 	/* Force PHY out of lowest power state */
 	val = readl(pcie->parf + PARF_PHY_CTRL);
@@ -1077,19 +1168,6 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 	val = readl(pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
 	val |= EN;
 	writel(val, pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
-
-	return 0;
-err_disable_clocks:
-	clk_bulk_disable_unprepare(res->num_clks, res->clks);
-err_disable_regulators:
-	regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
-
-	return ret;
-}
-
-static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
-{
-	const struct qcom_pcie_cfg *pcie_cfg = pcie->cfg;
 
 	if (pcie_cfg->override_no_snoop)
 		writel(WR_NO_SNOOP_OVERRIDE_EN | RD_NO_SNOOP_OVERRIDE_EN,
@@ -1248,10 +1326,14 @@ static int qcom_pcie_init_2_9_0(struct qcom_pcie *pcie)
 	struct device *dev = pcie->pci->dev;
 	int ret;
 
+	ret = clk_bulk_prepare_enable(res->num_clks, res->clks);
+	if (ret)
+		return ret;
+
 	ret = reset_control_assert(res->rst);
 	if (ret) {
 		dev_err(dev, "reset assert failed (%d)\n", ret);
-		return ret;
+		goto err_disable_clocks;
 	}
 
 	/*
@@ -1260,15 +1342,26 @@ static int qcom_pcie_init_2_9_0(struct qcom_pcie *pcie)
 	 */
 	usleep_range(2000, 2500);
 
+	ret = qcom_pcie_phy_reset(pcie);
+	if (ret)
+		goto err_disable_clocks;
+
 	ret = reset_control_deassert(res->rst);
 	if (ret) {
 		dev_err(dev, "reset deassert failed (%d)\n", ret);
-		return ret;
+		goto err_disable_clocks;
 	}
 
 	usleep_range(2000, 2500);
 
-	return clk_bulk_prepare_enable(res->num_clks, res->clks);
+	writel(DEVICE_TYPE_RC, pcie->parf + PARF_DEVICE_TYPE);
+
+	return 0;
+
+err_disable_clocks:
+	clk_bulk_disable_unprepare(res->num_clks, res->clks);
+
+	return ret;
 }
 
 static int qcom_pcie_post_init_2_9_0(struct qcom_pcie *pcie)
@@ -1285,7 +1378,6 @@ static int qcom_pcie_post_init_2_9_0(struct qcom_pcie *pcie)
 
 	qcom_pcie_configure_dbi_atu_base(pcie);
 
-	writel(DEVICE_TYPE_RC, pcie->parf + PARF_DEVICE_TYPE);
 	writel(BYPASS | MSTR_AXI_CLK_EN | AHB_CLK_EN,
 		pcie->parf + PARF_MHI_CLOCK_RESET_CTRL);
 	writel(GEN3_RELATED_OFF_RXEQ_RGRDLESS_RXTS |
@@ -1375,9 +1467,13 @@ static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 
 	qcom_pcie_perst_assert(pcie);
 
-	ret = pcie->cfg->ops->init(pcie);
+	ret = qcom_pcie_phy_init(pcie);
 	if (ret)
 		return ret;
+
+	ret = pcie->cfg->ops->init(pcie);
+	if (ret)
+		goto err_exit_phy;
 
 	ret = qcom_pcie_phy_power_on(pcie);
 	if (ret)
@@ -1425,6 +1521,8 @@ err_disable_phy:
 	qcom_pcie_phy_power_off(pcie);
 err_deinit:
 	pcie->cfg->ops->deinit(pcie);
+err_exit_phy:
+	qcom_pcie_phy_exit(pcie);
 
 	return ret;
 }
@@ -1446,6 +1544,7 @@ static void qcom_pcie_host_deinit(struct dw_pcie_rp *pp)
 
 	qcom_pcie_phy_power_off(pcie);
 	pcie->cfg->ops->deinit(pcie);
+	qcom_pcie_phy_exit(pcie);
 }
 
 static void qcom_pcie_host_post_init(struct dw_pcie_rp *pp)
@@ -2218,10 +2317,6 @@ static int qcom_pcie_parse_port(struct qcom_pcie *pcie, struct device_node *node
 	if (!port)
 		return -ENOMEM;
 
-	ret = phy_init(phy);
-	if (ret)
-		return ret;
-
 	INIT_LIST_HEAD(&port->perst);
 
 	ret = qcom_pcie_parse_perst(pcie, port, node);
@@ -2256,7 +2351,6 @@ err_port_del:
 	list_for_each_entry_safe(port, tmp_port, &pcie->ports, list) {
 		list_for_each_entry_safe(perst, tmp_perst, &port->perst, list)
 			list_del(&perst->list);
-		phy_exit(port->phy);
 		list_del(&port->list);
 	}
 
@@ -2270,8 +2364,6 @@ static int qcom_pcie_parse_legacy_binding(struct qcom_pcie *pcie)
 	struct qcom_pcie_port *port;
 	struct gpio_desc *reset;
 	struct phy *phy;
-	int ret;
-
 	phy = devm_phy_optional_get(dev, "pciephy");
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
@@ -2279,10 +2371,6 @@ static int qcom_pcie_parse_legacy_binding(struct qcom_pcie *pcie)
 	reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
 	if (IS_ERR(reset))
 		return PTR_ERR(reset);
-
-	ret = phy_init(phy);
-	if (ret)
-		return ret;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
@@ -2470,7 +2558,6 @@ err_phy_exit:
 	list_for_each_entry_safe(port, tmp_port, &pcie->ports, list) {
 		list_for_each_entry_safe(perst, tmp_perst, &port->perst, list)
 			list_del(&perst->list);
-		phy_exit(port->phy);
 		list_del(&port->list);
 	}
 err_pm_runtime_put:
