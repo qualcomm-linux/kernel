@@ -14,9 +14,6 @@ description:
   dwmmac based Qualcomm ethernet devices which support Gigabit
   ethernet (version v2.3.0 and onwards).
 
-allOf:
-  - $ref: snps,dwmac.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -59,34 +56,37 @@ properties:
 
   clocks:
     minItems: 4
-    maxItems: 7
+    maxItems: 6
 
   clock-names:
-    oneOf:
-      - items:
-          - const: stmmaceth
-          - const: pclk
-          - const: ptp_ref
-          - enum:
-              - rgmii
-              - phyaux
-      - description: |
-          Extended clock list for platforms with AXI NOC clocks that require
-          explicit driver management (e.g. Shikra). GCC_EMAC0_AXI_CLK appears
-          as both "stmmaceth" and "axi"; CCF refcounting makes this safe.
-        items:
-          - const: stmmaceth
-          - const: pclk
-          - const: ptp_ref
-          - const: rgmii
-          - const: axi
-          - const: axi-noc
-          - const: pcie-tile-axi-noc
+    minItems: 4
+    items:
+      - const: stmmaceth
+      - const: pclk
+      - const: ptp_ref
+      - enum:
+          - rgmii
+          - phyaux
+      - const: axi-noc
+      - const: pcie-tile-axi-noc
 
   iommus:
     maxItems: 1
 
   dma-coherent: true
+
+  interconnects:
+    maxItems: 2
+
+  interconnect-names:
+    items:
+      - const: cpu-mac
+      - const: mac-mem
+
+  operating-points-v2: true
+
+  opp-table:
+    type: object
 
   phys: true
 
@@ -98,6 +98,41 @@ required:
   - clocks
   - clock-names
   - reg-names
+
+allOf:
+  - $ref: snps,dwmac.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,shikra-ethqos
+    then:
+      properties:
+        clocks:
+          minItems: 6
+        clock-names:
+          items:
+            - const: stmmaceth
+            - const: pclk
+            - const: ptp_ref
+            - const: rgmii
+            - const: axi-noc
+            - const: pcie-tile-axi-noc
+      required:
+        - operating-points-v2
+    else:
+      properties:
+        clocks:
+          maxItems: 4
+        clock-names:
+          items:
+            - const: stmmaceth
+            - const: pclk
+            - const: ptp_ref
+            - enum:
+                - rgmii
+                - phyaux
 
 unevaluatedProperties: false
 
