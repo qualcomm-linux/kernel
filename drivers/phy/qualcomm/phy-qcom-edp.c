@@ -1544,25 +1544,6 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 }
 
 /*
- * nord AUX config (eDP mode).
- * From HPG Table 2-1-a: edp_phy_aux_bist.csv
- * Index:  0     1     2     3     4     5     6     7     8     9    10    11    12
- */
-static const u8 edp_phy_aux_cfg_nord[DP_AUX_CFG_SIZE] = {
-	0x00, 0x13, 0xa4, 0x00, 0x0a, 0x26, 0x0a, 0x03, 0x37, 0x03, 0x02, 0x02, 0x04,
-};
-
-/*
- * nord VCO_DIV config for eDP mode.
- * From HPG Table 2-1-b AUX Clock Settings (eDP mode) - Nominal/Turbo column.
- * Indices: [0]=1620, [1]=2700, [2]=5400, [3]=8100
- */
-static const u8 edp_phy_vco_div_cfg_nord[4] = {
-	0x00, 0x00, 0x02, 0x01,
-};
-
-
-/*
  * nord eDP swing/pre-emphasis tables (eDP mode, low HBR: RBR/HBR).
  * From HPG Table 2-2: LDO ON 550mV (0x51).
  * Rates: 1.62/2.16/2.43/2.7 Gbps
@@ -1834,53 +1815,38 @@ static int qcom_edp_com_configure_pll_nord(const struct qcom_edp *edp)
 	return 0;
 }
 
+static const u8 edp_phy_aux_cfg_nord[DP_AUX_CFG_SIZE] = {
+	0x00, 0x13, 0xa4, 0x00, 0x0a, 0x26, 0x0a, 0x03, 0x37, 0x03, 0x02, 0x02, 0x04,
+};
 
-/*
- * nord LDO configuration.
- * From HPG Table 2-1-d: LDO Configuration section.
- * eDP mode: 0xD1 for rates <= 8.1 Gbps, 0x00 for UHBR (>8.1 Gbps).
- * DP mode: always 0x00.
- * Also programs EDP2_DP_PHY_LDO_CFG: 0x03 for eDP rates <= 8.1G, 0x00 otherwise.
- */
+static const u8 edp_phy_vco_div_cfg_nord[4] = {
+	0x00, 0x00, 0x02, 0x01,
+};
+
 static int qcom_edp_ldo_config_nord(const struct qcom_edp *edp)
 {
 	const struct phy_configure_opts_dp *dp_opts = &edp->dp_opts;
-	u32 ldo_config;
-	u32 phy_ldo_cfg;
 
-	ldo_config = 0xd0;
-	phy_ldo_cfg = 0x03;
-
-	writel(ldo_config, edp->tx0 + TXn_LDO_CONFIG);
-	writel(dp_opts->lanes > 2 ? ldo_config : 0x00, edp->tx1 + TXn_LDO_CONFIG);
-	writel(phy_ldo_cfg, edp->edp + DP_PHY_LDO_CFG);
+	writel(0xd0, edp->tx0 + TXn_LDO_CONFIG);
+	writel(dp_opts->lanes > 2 ? 0xd0 : 0x00, edp->tx1 + TXn_LDO_CONFIG);
+	writel(0x03, edp->edp + DP_PHY_LDO_CFG_NORD);
 
 	return 0;
 }
 
-static int qcom_edp_phy_tx_lane_cfg_nord(const struct qcom_edp *edp)
-{
-	writel(0x05, edp->edp + DP_PHY_TX2_TX3_LANE_CTL_NORD);
-	writel(0x12, edp->edp + DP_PHY_TX_LN0_DRV_LVL_NORD);
-	writel(0x12, edp->edp + DP_PHY_TX_LN1_DRV_LVL_NORD);
-	writel(0x05, edp->tx0 + TXn_TX_BAND_NORD);
-	writel(0x05, edp->tx1 + TXn_TX_BAND_NORD);
-
-	return 0;
-}
-
-static int qcom_edp_phy_tx_res_cfg_nord(const struct qcom_edp *edp)
-{
-	writel(0x06, edp->tx0 + TXn_RES_CODE_LANE_OFFSET_TX0);
-	writel(0x06, edp->tx0 + TXn_RES_CODE_LANE_OFFSET_TX1);
-	writel(0x06, edp->tx1 + TXn_RES_CODE_LANE_OFFSET_TX0);
-	writel(0x06, edp->tx1 + TXn_RES_CODE_LANE_OFFSET_TX1);
-	writel(0x06, edp->tx0 + TXn_TX_EMP_POST1_LVL);
-	writel(0x06, edp->tx1 + TXn_TX_EMP_POST1_LVL);
-
-	return 0;
-}
-
+static const struct qcom_edp_tx_res_entry tx_res_cfg_nord[] = {
+	{ 0, TXn_RES_CODE_LANE_OFFSET_TX0, 0x06 },
+	{ 0, TXn_RES_CODE_LANE_OFFSET_TX1, 0x06 },
+	{ 1, TXn_RES_CODE_LANE_OFFSET_TX0, 0x06 },
+	{ 1, TXn_RES_CODE_LANE_OFFSET_TX1, 0x06 },
+	{ 0, TXn_TX_EMP_POST1_LVL,         0x06 },
+	{ 1, TXn_TX_EMP_POST1_LVL,         0x06 },
+	{ 0, TXn_TX_BAND_NORD,             0x05 },
+	{ 1, TXn_TX_BAND_NORD,             0x05 },
+	{ 2, DP_PHY_TX_LN0_DRV_LVL_NORD,  0x12 },
+	{ 2, DP_PHY_TX_LN1_DRV_LVL_NORD,  0x12 },
+	QCOM_EDP_TX_RES_ENTRY_END,
+};
 
 static const struct phy_ver_ops qcom_edp_phy_ops_nord = {
 	.com_power_on		= qcom_edp_phy_power_on_nord,
@@ -1889,8 +1855,6 @@ static const struct phy_ver_ops qcom_edp_phy_ops_nord = {
 	.com_configure_pll	= qcom_edp_com_configure_pll_nord,
 	.com_configure_ssc	= qcom_edp_com_configure_ssc_nord,
 	.com_ldo_config		= qcom_edp_ldo_config_nord,
-	.phy_tx_lane_cfg	= qcom_edp_phy_tx_lane_cfg_nord,
-	.phy_tx_res_cfg		= qcom_edp_phy_tx_res_cfg_nord,
 };
 
 static const struct qcom_edp_phy_cfg nord_edp_phy_cfg = {
@@ -1902,6 +1866,8 @@ static const struct qcom_edp_phy_cfg nord_edp_phy_cfg = {
 	.ver_ops		= &qcom_edp_phy_ops_nord,
 	.phy_status_reg		= DP_PHY_STATUS_NORD,
 	.bias1_en_2lane		= 0x03,
+	.tx2_tx3_lane_ctl	= DP_PHY_TX2_TX3_LANE_CTL_NORD,
+	.tx_res_cfg		= tx_res_cfg_nord,
 };
 
 
