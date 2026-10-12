@@ -1112,6 +1112,42 @@
 			#mbox-cells = <2>;
 		};
 
+		ipcc1: mailbox@488000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x00488000 0x0 0x1000>;
+			interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
+		ipcc2: mailbox@4a1000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x004a1000 0x0 0x1000>;
+			interrupts = <GIC_SPI 553 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
+		ipcc3: mailbox@4a2000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x004a2000 0x0 0x1000>;
+			interrupts = <GIC_SPI 554 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
+		ipcc4: mailbox@4a3000 {
+			compatible = "qcom,sa8775p-ipcc", "qcom,ipcc";
+			reg = <0x0 0x004a3000 0x0 0x1000>;
+			interrupts = <GIC_SPI 555 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			#mbox-cells = <2>;
+		};
+
 		qfprom: efuse@784000 {
 			compatible = "qcom,sa8775p-qfprom", "qcom,qfprom";
 			reg = <0x0 0x00784000 0x0 0x3000>;
@@ -4446,7 +4482,7 @@
 
 		tcsr: syscon@1fc0000 {
 			compatible = "qcom,sa8775p-tcsr", "syscon";
-			reg = <0x0 0x1fc0000 0x0 0x30000>;
+			reg = <0x0 0x1fc0000 0x0 0x40000>;
 		};
 
 		gpu: gpu@3d00000 {
@@ -6822,6 +6858,11 @@
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			#redistributor-regions = <1>;
 			redistributor-stride = <0x0 0x20000>;
+		};
+
+		apsshm_shared_intu: syscon@17c00000 {
+			compatible = "qcom,sa8775p-apsshm-shared-intu", "syscon";
+			reg = <0x0 0x17c00000 0x0 0x38>;
 		};
 
 		watchdog@17c10000 {
