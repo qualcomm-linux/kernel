@@ -1439,7 +1439,7 @@
 	};
 
 	cam_sfe_lite0: qcom,sfe-lite0@9b4c000 {
-		compatible = "qcom,sfe-lite690";
+		compatible = "qcom,sfe-lite900";
 		reg = <0x0 0x9b4c000 0x0 0x1000>;
 		reg-names = "sfe-lite0";
 		reg-cam-base = <0x14c000>;
@@ -1487,7 +1487,7 @@
 	};
 
 	cam_sfe_lite1: qcom,sfe-lite1@9b4d000 {
-		compatible = "qcom,sfe-lite690";
+		compatible = "qcom,sfe-lite900";
 		reg = <0x0 0x9b4d000 0x0 0x1000>;
 		reg-names = "sfe-lite1";
 		reg-cam-base = <0x14d000>;
@@ -1535,7 +1535,7 @@
 	};
 
 	cam_sfe_lite2: qcom,sfe-lite2@9b4e000 {
-		compatible = "qcom,sfe-lite690";
+		compatible = "qcom,sfe-lite900";
 		reg = <0x0 0x9b4e000 0x0 0x1000>;
 		reg-names = "sfe-lite2";
 		reg-cam-base = <0x14e000>;
