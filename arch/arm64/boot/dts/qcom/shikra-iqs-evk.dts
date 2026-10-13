@@ -163,7 +163,7 @@
 		regulator-always-on;
 	};
 
-	wcn3988-pmu {
+	wcn3988_pmu: wcn3988-pmu {
 		compatible = "qcom,wcn3988-pmu";
 
 		pinctrl-0 = <&sw_ctrl_default>;
