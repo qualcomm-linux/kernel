@@ -30,6 +30,15 @@ struct msm_kms_funcs {
 	int (*irq_postinstall)(struct msm_kms *kms);
 	void (*irq_uninstall)(struct msm_kms *kms);
 	irqreturn_t (*irq)(struct msm_kms *kms);
+#ifdef CONFIG_PREEMPT_RT
+	/*
+	 * Optional threaded companion to ->irq(), used only on PREEMPT_RT.
+	 * When set, ->irq() must behave as a true hardirq handler (only
+	 * raw_spinlock_t, no sleeping) and hand off any deferred work to
+	 * ->irq_thread(), which runs in a real, preemptible IRQ thread.
+	 */
+	irqreturn_t (*irq_thread)(struct msm_kms *kms);
+#endif
 	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
 	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
 
