@@ -33,7 +33,8 @@ properties:
     maxItems: 6
 
   iommus:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
   power-domains:
     minItems: 1
@@ -76,6 +77,15 @@ properties:
       Qualcomm Shared Memory subnode which represents communication edge,
       channels and devices related to the ADSP.
     unevaluatedProperties: false
+
+  '#cooling-cells':
+    description: |
+      Cooling device with three cells:
+        Cell 0: Cooling device id as defined in
+                include/dt-bindings/thermal/qcom,pas.h
+        Cell 1: Minimum cooling state
+        Cell 2: Maximum cooling state
+    const: 3
 
   glink-edge:
     $ref: /schemas/remoteproc/qcom,glink-edge.yaml#

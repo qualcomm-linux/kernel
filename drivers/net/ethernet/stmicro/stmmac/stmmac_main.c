@@ -50,6 +50,7 @@
 #include "stmmac.h"
 #include "stmmac_pcs.h"
 #include "stmmac_xdp.h"
+#include "dw25gmac.h"
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
@@ -142,6 +143,10 @@ static const char *stmmac_dwmac_actphyif[8] = {
 static const char *stmmac_dwxgmac_phyif[4] = {
 	[PHY_INTF_GMII]		= "GMII",
 	[PHY_INTF_RGMII]	= "RGMII",
+};
+
+static const char *stmmac_dw25gmac_phyif[2] = {
+	[PHY_INTF_DW25GMAC_XGMII]	= "XGMII",
 };
 
 static irqreturn_t stmmac_interrupt(int irq, void *dev_id);
@@ -1095,7 +1100,10 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		ctrl |= priv->hw->link.xlgmii.speed40000;
 		break;
 	case SPEED_25000:
-		ctrl |= priv->hw->link.xlgmii.speed25000;
+		if (interface == PHY_INTERFACE_MODE_XGMII)
+			ctrl |= priv->hw->link.xgmii.speed25000;
+		else
+			ctrl |= priv->hw->link.xlgmii.speed25000;
 		break;
 	case SPEED_10000:
 		ctrl |= priv->hw->link.xgmii.speed10000;
@@ -1104,7 +1112,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		ctrl |= priv->hw->link.xgmii.speed5000;
 		break;
 	case SPEED_2500:
-		if (interface == PHY_INTERFACE_MODE_USXGMII)
+		if (interface == PHY_INTERFACE_MODE_USXGMII ||
+		    interface == PHY_INTERFACE_MODE_XGMII)
 			ctrl |= priv->hw->link.xgmii.speed2500;
 		else
 			ctrl |= priv->hw->link.speed2500;
@@ -3313,6 +3322,25 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 				    tx_q->dma_tx_phy, chan);
 
 		stmmac_set_queue_tx_tail_ptr(priv, tx_q, chan, 0);
+	}
+
+	/*
+	 * DW25GMAC (HDMA) requires every hardware VDMA to have a valid TC
+	 * mapping before descriptor-cache base addresses are computed. Keep
+	 * channels not exposed to Linux genuinely offline: their descriptor
+	 * cache size is zero, their start bit is clear, and an unused RX PDMA
+	 * is explicitly disabled through RXPEN.
+	 */
+	if (priv->plat->core_type == DWMAC_CORE_25GMAC) {
+		u32 rx_sup = priv->dma_cap.number_rx_channel;
+		u32 tx_sup = priv->dma_cap.number_tx_channel;
+		u32 och;
+
+		for (och = rx_channels_count; och < rx_sup; och++)
+			dw25gmac_dma_map_rx_offline_chan(priv, priv->ioaddr, och);
+		for (och = tx_channels_count; och < tx_sup; och++)
+			dw25gmac_dma_map_tx_offline_chan(priv, priv->ioaddr, och);
+		dw25gmac_desc_cache_compute(priv->ioaddr);
 	}
 
 	return ret;
@@ -7419,6 +7447,11 @@ static void stmmac_print_actphyif(struct stmmac_priv *priv)
 	case DWMAC_CORE_XGMAC:
 		phyif_table = stmmac_dwxgmac_phyif;
 		phyif_table_size = ARRAY_SIZE(stmmac_dwxgmac_phyif);
+		break;
+
+	case DWMAC_CORE_25GMAC:
+		phyif_table = stmmac_dw25gmac_phyif;
+		phyif_table_size = ARRAY_SIZE(stmmac_dw25gmac_phyif);
 		break;
 	}
 

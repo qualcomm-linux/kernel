@@ -2331,20 +2331,63 @@ ath12k_wifi7_dp_rx_set_link_id_wcn7850(struct ath12k_dp_peer *dp_peer,
 				       struct ath12k_skb_rxcb *rxcb,
 				       struct ieee80211_rx_status *status)
 {
-	struct ath12k_dp_link_peer *link_peer;
+	struct ath12k_dp_link_peer *lp, *link_peer = NULL;
+	struct ieee80211_bss_conf *link_conf;
+	struct ieee80211_chanctx_conf *ctx;
+	struct ieee80211_vif *vif;
+	struct ath12k_sta *ahsta;
 	unsigned long links_map;
+	int freq;
 	int i;
 
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
 			 "ath12k set rx link id called without rcu lock");
 
+	if (!status->freq)
+		return;
+
 	links_map = READ_ONCE(dp_peer->link_peers_map);
 	for_each_set_bit(i, &links_map, ATH12K_NUM_MAX_LINKS) {
-		link_peer = rcu_dereference(dp_peer->link_peers[i]);
-		if (link_peer && link_peer->peer_id == rxcb->peer_id) {
-			status->link_valid = 1;
-			status->link_id = link_peer->link_id;
-			return;
+		lp = rcu_dereference(dp_peer->link_peers[i]);
+		if (!lp || !lp->sta)
+			continue;
+
+		ahsta = ath12k_sta_to_ahsta(lp->sta);
+		if (unlikely(!ahsta->ahvif))
+			continue;
+
+		vif = ahsta->ahvif->vif;
+		link_conf = rcu_dereference(vif->link_conf[lp->link_id]);
+		if (!link_conf)
+			continue;
+
+		ctx = rcu_dereference(link_conf->chanctx_conf);
+		if (!ctx)
+			continue;
+
+		/*
+		 * For 6 GHz, rx_status->freq contains the operating center frequency.
+		 * For other bands, it contains the primary channel frequency.
+		 */
+		freq = status->band == NL80211_BAND_6GHZ ?
+			ctx->def.center_freq1 : ctx->def.chan->center_freq;
+		if (freq != status->freq)
+			continue;
+
+		/*
+		 * Skip freq-based lookup if multiple links share
+		 * the same frequency; the match would be ambiguous.
+		 */
+		if (link_peer) {
+			link_peer = NULL;
+			break;
 		}
+
+		link_peer = lp;
+	}
+
+	if (likely(link_peer)) {
+		status->link_valid = 1;
+		status->link_id = link_peer->link_id;
 	}
 }
