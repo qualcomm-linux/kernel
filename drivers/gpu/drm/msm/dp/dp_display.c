@@ -1137,10 +1137,13 @@ static irqreturn_t msm_dp_display_irq_thread(int irq, void *dev_id)
 		drm_bridge_hpd_notify(dp->msm_dp_display.bridge,
 				      connector_status_connected);
 
-	if (hpd_isr_status & DP_DP_IRQ_HPD_INT_MASK)
-		drm_bridge_hpd_notify_extra(dp->msm_dp_display.bridge,
-					    connector_status_unknown,
-					    DRM_CONNECTOR_DP_IRQ_HPD);
+	if (hpd_isr_status & DP_DP_IRQ_HPD_INT_MASK) {
+		if (dp->msm_dp_display.mst_active)
+			msm_dp_irq_hpd_handle(dp);
+		else
+			drm_bridge_hpd_notify(dp->msm_dp_display.bridge,
+					      connector_status_connected);
+	}
 
 	ret = IRQ_HANDLED;
 
@@ -1804,11 +1807,11 @@ void msm_dp_bridge_hpd_notify(struct drm_bridge *bridge,
 	drm_dbg_dp(dp->drm_dev, "type=%d link hpd_link_status=0x%x, status=%d\n",
 		   msm_dp_display->connector_type, hpd_link_status, status);
 
-	if (extra_status == DRM_CONNECTOR_DP_IRQ_HPD ||
-	    hpd_link_status == ISR_IRQ_HPD_PULSE_COUNT) {
-		msm_dp_irq_hpd_handle(dp);
-	} else if (status == connector_status_connected) {
-		if (hpd_link_status == ISR_HPD_REPLUG_COUNT) {
+	if (status == connector_status_connected) {
+		if (hpd_link_status == ISR_IRQ_HPD_PULSE_COUNT ||
+		    extra_status == DRM_CONNECTOR_DP_IRQ_HPD) {
+			msm_dp_irq_hpd_handle(dp);
+		} else if (hpd_link_status == ISR_HPD_REPLUG_COUNT) {
 			msm_dp_hpd_unplug_handle(dp);
 			msm_dp_hpd_plug_handle(dp);
 		} else {
