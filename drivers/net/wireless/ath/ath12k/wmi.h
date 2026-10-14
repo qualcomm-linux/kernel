@@ -3926,6 +3926,8 @@ struct peer_assoc_mlo_params {
 	u8 num_partner_links;
 	struct wmi_ml_partner_info partner_info[ATH12K_WMI_MLO_MAX_LINKS];
 	u16 eml_cap;
+	u8 max_num_simultaneous_links;
+	u8 recommended_max_num_simultaneous_links;
 };
 
 struct wmi_rate_set_arg {
@@ -4031,6 +4033,13 @@ struct wmi_peer_assoc_mlo_params {
 	__le32 emlsr_trans_timeout_us;
 	__le32 emlsr_trans_delay_us;
 	__le32 emlsr_padding_delay_us;
+	__le32 msd_dur_subfield;
+	__le32 msd_ofdm_ed_thr;
+	__le32 msd_max_num_txops;
+	__le32 max_num_simultaneous_links;
+	__le32 nstr_indication_bitmap;
+	__le32 recommended_max_num_simultaneous_links;
+	__le32 ml_reconfig;
 } __packed;
 
 struct wmi_peer_assoc_complete_cmd {
