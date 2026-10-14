@@ -383,6 +383,7 @@ static const struct ethqos_noc_clk_cfg shikra_noc_clks[] = {
 static const struct ethqos_emac_driver_data shikra_data = {
 	.dma_addr_width = 36,
 	.has_emac_ge_3 = true,
+	.core_type = DWMAC_CORE_GMAC4,
 	.noc_clk_cfg = shikra_noc_clks,
 	.num_noc_clks = ARRAY_SIZE(shikra_noc_clks),
 	.rgmii_config_loopback_en = false,
