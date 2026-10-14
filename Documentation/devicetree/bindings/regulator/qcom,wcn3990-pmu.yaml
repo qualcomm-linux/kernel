@@ -42,6 +42,20 @@ properties:
     maxItems: 1
     description: GPIO line indicating the state of the clock supply to the BT module
 
+  interrupts:
+    maxItems: 1
+    description: SW_CTRL wake interrupt, asserted when the WCN chip is active
+
+  interrupt-names:
+    const: wakeup
+
+  wakeup-source:
+    type: boolean
+    description:
+      Mark the PMU as a wakeup source. Requires the "wakeup" interrupt to be
+      present. When set, the SW_CTRL IRQ is used to wake the application
+      processor from system suspend.
+
   clocks:
     maxItems: 1
     description: Reference clock handle
@@ -66,6 +80,14 @@ required:
   - vddxo-supply
   - vddrf-supply
   - vddch0-supply
+
+dependencies:
+  wakeup-source:
+    required:
+      - interrupt-names
+    anyOf:
+      - required: [interrupts]
+      - required: [interrupts-extended]
 
 additionalProperties: false
 

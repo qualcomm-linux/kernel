@@ -8,6 +8,7 @@
 #include "shikra-cqm-som.dtsi"
 #include "shikra-evk.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/net/ti-dp83867.h>
 
 / {
@@ -122,6 +123,9 @@
 		vddch0-supply = <&pm4125_l22>;
 
 		swctrl-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&tlmm 88 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "wakeup";
+		wakeup-source;
 
 		regulators {
 			vreg_pmu_io: ldo0 {
