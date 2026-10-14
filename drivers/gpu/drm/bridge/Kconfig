@@ -176,7 +176,6 @@ config DRM_LONTIUM_LT9611C
 	depends on OF && I2C
 	select CRC8
 	select FW_LOADER
-	select DRM_PANEL_BRIDGE
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_DISPLAY_HELPER
