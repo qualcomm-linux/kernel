@@ -1587,6 +1587,89 @@ void ath12k_debugfs_fw_stats_register(struct ath12k *ar)
 	ath12k_fw_stats_init(ar);
 }
 
+static void ath12k_debugfs_set_mlo_max_simultaneous_links(struct ath12k_hw *ah,
+							  u8 max_links)
+{
+	int i;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	for (i = 0; i < ARRAY_SIZE(ah->iftypes_ext_capa); i++) {
+		enum nl80211_iftype iftype = ah->iftypes_ext_capa[i].iftype;
+
+		if (iftype != NL80211_IFTYPE_STATION && iftype != NL80211_IFTYPE_AP)
+			continue;
+
+		ah->iftypes_ext_capa[i].mld_capa_and_ops =
+			u16_replace_bits(ah->iftypes_ext_capa[i].mld_capa_and_ops,
+					 max_links,
+					 IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS);
+	}
+}
+
+static ssize_t ath12k_write_mlo_max_simultaneous_links(struct file *file,
+						       const char __user *ubuf,
+						       size_t count,
+						       loff_t *ppos)
+{
+	struct ath12k_hw *ah = file->private_data;
+	struct ath12k *ar;
+	u8 fw_max_links;
+	int ret;
+	u8 val;
+
+	ret = kstrtou8_from_user(ubuf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	/*
+	 * debugfs value uses IEEE 802.11be encoded form (N-1), matching
+	 * MLD Capabilities and Operations per IEEE Std 802.11be-2024
+	 * Table 9-417n:
+	 * 0 means single-link, 1 means dual-link, etc.
+	 */
+	guard(wiphy)(ah->hw->wiphy);
+	ar = ath12k_ah_to_ar(ah, 0);
+	fw_max_links = u16_get_bits(ar->pdev->cap.mld_cap,
+				    IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS);
+	if (val > fw_max_links)
+		return -EINVAL;
+
+	ath12k_debugfs_set_mlo_max_simultaneous_links(ah, val);
+
+	return count;
+}
+
+static ssize_t ath12k_read_mlo_max_simultaneous_links(struct file *file,
+						      char __user *ubuf,
+						      size_t count,
+						      loff_t *ppos)
+{
+	const struct wiphy_iftype_ext_capab *iftype_ext_capa;
+	struct ath12k_hw *ah = file->private_data;
+	u8 max_links;
+	char buf[8];
+	int len;
+
+	scoped_guard(wiphy, ah->hw->wiphy) {
+		iftype_ext_capa = cfg80211_get_iftype_ext_capa(ah->hw->wiphy,
+							       NL80211_IFTYPE_STATION);
+		max_links = u16_get_bits(iftype_ext_capa->mld_capa_and_ops,
+					 IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS);
+	}
+	len = scnprintf(buf, sizeof(buf), "%u\n", max_links);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_mlo_max_simultaneous_links = {
+	.read = ath12k_read_mlo_max_simultaneous_links,
+	.write = ath12k_write_mlo_max_simultaneous_links,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath12k_debugfs_register(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
@@ -1647,6 +1730,13 @@ void ath12k_debugfs_register(struct ath12k *ar)
 	debugfs_create_file("ext_rx_stats", 0644,
 			    ar->debug.debugfs_pdev, ar,
 			    &fops_extd_rx_stats);
+
+	if (!ab->ag->mlo_capable || IS_ERR_OR_NULL(ar->debug.debugfs_pdev))
+		return;
+
+	debugfs_create_file("mlo_max_simultaneous_links", 0644,
+			    ar->debug.debugfs_pdev, ah,
+			    &fops_mlo_max_simultaneous_links);
 }
 
 void ath12k_debugfs_unregister(struct ath12k *ar)
