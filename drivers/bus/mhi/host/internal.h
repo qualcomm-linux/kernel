@@ -15,6 +15,15 @@ extern const struct bus_type mhi_bus_type;
 #define MHI_SOC_RESET_REQ_OFFSET			0xb0
 #define MHI_SOC_RESET_REQ				BIT(0)
 
+/*
+ * With ASPM enabled, the link may enter a low power state, requiring
+ * a wake-up sequence. Use a short burst of back-to-back reads to
+ * transition the link to the active state. Based on testing,
+ * 4 iterations are necessary to ensure reliable wake-up without
+ * excess latency.
+ */
+#define MHI_NUM_BACK_TO_BACK_READS			4
+
 struct mhi_ctxt {
 	struct mhi_event_ctxt *er_ctxt;
 	struct mhi_chan_ctxt *chan_ctxt;
@@ -250,6 +259,8 @@ struct mhi_event {
 	struct mhi_ring ring;
 	struct db_cfg db_cfg;
 	struct tasklet_struct task;
+	struct work_struct work;
+	struct mutex mutex; /* serializes bw_scale event processing */
 	spinlock_t lock;
 	int (*process_event)(struct mhi_controller *mhi_cntrl,
 			     struct mhi_event *mhi_event,
@@ -403,6 +414,8 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 			     struct mhi_event *mhi_event, u32 event_quota);
 void mhi_uevent_notify(struct mhi_controller *mhi_cntrl, enum mhi_ee_type ee);
+int mhi_process_bw_scale_ev_ring(struct mhi_controller *mhi_cntrl,
+				 struct mhi_event *mhi_event, u32 event_quota);
 
 /* ISR handlers */
 irqreturn_t mhi_irq_handler(int irq_number, void *dev);
@@ -419,5 +432,6 @@ void mhi_unmap_single_no_bb(struct mhi_controller *mhi_cntrl,
 			    struct mhi_buf_info *buf_info);
 void mhi_unmap_single_use_bb(struct mhi_controller *mhi_cntrl,
 			     struct mhi_buf_info *buf_info);
+void mhi_process_ev_work(struct work_struct *work);
 
 #endif /* _MHI_INT_H */
