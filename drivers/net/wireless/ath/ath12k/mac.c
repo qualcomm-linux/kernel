@@ -12485,7 +12485,7 @@ ath12k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 	if (n_vifs == 0)
 		return 0;
 
-	struct ath12k **ar_map __free(kfree) = kcalloc(n_vifs, sizeof(*ar_map), GFP_KERNEL);
+	struct ath12k **ar_map __free(kfree) = kzalloc_objs(*ar_map, n_vifs);
 
 	if (!ar_map)
 		return -ENOMEM;
@@ -12525,13 +12525,13 @@ ath12k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 	}
 
 	/* Group vifs by radio (ar) and process each group independently. */
-	bool *processed __free(kfree) = kcalloc(n_vifs, sizeof(*processed), GFP_KERNEL);
+	bool *processed __free(kfree) = kzalloc_objs(*processed, n_vifs);
 
 	if (!processed)
 		return -ENOMEM;
 
 	struct ieee80211_vif_chanctx_switch *group_vifs __free(kfree) =
-						kcalloc(n_vifs, sizeof(*group_vifs), GFP_KERNEL);
+						kzalloc_objs(*group_vifs, n_vifs);
 
 	if (!group_vifs)
 		return -ENOMEM;
