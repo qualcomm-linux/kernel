@@ -7,6 +7,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -74,6 +75,8 @@ struct pm4125_priv {
 	struct regmap_irq_chip_data *irq_chip;
 	struct snd_soc_jack *jack;
 	unsigned long status_mask;
+	/* Protects micbias voltage adjustment against concurrent requests */
+	struct mutex micb_lock;
 	s32 micb_ref[PM4125_MAX_MICBIAS];
 	s32 pullup_ref[PM4125_MAX_MICBIAS];
 	u32 micb1_mv;
@@ -979,6 +982,12 @@ static int pm4125_set_swr_port(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	return 1;
 }
 
+static void pm4125_mbhc_clk_setup(struct snd_soc_component *component, bool enable)
+{
+	snd_soc_component_write_field(component, PM4125_ANA_MBHC_CTL_1,
+				      PM4125_ANA_MBHC_CTL_RCO_EN_MASK, enable);
+}
+
 static void pm4125_mbhc_bias_control(struct snd_soc_component *component, bool enable)
 {
 	snd_soc_component_write_field(component, PM4125_ANA_MBHC_ELECT,
@@ -1006,9 +1015,187 @@ static void pm4125_mbhc_program_btn_thr(struct snd_soc_component *component,
 	}
 }
 
+static bool pm4125_mbhc_micb_en_status(struct snd_soc_component *component, int micb_num)
+{
+	if (micb_num != MIC_BIAS_2)
+		return false;
+
+	return snd_soc_component_read_field(component, PM4125_ANA_MICBIAS_MICB_1_2_EN,
+					    PM4125_ANA_MICBIAS_MICB2_EN_MASK) == 1;
+}
+
+static void pm4125_mbhc_hph_l_pull_up_control(struct snd_soc_component *component,
+					      enum mbhc_hs_pullup_iref pull_up_cur)
+{
+	/* Default pull up current to 3uA */
+	if (pull_up_cur < I_OFF || pull_up_cur > I_3P0_UA || pull_up_cur == I_DEFAULT)
+		pull_up_cur = I_3P0_UA;
+
+	snd_soc_component_write_field(component, PM4125_ANA_MBHC_PLUG_DETECT_CTL,
+				      PM4125_ANA_MBHC_HSDET_PULLUP_C_MASK, pull_up_cur);
+}
+
+static int pm4125_mbhc_request_micbias(struct snd_soc_component *component,
+				       int micb_num, int req)
+{
+	return pm4125_micbias_control(component, micb_num, req, false);
+}
+
+static void pm4125_mbhc_micb_ramp_control(struct snd_soc_component *component, bool enable)
+{
+	if (enable) {
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MICB2_RAMP,
+					      PM4125_ANA_MBHC_MICB2_RAMP_SHIFT_MASK,
+					      PM4125_ANA_MBHC_MICB2_RAMP_SHIFT_CTRL);
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MICB2_RAMP,
+					      PM4125_ANA_MBHC_MICB2_RAMP_EN_MASK, 1);
+	} else {
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MICB2_RAMP,
+					      PM4125_ANA_MBHC_MICB2_RAMP_EN_MASK, 0);
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MICB2_RAMP,
+					      PM4125_ANA_MBHC_MICB2_RAMP_SHIFT_MASK, 0);
+	}
+}
+
+static int pm4125_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
+					   int req_volt, int micb_num)
+{
+	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(component);
+	int cur_vout_ctl, req_vout_ctl, micb_en, ret = 0;
+	unsigned int pullup_mask, en_mask;
+
+	switch (micb_num) {
+	case MIC_BIAS_1:
+		pullup_mask = PM4125_ANA_MICBIAS_MICB1_PULL_UP_MASK;
+		en_mask = PM4125_ANA_MICBIAS_MICB1_EN_MASK;
+		break;
+	case MIC_BIAS_2:
+		pullup_mask = PM4125_ANA_MICBIAS_MICB2_PULL_UP_MASK;
+		en_mask = PM4125_ANA_MICBIAS_MICB2_EN_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	mutex_lock(&pm4125->micb_lock);
+
+	/*
+	 * If requested micbias voltage is same as current micbias voltage,
+	 * then just return. Otherwise, adjust voltage as per requested value.
+	 * If micbias is already enabled, then to avoid slow micbias ramp-up
+	 * or down enable pull-up momentarily, change the micbias value and
+	 * then re-enable micbias.
+	 */
+	micb_en = snd_soc_component_read_field(component, PM4125_ANA_MICBIAS_MICB_1_2_EN,
+					       en_mask);
+	cur_vout_ctl = snd_soc_component_read_field(component, PM4125_ANA_MICBIAS_LDO_1_SETTING,
+						    PM4125_ANA_MICBIAS_MICB_OUT_VAL_MASK);
+
+	req_vout_ctl = pm4125_get_micb_vout_ctl_val(component->dev, req_volt);
+	if (req_vout_ctl < 0) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	if (cur_vout_ctl == req_vout_ctl)
+		goto exit;
+
+	if (micb_en == 1)
+		snd_soc_component_write_field(component, PM4125_ANA_MICBIAS_MICB_1_2_EN,
+					      pullup_mask,
+					      PM4125_ANA_MICBIAS_MICB_PULL_ENABLE);
+
+	snd_soc_component_write_field(component, PM4125_ANA_MICBIAS_LDO_1_SETTING,
+				      PM4125_ANA_MICBIAS_MICB_OUT_VAL_MASK, req_vout_ctl);
+
+	if (micb_en == 1) {
+		snd_soc_component_write_field(component, PM4125_ANA_MICBIAS_MICB_1_2_EN,
+					      pullup_mask,
+					      PM4125_ANA_MICBIAS_MICB_PULL_DISABLE);
+		/* Add 2ms delay as per HW requirement after enabling micbias */
+		usleep_range(2000, 2100);
+	}
+exit:
+	mutex_unlock(&pm4125->micb_lock);
+
+	return ret;
+}
+
+static int pm4125_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *component,
+					       int micb_num, bool req_en)
+{
+	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(component);
+	int micb_mv;
+
+	if (micb_num != MIC_BIAS_2)
+		return -EINVAL;
+
+	/*
+	 * If device tree micbias level is already above the minimum voltage
+	 * needed to detect threshold microphone, then do not change the
+	 * micbias, just return.
+	 */
+	if (pm4125->micb2_mv >= WCD_MBHC_THR_HS_MICB_MV)
+		return 0;
+
+	micb_mv = req_en ? WCD_MBHC_THR_HS_MICB_MV : pm4125->micb2_mv;
+
+	return pm4125_mbhc_micb_adjust_voltage(component, micb_mv, MIC_BIAS_2);
+}
+
+static void pm4125_mbhc_get_micbias_val(struct snd_soc_component *component, int *mb)
+{
+	u8 vout_ctl;
+
+	/* Read MBHC Micbias (Mic Bias2) voltage */
+	vout_ctl = snd_soc_component_read_field(component, PM4125_ANA_MICBIAS_LDO_1_SETTING,
+						PM4125_ANA_MICBIAS_MICB_OUT_VAL_MASK);
+
+	/*
+	 * Formula for getting micbias from vout:
+	 *	micbias = 1.6V + VOUT_CTL * 50mV
+	 */
+	*mb = 1600 + (vout_ctl * 50);
+}
+
+static void pm4125_mbhc_gnd_det_ctrl(struct snd_soc_component *component, bool enable)
+{
+	if (enable) {
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MECH,
+					      PM4125_ANA_MBHC_HSG_PULLUP_COMP_EN_MASK, 1);
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MECH,
+					      PM4125_ANA_MBHC_GND_DET_EN_MASK, 1);
+	} else {
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MECH,
+					      PM4125_ANA_MBHC_GND_DET_EN_MASK, 0);
+		snd_soc_component_write_field(component, PM4125_ANA_MBHC_MECH,
+					      PM4125_ANA_MBHC_HSG_PULLUP_COMP_EN_MASK, 0);
+	}
+}
+
+static void pm4125_mbhc_hph_pull_down_ctrl(struct snd_soc_component *component, bool enable)
+{
+	u8 val = enable ? PM4125_ANA_HPHPA_CNP_GND_PULL_DOWN :
+			  PM4125_ANA_HPHPA_CNP_GND_PULL_NONE;
+
+	snd_soc_component_write_field(component, PM4125_ANA_HPHPA_CNP_CTL_2,
+				      PM4125_ANA_HPHPA_CNP_GND_L_MASK, val);
+	snd_soc_component_write_field(component, PM4125_ANA_HPHPA_CNP_CTL_2,
+				      PM4125_ANA_HPHPA_CNP_GND_R_MASK, val);
+}
+
 static const struct wcd_mbhc_cb mbhc_cb = {
+	.clk_setup = pm4125_mbhc_clk_setup,
 	.mbhc_bias = pm4125_mbhc_bias_control,
 	.set_btn_thr = pm4125_mbhc_program_btn_thr,
+	.micbias_enable_status = pm4125_mbhc_micb_en_status,
+	.hph_pull_up_control = pm4125_mbhc_hph_l_pull_up_control,
+	.mbhc_micbias_control = pm4125_mbhc_request_micbias,
+	.mbhc_micb_ramp_control = pm4125_mbhc_micb_ramp_control,
+	.mbhc_micb_ctrl_thr_mic = pm4125_mbhc_micb_ctrl_threshold_mic,
+	.get_micbias_val = pm4125_mbhc_get_micbias_val,
+	.mbhc_gnd_det_ctrl = pm4125_mbhc_gnd_det_ctrl,
+	.hph_pull_down_ctrl = pm4125_mbhc_hph_pull_down_ctrl,
 };
 
 static int pm4125_mbhc_init(struct snd_soc_component *component)
@@ -1752,6 +1939,7 @@ static int pm4125_probe(struct platform_device *pdev)
 
 	pm4125_dt_parse_micbias_info(dev, pm4125);
 	atomic_set(&pm4125->gloal_mbias_cnt, 0);
+	mutex_init(&pm4125->micb_lock);
 
 	cfg = &pm4125->mbhc_cfg;
 	cfg->mbhc_micbias = MIC_BIAS_2;
@@ -1760,10 +1948,20 @@ static int pm4125_probe(struct platform_device *pdev)
 	cfg->num_btn = PM4125_MBHC_MAX_BUTTONS;
 	cfg->micb_mv = pm4125->micb2_mv;
 	cfg->linein_th = 5000;
-	cfg->hs_thr = 1700;
-	cfg->hph_thr = 50;
 
 	wcd_dt_parse_mbhc_data(dev, &pm4125->mbhc_cfg);
+	cfg->hphl_swh = false;
+	cfg->gnd_swh = false;
+	cfg->hs_thr = 1700;
+	cfg->hph_thr = 50;
+	cfg->btn_high[0] = 75;
+	cfg->btn_high[1] = 150;
+	cfg->btn_high[2] = 237;
+	cfg->btn_high[3] = 500;
+	cfg->btn_high[4] = 500;
+	cfg->btn_high[5] = 500;
+	cfg->btn_high[6] = 500;
+	cfg->btn_high[7] = 500;
 
 	ret = pm4125_add_slave_components(pm4125, dev, &match);
 	if (ret)
