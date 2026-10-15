@@ -230,7 +230,7 @@ static int pm4125_global_mbias_disable(struct snd_soc_component *component)
 {
 	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(component);
 
-	if (atomic_dec_and_test(&pm4125->gloal_mbias_cnt)) {
+	if (atomic_dec_if_positive(&pm4125->gloal_mbias_cnt) == 0) {
 
 		snd_soc_component_write_field(component, PM4125_ANA_MBIAS_EN,
 					      PM4125_ANA_MBIAS_EN_V2I_MASK,
@@ -783,8 +783,18 @@ static int pm4125_micbias_control(struct snd_soc_component *component, int micb_
 		}
 		break;
 	case MICB_DISABLE:
-		if (pm4125->micb_ref[micb_index] > 0)
-			pm4125->micb_ref[micb_index]--;
+		/*
+		 * Ignore a release that has no matching request. The MBHC
+		 * framework releases MIC_BIAS_2 once when the plug type
+		 * correction work ends and again when it turns the bias off,
+		 * and honouring the second one would drop a reference on the
+		 * shared global mbias that was never taken, switching the
+		 * analog master bias off under an active stream.
+		 */
+		if (!pm4125->micb_ref[micb_index])
+			break;
+
+		pm4125->micb_ref[micb_index]--;
 		if ((pm4125->micb_ref[micb_index] == 0) &&
 		    (pm4125->pullup_ref[micb_index] > 0)) {
 			snd_soc_component_update_bits(component, micb_reg,
