@@ -109,3 +109,13 @@
 		<&tlmm 32 0>,
 		<&tlmm 56 0>;
 };
+
+&deserializer_0 {
+	cam_vio-supply = <&pm8150_s4>;
+
+};
+
+&deserializer_1 {
+	cam_vio-supply = <&pm8150_s4>;
+
+};
