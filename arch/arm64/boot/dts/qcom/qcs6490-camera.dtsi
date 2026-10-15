@@ -1387,6 +1387,7 @@
 			      <400000000 0 300000000 0>;
 		clock-cntl-level = "lowsvs", "svs";
 		src-clock-name = "csi0phytimer_clk_src";
+		aggregator-rx;
 		status = "ok";
 
 		csiphy0_opp_table: opp-table {
@@ -1433,6 +1434,7 @@
 		clock-cntl-level = "lowsvs", "svs";
 		clock-rates = <300000000 0 300000000 0>,
 			      <400000000 0 300000000 0>;
+		aggregator-rx;
 		status = "ok";
 
 		csiphy1_opp_table: opp-table {
@@ -1479,6 +1481,7 @@
 		clock-cntl-level = "lowsvs", "svs";
 		clock-rates = <300000000 0 300000000 0>,
 			      <400000000 0 300000000 0>;
+		aggregator-rx;
 		status = "ok";
 
 		csiphy2_opp_table: opp-table {
@@ -1525,6 +1528,7 @@
 		clock-cntl-level = "lowsvs", "svs";
 		clock-rates = <300000000 0 300000000 0>,
 			      <400000000 0 300000000 0>;
+		aggregator-rx;
 		status = "ok";
 
 		csiphy3_opp_table: opp-table {
@@ -1571,6 +1575,7 @@
 		clock-cntl-level = "lowsvs", "svs";
 		clock-rates = <300000000 0 300000000 0>,
 			      <400000000 0 300000000 0>;
+		aggregator-rx;
 		status = "ok";
 
 		csiphy4_opp_table: opp-table {
