@@ -992,7 +992,7 @@ static void pm4125_mbhc_program_btn_thr(struct snd_soc_component *component,
 	for (i = 0; i < num_btn; i++) {
 		vth = ((btn_high[i] * 2) / 25) & 0x3F;
 		snd_soc_component_write_field(component, PM4125_ANA_MBHC_BTN0_ZDET_VREF1 + i,
-					      PM4125_ANA_MBHC_BTN0_THRESHOLD_MASK, vth << 2);
+					      PM4125_ANA_MBHC_BTN0_THRESHOLD_MASK, vth);
 	}
 }
 
