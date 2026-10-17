@@ -67,7 +67,7 @@
 			};
 
 			cpu {
-				sound-dai = <&q6apmbedai PRIMARY_MI2S_RX>;
+				sound-dai = <&q6apmbedai AIF_MI2S_RX_0>;
 			};
 
 			platform {
@@ -83,7 +83,7 @@
 			};
 
 			cpu {
-				sound-dai = <&q6apmbedai PRIMARY_MI2S_TX>;
+				sound-dai = <&q6apmbedai AIF_MI2S_TX_0>;
 			};
 
 			platform {
@@ -582,8 +582,8 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	dai@16 {
-		reg = <PRIMARY_MI2S_RX>;
+	dai@153 {
+		reg = <AIF_MI2S_RX_0>;
 		clocks = <&q6prmcc LPASS_CLK_ID_AUD_INTF0_IBIT LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
 		clock-names = "bclk";
 	};
@@ -883,20 +883,6 @@
 	status = "okay";
 };
 
-&vamacro {
-	clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-		 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
-	clock-names = "mclk",
-		      "npl";
-
-	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&dmic_eldo_en_default>;
-	pinctrl-names = "default";
-
-	qcom,dmic-sample-rate = <4800000>;
-
-	status = "okay";
-};
-
 &wifi {
 	vdd-0.8-cx-mx-supply = <&pm8150_s4>;
 	vdd-1.8-xo-supply = <&vreg_pmu_xo>;
@@ -945,4 +931,18 @@
 
 &usb_qmpphy_out {
 	remote-endpoint = <&ucsi_ccg_port_1_ss>;
+};
+
+&vamacro {
+	clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+		 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+	clock-names = "mclk",
+		      "npl";
+
+	pinctrl-0 = <&dmic01_default>, <&dmic23_default>, <&dmic_eldo_en_default>;
+	pinctrl-names = "default";
+
+	qcom,dmic-sample-rate = <4800000>;
+
+	status = "okay";
 };
