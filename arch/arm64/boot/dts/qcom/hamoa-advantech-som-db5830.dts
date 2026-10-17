@@ -8,7 +8,7 @@
 
 /dts-v1/;
 
-#include "hamoa-som-6820.dtsi"
+#include "hamoa-advantech-som-6820.dtsi"
 
 / {
 	model = "Advantech SOM-6820 on SOM-DB5830";
