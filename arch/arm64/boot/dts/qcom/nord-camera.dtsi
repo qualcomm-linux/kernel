@@ -2152,9 +2152,9 @@
 
 	cam_vfe_lite0: qcom,ife-lite0@9c34000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c34000 0x0 0x1480>;
+		reg = <0x0 0x09c32000 0x0 0x3480>;
 		reg-names = "ife-lite0";
-		reg-cam-base = <0x234000>;
+		reg-cam-base = <0x232000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_SPI 606 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite0";
@@ -2261,9 +2261,9 @@
 
 	cam_vfe_lite1: qcom,ife-lite1@9c39000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c39000 0x0 0x1480>;
+		reg = <0x0 0x09c37000 0x0 0x3480>;
 		reg-names = "ife-lite1";
-		reg-cam-base = <0x239000>;
+		reg-cam-base = <0x237000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_SPI 377 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite1";
@@ -2370,9 +2370,9 @@
 
 	cam_vfe_lite2: qcom,ife-lite2@9c3e000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c3e000 0x0 0x1480>;
+		reg = <0x0 0x09c3c000 0x0 0x3480>;
 		reg-names = "ife-lite2";
-		reg-cam-base = <0x23e000>;
+		reg-cam-base = <0x23c000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_ESPI 18 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite2";
@@ -2479,9 +2479,9 @@
 
 	cam_vfe_lite3: qcom,ife-lite3@9c43000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c43000 0x0 0x1480>;
+		reg = <0x0 0x09c41000 0x0 0x3480>;
 		reg-names = "ife-lite3";
-		reg-cam-base = <0x243000>;
+		reg-cam-base = <0x241000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_ESPI 16 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite3";
@@ -2588,9 +2588,9 @@
 
 	cam_vfe_lite4: qcom,ife-lite4@9c48000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c48000 0x0 0x1480>;
+		reg = <0x0 0x09c46000 0x0 0x3480>;
 		reg-names = "ife-lite4";
-		reg-cam-base = <0x248000>;
+		reg-cam-base = <0x246000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_ESPI 14 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite4";
@@ -2697,9 +2697,9 @@
 
 	cam_vfe_lite5: qcom,ife-lite5@9c4d000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c4d000 0x0 0x1480>;
+		reg = <0x0 0x09c4b000 0x0 0x3480>;
 		reg-names = "ife-lite5";
-		reg-cam-base = <0x24d000>;
+		reg-cam-base = <0x24b000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_ESPI 12 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite5";
@@ -2806,9 +2806,9 @@
 
 	cam_vfe_lite6: qcom,ife-lite6@9c52000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c52000 0x0 0x1480>;
+		reg = <0x0 0x09c50000 0x0 0x3480>;
 		reg-names = "ife-lite6";
-		reg-cam-base = <0x252000>;
+		reg-cam-base = <0x250000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_ESPI 10 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite6";
@@ -2915,9 +2915,9 @@
 
 	cam_vfe_lite7: qcom,ife-lite7@9c57000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c57000 0x0 0x1480>;
+		reg = <0x0 0x09c55000 0x0 0x3480>;
 		reg-names = "ife-lite7";
-		reg-cam-base = <0x257000>;
+		reg-cam-base = <0x255000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_ESPI 8 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite7";
@@ -3024,9 +3024,9 @@
 
 	cam_vfe_lite8: qcom,ife-lite8@9c5c000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c5c000 0x0 0x1480>;
+		reg = <0x0 0x09c5a000 0x0 0x3480>;
 		reg-names = "ife-lite8";
-		reg-cam-base = <0x25c000>;
+		reg-cam-base = <0x25a000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_ESPI 6 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite8";
@@ -3133,9 +3133,9 @@
 
 	cam_vfe_lite9: qcom,ife-lite9@9c61000 {
 		compatible = "qcom,vfe-lite900";
-		reg = <0x0 0x9c61000 0x0 0x1480>;
+		reg = <0x0 0x09c5f000 0x0 0x3480>;
 		reg-names = "ife-lite9";
-		reg-cam-base = <0x261000>;
+		reg-cam-base = <0x25f000>;
 		rt-wrapper-base = <0x231000>;
 		interrupts = <GIC_SPI 795 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ife-lite9";
