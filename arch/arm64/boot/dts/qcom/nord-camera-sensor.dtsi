@@ -589,7 +589,7 @@
 &soc {
 	qcom,cam-res-mgr {
 		compatible = "qcom,cam-res-mgr";
-		gpios-shared = <565 566 567 568 569>;
+		gpios-shared = <553 554 555 556 557>;
 		status = "okay";
 	};
 };
