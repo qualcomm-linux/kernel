@@ -59,6 +59,7 @@
 #define PARF_SLV_ADDR_SPACE_SIZE		0x16c
 #define PARF_MHI_CLOCK_RESET_CTRL		0x174
 #define PARF_AXI_MSTR_WR_ADDR_HALT		0x178
+#define PARF_AXI_MSTR_RD_HALT_NO_WRITES		0x1a4
 #define PARF_AXI_MSTR_WR_ADDR_HALT_V2		0x1a8
 #define PARF_Q2A_FLUSH				0x1ac
 #define PARF_LTSSM				0x1b0
@@ -72,6 +73,7 @@
 #define PARF_SLV_ADDR_SPACE_SIZE_V2		0x358
 #define PARF_SLV_ADDR_SPACE_SIZE_V2_HI		0x35c
 #define PARF_NO_SNOOP_OVERRIDE			0x3d4
+#define PARF_AXI_MSTR_WR_NS_BDF_HALT		0x4a0
 #define PARF_CORE_ERRORS			0x3c0
 #define PARF_L1SS_SLEEP_MODE_HANDLER_STATUS	0x4d0
 #define PARF_L1SS_SLEEP_MODE_HANDLER_CFG	0x4d4
@@ -147,6 +149,12 @@
 
 /* PARF_AXI_MSTR_WR_ADDR_HALT register fields */
 #define EN					BIT(31)
+
+/* PARF_AXI_MSTR_RD_HALT_NO_WRITES */
+#define RD_HALT_NO_WRITES_EN			BIT(0)
+
+/* PARF_AXI_MSTR_WR_NS_BDF_HALT */
+#define BDF_CHANGE_HALT_EN			BIT(0)
 
 /* PARF_LTSSM register fields */
 #define LTSSM_EN				BIT(8)
@@ -281,6 +289,9 @@ struct qcom_pcie_ops {
   * @override_no_snoop: Override NO_SNOOP attribute in TLP to enable cache
   * snooping
   * @firmware_managed: Set if the Root Complex is firmware managed
+  * @no_l0s: Set if the Root Complex does not support L0s
+  * @noc_ensures_ordering: Set if the NoC preserves the ordering of inbound
+  * transactions from the controller.
   * @has_ext_parf_regs: Set if the PARF block implements the extended
   * register set used by qcom_pcie_dump_regs().
   */
@@ -289,6 +300,7 @@ struct qcom_pcie_cfg {
 	bool override_no_snoop;
 	bool firmware_managed;
 	bool no_l0s;
+	bool noc_ensures_ordering;
 	bool has_ext_parf_regs;
 };
 
@@ -1074,9 +1086,23 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 
 	pci->l1ss_support = true;
 
-	val = readl(pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
-	val |= EN;
-	writel(val, pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
+	if (pcie->cfg->noc_ensures_ordering) {
+		val = readl(pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
+		val &= ~EN;
+		writel(val, pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
+
+		val = readl(pcie->parf + PARF_AXI_MSTR_RD_HALT_NO_WRITES);
+		val &= ~RD_HALT_NO_WRITES_EN;
+		writel(val, pcie->parf + PARF_AXI_MSTR_RD_HALT_NO_WRITES);
+
+		val = readl(pcie->parf + PARF_AXI_MSTR_WR_NS_BDF_HALT);
+		val &= ~BDF_CHANGE_HALT_EN;
+		writel(val, pcie->parf + PARF_AXI_MSTR_WR_NS_BDF_HALT);
+	} else {
+		val = readl(pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
+		val |= EN;
+		writel(val, pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
+	}
 
 	return 0;
 err_disable_clocks:
@@ -1601,6 +1627,7 @@ static const struct qcom_pcie_cfg cfg_1_0_0 = {
 
 static const struct qcom_pcie_cfg cfg_1_9_0 = {
 	.ops = &ops_1_9_0,
+	.noc_ensures_ordering = true,
 	.has_ext_parf_regs = true,
 };
 
@@ -1608,6 +1635,7 @@ static const struct qcom_pcie_cfg cfg_1_34_0 = {
 	.ops = &ops_1_9_0,
 	.override_no_snoop = true,
 	.no_l0s = true,
+	.noc_ensures_ordering = true,
 	.has_ext_parf_regs = true,
 };
 
@@ -1630,16 +1658,19 @@ static const struct qcom_pcie_cfg cfg_2_4_0 = {
 
 static const struct qcom_pcie_cfg cfg_2_7_0 = {
 	.ops = &ops_2_7_0,
+	.noc_ensures_ordering = true,
 	.has_ext_parf_regs = true,
 };
 
 static const struct qcom_pcie_cfg cfg_2_9_0 = {
 	.ops = &ops_2_9_0,
+	.noc_ensures_ordering = true,
 };
 
 static const struct qcom_pcie_cfg cfg_sc8280xp = {
 	.ops = &ops_1_21_0,
 	.no_l0s = true,
+	.noc_ensures_ordering = true,
 	.has_ext_parf_regs = true,
 };
 
