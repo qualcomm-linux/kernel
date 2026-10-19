@@ -485,6 +485,10 @@ static const struct of_device_id qmi_tmd_device_table[] = {
 	       .compatible = "qcom,qmi-cooling-cdsp1",
 	       .data = &((struct qmi_instance_data) { CDSP1_INSTANCE_ID, "cdsp1" }),
 	},
+	{
+		.compatible = "qcom,qmi-cooling-modem",
+		.data = &((struct qmi_instance_data) { MODEM0_INSTANCE_ID, "modem" }),
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, qmi_tmd_device_table);
