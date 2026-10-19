@@ -14,11 +14,11 @@ properties:
     oneOf:
       - enum:
           - qcom,sc7280-lpass-rx-macro
+          - qcom,shikra-lpass-rx-macro
           - qcom,sm8250-lpass-rx-macro
           - qcom,sm8450-lpass-rx-macro
           - qcom,sm8550-lpass-rx-macro
           - qcom,sc8280xp-lpass-rx-macro
-          - qcom,shikra-lpass-rx-macro
       - items:
           - enum:
               - qcom,sm8650-lpass-rx-macro
@@ -117,6 +117,21 @@ allOf:
             - const: mclk
             - const: macro
             - const: dcodec
+            - const: fsgen
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,shikra-lpass-rx-macro
+    then:
+      properties:
+        clocks:
+          maxItems: 3
+        clock-names:
+          items:
+            - const: mclk
+            - const: npl
             - const: fsgen
 
 unevaluatedProperties: false
