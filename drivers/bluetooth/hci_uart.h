@@ -92,6 +92,20 @@ struct hci_uart {
 #define HCI_UART_NO_SUSPEND_NOTIFIER	3
 #define HCI_UART_PROTO_INIT		4
 
+static inline void hci_uart_port_opened(struct hci_uart *hu)
+{
+	percpu_down_write(&hu->proto_lock);
+	set_bit(HCI_UART_PROTO_READY, &hu->flags);
+	percpu_up_write(&hu->proto_lock);
+}
+
+static inline void hci_uart_port_closed(struct hci_uart *hu)
+{
+	percpu_down_write(&hu->proto_lock);
+	clear_bit(HCI_UART_PROTO_READY, &hu->flags);
+	percpu_up_write(&hu->proto_lock);
+}
+
 /* TX states  */
 #define HCI_UART_SENDING	1
 #define HCI_UART_TX_WAKEUP	2
