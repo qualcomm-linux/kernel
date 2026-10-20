@@ -9694,6 +9694,7 @@ u8 ath12k_mac_get_tx_link(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
 	struct ieee80211_link_sta *link_sta;
 	struct ieee80211_bss_conf *bss_conf;
 	struct ath12k_sta *ahsta;
+	bool req_unspecified_link = (link == IEEE80211_LINK_UNSPECIFIED);
 
 	/* Use the link id passed or the default vif link */
 	if (!sta) {
@@ -9739,6 +9740,33 @@ u8 ath12k_mac_get_tx_link(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
 	if (!ieee80211_is_mgmt(hdr->frame_control))
 		return link;
 
+	/*
+	 * Keep ML management Tx on an active link only when mac80211 did
+	 * not request a specific link and the selected link is inactive.
+	 */
+	if (req_unspecified_link && !(vif->active_links & BIT(link))) {
+		unsigned long tx_links = vif->active_links;
+		unsigned long peer_tx_links;
+
+		if (!tx_links)
+			goto out_keep_link;
+
+		peer_tx_links = tx_links & sta->valid_links;
+
+		/*
+		 * Prefer links that are both active on the vif and valid for
+		 * this MLO peer. If no overlap exists, fall back to vif
+		 * active links.
+		 */
+		if (peer_tx_links)
+			tx_links = peer_tx_links;
+		else
+			WARN_ON_ONCE(1);
+
+		link = __ffs(tx_links);
+	}
+
+out_keep_link:
 	/* Perform address conversion for ML STA Tx */
 	bss_conf = rcu_dereference(vif->link_conf[link]);
 	link_sta = rcu_dereference(sta->link[link]);
