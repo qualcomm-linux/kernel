@@ -1183,8 +1183,6 @@ static int aest_device_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, adev);
 
-	aest_cpu_pm_init();
-
 	aest_dev_init_debugfs(adev);
 
 	aest_dev_dbg(adev, "Node cnt: %x, id: %x\n", adev->node_cnt, adev->id);
@@ -1205,6 +1203,9 @@ static int __init aest_init(void)
 #ifdef CONFIG_DEBUG_FS
 	aest_debugfs = debugfs_create_dir("aest", NULL);
 #endif
+
+	aest_cpu_pm_init();
+
 	return platform_driver_register(&aest_driver);
 }
 module_init(aest_init);
