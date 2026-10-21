@@ -7,17 +7,22 @@
 /plugin/;
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 &{/} {
 	model = "Qualcomm Technologies, Inc. Shikra IQS EVK DLC Panel";
+
+	backlight: backlight {
+		compatible = "gpio-backlight";
+		gpios = <&pm8150_gpios 1 GPIO_ACTIVE_HIGH>;
+		default-on;
+	};
 };
 
-&hdmi_connector {
+&hdmi_bridge {
 	status = "disabled";
 };
 
-&lt9611uxd {
+&hdmi_connector {
 	status = "disabled";
 };
 
@@ -26,17 +31,15 @@
 	#size-cells = <0>;
 
 	panel@0 {
-		compatible = "dlc,dlc0697";
+		compatible = "dlc,dlc0697", "ilitek,ili7807s";
 		reg = <0>;
-
+		backlight = <&backlight>;
 		reset-gpios = <&tlmm 3 GPIO_ACTIVE_LOW>;
-
 		vddi-supply = <&pm8150_l15>;
 		avdd-supply = <&vreg_disp_3p3>;
 		avee-supply = <&vreg_disp_3p3>;
-
-		pinctrl-0 = <&panel_rst_n &panel_te_pin &panel_bl_en>;
-		pinctrl-1 = <&panel_rst_n_suspend &panel_bl_en_suspend>;
+		pinctrl-0 = <&panel_rst_n &panel_te_pin>;
+		pinctrl-1 = <&panel_rst_n_suspend>;
 		pinctrl-names = "default", "sleep";
 
 		port {
@@ -49,20 +52,6 @@
 
 &mdss_dsi0_out {
 	remote-endpoint = <&panel_in>;
-};
-
-&pm8150_gpios {
-	panel_bl_en: panel-bl-en-state {
-		pins = "gpio1";
-		function = PMIC_GPIO_FUNC_NORMAL;
-		bias-pull-up;
-	};
-
-	panel_bl_en_suspend: panel-bl-en-suspend-state {
-		pins = "gpio1";
-		function = PMIC_GPIO_FUNC_NORMAL;
-		bias-pull-down;
-	};
 };
 
 &tlmm {
