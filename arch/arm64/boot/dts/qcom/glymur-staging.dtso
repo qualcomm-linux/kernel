@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Glymur staging overlay - add staging-specific device tree modifications here.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&soc {
+	tgu@11c02000 {
+		compatible = "qcom,tgu", "arm,primecell";
+		reg = <0x0 0x11c02000 0x0 0x1000>;
+
+		clocks = <&aoss_qmp>;
+		clock-names = "apb_pclk";
+	};
+
+	tgu@11c0e000 {
+		compatible = "qcom,tgu", "arm,primecell";
+		reg = <0x0 0x11c0e000 0x0 0x1000>;
+
+		clocks = <&aoss_qmp>;
+		clock-names = "apb_pclk";
+	};
+
+	tgu@11c0f000 {
+		compatible = "qcom,tgu", "arm,primecell";
+		reg = <0x0 0x11c0f000 0x0 0x1000>;
+
+		clocks = <&aoss_qmp>;
+		clock-names = "apb_pclk";
+	};
+
+	tgu@11c10000 {
+		compatible = "qcom,tgu", "arm,primecell";
+		reg = <0x0 0x11c10000 0x0 0x1000>;
+
+		clocks = <&aoss_qmp>;
+		clock-names = "apb_pclk";
+	};
+};
