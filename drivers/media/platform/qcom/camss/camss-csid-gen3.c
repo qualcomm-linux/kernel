@@ -66,6 +66,7 @@
 #define		CSI2_RX_CFG0_VC_MODE		3
 #define		CSI2_RX_CFG0_DL0_INPUT_SEL	4
 #define		CSI2_RX_CFG0_PHY_NUM_SEL	20
+#define		CSI2_RX_CFG0_PHY_TYPE_SEL	24
 #define		CSI2_RX_CFG0_TPG_MUX_EN		BIT(27)
 #define		CSI2_RX_CFG0_TPG_MUX_SEL	GENMASK(29, 28)
 
@@ -105,7 +106,6 @@
 #define CSID_RDI_IRQ_SUBSAMPLE_PERIOD(rdi)	(csid_is_lite(csid) && IS_CSID_690(csid) ?\
 							(0x34C + 0x100 * (rdi)) :\
 							(0x54C + 0x100 * (rdi)))
-#define CSI2_RX_CFG0_PHY_SEL_BASE_IDX	1
 
 static void __csid_configure_rx(struct csid_device *csid,
 				struct csid_phy_config *phy, int vc)
@@ -115,6 +115,7 @@ static void __csid_configure_rx(struct csid_device *csid,
 
 	camss = csid->camss;
 	val = (phy->lane_cnt - 1) << CSI2_RX_CFG0_NUM_ACTIVE_LANES;
+	val |= phy->phy_sel << CSI2_RX_CFG0_PHY_TYPE_SEL;
 	val |= phy->lane_assign << CSI2_RX_CFG0_DL0_INPUT_SEL;
 
 	if (camss->tpg && csid->tpg_linked &&
