@@ -1420,6 +1420,7 @@ struct dwc3 {
 	unsigned		wakeup_configured:1;
 	unsigned		suspended:1;
 	unsigned		susphy_state:1;
+	unsigned		skip_phy_init:1;
 
 	u16			imod_interval;
 
