@@ -18,6 +18,7 @@
 #include "common.h"
 #include "sdw.h"
 
+#define LRCLK_SYSCLK 1
 #define I2S_MCLKFS 256
 
 #define I2S_MCLK_RATE(rate) \
@@ -109,6 +110,8 @@ struct qcom_snd_soc_common {
 	bool mi2s_bclk_enable;
 	bool wcd_jack;
 	int (*snd_prepare)(struct snd_pcm_substream *substream);
+	int (*snd_hw_params)(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params);
 };
 
 struct sc8280xp_snd_data {
@@ -288,6 +291,47 @@ static int sc8280xp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static int nord_snd_hw_params(struct snd_pcm_substream *substream,
+			      struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	int rate = params_rate(params);
+	int ret;
+
+	switch (cpu_dai->id) {
+	case TERTIARY_MI2S_RX:
+		ret = snd_soc_dai_set_fmt(codec_dai,
+					  SND_SOC_DAIFMT_CBC_CFC |
+					  SND_SOC_DAIFMT_NB_NF |
+					  SND_SOC_DAIFMT_I2S);
+		if (ret && ret != -ENOTSUPP)
+			return ret;
+
+		break;
+	case TERTIARY_TDM_TX_7:
+		ret = snd_soc_dai_set_fmt(codec_dai,
+					  SND_SOC_DAIFMT_CBC_CFC |
+					  SND_SOC_DAIFMT_NB_NF |
+					  SND_SOC_DAIFMT_DSP_A);
+		if (ret && ret != -ENOTSUPP)
+			return ret;
+
+		/* adau1979 MCLK sourced from LRCLK */
+		ret = snd_soc_component_set_sysclk(codec_dai->component,
+						   0, LRCLK_SYSCLK,
+						   rate, SND_SOC_CLOCK_IN);
+		if (ret && ret != -ENOTSUPP)
+			return ret;
+		break;
+	default:
+		break;
+	};
+
+	return 0;
+}
+
 static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
@@ -298,6 +342,12 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 	int mclk_freq = sc8280xp_get_mclk_freq(params);
 	int bclk_freq = sc8280xp_get_bclk_freq(params);
 	int ret;
+
+	if (data->priv->snd_hw_params) {
+		ret = data->priv->snd_hw_params(substream, params);
+		if (ret)
+			return ret;
+	}
 
 	switch (cpu_dai->id) {
 	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
@@ -513,6 +563,12 @@ static const struct qcom_snd_soc_common kaanapali_priv_data = {
 	.wcd_jack = true,
 };
 
+static const struct qcom_snd_soc_common nord_ride_priv_data = {
+	.driver_name = "nord",
+	.mi2s_bclk_enable = true,
+	.snd_hw_params = nord_snd_hw_params,
+};
+
 static const struct qcom_snd_soc_common qcs9100_priv_data = {
 	.driver_name = "sa8775p",
 	.dapm_widgets = sc8280xp_dapm_widgets,
@@ -658,6 +714,7 @@ static const struct of_device_id snd_sc8280xp_dt_match[] = {
 	{ .compatible = "qcom,hawi-sndcard", .data = &hawi_priv_data },
 	{ .compatible = "qcom,kaanapali-sndcard", .data = &kaanapali_priv_data },
 	{ .compatible = "qcom,maili-sndcard", .data = &hawi_priv_data },
+	{ .compatible = "qcom,nord-ride-sndcard", .data = &nord_ride_priv_data },
 	{ .compatible = "qcom,qcm6490-idp-sndcard", .data = &qcm6490_priv_data },
 	{ .compatible = "qcom,qcs615-sndcard", .data = &qcs615_priv_data },
 	{ .compatible = "qcom,qcs6490-rb3gen2-sndcard", .data = &qcs6490_priv_data },
