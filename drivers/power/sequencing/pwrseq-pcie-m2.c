@@ -194,6 +194,11 @@ static const struct pwrseq_target_data pwrseq_pcie_m2_b_pcie_target_data = {
 	.unit = &pwrseq_pcie_m2_b_pcie_unit_data,
 };
 
+static const struct pwrseq_target_data pwrseq_pcie_m2_b_pcie_target_data = {
+	.name = "pcie",
+	.unit = &pwrseq_pcie_m2_b_pcie_unit_data,
+};
+
 static const struct pwrseq_target_data pwrseq_pcie_m2_m_pcie_target_data = {
 	.name = "pcie",
 	.unit = &pwrseq_pcie_m2_m_pcie_unit_data,
@@ -641,6 +646,17 @@ static int pwrseq_pcie_m2_probe(struct platform_device *pdev)
 				     "Failed to get the RESET# GPIO\n");
 		goto err_free_regulators;
 	}
+
+	ctx->full_card_power_off_gpio = devm_gpiod_get_optional(dev, "full-card-power-off",
+								 GPIOD_OUT_HIGH);
+	if (IS_ERR(ctx->full_card_power_off_gpio))
+		return dev_err_probe(dev, PTR_ERR(ctx->full_card_power_off_gpio),
+				     "Failed to get the FULL_CARD_POWER_OFF# GPIO\n");
+
+	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(ctx->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
+				     "Failed to get the RESET# GPIO\n");
 
 	config.parent = dev;
 	config.owner = THIS_MODULE;
