@@ -441,6 +441,16 @@
 			reg = <0x0 0xbd500000 0x0 0xf00000>;
 			no-map;
 		};
+
+		ramoops_mem: ramoops@be400000 {
+			compatible = "ramoops";
+			reg = <0x0 0xbe400000 0x0 0x200000>;
+			record-size = <0x40000>;
+			console-size = <0x80000>;
+			pmsg-size = <0x100000>;
+			mem-type = <2>;
+			no-map;
+		};
 	};
 
 	smp2p-adsp {
