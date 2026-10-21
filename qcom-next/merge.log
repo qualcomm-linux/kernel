@@ -1,0 +1,577 @@
+Verified existence of local and remote repos: Success
+/opt/actions-runner/_work/kernel-config/kernel-config/kernel-topics /opt/actions-runner/_work/kernel-config/kernel-config/kernel-topics
+Reuse-Recorded-Resolution: Enabled
+Downloaded shared rerere cache
+Local tree is clean
+Removing old remotes ...
+The remote origin https://github.com/qualcomm-linux/kernel-topics is no longer tracked.
+Delete it [Y/n]? Done, removed 1 old remote(s).
+Adding new remotes...
+Adding remote baseline https://github.com/qualcomm-linux-stg/kernel.git v7.3-rc4
+Adding remote tech/bsp/clk https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/clk
+Updating tech/bsp/clk
+Adding remote tech/bsp/devfreq https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/devfreq
+Updating tech/bsp/devfreq
+Adding remote tech/bsp/interconnect https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/interconnect
+Updating tech/bsp/interconnect
+Adding remote tech/bsp/sched https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/sched
+Updating tech/bsp/sched
+Adding remote tech/security/firmware-smc https://github.com/qualcomm-linux/kernel-topics.git tech/security/firmware-smc
+Updating tech/security/firmware-smc
+Adding remote tech/bsp/soc-infra https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/soc-infra
+Updating tech/bsp/soc-infra
+Adding remote tech/bsp/pinctrl https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/pinctrl
+Updating tech/bsp/pinctrl
+Adding remote tech/bsp/remoteproc https://github.com/qualcomm-linux/kernel-topics.git tech/bsp/remoteproc
+Updating tech/bsp/remoteproc
+Adding remote tech/bus/peripherals https://github.com/qualcomm-linux/kernel-topics.git tech/bus/peripherals
+Updating tech/bus/peripherals
+Adding remote tech/bus/pci/all https://github.com/qualcomm-linux/kernel-topics.git tech/bus/pci/all
+Updating tech/bus/pci/all
+Adding remote tech/bus/usb/dwc https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/dwc
+Updating tech/bus/usb/dwc
+Adding remote tech/bus/usb/phy https://github.com/qualcomm-linux/kernel-topics.git tech/bus/usb/phy
+Updating tech/bus/usb/phy
+Adding remote tech/debug/hwtracing https://github.com/qualcomm-linux/kernel-topics.git tech/debug/hwtracing
+Updating tech/debug/hwtracing
+Adding remote tech/pmic/misc https://github.com/qualcomm-linux/kernel-topics.git tech/pmic/misc
+Updating tech/pmic/misc
+Adding remote tech/mem/dma-buf https://github.com/qualcomm-linux/kernel-topics.git tech/mem/dma-buf
+Updating tech/mem/dma-buf
+Adding remote tech/mem/iommu https://github.com/qualcomm-linux/kernel-topics.git tech/mem/iommu
+Updating tech/mem/iommu
+Adding remote tech/mm/audio/all https://github.com/qualcomm-linux/kernel-topics.git tech/mm/audio/all
+Updating tech/mm/audio/all
+Adding remote tech/mm/camss https://github.com/qualcomm-linux/kernel-topics.git tech/mm/camss
+Updating tech/mm/camss
+Adding remote tech/mm/drm https://github.com/qualcomm-linux/kernel-topics.git tech/mm/drm
+Updating tech/mm/drm
+Adding remote tech/mm/fastrpc https://github.com/qualcomm-linux/kernel-topics.git tech/mm/fastrpc
+Updating tech/mm/fastrpc
+Adding remote tech/mm/video https://github.com/qualcomm-linux/kernel-topics.git tech/mm/video
+Updating tech/mm/video
+Adding remote tech/mm/gpu https://github.com/qualcomm-linux/kernel-topics.git tech/mm/gpu
+Updating tech/mm/gpu
+Adding remote tech/net/ath https://github.com/qualcomm-linux/kernel-topics.git tech/net/ath
+Updating tech/net/ath
+Adding remote tech/net/bluetooth https://github.com/qualcomm-linux/kernel-topics.git tech/net/bluetooth
+Updating tech/net/bluetooth
+Adding remote tech/pm/pmdomain https://github.com/qualcomm-linux/kernel-topics.git tech/pm/pmdomain
+Updating tech/pm/pmdomain
+Adding remote tech/pm/power https://github.com/qualcomm-linux/kernel-topics.git tech/pm/power
+Updating tech/pm/power
+Adding remote tech/pm/thermal https://github.com/qualcomm-linux/kernel-topics.git tech/pm/thermal
+Updating tech/pm/thermal
+Adding remote tech/security/crypto https://github.com/qualcomm-linux/kernel-topics.git tech/security/crypto
+Updating tech/security/crypto
+Adding remote tech/security/ice https://github.com/qualcomm-linux/kernel-topics.git tech/security/ice
+Updating tech/security/ice
+Adding remote tech/security/optee-next https://github.com/qualcomm-linux/kernel-topics.git tech/security/optee-next
+Updating tech/security/optee-next
+Adding remote tech/storage/all https://github.com/qualcomm-linux/kernel-topics.git tech/storage/all
+Updating tech/storage/all
+Adding remote tech/all/dt/qcs6490 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs6490
+Updating tech/all/dt/qcs6490
+Adding remote tech/all/dt/qcs9100 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs9100
+Updating tech/all/dt/qcs9100
+Adding remote tech/all/dt/qcs8300 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs8300
+Updating tech/all/dt/qcs8300
+Adding remote tech/all/dt/qcs615 https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/qcs615
+Updating tech/all/dt/qcs615
+Adding remote tech/all/dt/agatti https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/agatti
+Updating tech/all/dt/agatti
+Adding remote tech/all/dt/eliza https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/eliza
+Updating tech/all/dt/eliza
+Adding remote tech/all/dt/hamoa https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/hamoa
+Updating tech/all/dt/hamoa
+Adding remote tech/all/dt/glymur https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/glymur
+Updating tech/all/dt/glymur
+Adding remote tech/all/dt/kaanapali https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/kaanapali
+Updating tech/all/dt/kaanapali
+Adding remote tech/all/dt/pakala https://github.com/qualcomm-linux/kernel-topics.git tech/all/dt/pakala
+Updating tech/all/dt/pakala
+Adding remote tech/all/hawi https://github.com/qualcomm-linux/kernel-topics.git tech/all/hawi
+Updating tech/all/hawi
+Adding remote tech/all/shikra https://github.com/qualcomm-linux/kernel-topics.git tech/all/shikra
+Updating tech/all/shikra
+Adding remote tech/all/config https://github.com/qualcomm-linux/kernel-topics.git tech/all/config
+Updating tech/all/config
+Adding remote tech/overlay/dt https://github.com/qualcomm-linux/kernel-topics.git tech/overlay/dt
+Updating tech/overlay/dt
+Adding remote tech/all/workaround https://github.com/qualcomm-linux/kernel-topics.git tech/all/workaround
+Updating tech/all/workaround
+Adding remote tech/noup/debug/all https://github.com/qualcomm-linux/kernel-topics.git tech/noup/debug/all
+Updating tech/noup/debug/all
+Adding remote tech/hwe/unoq https://github.com/qualcomm-linux/kernel-topics.git tech/hwe/unoq
+Updating tech/hwe/unoq
+Adding remote early/hwe/nord https://github.com/qualcomm-linux/kernel-topics.git early/hwe/nord
+Updating early/hwe/nord
+Adding remote early/hwe/staging/nord https://github.com/qualcomm-linux/kernel-topics.git early/hwe/staging/nord
+Updating early/hwe/staging/nord
+Done, added 51 new remote(s).
+Updating the remotes ...
+Updating tech/bsp/clk
+Updating tech/bsp/devfreq
+Updating tech/bsp/interconnect
+Updating tech/bsp/sched
+Updating tech/security/firmware-smc
+Updating tech/bsp/soc-infra
+Updating tech/bsp/pinctrl
+Updating tech/bsp/remoteproc
+Updating tech/bus/peripherals
+Updating tech/bus/pci/all
+Updating tech/bus/usb/dwc
+Updating tech/bus/usb/phy
+Updating tech/debug/hwtracing
+Updating tech/pmic/misc
+Updating tech/mem/dma-buf
+Updating tech/mem/iommu
+Updating tech/mm/audio/all
+Updating tech/mm/camss
+Updating tech/mm/drm
+Updating tech/mm/fastrpc
+Updating tech/mm/video
+Updating tech/mm/gpu
+Updating tech/net/ath
+Updating tech/net/bluetooth
+Updating tech/pm/pmdomain
+Updating tech/pm/power
+Updating tech/pm/thermal
+Updating tech/security/crypto
+Updating tech/security/ice
+Updating tech/security/optee-next
+Updating tech/storage/all
+Updating tech/all/dt/qcs6490
+Updating tech/all/dt/qcs9100
+Updating tech/all/dt/qcs8300
+Updating tech/all/dt/qcs615
+Updating tech/all/dt/agatti
+Updating tech/all/dt/eliza
+Updating tech/all/dt/hamoa
+Updating tech/all/dt/glymur
+Updating tech/all/dt/kaanapali
+Updating tech/all/dt/pakala
+Updating tech/all/hawi
+Updating tech/all/shikra
+Updating tech/all/config
+Updating tech/overlay/dt
+Updating tech/all/workaround
+Updating tech/noup/debug/all
+Updating tech/hwe/unoq
+Updating early/hwe/nord
+Updating early/hwe/staging/nord
+Done, updated 0 remote(s).
+fatal: couldn't find remote ref refs/tags/v7.3-rc4
+Updating baseline ...
+fatal: couldn't find remote ref refs/tags/v7.3-rc4
+latest tag/id is 93f51579e7df248780214094418f205253383cc5
+Done, updated baseline.
+Latest tag is 93f51579e7df248780214094418f205253383cc5
+Create a new integration branch based on 93f51579e7df248780214094418f205253383cc5
+Merging topic branches...
+------------------------------------------
+ ** Merging topic branch: b6621533052784e753ea37738f720695d47222de
+Merge successful : tech/bsp/clk : b6621533052784e753ea37738f720695d47222de : 14
+------------------------------------------
+ ** Merging topic branch: 0837ca4afab5ff6397284116dfad794b0b7884d5
+Merge successful : tech/bsp/devfreq : 0837ca4afab5ff6397284116dfad794b0b7884d5 : 7
+------------------------------------------
+ ** Merging topic branch: 81fc6e2c356d01f1606ae1323b1b1ef3b6db0ad2
+Merge successful : tech/bsp/interconnect : 81fc6e2c356d01f1606ae1323b1b1ef3b6db0ad2 : 1
+------------------------------------------
+ ** Merging topic branch: 9c2e4b84127fad717127330d24ab248fa60324c6
+Merge successful : tech/bsp/sched : 9c2e4b84127fad717127330d24ab248fa60324c6 : 3
+------------------------------------------
+ ** Merging topic branch: 16b0235a686da585922566fe2aeee447e100fbfd
+Merge successful : tech/security/firmware-smc : 16b0235a686da585922566fe2aeee447e100fbfd : 9
+------------------------------------------
+ ** Merging topic branch: c79b7bc726ac4cfdd9d5389505e287a5c30a9156
+Merge failed, manual merge
+No files need merging
+[qcom-next f3059656a048] Merge tech/bsp/soc-infra at c79b7bc726ac4cfdd9d5389505e287a5c30a9156 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/bsp/soc-infra : c79b7bc726ac4cfdd9d5389505e287a5c30a9156 : 28
+------------------------------------------
+ ** Merging topic branch: 79149ef6a826d6237346aa74eca65ccbe19d761f
+Merge successful : tech/bsp/pinctrl : 79149ef6a826d6237346aa74eca65ccbe19d761f : 1
+------------------------------------------
+ ** Merging topic branch: 8c716bcd0b5eca15711a114434340d2f89cbf4d1
+Merge successful : tech/bsp/remoteproc : 8c716bcd0b5eca15711a114434340d2f89cbf4d1 : 1
+------------------------------------------
+ ** Merging topic branch: c191e3d5ebc7f7b700781e0cbcf7b4bd25b05e5f
+Merge successful : tech/bus/peripherals : c191e3d5ebc7f7b700781e0cbcf7b4bd25b05e5f : 10
+------------------------------------------
+ ** Merging topic branch: 0f23f88df0447832289aa3c01f2762dde003e467
+Merge successful : tech/bus/pci/all : 0f23f88df0447832289aa3c01f2762dde003e467 : 41
+------------------------------------------
+ ** Merging topic branch: 6f2460005b7a8909fcc9668e9abcf76050d6198e
+Merge successful : tech/bus/usb/dwc : 6f2460005b7a8909fcc9668e9abcf76050d6198e : 8
+------------------------------------------
+ ** Merging topic branch: b94824df2da48cbe95cc99a0fdd2bd309605f79e
+Merge successful : tech/bus/usb/phy : b94824df2da48cbe95cc99a0fdd2bd309605f79e : 38
+------------------------------------------
+ ** Merging topic branch: fae0f798a947b7949522d5657e4b40a1cc92b12c
+Merge failed, manual merge
+No files need merging
+[qcom-next b05d8c8842de] Merge tech/debug/hwtracing at fae0f798a947b7949522d5657e4b40a1cc92b12c into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/debug/hwtracing : fae0f798a947b7949522d5657e4b40a1cc92b12c : 27
+------------------------------------------
+ ** Merging topic branch: e7bb3661d7c0c0d4b88fd96951d0a698a46953fd
+Merge successful : tech/pmic/misc : e7bb3661d7c0c0d4b88fd96951d0a698a46953fd : 12
+------------------------------------------
+ ** Merging topic branch: f153776ee5585e03809e3820c09f2ae8a1ec67d9
+Merge successful : tech/mem/dma-buf : f153776ee5585e03809e3820c09f2ae8a1ec67d9 : 1
+------------------------------------------
+ ** Merging topic branch: d196108aa9efb3b713e8847dbc656556792423af
+Merge successful : tech/mem/iommu : d196108aa9efb3b713e8847dbc656556792423af : 10
+------------------------------------------
+ ** Merging topic branch: 5ba9defcdea6979d696f7555d7e6420475cca9f7
+Merge successful : tech/mm/audio/all : 5ba9defcdea6979d696f7555d7e6420475cca9f7 : 10
+------------------------------------------
+ ** Merging topic branch: 73f9fb01d656af2a2fa0b71b117b05da1f7f7a71
+Merge successful : tech/mm/camss : 73f9fb01d656af2a2fa0b71b117b05da1f7f7a71 : 54
+------------------------------------------
+ ** Merging topic branch: d42e9c7c4e0caadcc5e6a509bf011880f29bdbde
+Merge successful : tech/mm/drm : d42e9c7c4e0caadcc5e6a509bf011880f29bdbde : 68
+------------------------------------------
+ ** Merging topic branch: fab5742543b3ac30feddcc3e21abf5c5367813e3
+Merge successful : tech/mm/fastrpc : fab5742543b3ac30feddcc3e21abf5c5367813e3 : 4
+------------------------------------------
+ ** Merging topic branch: bbe1a02c8deab96676f5b1d9e0c802eb409854a6
+Merge successful : tech/mm/video : bbe1a02c8deab96676f5b1d9e0c802eb409854a6 : 57
+------------------------------------------
+ ** Merging topic branch: e065d5a06609e29946cba06a8c42b5e084c16e98
+Merge successful : tech/mm/gpu : e065d5a06609e29946cba06a8c42b5e084c16e98 : 1
+------------------------------------------
+ ** Merging topic branch: 722be84e35d87fe00bb909de896bfdc67bc5a064
+Merge successful : tech/net/ath : 722be84e35d87fe00bb909de896bfdc67bc5a064 : 7
+------------------------------------------
+ ** Merging topic branch: e352848cad1444a9125ebad6768024cc8a9cc0c4
+Merge failed, manual merge
+No files need merging
+[qcom-next 850b6a410472] Merge tech/net/bluetooth at e352848cad1444a9125ebad6768024cc8a9cc0c4 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/net/bluetooth : e352848cad1444a9125ebad6768024cc8a9cc0c4 : 8
+------------------------------------------
+ ** Merging topic branch: 16a7451c692b445766f0aef4187677ca93740e54
+Merge successful : tech/pm/pmdomain : 16a7451c692b445766f0aef4187677ca93740e54 : 3
+------------------------------------------
+ ** Merging topic branch: 179ed4395ab2afda9df20c8346bc965b708dbaef
+Merge successful : tech/pm/power : 179ed4395ab2afda9df20c8346bc965b708dbaef : 13
+------------------------------------------
+ ** Merging topic branch: 2602b17df1dab5715e2b1625738e1983a053ad02
+Merge failed, manual merge
+No files need merging
+[qcom-next e1b95defea7f] Merge tech/pm/thermal at 2602b17df1dab5715e2b1625738e1983a053ad02 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/pm/thermal : 2602b17df1dab5715e2b1625738e1983a053ad02 : 9
+------------------------------------------
+ ** Merging topic branch: 4c71afd9e46a785c7c00563832fb1550503b011c
+Merge successful : tech/security/crypto : 4c71afd9e46a785c7c00563832fb1550503b011c : 13
+------------------------------------------
+ ** Merging topic branch: dc34f45bbd867d317614efdfeae9274d6c956454
+Merge successful : tech/security/ice : dc34f45bbd867d317614efdfeae9274d6c956454 : 14
+------------------------------------------
+ ** Merging topic branch: 9babb9ac3b6294a7b1417877627895d62414eaac
+Merge successful : tech/security/optee-next : 9babb9ac3b6294a7b1417877627895d62414eaac : 1
+------------------------------------------
+ ** Merging topic branch: cb6192d423c77eba8073f625b128b9eb384e72fa
+Merge successful : tech/storage/all : cb6192d423c77eba8073f625b128b9eb384e72fa : 7
+------------------------------------------
+ ** Merging topic branch: fdf8383bd714781dfce69bc0755844fe85389788
+Merge failed, manual merge
+No files need merging
+[qcom-next 4fae7a1b6bb2] Merge tech/all/dt/qcs6490 at fdf8383bd714781dfce69bc0755844fe85389788 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/all/dt/qcs6490 : fdf8383bd714781dfce69bc0755844fe85389788 : 21
+------------------------------------------
+ ** Merging topic branch: df4f38e0ebf7edc26b43cce23131f7181cc557f2
+Merge successful : tech/all/dt/qcs9100 : df4f38e0ebf7edc26b43cce23131f7181cc557f2 : 23
+------------------------------------------
+ ** Merging topic branch: e12e7b435323aec1ba452c61242f41afe88dad80
+Merge failed, manual merge
+No files need merging
+[qcom-next eee8616c9628] Merge tech/all/dt/qcs8300 at e12e7b435323aec1ba452c61242f41afe88dad80 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/all/dt/qcs8300 : e12e7b435323aec1ba452c61242f41afe88dad80 : 32
+------------------------------------------
+ ** Merging topic branch: c3eea9f1b49f374d19aee3339200cef537b6173b
+Merge successful : tech/all/dt/qcs615 : c3eea9f1b49f374d19aee3339200cef537b6173b : 13
+------------------------------------------
+ ** Merging topic branch: 2ca1b63b35a7e70a4a80398286211dee17729739
+Merge failed, manual merge
+No files need merging
+[qcom-next 040cbe4cdb21] Merge tech/all/dt/agatti at 2ca1b63b35a7e70a4a80398286211dee17729739 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/all/dt/agatti : 2ca1b63b35a7e70a4a80398286211dee17729739 : 2
+------------------------------------------
+ ** Merging topic branch: fd76dfcc600a56ed9bc6d4f1b5d3e5d26238a767
+Merge successful : tech/all/dt/eliza : fd76dfcc600a56ed9bc6d4f1b5d3e5d26238a767 : 18
+------------------------------------------
+ ** Merging topic branch: 75cc2f2d7cf468c995c05b6d26bded9ae53f43b9
+Merge successful : tech/all/dt/hamoa : 75cc2f2d7cf468c995c05b6d26bded9ae53f43b9 : 39
+------------------------------------------
+ ** Merging topic branch: e69025f64fe7a2f25c1ae07e1e9cf5be2ffdfaf3
+Merge successful : tech/all/dt/glymur : e69025f64fe7a2f25c1ae07e1e9cf5be2ffdfaf3 : 30
+------------------------------------------
+ ** Merging topic branch: b395c116269253fd3bf457e69cdc734077358900
+Merge successful : tech/all/dt/kaanapali : b395c116269253fd3bf457e69cdc734077358900 : 18
+------------------------------------------
+ ** Merging topic branch: 9cdd195c9736e629a1051563b7eae5ca38e22c66
+Merge successful : tech/all/dt/pakala : 9cdd195c9736e629a1051563b7eae5ca38e22c66 : 13
+------------------------------------------
+ ** Merging topic branch: d594f58798e89b9ea294c299eb725f19571feeb1
+Merge failed, manual merge
+No files need merging
+[qcom-next 1a1dac3e4e0b] Merge tech/all/hawi at d594f58798e89b9ea294c299eb725f19571feeb1 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/all/hawi : d594f58798e89b9ea294c299eb725f19571feeb1 : 20
+------------------------------------------
+ ** Merging topic branch: 5e50e3f38d74115b604e10cde8a7a9e78ec2dbea
+Merge failed, manual merge
+No files need merging
+[qcom-next 65d4925f6435] Merge tech/all/shikra at 5e50e3f38d74115b604e10cde8a7a9e78ec2dbea into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/all/shikra : 5e50e3f38d74115b604e10cde8a7a9e78ec2dbea : 198
+------------------------------------------
+ ** Merging topic branch: 00643d8f2c8db627db4976c147aa20f822305173
+Merge failed, manual merge
+No files need merging
+[qcom-next 2e12a1dcf628] Merge tech/all/config at 00643d8f2c8db627db4976c147aa20f822305173 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/all/config : 00643d8f2c8db627db4976c147aa20f822305173 : 86
+------------------------------------------
+ ** Merging topic branch: ae50c5146c969f41bf22be07c136bd0e63fd7886
+Merge failed, manual merge
+No files need merging
+[qcom-next 9307242aeea8] Merge tech/overlay/dt at ae50c5146c969f41bf22be07c136bd0e63fd7886 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/overlay/dt : ae50c5146c969f41bf22be07c136bd0e63fd7886 : 90
+------------------------------------------
+ ** Merging topic branch: ebc94067be183f4418b5f496e269d6eb11723bcb
+Merge failed, manual merge
+No files need merging
+[qcom-next 6fb774f2b7cc] Merge tech/all/workaround at ebc94067be183f4418b5f496e269d6eb11723bcb into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/all/workaround : ebc94067be183f4418b5f496e269d6eb11723bcb : 14
+------------------------------------------
+ ** Merging topic branch: 9f1e8aefe2eaa112abe0bbb5e9f67284effa3d8d
+Merge failed, manual merge
+No files need merging
+[qcom-next b800fd33c200] Merge tech/noup/debug/all at 9f1e8aefe2eaa112abe0bbb5e9f67284effa3d8d into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/noup/debug/all : 9f1e8aefe2eaa112abe0bbb5e9f67284effa3d8d : 37
+------------------------------------------
+ ** Merging topic branch: a2d85fe547167dbd8fc59618907c20a6f17d2e5a
+Merge failed, manual merge
+No files need merging
+[qcom-next 959b5b466eaf] Merge tech/hwe/unoq at a2d85fe547167dbd8fc59618907c20a6f17d2e5a into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : tech/hwe/unoq : a2d85fe547167dbd8fc59618907c20a6f17d2e5a : 4
+------------------------------------------
+ ** Merging topic branch: e1575acc858d929ad55ce3886d8d39c31a2d1736
+Merge failed, manual merge
+No files need merging
+[qcom-next cfd00db34ecf] Merge early/hwe/nord at e1575acc858d929ad55ce3886d8d39c31a2d1736 into qcom-next
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+Merge successful : early/hwe/nord : e1575acc858d929ad55ce3886d8d39c31a2d1736 : 114
+------------------------------------------
+ ** Merging topic branch: 972aee417789d729b864fbc6ac51a362b268988c
+Merge successful : early/hwe/staging/nord : 972aee417789d729b864fbc6ac51a362b268988c : 119
+Done, merged 50 topic(s).
+[main 94878df] New rr-cache entries from ci-merge
+ Committer: Ubuntu <ubuntu@ip-172-31-41-76.us-west-2.compute.internal>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+ 8 files changed, 95 insertions(+), 208 deletions(-)
