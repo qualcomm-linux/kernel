@@ -12,7 +12,6 @@
 #include <linux/xarray.h>
 #include <linux/genalloc.h>
 #include <linux/ras.h>
-#include <linux/cpu_pm.h>
 
 #include <ras/ras_event.h>
 
@@ -27,119 +26,6 @@ static bool aest_panic_on_ue;
 module_param(aest_panic_on_ue, bool, 0644);
 MODULE_PARM_DESC(aest_panic_on_ue,
 		 "Panic on unrecoverable error: 0=off 1=on (default: 1)");
-
-static inline void write_errselr_el1(u64 val)
-{
-	asm volatile("msr s3_0_c5_c3_1, %0" : : "r" (val));
-	isb();
-}
-
-static inline void set_errxctlr_el1(void)
-{
-	u64 val = 0x10f;
-
-	asm volatile("msr s3_0_c5_c4_1, %0" : : "r" (val));
-}
-
-static inline void set_errxmisc_overflow(void)
-{
-	u64 val = 0x7F7F00000000ULL;
-
-	asm volatile("msr s3_0_c5_c5_0, %0" : : "r" (val));
-	isb();
-}
-
-static void initialize_registers(void *info)
-{
-	set_errxctlr_el1();
-	set_errxmisc_overflow();
-}
-
-static void init_regs_on_cpu(bool all_cpus)
-{
-	write_errselr_el1(0);
-	if (all_cpus)
-		on_each_cpu(initialize_registers, NULL, 1);
-	else
-		initialize_registers(NULL);
-
-	write_errselr_el1(1);
-	initialize_registers(NULL);
-}
-
-#ifdef CONFIG_CPU_PM
-static inline u64 read_errxstatus_el1(void)
-{
-	u64 val;
-
-	asm volatile("mrs %0, s3_0_c5_c4_2" : "=r" (val));
-	return val;
-}
-
-static inline void clear_errxstatus_el1(u64 val)
-{
-	asm volatile("msr s3_0_c5_c4_2, %0" : : "r" (val));
-}
-
-static void aest_check_and_clear_erxstatus(void)
-{
-	u64 status = read_errxstatus_el1();
-
-	if (status & ERR_STATUS_V)
-		clear_errxstatus_el1(status);
-}
-
-static int aest_cpu_pm_notify(struct notifier_block *self,
-			      unsigned long cmd, void *v)
-{
-	if (cmd != CPU_PM_EXIT && cmd != CPU_PM_ENTER_FAILED)
-		return NOTIFY_OK;
-
-	init_regs_on_cpu(false);
-
-	/* Record 1 is already selected after init_regs_on_cpu(false). */
-	aest_check_and_clear_erxstatus();
-
-	write_errselr_el1(0);
-	aest_check_and_clear_erxstatus();
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block aest_cpu_pm_nb = {
-	.notifier_call = aest_cpu_pm_notify,
-};
-
-/*
- * platform_driver_register() walks matching devices synchronously in
- * the calling thread (this driver does not opt into async probing, and
- * aest_device_probe() never returns -EPROBE_DEFER), so repeated probes
- * are strictly sequential, not concurrent -- a plain bool is sufficient
- * and no additional locking is required here.
- */
-static bool aest_cpu_pm_nb_registered;
-
-static void aest_cpu_pm_init(void)
-{
-	if (aest_cpu_pm_nb_registered)
-		return;
-
-	cpu_pm_register_notifier(&aest_cpu_pm_nb);
-	aest_cpu_pm_nb_registered = true;
-}
-
-static void aest_cpu_pm_exit(void)
-{
-	if (!aest_cpu_pm_nb_registered)
-		return;
-
-	cpu_pm_unregister_notifier(&aest_cpu_pm_nb);
-	aest_cpu_pm_nb_registered = false;
-}
-#else
-static inline void aest_cpu_pm_init(void) { }
-static inline void aest_cpu_pm_exit(void) { }
-#endif /* CONFIG_CPU_PM */
 
 #ifdef CONFIG_DEBUG_FS
 struct dentry *aest_debugfs;
@@ -1134,8 +1020,6 @@ static int aest_device_probe(struct platform_device *pdev)
 	struct aest_device *adev;
 	struct aest_hnode *ahnode;
 
-	init_regs_on_cpu(true);
-
 	ahnode = *((struct aest_hnode **)pdev->dev.platform_data);
 	if (!ahnode)
 		return -ENODEV;
@@ -1204,8 +1088,6 @@ static int __init aest_init(void)
 	aest_debugfs = debugfs_create_dir("aest", NULL);
 #endif
 
-	aest_cpu_pm_init();
-
 	return platform_driver_register(&aest_driver);
 }
 module_init(aest_init);
@@ -1215,7 +1097,7 @@ static void __exit aest_exit(void)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(aest_debugfs);
 #endif
-	aest_cpu_pm_exit();
+
 	platform_driver_unregister(&aest_driver);
 }
 module_exit(aest_exit);
