@@ -19,16 +19,5 @@ config ACPI_AGDI
 
 	  If set, the kernel parses AGDI table and listens for the command.
 
-config ACPI_AEST
-       bool "ARM Error Source Table Support"
-       depends on ARM64_RAS_EXTN
-
-       help
-         The Arm Error Source Table (AEST) provides details on ACPI
-         extensions that enable kernel-first handling of errors in a
-         system that supports the Armv8 RAS extensions.
-
-         If set, the kernel will report and log hardware errors.
-
 config ACPI_APMT
 	bool
