@@ -336,7 +336,7 @@ static int ___watchdog_register_device(struct watchdog_device *wdd)
 
 	if (wdd->ops->restart) {
 		wdd->restart_nb.notifier_call = watchdog_restart_notifier;
-
+		wdd->restart_nb.priority = 255;
 		ret = register_restart_handler(&wdd->restart_nb);
 		if (ret)
 			pr_warn("watchdog%d: Cannot register restart handler (%d)\n",
