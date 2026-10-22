@@ -322,6 +322,52 @@ static void dpu_core_irq_callback_handler(struct dpu_kms *dpu_kms, unsigned int 
 	irq_entry->cb(irq_entry->arg);
 }
 
+/*
+ * dpu_core_irq_dispatch() runs the fired bits for @reg_idx through their
+ * registered callbacks directly. Only used on non-PREEMPT_RT kernels, where
+ * dpu_core_irq() itself is allowed to take the sleepable locks reached via
+ * those callbacks.
+ */
+static void dpu_core_irq_dispatch(struct dpu_kms *dpu_kms, int reg_idx, u32 irq_status)
+{
+	unsigned int irq_idx;
+	int bit;
+
+	/*
+	 * Search through matching intr status.
+	 */
+	while ((bit = ffs(irq_status)) != 0) {
+		irq_idx = DPU_IRQ_IDX(reg_idx, bit - 1);
+
+		dpu_core_irq_callback_handler(dpu_kms, irq_idx);
+
+		/*
+		 * When callback finish, clear the irq_status
+		 * with the matching mask. Once irq_status
+		 * is all cleared, the search can be stopped.
+		 */
+		irq_status &= ~BIT(bit - 1);
+	}
+}
+
+#ifdef CONFIG_PREEMPT_RT
+/*
+ * dpu_core_irq_defer_to_thread() hands the fired bits for @reg_idx off to
+ * dpu_core_irq_thread(), which dispatches them from a genuine preemptible
+ * IRQ thread instead of the hardirq context dpu_core_irq() runs in on
+ * PREEMPT_RT.
+ */
+static void dpu_core_irq_defer_to_thread(struct dpu_hw_intr *intr, int reg_idx, u32 irq_status)
+{
+	intr->irq_pending_mask[reg_idx] |= irq_status;
+}
+#else
+static inline void dpu_core_irq_defer_to_thread(struct dpu_hw_intr *intr, int reg_idx,
+						u32 irq_status)
+{
+}
+#endif
+
 /**
  * dpu_core_irq - core IRQ handler
  * @kms:		MSM KMS handle
@@ -332,16 +378,14 @@ irqreturn_t dpu_core_irq(struct msm_kms *kms)
 	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
 	struct dpu_hw_intr *intr = dpu_kms->hw_intr;
 	int reg_idx;
-	unsigned int irq_idx;
 	u32 irq_status;
 	u32 enable_mask;
-	int bit;
-	unsigned long irq_flags;
+	bool wake_thread = false;
 
 	if (!intr)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&intr->irq_lock, irq_flags);
+	raw_spin_lock(&intr->irq_lock);
 	for (reg_idx = 0; reg_idx < MDP_INTR_MAX; reg_idx++) {
 		if (!test_bit(reg_idx, &intr->irq_mask))
 			continue;
@@ -363,6 +407,52 @@ irqreturn_t dpu_core_irq(struct msm_kms *kms)
 		if (!irq_status)
 			continue;
 
+		if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+			dpu_core_irq_defer_to_thread(intr, reg_idx, irq_status);
+			wake_thread = true;
+		} else {
+			dpu_core_irq_dispatch(dpu_kms, reg_idx, irq_status);
+		}
+	}
+
+	/* ensure register writes go through */
+	wmb();
+
+	raw_spin_unlock(&intr->irq_lock);
+
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		return wake_thread ? IRQ_WAKE_THREAD : IRQ_NONE;
+
+	return IRQ_HANDLED;
+}
+
+#ifdef CONFIG_PREEMPT_RT
+/*
+ * dpu_core_irq_thread() runs in a genuine preemptible IRQ thread (woken via
+ * IRQ_WAKE_THREAD from dpu_core_irq() above), so it's safe for it -- and the
+ * per-encoder callbacks it dispatches to -- to take spinlock_t/rt_mutex
+ * locks such as enc_spinlock, dpu_crtc::spin_lock, and the various DRM-core
+ * locks reached via vblank/CRC/writeback handling.
+ */
+irqreturn_t dpu_core_irq_thread(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+	struct dpu_hw_intr *intr = dpu_kms->hw_intr;
+	int reg_idx;
+	unsigned int irq_idx;
+	u32 irq_status;
+	unsigned long irq_flags;
+	int bit;
+
+	if (!intr)
+		return IRQ_NONE;
+
+	for (reg_idx = 0; reg_idx < MDP_INTR_MAX; reg_idx++) {
+		raw_spin_lock_irqsave(&intr->irq_lock, irq_flags);
+		irq_status = intr->irq_pending_mask[reg_idx];
+		intr->irq_pending_mask[reg_idx] = 0;
+		raw_spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
+
 		/*
 		 * Search through matching intr status.
 		 */
@@ -380,13 +470,9 @@ irqreturn_t dpu_core_irq(struct msm_kms *kms)
 		}
 	}
 
-	/* ensure register writes go through */
-	wmb();
-
-	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
-
 	return IRQ_HANDLED;
 }
+#endif
 
 static int dpu_hw_intr_enable_irq_locked(struct dpu_hw_intr *intr,
 					 unsigned int irq_idx)
@@ -410,7 +496,7 @@ static int dpu_hw_intr_enable_irq_locked(struct dpu_hw_intr *intr,
 	 * under irq_lock and it's the caller's responsibility to ensure that's
 	 * held.
 	 */
-	assert_spin_locked(&intr->irq_lock);
+	assert_raw_spin_locked(&intr->irq_lock);
 
 	reg_idx = DPU_IRQ_REG(irq_idx);
 	reg = &intr->intr_set[reg_idx];
@@ -466,7 +552,7 @@ static int dpu_hw_intr_disable_irq_locked(struct dpu_hw_intr *intr,
 	 * under irq_lock and it's the caller's responsibility to ensure that's
 	 * held.
 	 */
-	assert_spin_locked(&intr->irq_lock);
+	assert_raw_spin_locked(&intr->irq_lock);
 
 	reg_idx = DPU_IRQ_REG(irq_idx);
 	reg = &intr->intr_set[reg_idx];
@@ -554,7 +640,7 @@ u32 dpu_core_irq_read(struct dpu_kms *dpu_kms,
 		return 0;
 	}
 
-	spin_lock_irqsave(&intr->irq_lock, irq_flags);
+	raw_spin_lock_irqsave(&intr->irq_lock, irq_flags);
 
 	reg_idx = DPU_IRQ_REG(irq_idx);
 	intr_status = DPU_REG_READ(&intr->hw,
@@ -567,7 +653,7 @@ u32 dpu_core_irq_read(struct dpu_kms *dpu_kms,
 	/* ensure register writes go through */
 	wmb();
 
-	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
+	raw_spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
 
 	return intr_status;
 }
@@ -616,7 +702,7 @@ struct dpu_hw_intr *dpu_hw_intr_init(struct drm_device *dev,
 			intr->irq_mask |= BIT(DPU_IRQ_REG(intf->intr_tear_rd_ptr));
 	}
 
-	spin_lock_init(&intr->irq_lock);
+	raw_spin_lock_init(&intr->irq_lock);
 
 	return intr;
 }
@@ -656,11 +742,11 @@ int dpu_core_irq_register_callback(struct dpu_kms *dpu_kms,
 	VERB("[%pS] IRQ=[%d, %d]\n", __builtin_return_address(0),
 	     DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 
-	spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
+	raw_spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
 
 	irq_entry = dpu_core_irq_get_entry(dpu_kms->hw_intr, irq_idx);
 	if (unlikely(WARN_ON(irq_entry->cb))) {
-		spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
+		raw_spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
 
 		return -EBUSY;
 	}
@@ -675,7 +761,7 @@ int dpu_core_irq_register_callback(struct dpu_kms *dpu_kms,
 	if (ret)
 		DPU_ERROR("Failed/ to enable IRQ=[%d, %d]\n",
 			  DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
-	spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
+	raw_spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
 
 	trace_dpu_irq_register_success(DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 
@@ -707,7 +793,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms,
 	VERB("[%pS] IRQ=[%d, %d]\n", __builtin_return_address(0),
 	     DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 
-	spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
+	raw_spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
 	trace_dpu_core_irq_unregister_callback(DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 
 	ret = dpu_hw_intr_disable_irq_locked(dpu_kms->hw_intr, irq_idx);
@@ -719,7 +805,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms,
 	irq_entry->cb = NULL;
 	irq_entry->arg = NULL;
 
-	spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
+	raw_spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
 
 	trace_dpu_irq_unregister_success(DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 
@@ -736,11 +822,11 @@ static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 	void *cb;
 
 	for (i = 1; i <= DPU_NUM_IRQS; i++) {
-		spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
+		raw_spin_lock_irqsave(&dpu_kms->hw_intr->irq_lock, irq_flags);
 		irq_entry = dpu_core_irq_get_entry(dpu_kms->hw_intr, i);
 		irq_count = atomic_read(&irq_entry->count);
 		cb = irq_entry->cb;
-		spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
+		raw_spin_unlock_irqrestore(&dpu_kms->hw_intr->irq_lock, irq_flags);
 
 		if (irq_count || cb)
 			seq_printf(s, "IRQ=[%d, %d] count:%d cb:%ps\n",
