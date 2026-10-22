@@ -114,6 +114,32 @@ config DRM_MSM_DPU
 	  the MSM DRM driver. It is the display controller found in devices
 	  using e.g. SDM845 and newer platforms.
 
+config DRM_MSM_DCP
+	bool "Enable DCP firmware-delegated display support in MSM DRM driver"
+	depends on DRM_MSM
+	depends on VIRTIO_MMIO=y && QCOM_IPCC=y
+	select DRM_MSM_KMS
+	select VIRTIO_QCOM_DCP
+	select DRM_BRIDGE_CONNECTOR
+	select DRM_MIPI_DSI
+	select DRM_DISPLAY_DSC_HELPER
+	default y
+	help
+	  Compile in support for the DCP (Display Coprocessor) firmware-delegated
+	  display architecture in the MSM DRM driver.
+
+	  DCP is used on Hawi (qcom,hawi) SoC where all display hardware is
+	  owned by a separate Display Coprocessor firmware. The host AP
+	  communicates with DCP via two interfaces:
+	    - IPCC SMP2P mailbox: power notifications and response wakeups
+	    - HFI over VirtIO MMIO: display command/response exchange
+
+	  DPU and bridge nodes in the Device Tree are topology-only (no
+	  compatible string, no reg). The driver detects them by node name
+	  prefix using of_node_name_prefix().
+
+	  If unsure, say N.
+
 config DRM_MSM_DP
 	bool "Enable DisplayPort support in MSM DRM driver"
 	depends on DRM_MSM
