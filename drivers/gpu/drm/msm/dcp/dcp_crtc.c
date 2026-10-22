@@ -84,6 +84,36 @@ dcp_crtc_atomic_create_state(struct drm_crtc *crtc)
 	return &cstate->base;
 }
 
+static void dcp_crtc_aggregate_bw(struct drm_crtc_state *crtc_state,
+				  bool enable)
+{
+	struct dcp_crtc_state *cstate = to_dcp_crtc_state(crtc_state);
+	struct drm_plane *plane;
+	const struct drm_plane_state *pstate;
+
+	cstate->dram_ib  = 0;
+	cstate->dram_ab  = 0;
+	cstate->llcc_ib  = 0;
+	cstate->llcc_ab  = 0;
+	cstate->core_clk = 0;
+
+	if (!enable)
+		return;
+
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
+		if (!pstate->visible)
+			continue;
+
+		const struct dcp_plane_state *dcp_pstate = to_dcp_plane_state(pstate);
+
+		cstate->dram_ib  = max(cstate->dram_ib, dcp_pstate->fetch_bw);
+		cstate->dram_ab += dcp_pstate->fetch_bw;
+		cstate->llcc_ib  = max(cstate->llcc_ib, dcp_pstate->fetch_bw);
+		cstate->llcc_ab += dcp_pstate->fetch_bw;
+		cstate->core_clk = max(cstate->core_clk, dcp_pstate->clk);
+	}
+}
+
 static enum drm_mode_status
 dcp_crtc_mode_valid(struct drm_crtc *crtc,
 		    const struct drm_display_mode *mode)
@@ -336,6 +366,9 @@ void dcp_crtc_complete_commit(struct drm_crtc *crtc)
 	struct dcp_crtc_state *cstate = to_dcp_crtc_state(crtc->state);
 	unsigned long flags;
 
+	if (!crtc->state->active)
+		dcp_crtc_aggregate_bw(crtc->state, false);
+
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (dcp_crtc->event) {
 		drm_dbg_driver(crtc->dev,
@@ -537,6 +570,8 @@ static int dcp_crtc_atomic_check(struct drm_crtc *crtc,
 			       dcp_kms->caps->max_width);
 		return -E2BIG;
 	}
+
+	dcp_crtc_aggregate_bw(crtc_state, true);
 
 	return 0;
 }
