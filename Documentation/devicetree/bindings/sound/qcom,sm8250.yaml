@@ -45,6 +45,7 @@ properties:
           - qcom,sdm845-sndcard
           - qcom,shikra-cqm-sndcard
           - qcom,shikra-cqs-sndcard
+          - qcom,shikra-iqs-lt9611uxd-sndcard
           - qcom,shikra-iqs-sndcard
           - qcom,sm8250-sndcard
           - qcom,sm8450-sndcard
@@ -240,6 +241,48 @@ examples:
 
             platform {
                 sound-dai = <&q6routing>;
+            };
+        };
+    };
+
+  - |
+    #include <dt-bindings/sound/qcom,q6afe.h>
+    sound {
+        compatible = "qcom,shikra-iqs-lt9611uxd-sndcard";
+        model = "shikra-iqs-lt9611uxd-evk";
+        audio-routing = "VA DMIC0", "vdd-micb",
+                    "VA DMIC1", "vdd-micb",
+                    "VA DMIC2", "vdd-micb",
+                    "VA DMIC3", "vdd-micb";
+
+        pri-i2s-playback-dai-link {
+            link-name = "Analog Playback";
+            cpu {
+                sound-dai = <&q6apmbedai PRIMARY_MI2S_RX>;
+            };
+            platform {
+                sound-dai = <&q6apm>;
+            };
+            codec {
+                sound-dai = <&lt9611uxd 0>;
+            };
+        };
+
+        pri-i2s-capture-dai-link {
+            link-name = "Analog Capture";
+            status = "disabled";
+        };
+
+        va-dmic-dai-link {
+            link-name = "VA DMIC Capture";
+            cpu {
+                sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
+            };
+            platform {
+                sound-dai = <&q6apm>;
+            };
+            codec {
+                sound-dai = <&vamacro 0>;
             };
         };
     };
