@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/* Board subtype 0: LT9611UXD as I2S audio codec, no MAX98091 */
+
+&lt9611uxd {
+	#sound-dai-cells = <1>;
+};
+
+&sound {
+	compatible = "qcom,shikra-iqs-lt9611uxd-sndcard";
+	model = "shikra-iqs-lt9611uxd-evk";
+	audio-routing = "VA DMIC0", "vdd-micb",
+			"VA DMIC1", "vdd-micb",
+			"VA DMIC2", "vdd-micb",
+			"VA DMIC3", "vdd-micb";
+
+	pri-i2s-playback-dai-link {
+		codec {
+			sound-dai = <&lt9611uxd 0>;
+		};
+	};
+
+	pri-i2s-capture-dai-link {
+		status = "disabled";
+	};
+};
+
+&max98091 {
+	status = "disabled";
+};

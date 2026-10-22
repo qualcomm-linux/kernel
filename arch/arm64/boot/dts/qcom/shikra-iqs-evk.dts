@@ -58,7 +58,7 @@
 		pinctrl-names = "default";
 	};
 
-	sound {
+	sound: sound {
 		compatible = "qcom,shikra-iqs-sndcard";
 		model = "shikra-iqs-evk";
 
