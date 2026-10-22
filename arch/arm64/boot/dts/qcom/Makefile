@@ -387,6 +387,10 @@ dtb-$(CONFIG_ARCH_QCOM)	+= shikra-cqs-evk-el2.dtb
 
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-evk.dtb
 
+shikra-iqs-lt9611uxd-evk-dtbs		:= shikra-iqs-evk.dtb shikra-iqs-lt9611uxd-evk.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-lt9611uxd-evk.dtb
+
 shikra-iqs-evk-el2-dtbs	:= shikra-iqs-evk.dtb shikra-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= shikra-iqs-evk-el2.dtb
 
