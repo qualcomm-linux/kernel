@@ -2800,6 +2800,18 @@
 					};
 				};
 			};
+
+			cooling {
+				compatible = "qcom,qmi-cooling-modem";
+					pa: pa {
+						label = "pa";
+						#cooling-cells = <2>;
+					};
+					modem: modem {
+						label = "modem";
+						#cooling-cells = <2>;
+					};
+			};
 		};
 
 		remoteproc_cdsp: remoteproc@b300000 {
@@ -5428,7 +5440,9 @@
 			};
 		};
 
-		mdmss0-thermal {
+		mdmss0_thermal: mdmss0-thermal {
+			polling-delay-passive = <200>;
+
 			thermal-sensors = <&tsens0 8>;
 
 			trips {
@@ -5438,15 +5452,34 @@
 					type = "hot";
 				};
 
-				mdmss0-critical {
+				mdmss0_alert1: trip-point1 {
 					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+
+				mdmss0-critical {
+					temperature = <118000>;
 					hysteresis = <0>;
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&mdmss0_alert1>;
+					cooling-device = <&pa THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&mdmss0_alert1>;
+					cooling-device = <&modem THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
-		mdmss1-thermal {
+		mdmss1_thermal: mdmss1-thermal {
+			polling-delay-passive = <200>;
 			thermal-sensors = <&tsens0 9>;
 
 			trips {
@@ -5456,10 +5489,28 @@
 					type = "hot";
 				};
 
-				mdmss1-critical {
+				mdmss1_alert1: trip-point1 {
 					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+
+				mdmss1-critical {
+					temperature = <118000>;
 					hysteresis = <0>;
 					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&mdmss1_alert1>;
+					cooling-device = <&pa THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&mdmss1_alert1>;
+					cooling-device = <&modem THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
