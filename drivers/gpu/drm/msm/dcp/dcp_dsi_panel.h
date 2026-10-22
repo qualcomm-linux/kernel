@@ -74,6 +74,19 @@ struct dcp_dsi_hfi_panel_config {
 	u32 topology_intf_count;
 };
 
+/**
+ * struct dcp_dsi_panel_state - Mode-dependent DSI panel state.
+ *
+ * This state is owned by a DRM atomic bridge state. It is combined with
+ * the static panel configuration when constructing the HFI PANEL_INIT
+ * payload.
+ */
+struct dcp_dsi_panel_state {
+	u32 topology_mixer_count;
+	u32 topology_enc_count;
+	u32 topology_intf_count;
+};
+
 /* DCS buffers use IOVAs directly in the firmware command descriptor. */
 #define DCP_DSI_DCS_TX_BUF_SIZE	SZ_4K
 #define DCP_DSI_DCS_RX_BUF_SIZE	SZ_4K
