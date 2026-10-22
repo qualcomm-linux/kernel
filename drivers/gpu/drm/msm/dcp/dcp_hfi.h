@@ -240,4 +240,25 @@ int dcp_hfi_get_capabilities(struct dcp_hfi *hfi, struct dcp_caps *caps);
 int dcp_hfi_set_display_property(struct dcp_hfi *hfi, u32 session_id,
 				 u32 prop_id, u32 value);
 
+struct dcp_dsi_hfi_config;
+int dcp_hfi_dsi_configure(struct dcp_hfi *hfi, u32 dsi_idx,
+			  const struct drm_display_mode *mode,
+			  const struct mipi_dsi_device *dsi,
+			  const struct dcp_dsi_hfi_config *cfg);
+int dcp_hfi_display_enable(struct dcp_hfi *hfi, u32 intf_idx,
+			   u32 display_id, u32 *session_id);
+int dcp_hfi_display_mode_validate(struct dcp_hfi *hfi, u32 session_id,
+				  const struct drm_display_mode *mode,
+				  u64 clk_rate_hz);
+int dcp_hfi_display_set_mode(struct dcp_hfi *hfi, u32 session_id,
+			     const struct drm_display_mode *mode,
+			     u64 clk_rate_hz);
+int dcp_hfi_display_post_enable(struct dcp_hfi *hfi, u32 session_id);
+int dcp_hfi_display_disable(struct dcp_hfi *hfi, u32 session_id);
+int dcp_hfi_display_post_disable(struct dcp_hfi *hfi, u32 session_id);
+ssize_t dcp_hfi_dcs_transfer(struct dcp_hfi *hfi, u32 session_id,
+			     const struct mipi_dsi_msg *msg,
+			     void *tx_buf, dma_addr_t tx_iova,
+			     void *rx_buf, dma_addr_t rx_iova,
+			     u32 post_wait_ms, u32 ctrl_idx);
 #endif /* __DCP_HFI_H__ */
