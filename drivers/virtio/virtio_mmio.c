@@ -71,7 +71,7 @@
 #include <uapi/linux/virtio_mmio.h>
 #include <linux/virtio_ring.h>
 
-
+#include "virtio_mmio.h"
 
 /* The alignment to use between consumer and producer parts of vring.
  * Currently hardcoded to the page size. */
@@ -81,18 +81,6 @@
 
 #define to_virtio_mmio_device(_plat_dev) \
 	container_of(_plat_dev, struct virtio_mmio_device, vdev)
-
-struct virtio_mmio_device {
-	struct virtio_device vdev;
-	struct platform_device *pdev;
-
-	void __iomem *base;
-	unsigned long version;
-
-	/* True if enable_irq_wake() succeeded for the shared IRQ. */
-	bool wake_irq_enabled;
-};
-
 /* Configuration interface */
 
 static u64 vm_get_features(struct virtio_device *vdev)
@@ -536,7 +524,7 @@ static bool vm_get_shm_region(struct virtio_device *vdev,
 	return true;
 }
 
-static const struct virtio_config_ops virtio_mmio_config_ops = {
+const struct virtio_config_ops virtio_mmio_config_ops = {
 	.get		= vm_get,
 	.set		= vm_set,
 	.generation	= vm_generation,
@@ -551,6 +539,7 @@ static const struct virtio_config_ops virtio_mmio_config_ops = {
 	.get_shm_region = vm_get_shm_region,
 	.synchronize_cbs = vm_synchronize_cbs,
 };
+EXPORT_SYMBOL_GPL(virtio_mmio_config_ops);
 
 #ifdef CONFIG_PM_SLEEP
 static int virtio_mmio_freeze(struct device *dev)
