@@ -365,13 +365,24 @@ static int apr_device_probe(struct device *dev)
 {
 	struct apr_device *adev = to_apr_device(dev);
 	struct apr_driver *adrv = to_apr_driver(dev->driver);
+	struct packet_router *apr = dev_get_drvdata(dev->parent);
 	int ret;
 
-	ret = adrv->probe(adev);
-	if (!ret)
+	if (apr->type == PR_TYPE_GPR)
 		adev->svc.callback = adrv->gpr_callback;
 
-	return ret;
+	ret = adrv->probe(adev);
+	if (ret) {
+		if (apr->type == PR_TYPE_GPR)
+			adev->svc.callback = NULL;
+
+		return ret;
+	}
+
+	if (apr->type != PR_TYPE_GPR)
+		adev->svc.callback = adrv->gpr_callback;
+
+	return 0;
 }
 
 static void apr_device_remove(struct device *dev)

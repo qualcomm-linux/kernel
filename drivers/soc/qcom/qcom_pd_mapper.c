@@ -498,6 +498,11 @@ static const struct qcom_pdm_domain_data *sc8280xp_domains[] = {
 	NULL,
 };
 
+static const struct qcom_pdm_domain_data *shikra_domains[] = {
+	&mpss_wlan_pd,
+	NULL,
+};
+
 /* Unlike SDM660, SDM630/636 lack CDSP */
 static const struct qcom_pdm_domain_data *sdm630_domains[] = {
 	&adsp_audio_pd,
@@ -626,6 +631,7 @@ static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
 	{ .compatible = "qcom,hawi", .data = kaanapali_domains, },
 	{ .compatible = "qcom,kaanapali", .data = kaanapali_domains, },
 	{ .compatible = "qcom,mahua", .data = glymur_domains, },
+	{ .compatible = "qcom,maili", .data = kaanapali_domains, },
 	{ .compatible = "qcom,milos", .data = sm8550_domains, },
 	{ .compatible = "qcom,msm8226", .data = NULL, },
 	{ .compatible = "qcom,msm8909", .data = NULL, },
@@ -644,6 +650,7 @@ static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
 	{ .compatible = "qcom,sc7280", .data = sc7280_domains, },
 	{ .compatible = "qcom,sc8180x", .data = sc8180x_domains, },
 	{ .compatible = "qcom,sc8280xp", .data = sc8280xp_domains, },
+	{ .compatible = "qcom,shikra", .data = shikra_domains, },
 	{ .compatible = "qcom,sdm630", .data = sdm630_domains, },
 	{ .compatible = "qcom,sdm636", .data = sdm630_domains, },
 	{ .compatible = "qcom,sda660", .data = sdm660_domains, },

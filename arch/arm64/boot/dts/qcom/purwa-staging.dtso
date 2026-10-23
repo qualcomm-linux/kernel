@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Purwa staging overlay - add staging-specific device tree modifications here.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "x1-staging.dtsi"
