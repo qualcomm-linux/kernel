@@ -30,13 +30,26 @@
 	lcd_bias: regulator-lcd-bias {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd_bias";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&pm4125_l17>;
 		gpio = <&tlmm 151 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		pinctrl-0 = <&lcd_bias_en>;
 		pinctrl-names = "default";
+	};
+
+	vreg_disp_n: regulator-vreg-disp-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_disp_n";
+		regulator-min-microvolt = <5500000>;
+		regulator-max-microvolt = <5500000>;
+		vin-supply = <&lcd_bias>;
+	};
+
+	vreg_disp_p: regulator-vreg-disp-p {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_disp_p";
+		regulator-min-microvolt = <5500000>;
+		regulator-max-microvolt = <5500000>;
+		vin-supply = <&lcd_bias>;
 	};
 
 	sound {
@@ -195,6 +208,53 @@
 	status = "okay";
 };
 
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&pm4125_l5>;
+
+	status = "okay";
+
+	panel@0 {
+		compatible = "dlc,dlc0697", "ilitek,ili7807s";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 3 GPIO_ACTIVE_LOW>;
+
+		vddi-supply = <&pm4125_l15>;
+		avdd-supply = <&vreg_disp_p>;
+		avee-supply = <&vreg_disp_n>;
+
+		pinctrl-0 = <&panel_rst_n &panel_te_pin &panel_bl_en>;
+		pinctrl-1 = <&panel_rst_n_suspend &panel_bl_en_suspend>;
+		pinctrl-names = "default", "sleep";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+};
+
+&pm4125_l5 {
+	/* DSI VDDA - must be at NOM voltage for PHY PLL lock */
+	regulator-min-microvolt = <1232000>;
+	regulator-max-microvolt = <1232000>;
+	regulator-allow-set-load;
+};
+
 &ethernet0 {
 	status = "okay";
 	phy-handle = <&ethphy0>;
@@ -310,46 +370,6 @@
 	};
 };
 
-&mdss {
-	status = "okay";
-};
-
-&mdss_dsi0 {
-	vdda-supply = <&pm4125_l5>;
-	status = "okay";
-
-	panel@0 {
-		compatible = "dlc,dlc0697", "ilitek,ili7807s";
-		reg = <0>;
-
-		reset-gpios = <&tlmm 3 GPIO_ACTIVE_LOW>;
-		backlight-en-gpios = <&tlmm 91 GPIO_ACTIVE_HIGH>;
-
-		vddi-supply = <&pm4125_l15>;
-		avdd-supply = <&lcd_bias>;
-		avee-supply = <&lcd_bias>;
-
-		pinctrl-0 = <&panel_rst_n &panel_te_pin>;
-		pinctrl-1 = <&panel_rst_n_suspend>;
-		pinctrl-names = "default", "sleep";
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&mdss_dsi0_out>;
-			};
-		};
-	};
-};
-
-&mdss_dsi0_out {
-	remote-endpoint = <&panel_in>;
-	data-lanes = <0 1 2 3>;
-};
-
-&mdss_dsi0_phy {
-	status = "okay";
-};
-
 &pcie {
 	wake-gpios = <&tlmm 119 GPIO_ACTIVE_LOW>;
 
@@ -456,13 +476,6 @@
 	vdda-pll-supply = <&pm4125_l9>;
 
 	status = "okay";
-};
-
-&pm4125_l5 {
-	/* DSI VDDA - must be at NOM voltage for PHY PLL lock */
-	regulator-min-microvolt = <1232000>;
-	regulator-max-microvolt = <1232000>;
-	regulator-allow-set-load;
 };
 
 &q6apmbedai {
@@ -586,6 +599,50 @@
 &tlmm {
 	gpio-reserved-ranges = <6 4>, <30 2>, <115 2>, <138 1>, <155 11>;
 
+	panel_rst_n: panel-rst-n-state {
+		pins = "gpio3";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	panel_rst_n_suspend: panel-rst-n-suspend-state {
+		pins = "gpio3";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	panel_te_pin: panel-te-pin-state {
+		pins = "gpio86";
+		function = "mdp_vsync_p";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	panel_bl_en: panel-bl-en-state {
+		pins = "gpio91";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+	panel_bl_en_suspend: panel-bl-en-suspend-state {
+		pins = "gpio91";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+		output-low;
+	};
+
+	lcd_bias_en: lcd-bias-en-state {
+		pins = "gpio151";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	dmic_eldo_en_default: dmic-eldo-default-active-state {
 		pins = "gpio71";
 		function = "gpio";
@@ -629,34 +686,6 @@
 		function = "i2s2";
 		drive-strength = <8>;
 		bias-disable;
-	};
-
-	lcd_bias_en: lcd-bias-en-state {
-		pins = "gpio151";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	panel_rst_n: panel-rst-n-state {
-		pins = "gpio3";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
-	panel_rst_n_suspend: panel-rst-n-suspend-state {
-		pins = "gpio3";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-pull-down;
-	};
-
-	panel_te_pin: panel-te-pin-state {
-		pins = "gpio86";
-		function = "mdp_vsync_p";
-		drive-strength = <2>;
-		bias-pull-down;
 	};
 
 	pcie_default_state: pcie-default-state {
