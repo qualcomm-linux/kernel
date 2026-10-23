@@ -1310,3 +1310,146 @@ const struct attribute_group *nvme_subsys_attrs_groups[] = {
 	&nvme_subsys_attrs_group,
 	NULL,
 };
+
+#ifdef CONFIG_NVME_SPEED_SWITCH
+enum nvme_speed_attr_id {
+	NVME_SPEED_ATTR_ENABLE,
+	NVME_SPEED_ATTR_MONITOR_INTERVAL,
+	NVME_SPEED_ATTR_MIN_SPEED,
+	NVME_SPEED_ATTR_UP_THRESHOLD,
+	NVME_SPEED_ATTR_DOWN_THRESHOLD,
+};
+
+struct nvme_speed_attr {
+	struct device_attribute attr;
+	enum nvme_speed_attr_id id;
+};
+
+static ssize_t nvme_speed_attr_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+	struct nvme_speed_switch *sw = &ctrl->speed_switch;
+	struct nvme_speed_attr *sa =
+		container_of(attr, struct nvme_speed_attr, attr);
+	u32 val;
+
+	switch (sa->id) {
+	case NVME_SPEED_ATTR_ENABLE:
+		val = READ_ONCE(sw->enabled);
+		break;
+	case NVME_SPEED_ATTR_MONITOR_INTERVAL:
+		val = READ_ONCE(sw->monitor_interval);
+		break;
+	case NVME_SPEED_ATTR_MIN_SPEED:
+		val = READ_ONCE(sw->min_speed);
+		break;
+	case NVME_SPEED_ATTR_UP_THRESHOLD:
+		val = READ_ONCE(sw->up_threshold);
+		break;
+	case NVME_SPEED_ATTR_DOWN_THRESHOLD:
+		val = READ_ONCE(sw->down_threshold);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+
+static ssize_t nvme_speed_attr_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+	struct nvme_speed_switch *sw = &ctrl->speed_switch;
+	struct nvme_speed_attr *sa =
+		container_of(attr, struct nvme_speed_attr, attr);
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	switch (sa->id) {
+	case NVME_SPEED_ATTR_ENABLE:
+		if (val > 1)
+			return -EINVAL;
+		if (!val && READ_ONCE(sw->enabled)) {
+			WRITE_ONCE(sw->enabled, false);
+			timer_delete_sync(&sw->timer);
+			cancel_work_sync(&sw->work);
+			atomic_set(&sw->timer_active, NVME_SPEED_TIMER_INACTIVE);
+		} else
+			WRITE_ONCE(sw->enabled, val);
+		break;
+	case NVME_SPEED_ATTR_MONITOR_INTERVAL:
+		if (val < 100)
+			return -EINVAL;
+		WRITE_ONCE(sw->monitor_interval, val);
+		break;
+	case NVME_SPEED_ATTR_MIN_SPEED:
+		if (val < 1 || val > 5)
+			return -EINVAL;
+		if (val > sw->max_speed)
+			val = sw->max_speed;
+		WRITE_ONCE(sw->min_speed, val);
+		break;
+	case NVME_SPEED_ATTR_UP_THRESHOLD:
+		WRITE_ONCE(sw->up_threshold, val);
+		break;
+	case NVME_SPEED_ATTR_DOWN_THRESHOLD:
+		WRITE_ONCE(sw->down_threshold, val);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static struct nvme_speed_attr nvme_speed_attr_enable = {
+	.attr = __ATTR(enable, 0644,
+		       nvme_speed_attr_show, nvme_speed_attr_store),
+	.id = NVME_SPEED_ATTR_ENABLE,
+};
+
+static struct nvme_speed_attr nvme_speed_attr_monitor_interval = {
+	.attr = __ATTR(monitor_interval, 0644,
+		       nvme_speed_attr_show, nvme_speed_attr_store),
+	.id = NVME_SPEED_ATTR_MONITOR_INTERVAL,
+};
+
+static struct nvme_speed_attr nvme_speed_attr_min_speed = {
+	.attr = __ATTR(min_speed, 0644,
+		       nvme_speed_attr_show, nvme_speed_attr_store),
+	.id = NVME_SPEED_ATTR_MIN_SPEED,
+};
+
+static struct nvme_speed_attr nvme_speed_attr_up_threshold = {
+	.attr = __ATTR(up_threshold, 0644,
+		       nvme_speed_attr_show, nvme_speed_attr_store),
+	.id = NVME_SPEED_ATTR_UP_THRESHOLD,
+};
+
+static struct nvme_speed_attr nvme_speed_attr_down_threshold = {
+	.attr = __ATTR(down_threshold, 0644,
+		       nvme_speed_attr_show, nvme_speed_attr_store),
+	.id = NVME_SPEED_ATTR_DOWN_THRESHOLD,
+};
+
+static struct attribute *nvme_speed_attrs[] = {
+	&nvme_speed_attr_enable.attr.attr,
+	&nvme_speed_attr_monitor_interval.attr.attr,
+	&nvme_speed_attr_min_speed.attr.attr,
+	&nvme_speed_attr_up_threshold.attr.attr,
+	&nvme_speed_attr_down_threshold.attr.attr,
+	NULL,
+};
+
+const struct attribute_group nvme_speed_attr_group = {
+	.name = "speed",
+	.attrs = nvme_speed_attrs,
+};
+#endif /* CONFIG_NVME_SPEED_SWITCH */

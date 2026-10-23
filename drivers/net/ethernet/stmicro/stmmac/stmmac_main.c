@@ -50,6 +50,7 @@
 #include "stmmac.h"
 #include "stmmac_pcs.h"
 #include "stmmac_xdp.h"
+#include "dw25gmac.h"
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
@@ -142,6 +143,10 @@ static const char *stmmac_dwmac_actphyif[8] = {
 static const char *stmmac_dwxgmac_phyif[4] = {
 	[PHY_INTF_GMII]		= "GMII",
 	[PHY_INTF_RGMII]	= "RGMII",
+};
+
+static const char *stmmac_dw25gmac_phyif[2] = {
+	[PHY_INTF_DW25GMAC_XGMII]	= "XGMII",
 };
 
 static irqreturn_t stmmac_interrupt(int irq, void *dev_id);
@@ -1095,7 +1100,10 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		ctrl |= priv->hw->link.xlgmii.speed40000;
 		break;
 	case SPEED_25000:
-		ctrl |= priv->hw->link.xlgmii.speed25000;
+		if (interface == PHY_INTERFACE_MODE_XGMII)
+			ctrl |= priv->hw->link.xgmii.speed25000;
+		else
+			ctrl |= priv->hw->link.xlgmii.speed25000;
 		break;
 	case SPEED_10000:
 		ctrl |= priv->hw->link.xgmii.speed10000;
@@ -1104,7 +1112,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		ctrl |= priv->hw->link.xgmii.speed5000;
 		break;
 	case SPEED_2500:
-		if (interface == PHY_INTERFACE_MODE_USXGMII)
+		if (interface == PHY_INTERFACE_MODE_USXGMII ||
+		    interface == PHY_INTERFACE_MODE_XGMII)
 			ctrl |= priv->hw->link.xgmii.speed2500;
 		else
 			ctrl |= priv->hw->link.speed2500;
@@ -3313,6 +3322,25 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 				    tx_q->dma_tx_phy, chan);
 
 		stmmac_set_queue_tx_tail_ptr(priv, tx_q, chan, 0);
+	}
+
+	/*
+	 * DW25GMAC (HDMA) requires every hardware VDMA to have a valid TC
+	 * mapping before descriptor-cache base addresses are computed. Keep
+	 * channels not exposed to Linux genuinely offline: their descriptor
+	 * cache size is zero, their start bit is clear, and an unused RX PDMA
+	 * is explicitly disabled through RXPEN.
+	 */
+	if (priv->plat->core_type == DWMAC_CORE_25GMAC) {
+		u32 rx_sup = priv->dma_cap.number_rx_channel;
+		u32 tx_sup = priv->dma_cap.number_tx_channel;
+		u32 och;
+
+		for (och = rx_channels_count; och < rx_sup; och++)
+			dw25gmac_dma_map_rx_offline_chan(priv, priv->ioaddr, och);
+		for (och = tx_channels_count; och < tx_sup; och++)
+			dw25gmac_dma_map_tx_offline_chan(priv, priv->ioaddr, och);
+		dw25gmac_desc_cache_compute(priv->ioaddr);
 	}
 
 	return ret;
@@ -6226,6 +6254,13 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 	if (priv->plat->bugged_jumbo && (dev->mtu > ETH_DATA_LEN))
 		features &= ~NETIF_F_CSUM_MASK;
 
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC) {
+		if (features & NETIF_F_HW_VLAN_CTAG_RX)
+			features |= NETIF_F_HW_VLAN_STAG_RX;
+		else
+			features &= ~NETIF_F_HW_VLAN_STAG_RX;
+	}
+
 	return features;
 }
 
@@ -6850,32 +6885,21 @@ static u32 stmmac_vid_crc32_le(__le16 vid_le)
 	return crc;
 }
 
-static int stmmac_vlan_update(struct stmmac_priv *priv, bool is_double)
+static int stmmac_vlan_update(struct stmmac_priv *priv, bool is_svlan)
 {
 	u32 crc, hash = 0;
-	u16 pmatch = 0;
-	int count = 0;
 	u16 vid = 0;
 
 	for_each_set_bit(vid, priv->active_vlans, VLAN_N_VID) {
 		__le16 vid_le = cpu_to_le16(vid);
 		crc = bitrev32(~stmmac_vid_crc32_le(vid_le)) >> 28;
 		hash |= (1 << crc);
-		count++;
-	}
-
-	if (!priv->dma_cap.vlhash) {
-		if (count > 2) /* VID = 0 always passes filter */
-			return -EOPNOTSUPP;
-
-		pmatch = vid;
-		hash = 0;
 	}
 
 	if (!netif_running(priv->dev))
 		return 0;
 
-	return stmmac_update_vlan_hash(priv, priv->hw, hash, pmatch, is_double);
+	return stmmac_update_vlan_hash(priv, priv->hw, hash, is_svlan);
 }
 
 /* FIXME: This may need RXC to be running, but it may be called with BH
@@ -6884,8 +6908,8 @@ static int stmmac_vlan_update(struct stmmac_priv *priv, bool is_double)
 static int stmmac_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	unsigned int num_double_vlans;
-	bool is_double = false;
+	unsigned int num_svlans;
+	bool is_svlan = false;
 	int ret;
 
 	ret = pm_runtime_resume_and_get(priv->device);
@@ -6893,11 +6917,11 @@ static int stmmac_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid
 		return ret;
 
 	if (be16_to_cpu(proto) == ETH_P_8021AD)
-		is_double = true;
+		is_svlan = true;
 
 	set_bit(vid, priv->active_vlans);
-	num_double_vlans = priv->num_double_vlans + is_double;
-	ret = stmmac_vlan_update(priv, num_double_vlans);
+	num_svlans = priv->num_svlans + is_svlan;
+	ret = stmmac_vlan_update(priv, num_svlans);
 	if (ret) {
 		clear_bit(vid, priv->active_vlans);
 		goto err_pm_put;
@@ -6907,12 +6931,12 @@ static int stmmac_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid
 		ret = stmmac_add_hw_vlan_rx_fltr(priv, ndev, priv->hw, proto, vid);
 		if (ret) {
 			clear_bit(vid, priv->active_vlans);
-			stmmac_vlan_update(priv, priv->num_double_vlans);
+			stmmac_vlan_update(priv, priv->num_svlans);
 			goto err_pm_put;
 		}
 	}
 
-	priv->num_double_vlans = num_double_vlans;
+	priv->num_svlans = num_svlans;
 
 err_pm_put:
 	pm_runtime_put(priv->device);
@@ -6926,8 +6950,8 @@ err_pm_put:
 static int stmmac_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	unsigned int num_double_vlans;
-	bool is_double = false;
+	unsigned int num_svlans;
+	bool is_svlan = false;
 	int ret;
 
 	ret = pm_runtime_resume_and_get(priv->device);
@@ -6935,11 +6959,11 @@ static int stmmac_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vi
 		return ret;
 
 	if (be16_to_cpu(proto) == ETH_P_8021AD)
-		is_double = true;
+		is_svlan = true;
 
 	clear_bit(vid, priv->active_vlans);
-	num_double_vlans = priv->num_double_vlans - is_double;
-	ret = stmmac_vlan_update(priv, num_double_vlans);
+	num_svlans = priv->num_svlans - is_svlan;
+	ret = stmmac_vlan_update(priv, num_svlans);
 	if (ret) {
 		set_bit(vid, priv->active_vlans);
 		goto del_vlan_error;
@@ -6949,12 +6973,12 @@ static int stmmac_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vi
 		ret = stmmac_del_hw_vlan_rx_fltr(priv, ndev, priv->hw, proto, vid);
 		if (ret) {
 			set_bit(vid, priv->active_vlans);
-			stmmac_vlan_update(priv, priv->num_double_vlans);
+			stmmac_vlan_update(priv, priv->num_svlans);
 			goto del_vlan_error;
 		}
 	}
 
-	priv->num_double_vlans = num_double_vlans;
+	priv->num_svlans = num_svlans;
 
 del_vlan_error:
 	pm_runtime_put(priv->device);
@@ -6970,7 +6994,7 @@ static void stmmac_vlan_restore(struct stmmac_priv *priv)
 	if (priv->hw->num_vlan)
 		stmmac_restore_hw_vlan_rx_fltr(priv, priv->dev, priv->hw);
 
-	stmmac_vlan_update(priv, priv->num_double_vlans);
+	stmmac_vlan_update(priv, priv->num_svlans);
 }
 
 static int stmmac_bpf(struct net_device *dev, struct netdev_bpf *bpf)
@@ -7419,6 +7443,11 @@ static void stmmac_print_actphyif(struct stmmac_priv *priv)
 	case DWMAC_CORE_XGMAC:
 		phyif_table = stmmac_dwxgmac_phyif;
 		phyif_table_size = ARRAY_SIZE(stmmac_dwxgmac_phyif);
+		break;
+
+	case DWMAC_CORE_25GMAC:
+		phyif_table = stmmac_dw25gmac_phyif;
+		phyif_table_size = ARRAY_SIZE(stmmac_dw25gmac_phyif);
 		break;
 	}
 
@@ -8009,14 +8038,18 @@ static int __stmmac_dvr_probe(struct device *device,
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Both mac100 and gmac support receive VLAN tag detection */
-	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX;
+	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX;
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
+		ndev->features |= NETIF_F_HW_VLAN_STAG_RX;
+
 	if (dwmac_is_xmac(priv->plat->core_type)) {
 		ndev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
 		priv->hw->hw_vlan_en = true;
 	}
 	if (priv->dma_cap.vlhash) {
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
-		ndev->features |= NETIF_F_HW_VLAN_STAG_FILTER;
+		if (priv->plat->core_type == DWMAC_CORE_XGMAC)
+			ndev->features |= NETIF_F_HW_VLAN_STAG_FILTER;
 	}
 	if (priv->dma_cap.vlins)
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_TX;

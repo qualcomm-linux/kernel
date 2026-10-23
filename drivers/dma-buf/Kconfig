@@ -43,7 +43,14 @@ config UDMABUF
 config DMABUF_DEBUG
 	bool "DMA-BUF debug checks"
 	depends on DMA_SHARED_BUFFER
-	default y if DEBUG_KERNEL
+	# NOTE: keep this default n.  The page-stripping sg_table wrapper that
+	# this option installs for importers breaks drivers that build a
+	# second-stage IOMMU mapping (phys -> iova) from the attachment sg_table
+	# and therefore still need the struct page, e.g. drm/msm with its
+	# per-process GPU pagetables.  Until those importers are fixed, making
+	# this default y breaks hardware video decode and GPU workloads out of
+	# the box on affected systems.
+	default n
 	help
 	  This option enables additional checks for DMA-BUF importers and
 	  exporters. Specifically it validates that importers do not peek at the

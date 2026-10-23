@@ -377,3 +377,5 @@ config POWER_RESET_QEMU_VIRT_CTRL
 	  provides this controller, such as the m68k virt machine.
 
 endif
+
+source "drivers/power/reset/pscrr/Kconfig"
