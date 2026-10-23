@@ -6,6 +6,12 @@
 /dts-v1/;
 /plugin/;
 
+&iris {
+	video-firmware {
+		iommus = <&apps_smmu_1 0x0962 0x0000>;
+	};
+};
+
 &remoteproc_adsp {
 	iommus = <&apps_smmu_0 0x09e0 0x0>;
 };
