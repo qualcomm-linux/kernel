@@ -105,9 +105,18 @@ struct iris_hfi_prop_type_handle {
 	int (*handle)(struct iris_inst *inst, u32 plane);
 };
 
+#define IRIS_FW_DEBUG_LOW	0x00000001
+#define IRIS_FW_DEBUG_MEDIUM	0x00000002
+#define IRIS_FW_DEBUG_HIGH	0x00000004
+#define IRIS_FW_DEBUG_ERROR	0x00000008
+#define IRIS_FW_DEBUG_FATAL	0x00000010
+#define IRIS_FW_DEBUG_PERF	0x00000020
+#define IRIS_FW_DEBUG_LOGMASK	0x0fffffff
+
 struct iris_hfi_sys_ops {
 	int (*sys_init)(struct iris_core *core);
 	int (*sys_image_version)(struct iris_core *core);
+	int (*sys_set_debug)(struct iris_core *core);
 	int (*sys_interframe_powercollapse)(struct iris_core *core);
 	int (*sys_pc_prep)(struct iris_core *core);
 
@@ -155,6 +164,7 @@ u32 iris_hfi_get_v4l2_color_primaries(u32 hfi_primaries);
 u32 iris_hfi_get_v4l2_transfer_char(u32 hfi_characterstics);
 u32 iris_hfi_get_v4l2_matrix_coefficients(u32 hfi_coefficients);
 int iris_hfi_core_init(struct iris_core *core);
+int iris_hfi_set_debug(struct iris_core *core);
 int iris_hfi_pm_suspend(struct iris_core *core);
 int iris_hfi_pm_resume(struct iris_core *core);
 
