@@ -447,6 +447,266 @@
 		cell-index = <5>;
 		status = "okay";
 	};
+
+	/* MAX96724 Deserializer 0 */
+	qcom,cam-gmsl-deserializer0 {
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&pm8150_s4>;
+		regulator-names = "cam_vio";
+		power-domains = <&gcc GCC_CAMSS_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_active_rst0>;
+		pinctrl-1 = <&cam_sensor_suspend_rst0>;
+		gpios = <&tlmm 32 0>,
+			<&tlmm 59 0>,
+			<&tlmm 56 0>;
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-custom2 = <2>;
+		gpio-req-tbl-num = <0 1 2>;
+		gpio-req-tbl-flags   	 = <0 0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
+		                       "CAM_CUSTOM1",
+		                         "CAM_CUSTOM2";
+		cci-master = <0>;
+		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			deser0_port0: endpoint {
+				remote-endpoint = <&gmsl_sensor0_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			deser0_port1: endpoint {
+				remote-endpoint = <&gmsl_sensor1_ep>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			deser0_port2: endpoint {
+				remote-endpoint = <&gmsl_sensor2_ep>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+			deser0_port3: endpoint {
+				remote-endpoint = <&gmsl_sensor3_ep>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 0 */
+	qcom,cam-gmsl-sensor0 {
+		cell-index = <6>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor0_ep: endpoint {
+				remote-endpoint = <&deser0_port0>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 1 */
+	qcom,cam-gmsl-sensor1 {
+		cell-index = <7>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor1_ep: endpoint {
+				remote-endpoint = <&deser0_port1>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 2 */
+	qcom,cam-gmsl-sensor2 {
+		cell-index = <8>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor2_ep: endpoint {
+				remote-endpoint = <&deser0_port2>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 3 */
+	qcom,cam-gmsl-sensor3 {
+		cell-index = <9>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor3_ep: endpoint {
+				remote-endpoint = <&deser0_port3>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 */
+	qcom,cam-gmsl-deserializer1 {
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&pm8150_s4>;
+		regulator-names = "cam_vio";
+		power-domains = <&gcc GCC_CAMSS_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_active_rst1>;
+		pinctrl-1 = <&cam_sensor_suspend_rst1>;
+		gpios = <&tlmm 33 0>,
+			<&tlmm 58 0>,
+			<&tlmm 64 0>;
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-custom2 = <2>;
+		gpio-req-tbl-num = <0 1 2>;
+		gpio-req-tbl-flags   	 = <0 0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET1",
+		                       "CAM_CUSTOM1",
+		                         "CAM_CUSTOM2";
+		cci-master = <1>;
+		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			deser1_port0: endpoint {
+				remote-endpoint = <&gmsl_sensor4_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			deser1_port1: endpoint {
+				remote-endpoint = <&gmsl_sensor5_ep>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			deser1_port2: endpoint {
+				remote-endpoint = <&gmsl_sensor6_ep>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+			deser1_port3: endpoint {
+				remote-endpoint = <&gmsl_sensor7_ep>;
+			};
+		};
+
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 0 */
+	qcom,cam-gmsl-sensor4 {
+		cell-index = <10>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor4_ep: endpoint {
+				remote-endpoint = <&deser1_port0>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 1 */
+	qcom,cam-gmsl-sensor5 {
+		cell-index = <11>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor5_ep: endpoint {
+				remote-endpoint = <&deser1_port1>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 2 */
+	qcom,cam-gmsl-sensor6 {
+		cell-index = <12>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor6_ep: endpoint {
+				remote-endpoint = <&deser1_port2>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 3 */
+	qcom,cam-gmsl-sensor7 {
+		cell-index = <13>;
+		compatible = "qcom,cam-gmsl-sensor";
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		status = "okay";
+		port {
+			gmsl_sensor7_ep: endpoint {
+				remote-endpoint = <&deser1_port3>;
+			};
+
+		};
+	};
 };
 
 &soc {
