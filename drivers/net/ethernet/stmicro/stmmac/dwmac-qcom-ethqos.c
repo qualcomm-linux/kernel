@@ -7,6 +7,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_opp.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
@@ -132,6 +133,7 @@ struct qcom_ethqos {
 	bool needs_sgmii_loopback;
 
 	struct clk_bulk_data noc_clks[ETHQOS_MAX_NOC_CLKS];
+	unsigned long noc_clk_rates[ETHQOS_MAX_NOC_CLKS];
 	int num_noc_clks;
 };
 
@@ -208,7 +210,7 @@ ethqos_update_link_clk(struct qcom_ethqos *ethqos, int speed)
 		 * MAC added delay: 250/50/5 Mhz for 1G/100M/10M
 		 * No MAC delay (DLL bypass): 250/25/2.5 Mhz for 1G/100M/10M
 		 */
-		if (ethqos->phy_mode == PHY_INTERFACE_MODE_RGMII ||
+		if (ethqos->phy_mode != PHY_INTERFACE_MODE_RGMII_ID ||
 		    speed == SPEED_1000)
 			rate *= 2;
 		ethqos->link_clk_rate = rate;
@@ -336,9 +338,9 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
 };
 
 static const struct ethqos_noc_clk_cfg shikra_noc_clks[] = {
-	{ "axi",               120000000 },
-	{ "axi-noc",           120000000 },
+	{ "axi-noc", 120000000 },
 	{ "pcie-tile-axi-noc", 120000000 },
+	{ "stmmaceth", 120000000 },
 };
 
 static const struct ethqos_emac_driver_data shikra_data = {
@@ -590,16 +592,21 @@ static void ethqos_rgmii_id_macro_init(struct qcom_ethqos *ethqos, int speed)
 		      RGMII_IO_MACRO_CONFIG2);
 
 	if (speed == SPEED_1000)
-		rgmii_clrmask(ethqos, RGMII_CONFIG2_RSVD_CONFIG15, RGMII_IO_MACRO_CONFIG2);
+		rgmii_clrmask(ethqos, RGMII_CONFIG2_RSVD_CONFIG15,
+			      RGMII_IO_MACRO_CONFIG2);
 	else
-		rgmii_setmask(ethqos, RGMII_CONFIG2_RSVD_CONFIG15, RGMII_IO_MACRO_CONFIG2);
+		rgmii_setmask(ethqos, RGMII_CONFIG2_RSVD_CONFIG15,
+			      RGMII_IO_MACRO_CONFIG2);
 
-	if (!ethqos->rgmii_config_loopback_en)
-		rgmii_clrmask(ethqos, RGMII_CONFIG_LOOPBACK_EN, RGMII_IO_MACRO_CONFIG);
+	if (ethqos->rgmii_config_loopback_en)
+		rgmii_setmask(ethqos, RGMII_CONFIG_LOOPBACK_EN,
+			      RGMII_IO_MACRO_CONFIG);
 	else
-		rgmii_setmask(ethqos, RGMII_CONFIG_LOOPBACK_EN, RGMII_IO_MACRO_CONFIG);
+		rgmii_clrmask(ethqos, RGMII_CONFIG_LOOPBACK_EN,
+			      RGMII_IO_MACRO_CONFIG);
 
-	rgmii_setmask(ethqos, RGMII_CONFIG2_RX_PROG_SWAP, RGMII_IO_MACRO_CONFIG2);
+	rgmii_setmask(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
+		      RGMII_IO_MACRO_CONFIG2);
 }
 
 static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos, int speed)
@@ -788,12 +795,36 @@ static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
 static int ethqos_clks_config(void *priv, bool enabled)
 {
 	struct qcom_ethqos *ethqos = priv;
+	unsigned int i;
 	int ret = 0;
 
 	if (enabled) {
+		if (ethqos->num_noc_clks) {
+			ret = dev_pm_opp_set_rate(&ethqos->pdev->dev,
+						  ethqos->noc_clk_rates[0]);
+			if (ret) {
+				dev_err(&ethqos->pdev->dev,
+					"NOC OPP rate set failed: %d\n", ret);
+				return ret;
+			}
+
+			for (i = 1; i < ethqos->num_noc_clks; i++) {
+				ret = clk_set_rate(ethqos->noc_clks[i].clk,
+						   ethqos->noc_clk_rates[i]);
+				if (ret) {
+					dev_err(&ethqos->pdev->dev,
+						"NOC clock rate set failed: %d\n", ret);
+					dev_pm_opp_set_rate(&ethqos->pdev->dev, 0);
+					return ret;
+				}
+			}
+		}
+
 		ret = clk_prepare_enable(ethqos->link_clk);
 		if (ret) {
 			dev_err(&ethqos->pdev->dev, "link_clk enable failed\n");
+			if (ethqos->num_noc_clks)
+				dev_pm_opp_set_rate(&ethqos->pdev->dev, 0);
 			return ret;
 		}
 
@@ -804,6 +835,7 @@ static int ethqos_clks_config(void *priv, bool enabled)
 				dev_err(&ethqos->pdev->dev,
 					"NOC clocks enable failed: %d\n", ret);
 				clk_disable_unprepare(ethqos->link_clk);
+				dev_pm_opp_set_rate(&ethqos->pdev->dev, 0);
 				return ret;
 			}
 		}
@@ -819,6 +851,8 @@ static int ethqos_clks_config(void *priv, bool enabled)
 			clk_bulk_disable_unprepare(ethqos->num_noc_clks,
 						   ethqos->noc_clks);
 		clk_disable_unprepare(ethqos->link_clk);
+		if (ethqos->num_noc_clks)
+			dev_pm_opp_set_rate(&ethqos->pdev->dev, 0);
 	}
 
 	return ret;
@@ -829,10 +863,15 @@ static void ethqos_clks_disable(void *data)
 	ethqos_clks_config(data, false);
 }
 
-/*
- * Some SoCs gate interconnect access to the System NOC behind dedicated
- * clocks.  Acquire them, set their required rates, and store the result in
- * ethqos so ethqos_clks_config() can enable/disable them at runtime.
+static void qcom_ethqos_noc_opp_cleanup(void *dev)
+{
+	dev_pm_opp_set_rate(dev, 0);
+}
+
+/* Some SoCs gate NOC access behind dedicated clocks. Acquire them here
+ * so ethqos_clks_config() can enable/disable them at runtime. The OPP
+ * table is used to propagate the required VDD_CX performance state via
+ * dev_pm_opp_set_rate().
  */
 static int qcom_ethqos_init_noc_clks(struct qcom_ethqos *ethqos,
 				     const struct ethqos_emac_driver_data *data)
@@ -841,23 +880,32 @@ static int qcom_ethqos_init_noc_clks(struct qcom_ethqos *ethqos,
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < data->num_noc_clks; i++)
+	if (!data->num_noc_clks)
+		return 0;
+
+	for (i = 0; i < data->num_noc_clks; i++) {
 		ethqos->noc_clks[i].id = data->noc_clk_cfg[i].id;
+		ethqos->noc_clk_rates[i] = data->noc_clk_cfg[i].rate;
+	}
 	ethqos->num_noc_clks = data->num_noc_clks;
 
 	ret = devm_clk_bulk_get(dev, ethqos->num_noc_clks, ethqos->noc_clks);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get NOC clocks\n");
 
-	for (i = 0; i < data->num_noc_clks; i++) {
-		ret = clk_set_rate(ethqos->noc_clks[i].clk,
-				   data->noc_clk_cfg[i].rate);
-		if (ret)
-			dev_warn(dev, "Failed to set %s rate: %d\n",
-				 data->noc_clk_cfg[i].id, ret);
-	}
+	ret = devm_pm_opp_set_clkname(dev, data->noc_clk_cfg[0].id);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to set OPP clock name\n");
 
-	return 0;
+	ret = devm_pm_opp_of_add_table(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to add OPP table\n");
+
+	ret = dev_pm_opp_set_rate(dev, data->noc_clk_cfg[0].rate);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to set initial NOC OPP rate\n");
+
+	return devm_add_action_or_reset(dev, qcom_ethqos_noc_opp_cleanup, dev);
 }
 
 static int qcom_ethqos_probe(struct platform_device *pdev)
@@ -890,9 +938,11 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ethqos->phy_mode = plat_dat->phy_interface;
 	switch (ethqos->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
+		dev_warn(dev, "legacy RGMII phy-mode detected; consider upgrading to a newer DTB\n");
+		fallthrough;
+	case PHY_INTERFACE_MODE_RGMII_ID:
 		ethqos->configure_func = ethqos_configure_rgmii;
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
@@ -920,11 +970,9 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ethqos->has_emac_ge_3 = data->has_emac_ge_3;
 	ethqos->needs_sgmii_loopback = data->needs_sgmii_loopback;
 
-	if (data->num_noc_clks) {
-		ret = qcom_ethqos_init_noc_clks(ethqos, data);
-		if (ret)
-			return ret;
-	}
+	ret = qcom_ethqos_init_noc_clks(ethqos, data);
+	if (ret)
+		return ret;
 
 	ethqos->link_clk = devm_clk_get(dev, data->link_clk_name ?: "rgmii");
 	if (IS_ERR(ethqos->link_clk))
@@ -945,7 +993,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 				     "Failed to get serdes phy\n");
 
 	ethqos->serdes_speed = SPEED_1000;
-	ethqos_update_link_clk(ethqos, SPEED_1000);
+	ethqos_update_link_clk(ethqos, SPEED_10);
 	ethqos_set_func_clk_en(ethqos);
 
 	plat_dat->bsp_priv = ethqos;

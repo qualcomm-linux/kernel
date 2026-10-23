@@ -689,6 +689,56 @@
 			gpio-ranges = <&tlmm 0 0 165>;
 			wakeup-parent = <&mpm>;
 
+			ethernet0_default: ethernet0-default-state {
+				rgmii-rx-pins {
+					pins = "gpio121", "gpio122", "gpio123",
+					       "gpio124", "gpio125", "gpio126";
+					function = "rgmii";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				rgmii-tx-pins {
+					pins = "gpio127", "gpio128", "gpio129",
+					       "gpio130", "gpio131", "gpio132";
+					function = "rgmii";
+					drive-strength = <16>;
+					bias-pull-up;
+				};
+
+				rgmii-mdio-pins {
+					pins = "gpio133", "gpio134";
+					function = "rgmii";
+					drive-strength = <16>;
+					bias-pull-up;
+				};
+			};
+
+			ethernet1_default: ethernet1-default-state {
+				rgmii-rx-pins {
+					pins = "gpio137", "gpio138", "gpio139",
+					       "gpio140", "gpio141", "gpio142";
+					function = "rgmii";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				rgmii-tx-pins {
+					pins = "gpio143", "gpio144", "gpio145",
+					       "gpio146", "gpio147", "gpio148";
+					function = "rgmii";
+					drive-strength = <16>;
+					bias-pull-up;
+				};
+
+				rgmii-mdio-pins {
+					pins = "gpio149", "gpio150";
+					function = "rgmii";
+					drive-strength = <16>;
+					bias-pull-up;
+				};
+			};
+
 			cci_i2c0_default: cci-i2c0-default-state {
 				/* SDA, SCL */
 				pins = "gpio36", "gpio37";
@@ -3235,11 +3285,10 @@
 				 <&gcc GCC_EMAC0_AHB_CLK>,
 				 <&gcc GCC_EMAC0_PTP_CLK>,
 				 <&gcc GCC_EMAC0_RGMII_CLK>,
-				 <&gcc GCC_EMAC0_AXI_CLK>,
 				 <&gcc GCC_EMAC0_AXI_SYS_NOC_CLK>,
 				 <&gcc GCC_PCIE_TILE_AXI_SYS_NOC_CLK>;
 			clock-names = "stmmaceth", "pclk", "ptp_ref", "rgmii",
-				      "axi", "axi-noc", "pcie-tile-axi-noc";
+				      "axi-noc", "pcie-tile-axi-noc";
 
 			power-domains = <&gcc GCC_EMAC0_GDSC>;
 			resets = <&gcc GCC_EMAC0_BCR>;
@@ -3250,15 +3299,86 @@
 					<&system_noc MASTER_EMAC_0 QCOM_ICC_TAG_ALWAYS
 					 &mc_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ALWAYS>;
 			interconnect-names = "cpu-mac", "mac-mem";
+			operating-points-v2 = <&emac0_opp_table>;
 
 			snps,tso;
 			snps,pbl = <32>;
-			rx-fifo-depth = <8192>;
-			tx-fifo-depth = <8192>;
+			rx-fifo-depth = <16384>;
+			tx-fifo-depth = <16384>;
+
+			snps,mtl-rx-config = <&emac0_mtl_rx_setup>;
+			snps,mtl-tx-config = <&emac0_mtl_tx_setup>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+
+			emac0_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-120000000 {
+					opp-hz = /bits/ 64 <120000000>;
+					required-opps = <&rpmpd_opp_svs>;
+				};
+			};
+
+			emac0_mtl_rx_setup: rx-queues-config {
+				snps,rx-queues-to-use = <4>;
+				snps,rx-sched-sp;
+
+				queue0 {
+					snps,dcb-algorithm;
+					snps,map-to-dma-channel = <0x0>;
+					snps,route-up;
+					snps,priority = <0x1>;
+				};
+
+				queue1 {
+					snps,dcb-algorithm;
+					snps,map-to-dma-channel = <0x1>;
+					snps,route-ptp;
+				};
+
+				queue2 {
+					snps,avb-algorithm;
+					snps,map-to-dma-channel = <0x2>;
+					snps,route-avcp;
+				};
+
+				queue3 {
+					snps,avb-algorithm;
+					snps,map-to-dma-channel = <0x3>;
+					snps,priority = <0xc>;
+				};
+			};
+
+			emac0_mtl_tx_setup: tx-queues-config {
+				snps,tx-queues-to-use = <4>;
+
+				queue0 {
+					snps,dcb-algorithm;
+				};
+
+				queue1 {
+					snps,dcb-algorithm;
+				};
+
+				queue2 {
+					snps,avb-algorithm;
+					snps,send_slope = <0x1000>;
+					snps,idle_slope = <0x1000>;
+					snps,high_credit = <0x3e800>;
+					snps,low_credit = <0xffc18000>;
+				};
+
+				queue3 {
+					snps,avb-algorithm;
+					snps,send_slope = <0x1000>;
+					snps,idle_slope = <0x1000>;
+					snps,high_credit = <0x3e800>;
+					snps,low_credit = <0xffc18000>;
+				};
+			};
 		};
 
 		ethernet1: ethernet@5d20000 {
@@ -3274,11 +3394,10 @@
 				 <&gcc GCC_EMAC1_AHB_CLK>,
 				 <&gcc GCC_EMAC1_PTP_CLK>,
 				 <&gcc GCC_EMAC1_RGMII_CLK>,
-				 <&gcc GCC_EMAC1_AXI_CLK>,
 				 <&gcc GCC_EMAC1_AXI_SYS_NOC_CLK>,
 				 <&gcc GCC_PCIE_TILE_AXI_SYS_NOC_CLK>;
 			clock-names = "stmmaceth", "pclk", "ptp_ref", "rgmii",
-				      "axi", "axi-noc", "pcie-tile-axi-noc";
+				      "axi-noc", "pcie-tile-axi-noc";
 
 			power-domains = <&gcc GCC_EMAC1_GDSC>;
 			resets = <&gcc GCC_EMAC1_BCR>;
@@ -3289,15 +3408,86 @@
 					<&system_noc MASTER_EMAC_1 QCOM_ICC_TAG_ALWAYS
 					 &mc_virt SLAVE_EBI_CH0 QCOM_ICC_TAG_ALWAYS>;
 			interconnect-names = "cpu-mac", "mac-mem";
+			operating-points-v2 = <&emac1_opp_table>;
 
 			snps,tso;
 			snps,pbl = <32>;
-			rx-fifo-depth = <8192>;
-			tx-fifo-depth = <8192>;
+			rx-fifo-depth = <16384>;
+			tx-fifo-depth = <16384>;
+
+			snps,mtl-rx-config = <&emac1_mtl_rx_setup>;
+			snps,mtl-tx-config = <&emac1_mtl_tx_setup>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+
+			emac1_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-120000000 {
+					opp-hz = /bits/ 64 <120000000>;
+					required-opps = <&rpmpd_opp_svs>;
+				};
+			};
+
+			emac1_mtl_rx_setup: rx-queues-config {
+				snps,rx-queues-to-use = <4>;
+				snps,rx-sched-sp;
+
+				queue0 {
+					snps,dcb-algorithm;
+					snps,map-to-dma-channel = <0x0>;
+					snps,route-up;
+					snps,priority = <0x1>;
+				};
+
+				queue1 {
+					snps,dcb-algorithm;
+					snps,map-to-dma-channel = <0x1>;
+					snps,route-ptp;
+				};
+
+				queue2 {
+					snps,avb-algorithm;
+					snps,map-to-dma-channel = <0x2>;
+					snps,route-avcp;
+				};
+
+				queue3 {
+					snps,avb-algorithm;
+					snps,map-to-dma-channel = <0x3>;
+					snps,priority = <0xc>;
+				};
+			};
+
+			emac1_mtl_tx_setup: tx-queues-config {
+				snps,tx-queues-to-use = <4>;
+
+				queue0 {
+					snps,dcb-algorithm;
+				};
+
+				queue1 {
+					snps,dcb-algorithm;
+				};
+
+				queue2 {
+					snps,avb-algorithm;
+					snps,send_slope = <0x1000>;
+					snps,idle_slope = <0x1000>;
+					snps,high_credit = <0x3e800>;
+					snps,low_credit = <0xffc18000>;
+				};
+
+				queue3 {
+					snps,avb-algorithm;
+					snps,send_slope = <0x1000>;
+					snps,idle_slope = <0x1000>;
+					snps,high_credit = <0x3e800>;
+					snps,low_credit = <0xffc18000>;
+				};
+			};
 		};
 
 		mdss: display-subsystem@5e00000 {
