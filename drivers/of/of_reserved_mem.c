@@ -113,7 +113,7 @@ fail:
 	return ret;
 }
 
-static void __init fdt_init_reserved_mem_node(struct reserved_mem *rmem);
+static int __init fdt_init_reserved_mem_node(struct reserved_mem *rmem);
 /*
  * fdt_reserved_mem_save_node() - save fdt node for second pass initialization
  */
@@ -133,7 +133,8 @@ static void __init fdt_reserved_mem_save_node(unsigned long node, const char *un
 	rmem->size = size;
 
 	/* Call the region specific initialization function */
-	fdt_init_reserved_mem_node(rmem);
+	if (fdt_init_reserved_mem_node(rmem))
+		return;
 
 	reserved_mem_count++;
 	return;
@@ -598,12 +599,15 @@ static void __init __rmem_check_for_overlap(void)
  *
  * This function is used to call the region specific initialization
  * function for a reserved memory region.
+ *
+ * Return: 0 if the region remains reserved, or an error if it was released.
  */
-static void __init fdt_init_reserved_mem_node(struct reserved_mem *rmem)
+static int __init fdt_init_reserved_mem_node(struct reserved_mem *rmem)
 {
 	unsigned long node = rmem->fdt_node;
 	int err = 0;
-	bool nomap;
+	bool nomap, reusable;
+	phys_addr_t end;
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
 
@@ -614,17 +618,21 @@ static void __init fdt_init_reserved_mem_node(struct reserved_mem *rmem)
 			memblock_clear_nomap(rmem->base, rmem->size);
 		else
 			memblock_phys_free(rmem->base, rmem->size);
-	} else {
-		phys_addr_t end = rmem->base + rmem->size - 1;
-		bool reusable =
-			(of_get_flat_dt_prop(node, "reusable", NULL)) != NULL;
 
-		pr_info("%pa..%pa (%lu KiB) %s %s %s\n",
-			&rmem->base, &end, (unsigned long)(rmem->size / SZ_1K),
-			nomap ? "nomap" : "map",
-			reusable ? "reusable" : "non-reusable",
-			rmem->name ? rmem->name : "unknown");
+		return err;
 	}
+
+	end = rmem->base + rmem->size - 1;
+	reusable =
+		(of_get_flat_dt_prop(node, "reusable", NULL)) != NULL;
+
+	pr_info("%pa..%pa (%lu KiB) %s %s %s\n",
+		&rmem->base, &end, (unsigned long)(rmem->size / SZ_1K),
+		nomap ? "nomap" : "map",
+		reusable ? "reusable" : "non-reusable",
+		rmem->name ? rmem->name : "unknown");
+
+	return 0;
 }
 
 struct rmem_assigned_device {
