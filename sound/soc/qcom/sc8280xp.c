@@ -40,8 +40,9 @@ static struct snd_soc_dapm_widget sc8280xp_dapm_widgets[] = {
 
 static const struct snd_kcontrol_new max98090_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headset Mic12"),
-	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic34"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic56"),
+	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 	SOC_DAPM_PIN_SWITCH("Receiver"),
 	SOC_DAPM_PIN_SWITCH("Int Mic"),
@@ -52,10 +53,26 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic12", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic34", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic56", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
 	SND_SOC_DAPM_SPK("Receiver", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
+};
+
+static const struct snd_soc_dapm_route talos_lyra_dapm_routes[] = {
+        {"IN12", NULL, "Headset Mic12"},
+        {"Headset Mic12", NULL, "MICBIAS"},
+        {"IN34", NULL, "Headset Mic34"},
+        {"Headset Mic34", NULL, "MICBIAS"},
+        {"IN56", NULL, "Headset Mic56"},
+        {"Headset Mic56", NULL, "MICBIAS"},
+        {"Headphone", NULL, "HPL"},
+        {"Headphone", NULL, "HPR"},
+        {"Receiver", NULL, "RCVL"},
+        {"Receiver", NULL, "RCVR"},
+        {"Speaker", NULL, "SPKL"},
+        {"Speaker", NULL, "SPKR"},
 };
 
 struct qcom_snd_soc_common {
@@ -260,6 +277,7 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
 	case SENARY_MI2S_RX ... SENARY_MI2S_TX:
 	case LPI_MI2S_RX_0 ... LPI_MI2S_TX_4:
+	case AIF_MI2S_RX_0 ... AIF_MI2S_TX_12:
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_BP_FP);
 		if (ret && ret != -ENOTSUPP)
 			return ret;
@@ -296,6 +314,7 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 		}
 		break;
 	case PRIMARY_TDM_RX_0 ... QUINARY_TDM_TX_7:
+	case AIF_TDM_RX_0 ... AIF_TDM_TX_12:
 		return sc8280xp_tdm_hw_params(substream, params);
 	default:
 		break;
@@ -461,6 +480,15 @@ static const struct qcom_snd_soc_common kaanapali_priv_data = {
 	.wcd_jack = true,
 };
 
+static const struct qcom_snd_soc_common maili_priv_data = {
+	.driver_name = "maili",
+	.dapm_widgets = sc8280xp_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(sc8280xp_dapm_widgets),
+	.codec_sysclk_set = true,
+	.mi2s_bclk_enable = true,
+	.wcd_jack = true,
+};
+
 static const struct qcom_snd_soc_common qcs9100_priv_data = {
 	.driver_name = "sa8775p",
 	.dapm_widgets = sc8280xp_dapm_widgets,
@@ -472,6 +500,18 @@ static const struct qcom_snd_soc_common qcs615_priv_data = {
 	.dapm_widgets = sc8280xp_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(sc8280xp_dapm_widgets),
 	.codec_sysclk_set = true,
+};
+
+static const struct qcom_snd_soc_common talos_lyra_priv_data = {
+        .driver_name = "qcs615",
+        .dapm_widgets = max98090_dapm_widgets,
+        .num_dapm_widgets = ARRAY_SIZE(max98090_dapm_widgets),
+        .dapm_routes = talos_lyra_dapm_routes,
+        .num_dapm_routes = ARRAY_SIZE(talos_lyra_dapm_routes),
+        .controls = max98090_controls,
+        .num_controls = ARRAY_SIZE(max98090_controls),
+        .codec_dai_fmt = SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_BC_FC,
+        .codec_sysclk_set = true,
 };
 
 static const struct qcom_snd_soc_common qcm6490_priv_data = {
@@ -563,7 +603,7 @@ static const struct of_device_id snd_sc8280xp_dt_match[] = {
 	{ .compatible = "qcom,eliza-sndcard", .data = &eliza_priv_data },
 	{ .compatible = "qcom,hawi-sndcard", .data = &hawi_priv_data },
 	{ .compatible = "qcom,kaanapali-sndcard", .data = &kaanapali_priv_data },
-	{ .compatible = "qcom,maili-sndcard", .data = &hawi_priv_data },
+	{ .compatible = "qcom,maili-sndcard", .data = &maili_priv_data },
 	{ .compatible = "qcom,qcm6490-idp-sndcard", .data = &qcm6490_priv_data },
 	{ .compatible = "qcom,qcs615-sndcard", .data = &qcs615_priv_data },
 	{ .compatible = "qcom,qcs6490-rb3gen2-sndcard", .data = &qcs6490_priv_data },
@@ -576,6 +616,7 @@ static const struct of_device_id snd_sc8280xp_dt_match[] = {
 	{ .compatible = "qcom,sm8550-sndcard", .data = &sm8550_priv_data },
 	{ .compatible = "qcom,sm8650-sndcard", .data = &sm8650_priv_data },
 	{ .compatible = "qcom,sm8750-sndcard", .data = &sm8750_priv_data },
+	{ .compatible = "qcom,talos-lyra-sndcard", .data = &talos_lyra_priv_data },
 	{}
 };
 
