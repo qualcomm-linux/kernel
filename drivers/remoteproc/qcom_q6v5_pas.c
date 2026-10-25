@@ -1597,7 +1597,6 @@ static const struct qcom_pas_data nord_adsp_resource = {
 	.dtb_pas_id = 36,
 	.minidump_id = 5,
 	.auto_boot = true,
-	.early_boot = true,
 	.proxy_pd_names = (char*[]){
 		"cx",
 		"mx",
