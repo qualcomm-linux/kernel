@@ -265,9 +265,12 @@ int dwxgmac3_fpe_map_preemption_class(struct net_device *ndev,
 	if (!num_tc) {
 		/* Restore default TC:Queue mapping */
 		for (u32 i = 0; i < priv->plat->tx_queues_to_use; i++) {
-			val = readl(priv->ioaddr + XGMAC_MTL_TXQ_OPMODE(i));
+			val = readl(priv->ioaddr +
+				    XGMAC_MTL_TXQ_OPMODE(priv->plat->dwxgmac_addrs,
+							 i));
 			writel(u32_replace_bits(val, i, XGMAC_Q2TCMAP),
-			       priv->ioaddr + XGMAC_MTL_TXQ_OPMODE(i));
+			       priv->ioaddr +
+			       XGMAC_MTL_TXQ_OPMODE(priv->plat->dwxgmac_addrs, i));
 		}
 	}
 
@@ -288,9 +291,13 @@ int dwxgmac3_fpe_map_preemption_class(struct net_device *ndev,
 			preemptible_txqs |= GENMASK(offset + count - 1, offset);
 
 		for (u32 i = 0; i < count; i++) {
-			val = readl(priv->ioaddr + XGMAC_MTL_TXQ_OPMODE(offset + i));
+			val = readl(priv->ioaddr +
+				    XGMAC_MTL_TXQ_OPMODE(priv->plat->dwxgmac_addrs,
+							 offset + i));
 			writel(u32_replace_bits(val, tc, XGMAC_Q2TCMAP),
-			       priv->ioaddr + XGMAC_MTL_TXQ_OPMODE(offset + i));
+			       priv->ioaddr +
+			       XGMAC_MTL_TXQ_OPMODE(priv->plat->dwxgmac_addrs,
+						    offset + i));
 		}
 	}
 

@@ -287,6 +287,26 @@ static const struct stmmac_hwif_entry {
 		.mmc = &dwxgmac_mmc_ops,
 		.est = &dwmac510_est_ops,
 		.setup = dwxlgmac2_setup,
+	}, {
+		.core_type = DWMAC_CORE_25GMAC,
+		.min_id = DW25GMAC_CORE_3_20,
+		.regs = {
+			.ptp_off = PTP_XGMAC_OFFSET,
+			.mmc_off = MMC_XGMAC_OFFSET,
+			.est_off = EST_XGMAC_OFFSET,
+		},
+		.desc = &dwxgmac210_desc_ops,
+		.dma = &dw25gmac400_dma_ops,
+		.mac = &dwxgmac210_ops,
+		.vlan = &dwxgmac210_vlan_ops,
+		.hwtimestamp = &stmmac_ptp,
+		.ptp = &stmmac_ptp_clock_ops,
+		.mode = NULL,
+		.tc = &dwmac510_tc_ops,
+		.mmc = &dwxgmac_mmc_ops,
+		.est = &dwmac510_est_ops,
+		.setup = dw25gmac_setup,
+		.quirks = NULL,
 	},
 };
 
@@ -368,8 +388,11 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	mac->vlan = mac->vlan ? : entry->vlan;
 
 	priv->hw = mac;
+	mac->dwxgmac_addrs = priv->plat->dwxgmac_addrs;
 	priv->fpe_cfg.reg = entry->regs.fpe_reg;
-	priv->ptpaddr = priv->ioaddr + entry->regs.ptp_off;
+	priv->ptpaddr = priv->ioaddr +
+		(priv->plat->dwxgmac_addrs ?
+		 priv->plat->dwxgmac_addrs->timestamp_base : entry->regs.ptp_off);
 	priv->mmcaddr = priv->ioaddr + entry->regs.mmc_off;
 	memcpy(&priv->ptp_clock_ops, entry->ptp,
 	       sizeof(struct ptp_clock_info));
