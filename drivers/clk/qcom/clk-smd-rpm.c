@@ -183,6 +183,7 @@ struct rpm_smd_clk_desc {
 	const struct clk_smd_rpm ** const icc_clks;
 	size_t num_icc_clks;
 	bool scaling_before_handover;
+	bool skip_clks_handoff;
 };
 
 static DEFINE_MUTEX(rpm_smd_clk_lock);
@@ -1291,7 +1292,8 @@ static const struct rpm_smd_clk_desc rpm_clk_qcm2290 = {
 	.clks = qcm2290_clks,
 	.num_clks = ARRAY_SIZE(qcm2290_clks),
 	.icc_clks = qcm2290_icc_clks,
-	.num_icc_clks = ARRAY_SIZE(qcm2290_icc_clks)
+	.num_icc_clks = ARRAY_SIZE(qcm2290_icc_clks),
+	.skip_clks_handoff = true,
 };
 
 static const struct of_device_id rpm_smd_clk_match_table[] = {
@@ -1369,13 +1371,15 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 			goto err;
 	}
 
-	for (i = 0; i < num_clks; i++) {
-		if (!rpm_smd_clks[i])
-			continue;
+	if (!desc->skip_clks_handoff) {
+		for (i = 0; i < num_clks; i++) {
+			if (!rpm_smd_clks[i])
+				continue;
 
-		ret = clk_smd_rpm_handoff(rpm_smd_clks[i]);
-		if (ret)
-			goto err;
+			ret = clk_smd_rpm_handoff(rpm_smd_clks[i]);
+			if (ret)
+				goto err;
+		}
 	}
 
 	for (i = 0; i < desc->num_icc_clks; i++) {
