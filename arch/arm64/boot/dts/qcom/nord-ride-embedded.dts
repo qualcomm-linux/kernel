@@ -255,6 +255,8 @@
 		label = "eDP2";
 		type = "full-size";
 
+		status = "disabled";
+
 		port {
 			dp2_connector_in: endpoint {
 				remote-endpoint = <&mdss1_dp0_out>;
@@ -266,6 +268,8 @@
 		compatible = "dp-connector";
 		label = "eDP3";
 		type = "full-size";
+
+		status = "disabled";
 
 		port {
 			dp3_connector_in: endpoint {
@@ -608,14 +612,22 @@
 	vdda-phy-supply = <&vreg_l2h_1p2>;
 	vdda-pll-supply = <&vreg_l1h_0p9>;
 
-	status = "okay";
+	status = "disabled";
 };
 
 &dp3_phy {
 	vdda-phy-supply = <&vreg_l2h_1p2>;
 	vdda-pll-supply = <&vreg_l1h_0p9>;
 
+	status = "disabled";
+};
+
+&gpu_0 {
 	status = "okay";
+};
+
+&gpu_0_zap_shader {
+	firmware-name = "qcom/nord/gen71300_zap.mbn";
 };
 
 &i2c9 {
@@ -812,11 +824,11 @@
 };
 
 &mdss1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &mdss1_dp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 /* eDP2 */
@@ -827,7 +839,7 @@
 };
 
 &mdss1_dp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 /* eDP3 */
@@ -928,6 +940,10 @@
 	};
 };
 
+&camss {
+	status = "okay";
+};
+
 &qupv3_0 {
 	firmware-name = "qcom/nord/qupv3fw.elf";
 
@@ -979,6 +995,10 @@
 			"qcom/nord/cdsp_dtb.mbn";
 
 	status = "okay";
+};
+
+&remoteproc_soccp {
+	firmware-name = "qcom/nord/soccp.mbn";
 };
 
 &uart15 {
