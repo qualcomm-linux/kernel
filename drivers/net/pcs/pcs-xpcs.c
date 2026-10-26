@@ -283,6 +283,7 @@ static int xpcs_soft_reset(struct dw_xpcs *xpcs,
 	switch (compat->an_mode) {
 	case DW_AN_C73:
 	case DW_10GBASER:
+	case DW_AN_C37_USXGMII:
 		dev = MDIO_MMD_PCS;
 		break;
 	case DW_AN_C37_SGMII:
@@ -353,6 +354,54 @@ static int xpcs_read_fault_c73(struct dw_xpcs *xpcs,
 	}
 
 	return 0;
+}
+
+static int xpcs_config_aneg_c37_usxgmii(struct dw_xpcs *xpcs)
+{
+	u16 mask, val;
+	int ret;
+
+	/* Select BASE-R PCS mode. */
+	ret = xpcs_modify(xpcs, MDIO_MMD_PCS, MDIO_CTRL2,
+			  DW_PCS_TYPE_SEL, MDIO_PCS_CTRL2_10GBR);
+	if (ret < 0)
+		return ret;
+
+	/* Enable USXGMII before accessing the MII MMD registers. */
+	ret = xpcs_modify_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1,
+			       DW_USXGMII_EN, DW_USXGMII_EN);
+	if (ret < 0)
+		return ret;
+
+	/* Select single-port 10G-SXGMII mode. */
+	ret = xpcs_modify_vpcs(xpcs, DW_VR_XS_PCS_KR_CTRL,
+			       DW_USXG_MODE_SEL,
+			       FIELD_PREP(DW_USXG_MODE_SEL,
+					  DW_USXG_MODE_10G_SXGMII));
+	if (ret < 0)
+		return ret;
+
+	/* Disable Clause 37 AN before changing its configuration. */
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+			  BMCR_ANENABLE, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Configure USXGMII per XPCS databook section 7.6. */
+	mask = DW_VR_MII_AN_CTRL_8BIT | DW_VR_MII_SGMII_LINK_STS |
+	       DW_VR_MII_TX_CONFIG_MASK | DW_VR_MII_PCS_MODE_MASK |
+	       DW_VR_MII_AN_INTR_EN;
+	val = FIELD_PREP(DW_VR_MII_TX_CONFIG_MASK,
+			 DW_VR_MII_TX_CONFIG_PHY_SIDE_SGMII) |
+	      DW_VR_MII_SGMII_LINK_STS;
+
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL,
+			  mask, val);
+	if (ret < 0)
+		return ret;
+
+	return xpcs_modify(xpcs, MDIO_MMD_VEND2, MII_BMCR,
+			   BMCR_ANENABLE, BMCR_ANENABLE);
 }
 
 static void xpcs_link_up_usxgmii(struct dw_xpcs *xpcs, int speed)
@@ -687,6 +736,7 @@ static unsigned int xpcs_inband_caps(struct phylink_pcs *pcs,
 
 	case DW_10GBASER:
 	case DW_2500BASEX:
+	case DW_AN_C37_USXGMII:
 		return LINK_INBAND_DISABLE;
 
 	default:
@@ -950,6 +1000,11 @@ static int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 		if (ret)
 			return ret;
 		break;
+	case DW_AN_C37_USXGMII:
+		ret = xpcs_config_aneg_c37_usxgmii(xpcs);
+		if (ret)
+			return ret;
+		break;
 	case DW_2500BASEX:
 		ret = xpcs_config_2500basex(xpcs);
 		if (ret)
@@ -1158,6 +1213,58 @@ static int xpcs_get_state_2500basex(struct dw_xpcs *xpcs,
 	return 0;
 }
 
+static int xpcs_get_state_c37_usxgmii(struct dw_xpcs *xpcs,
+				      struct phylink_link_state *state)
+{
+	int ret;
+	u16 speed;
+
+	state->link = false;
+	state->an_complete = false;
+	state->speed = SPEED_UNKNOWN;
+	state->duplex = DUPLEX_UNKNOWN;
+	state->pause = 0;
+
+	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_AN_INTR_STS);
+	if (ret < 0)
+		return ret;
+
+	state->an_complete = !!(ret & DW_VR_MII_AN_STS_C37_ANCMPLT_INTR);
+	state->link = !!(ret & DW_VR_MII_USXG_LINK);
+	if (!state->link)
+		return 0;
+
+	speed = FIELD_GET(DW_VR_MII_USXG_SPEED, ret);
+	switch (speed) {
+	case DW_VR_MII_USXG_SPEED_10:
+		state->speed = SPEED_10;
+		break;
+	case DW_VR_MII_USXG_SPEED_100:
+		state->speed = SPEED_100;
+		break;
+	case DW_VR_MII_USXG_SPEED_1000:
+		state->speed = SPEED_1000;
+		break;
+	case DW_VR_MII_USXG_SPEED_10000:
+		state->speed = SPEED_10000;
+		break;
+	case DW_VR_MII_USXG_SPEED_2500:
+		state->speed = SPEED_2500;
+		break;
+	case DW_VR_MII_USXG_SPEED_5000:
+		state->speed = SPEED_5000;
+		break;
+	default:
+		state->link = false;
+		return 0;
+	}
+
+	state->duplex = ret & DW_VR_MII_USXG_FULL ?
+			DUPLEX_FULL : DUPLEX_HALF;
+
+	return 0;
+}
+
 static void xpcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 			   struct phylink_link_state *state)
 {
@@ -1190,6 +1297,12 @@ static void xpcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 		if (ret)
 			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
 				"xpcs_get_state_c37_1000basex", ERR_PTR(ret));
+		break;
+	case DW_AN_C37_USXGMII:
+		ret = xpcs_get_state_c37_usxgmii(xpcs, state);
+		if (ret)
+			dev_err(&xpcs->mdiodev->dev, "%s returned %pe\n",
+				"xpcs_get_state_c37_usxgmii", ERR_PTR(ret));
 		break;
 	case DW_2500BASEX:
 		ret = xpcs_get_state_2500basex(xpcs, state);
@@ -1458,6 +1571,15 @@ static const struct dw_xpcs_compat nxp_sja1110_xpcs_compat[] = {
 	}
 };
 
+static const struct dw_xpcs_compat qcom_nord_xpcs_compat[] = {
+	{
+		.interface = PHY_INTERFACE_MODE_USXGMII,
+		.supported = xpcs_usxgmii_features,
+		.an_mode = DW_AN_C37_USXGMII,
+	}, {
+	}
+};
+
 static const struct dw_xpcs_desc xpcs_desc_list[] = {
 	{
 		.id = DW_XPCS_ID,
@@ -1471,6 +1593,10 @@ static const struct dw_xpcs_desc xpcs_desc_list[] = {
 		.id = NXP_SJA1110_XPCS_ID,
 		.mask = DW_XPCS_ID_MASK,
 		.compat = nxp_sja1110_xpcs_compat,
+	}, {
+		.id = QCOM_NORD_XPCS_ID,
+		.mask = DW_XPCS_ID_MASK,
+		.compat = qcom_nord_xpcs_compat,
 	},
 };
 
