@@ -74,6 +74,10 @@
 		<&tlmm 56 0>;
 };
 
+&isp_ope {
+	status = "disabled";
+};
+
 &sensor_cam0 {
 	cam_vio-supply = <&pm8150_s4>;
 	gpios = <&tlmm 34 0>,
