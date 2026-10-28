@@ -20,6 +20,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/pm_domain.h>
 #include <linux/usb.h>
+#include <linux/phy/phy-qcom-qmp-usb-ss.h>
 #include "core.h"
 #include "glue.h"
 
@@ -67,6 +68,7 @@ struct dwc3_qcom_port {
 	int			dm_hs_phy_irq;
 	int			ss_phy_irq;
 	enum usb_device_speed	usb2_speed;
+	enum qcom_usb_ss_state  ss_state;
 };
 
 struct dwc3_qcom {
@@ -252,6 +254,32 @@ static enum usb_device_speed dwc3_qcom_read_usb2_speed(struct dwc3_qcom *qcom, i
 	return udev->speed;
 }
 
+static enum qcom_usb_ss_state dwc3_qcom_read_ss_state(struct dwc3_qcom *qcom, int port_index)
+{
+       struct usb_device *udev;
+       struct usb_hcd __maybe_unused *hcd, *usb3_hcd;
+       struct dwc3 *dwc = &qcom->dwc;
+
+       /* FIXME: Fix this layering violation. */
+       hcd = platform_get_drvdata(dwc->xhci);
+       if (!hcd)
+                return QCOM_USB_SS_ABSENT;
+
+#ifdef CONFIG_USB
+       usb3_hcd = hcd->shared_hcd ? hcd->shared_hcd : hcd;
+       if (!usb3_hcd->self.root_hub)
+                return QCOM_USB_SS_ABSENT;
+
+       udev = usb_hub_find_child(usb3_hcd->self.root_hub, port_index + 1);
+#else
+       udev = NULL;
+#endif
+       if (!udev)
+               return QCOM_USB_SS_ABSENT;
+
+       return udev->speed >= USB_SPEED_SUPER ? QCOM_USB_SS_PRESENT : QCOM_USB_SS_ABSENT;
+}
+
 static void dwc3_qcom_enable_wakeup_irq(int irq, unsigned int polarity)
 {
 	if (!irq)
@@ -360,8 +388,13 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
 	 * freezable workqueue.
 	 */
 	if (dwc3_qcom_is_host(qcom) && wakeup) {
-		for (i = 0; i < qcom->num_ports; i++)
+		for (i = 0; i < qcom->num_ports; i++){
 			qcom->ports[i].usb2_speed = dwc3_qcom_read_usb2_speed(qcom, i);
+			qcom->ports[i].ss_state = dwc3_qcom_read_ss_state(qcom, i);
+			phy_set_mode_ext(qcom->dwc.usb3_generic_phy[i], PHY_MODE_USB_HOST,
+                                       qcom->ports[i].ss_state);
+
+		}
 		dwc3_qcom_enable_interrupts(qcom);
 	} else {
 		dev_pm_genpd_synced_poweroff(qcom->dev);
