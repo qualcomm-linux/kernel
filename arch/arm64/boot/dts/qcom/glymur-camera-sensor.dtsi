@@ -43,6 +43,7 @@
 	/*cam1-og0va1b*/
 	qcom,cam-sensor1 {
 		compatible = "qcom,cam-sensor";
+		aon-camera-id = <AON_CAM1>;
 		csiphy-sd-index = <0>;
 		sensor-position-roll = <0>;
 		sensor-position-pitch = <0>;
