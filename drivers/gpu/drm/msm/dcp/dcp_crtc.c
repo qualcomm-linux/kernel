@@ -333,8 +333,9 @@ void dcp_crtc_commit_kickoff(struct drm_crtc *crtc)
 	/* MSM serializes commits, so only one frame completion may be pending. */
 	if (atomic_cmpxchg(&dcp_crtc->pending_kickoff_cnt, 0, 1)) {
 		drm_err(crtc->dev,
-			"CRTC%u: frame completion already pending\n",
-			dcp_crtc->display_id);
+			"CRTC%u: frame completion already pending (dropped commit_seq_id=%u, in-flight pending_seq_id=%u)\n",
+			dcp_crtc->display_id, dcp_crtc->commit_seq_id,
+			dcp_crtc->pending_seq_id);
 		cstate->hfi_error = -EBUSY;
 		return;
 	}
@@ -362,8 +363,9 @@ void dcp_crtc_wait_for_commit_done(struct drm_crtc *crtc)
 				atomic_read(&dcp_crtc->pending_kickoff_cnt) == 0,
 				timeout)) {
 		drm_err(crtc->dev,
-			"frame done timeout for CRTC%u\n",
-			dcp_crtc->display_id);
+			"frame done timeout for CRTC%u pending_seq_id=%u commit_seq_id=%u\n",
+			dcp_crtc->display_id, dcp_crtc->pending_seq_id,
+			dcp_crtc->commit_seq_id);
 		atomic_set(&dcp_crtc->pending_kickoff_cnt, 0);
 	}
 }
@@ -371,6 +373,7 @@ void dcp_crtc_wait_for_commit_done(struct drm_crtc *crtc)
 void dcp_crtc_complete_commit(struct drm_crtc *crtc)
 {
 	struct dcp_crtc *dcp_crtc = to_dcp_crtc(crtc);
+	struct dcp_crtc_state *cstate = to_dcp_crtc_state(crtc->state);
 	unsigned long flags;
 
 	if (!crtc->state->active)
@@ -378,6 +381,14 @@ void dcp_crtc_complete_commit(struct drm_crtc *crtc)
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (dcp_crtc->event) {
+		drm_dbg_driver(crtc->dev,
+			       "DCP_TS CRTC%u: page-flip event send time=%lld vblank_count=%llu commit_seq_id=%u pending_seq_id=%u hfi_error=%d%s\n",
+			       dcp_crtc->display_id, ktime_to_ns(ktime_get()),
+			       drm_crtc_vblank_count(crtc),
+			       dcp_crtc->commit_seq_id, dcp_crtc->pending_seq_id,
+			       cstate->hfi_error,
+			       dcp_crtc->commit_seq_id != dcp_crtc->pending_seq_id ?
+			       " MISMATCH-UNCONFIRMED-FRAME" : "");
 		drm_crtc_send_vblank_event(crtc, dcp_crtc->event);
 		dcp_crtc->event = NULL;
 	}
@@ -407,17 +418,25 @@ int dcp_crtc_vblank(struct drm_crtc *crtc, bool enable)
 	return 0;
 }
 
-void dcp_crtc_vblank_callback(struct drm_crtc *crtc)
+void dcp_crtc_vblank_callback(struct drm_crtc *crtc, u64 timestamp_ns)
 {
 	struct dcp_crtc *dcp_crtc = to_dcp_crtc(crtc);
 
 	if (!READ_ONCE(dcp_crtc->vblank_enabled))
 		return;
 
+	if (timestamp_ns)
+		WRITE_ONCE(dcp_crtc->hw_vblank_timestamp_ns, timestamp_ns);
+
 	if (ktime_compare(dcp_crtc->vblank_cb_time, ktime_set(0, 0)) == 0)
 		dcp_crtc->vblank_cb_time = ktime_get();
 	else
 		dcp_crtc->vblank_cb_count++;
+
+	drm_dbg_driver(crtc->dev,
+		       "DCP_TS CRTC%u: HFI VSYNC time=%lld hw_time=%llu vblank_count=%llu (pre-handle)\n",
+		       dcp_crtc->display_id, ktime_to_ns(ktime_get()),
+		       timestamp_ns, drm_crtc_vblank_count(crtc));
 	drm_crtc_handle_vblank(crtc);
 }
 
@@ -449,20 +468,21 @@ static struct drm_crtc *dcp_crtc_find_by_session_id(struct dcp_drv *drv,
 	return crtc;
 }
 
-void dcp_crtc_hfi_vblank_cb(struct dcp_drv *drv, u32 session_id)
+void dcp_crtc_hfi_vblank_cb(struct dcp_drv *drv, u32 session_id, u64 timestamp_ns)
 {
 	struct drm_device *dev = drv && drv->kms ? drv->kms->dev : NULL;
 	struct drm_crtc *crtc = dcp_crtc_find_by_session_id(drv, session_id);
 
 	if (crtc)
-		dcp_crtc_vblank_callback(crtc);
+		dcp_crtc_vblank_callback(crtc, timestamp_ns);
 	else if (dev)
 		drm_err_ratelimited(dev,
 				    "unknown CRTC for HFI VSYNC session %u\n",
 				    session_id);
 }
 
-void dcp_crtc_hfi_frame_done_cb(struct dcp_drv *drv, u32 session_id, u32 sequence_id)
+void dcp_crtc_hfi_frame_done_cb(struct dcp_drv *drv, u32 session_id,
+				u32 sequence_id, u64 timestamp_ns)
 {
 	struct drm_device *dev = drv && drv->kms ? drv->kms->dev : NULL;
 	struct drm_crtc *crtc = dcp_crtc_find_by_session_id(drv, session_id);
@@ -478,6 +498,11 @@ void dcp_crtc_hfi_frame_done_cb(struct dcp_drv *drv, u32 session_id, u32 sequenc
 				 dcp_crtc->pending_seq_id);
 			return;
 		}
+		drm_dbg_driver(crtc->dev,
+			       "DCP_TS CRTC%u: FRAME_SCAN_COMPLETE seq=%u time=%lld hw_time=%llu vblank_count=%llu\n",
+			       dcp_crtc->display_id, sequence_id,
+			       ktime_to_ns(ktime_get()), timestamp_ns,
+			       drm_crtc_vblank_count(crtc));
 		dcp_crtc_frame_done_callback(crtc);
 	} else if (dev)
 		drm_err_ratelimited(dev,
@@ -634,6 +659,19 @@ static u32 dcp_crtc_get_vblank_counter(struct drm_crtc *crtc)
 	return drm_crtc_vblank_count(crtc);
 }
 
+static bool dcp_crtc_get_vblank_timestamp(struct drm_crtc *crtc, int *max_error,
+					  ktime_t *vblank_time, bool in_vblank_irq)
+{
+	struct dcp_crtc *dcp_crtc = to_dcp_crtc(crtc);
+	u64 timestamp_ns = READ_ONCE(dcp_crtc->hw_vblank_timestamp_ns);
+
+	if (!timestamp_ns)
+		return false;
+
+	*vblank_time = ns_to_ktime(timestamp_ns);
+	return true;
+}
+
 static void dcp_crtc_atomic_enable(struct drm_crtc *crtc,
 				   struct drm_atomic_commit *state)
 {
@@ -694,6 +732,7 @@ static const struct drm_crtc_funcs dcp_crtc_funcs = {
 	.enable_vblank          = msm_crtc_enable_vblank,
 	.disable_vblank         = msm_crtc_disable_vblank,
 	.get_vblank_counter     = dcp_crtc_get_vblank_counter,
+	.get_vblank_timestamp   = dcp_crtc_get_vblank_timestamp,
 };
 
 static const struct drm_crtc_helper_funcs dcp_crtc_helper_funcs = {
