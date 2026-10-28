@@ -23,11 +23,6 @@ properties:
     maxItems: 1
     description: DSI virtual channel
 
-  reset-gpios: true
-
-  backlight-en-gpios:
-    description: Backlight enable GPIO (active high)
-
   vddi-supply:
     description: I/O voltage supply (1.8V)
 
@@ -39,8 +34,6 @@ properties:
     description: Negative LCD bias supply (AVEE), typically -5.5V
       (range -6.3V to -4.5V)
 
-  port: true
-
 required:
   - compatible
   - reg
@@ -50,7 +43,7 @@ required:
   - avee-supply
   - port
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -65,8 +58,6 @@ examples:
             reg = <0>;
 
             reset-gpios = <&tlmm 3 GPIO_ACTIVE_LOW>;
-            backlight-en-gpios = <&tlmm 91 GPIO_ACTIVE_HIGH>;
-
             vddi-supply = <&pm4125_l15>;
             avdd-supply = <&avdd>;
             avee-supply = <&avee>;

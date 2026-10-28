@@ -10,6 +10,8 @@
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
+#include <video/mipi_display.h>
+
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
@@ -30,7 +32,6 @@ struct ili7807s {
 
 	struct regulator_bulk_data *supplies;
 	struct gpio_desc *reset_gpio;
-	struct gpio_desc *backlight_en_gpio;
 };
 
 static const struct regulator_bulk_data ili7807s_supplies[] = {
@@ -46,8 +47,6 @@ static inline struct ili7807s *to_ili7807s(struct drm_panel *panel)
 
 static void ili7807s_reset(struct ili7807s *ctx)
 {
-	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
-	usleep_range(10000, 11000);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 	usleep_range(10000, 11000);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
@@ -60,11 +59,11 @@ static void dlc0697_init_sequence(struct mipi_dsi_multi_context *dsi_ctx)
 	mipi_dsi_msleep(dsi_ctx, 120);
 
 	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x78, 0x07, 0x00);
-	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x35, 0x00);
-	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x5e, 0x09, 0x99);
-	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x53, 0x24);
-	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x55, 0x01);
-	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x51, 0x3f, 0xff);
+	mipi_dsi_dcs_set_tear_on_multi(dsi_ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, MIPI_DCS_SET_CABC_MIN_BRIGHTNESS, 0x09, 0x99);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, MIPI_DCS_WRITE_CONTROL_DISPLAY, 0x24);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, MIPI_DCS_WRITE_POWER_SAVE, 0x01);
+	mipi_dsi_dcs_set_display_brightness_multi(dsi_ctx, 0x1fff);
 
 	mipi_dsi_dcs_exit_sleep_mode_multi(dsi_ctx);
 	mipi_dsi_msleep(dsi_ctx, 120);
@@ -77,11 +76,7 @@ static int ili7807s_on(struct ili7807s *ctx)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	ctx->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
-
 	ctx->desc->init(&dsi_ctx);
-
-	ctx->dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
 	return dsi_ctx.accum_err;
 }
@@ -90,37 +85,13 @@ static int ili7807s_off(struct ili7807s *ctx)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	ctx->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
-
 	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
 	mipi_dsi_msleep(&dsi_ctx, 20);
 
 	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 	mipi_dsi_msleep(&dsi_ctx, 120);
 
-	ctx->dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
-
 	return dsi_ctx.accum_err;
-}
-
-static int ili7807s_enable(struct drm_panel *panel)
-{
-	struct ili7807s *ctx = to_ili7807s(panel);
-
-	if (ctx->backlight_en_gpio)
-		gpiod_set_value_cansleep(ctx->backlight_en_gpio, 1);
-
-	return 0;
-}
-
-static int ili7807s_disable(struct drm_panel *panel)
-{
-	struct ili7807s *ctx = to_ili7807s(panel);
-
-	if (ctx->backlight_en_gpio)
-		gpiod_set_value_cansleep(ctx->backlight_en_gpio, 0);
-
-	return 0;
 }
 
 static int ili7807s_prepare(struct drm_panel *panel)
@@ -178,10 +149,8 @@ static int ili7807s_get_modes(struct drm_panel *panel,
 }
 
 static const struct drm_panel_funcs ili7807s_panel_funcs = {
-	.prepare   = ili7807s_prepare,
+	.prepare = ili7807s_prepare,
 	.unprepare = ili7807s_unprepare,
-	.enable    = ili7807s_enable,
-	.disable   = ili7807s_disable,
 	.get_modes = ili7807s_get_modes,
 };
 
@@ -194,8 +163,6 @@ static int ili7807s_bl_update_status(struct backlight_device *bl)
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
 	ret = mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
-	if (ret < 0)
-		return ret;
 
 	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
@@ -220,7 +187,7 @@ static struct backlight_device *ili7807s_create_backlight(struct mipi_dsi_device
 }
 
 static const struct drm_display_mode dlc0697_mode = {
-	.clock = 131911,
+	.clock = (1080 + 18 + 2 + 16) * (1920 + 26 + 4 + 20) * 60 / 1000,
 
 	.hdisplay    = 1080,
 	.hsync_start = 1080 + 18,
@@ -232,8 +199,8 @@ static const struct drm_display_mode dlc0697_mode = {
 	.vsync_end   = 1920 + 26 + 4,
 	.vtotal      = 1920 + 26 + 4 + 20,
 
-	.width_mm  = 0,
-	.height_mm = 0,
+	.width_mm  = 87,
+	.height_mm = 154,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 };
 
@@ -266,36 +233,38 @@ static int ili7807s_probe(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to get regulators\n");
 
-	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
 				     "failed to get reset gpio\n");
-
-	ctx->backlight_en_gpio = devm_gpiod_get_optional(dev, "backlight-en",
-							 GPIOD_OUT_LOW);
-	if (IS_ERR(ctx->backlight_en_gpio))
-		return dev_err_probe(dev, PTR_ERR(ctx->backlight_en_gpio),
-				     "failed to get backlight-en gpio\n");
 
 	ctx->dsi = dsi;
 	mipi_dsi_set_drvdata(dsi, ctx);
 
 	dsi->lanes      = desc->lanes;
 	dsi->format     = desc->format;
-	dsi->mode_flags = desc->mode_flags;
+	dsi->mode_flags = desc->mode_flags | MIPI_DSI_MODE_LPM;
 
 	ctx->panel.prepare_prev_first = true;
 
-	ctx->panel.backlight = ili7807s_create_backlight(dsi);
-	if (IS_ERR(ctx->panel.backlight))
-		return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
-				     "failed to create backlight\n");
+	ret = drm_panel_of_backlight(&ctx->panel);
+	if (ret)
+		return ret;
+
+	if (!ctx->panel.backlight) {
+		ctx->panel.backlight = ili7807s_create_backlight(dsi);
+		if (IS_ERR(ctx->panel.backlight))
+			return dev_err_probe(dev, PTR_ERR(ctx->panel.backlight),
+					     "failed to create backlight\n");
+	}
 
 	drm_panel_add(&ctx->panel);
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "failed to attach dsi\n");
+	if (ret < 0) {
+		drm_panel_remove(&ctx->panel);
+		return dev_err_probe(dev, ret, "failed to attach to DSI host\n");
+	}
 
 	return 0;
 }
