@@ -25,6 +25,7 @@
 #include <drm/bridge/aux-bridge.h>
 
 #include <dt-bindings/phy/phy-qcom-qmp.h>
+#include <linux/phy/phy-qcom-qmp-usb-ss.h>
 
 #include "phy-qcom-qmp-common.h"
 
@@ -2275,6 +2276,7 @@ struct qmp_combo {
 
 	struct phy *usb_phy;
 	enum phy_mode phy_mode;
+	enum qcom_usb_ss_state  ss_state;
 	unsigned int usb_init_count;
 
 	struct phy *dp_phy;
@@ -3929,6 +3931,16 @@ static int qmp_combo_usb_set_mode(struct phy *phy, enum phy_mode mode, int submo
 
 	qmp->phy_mode = mode;
 
+	switch (submode) {
+		case QCOM_USB_SS_PRESENT:
+		case QCOM_USB_SS_ABSENT:
+			qmp->ss_state = submode;
+			break;
+		default:
+			qmp->ss_state = QCOM_USB_SS_UNKNOWN;
+			break;
+	}
+
 	return 0;
 }
 
@@ -3957,11 +3969,20 @@ static void qmp_combo_enable_autonomous_mode(struct qmp_combo *qmp)
 	void __iomem *pcs_aon = qmp->pcs_aon;
 	u32 intr_mask;
 
-	if (qmp->phy_mode == PHY_MODE_USB_HOST_SS ||
-	    qmp->phy_mode == PHY_MODE_USB_DEVICE_SS)
-		intr_mask = ARCVR_DTCT_EN | ALFPS_DTCT_EN;
-	else
-		intr_mask = ARCVR_DTCT_EN | ARCVR_DTCT_EVENT_SEL;
+	/*
+	* Use LFPS detection only when a SuperSpeed device is known to be
+	* present. For absent or unknown state, use receiver detection.
+	*/
+	switch (qmp->ss_state) {
+		case QCOM_USB_SS_PRESENT:
+			intr_mask = ARCVR_DTCT_EN | ALFPS_DTCT_EN;
+			break;
+		case QCOM_USB_SS_ABSENT:
+		case QCOM_USB_SS_UNKNOWN:
+		default:
+			intr_mask = ARCVR_DTCT_EN | ARCVR_DTCT_EVENT_SEL;
+			break;
+	}
 
 	/* Clear any pending interrupts status */
 	qphy_setbits(pcs_usb, cfg->regs[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR], IRQ_CLEAR);
