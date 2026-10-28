@@ -12,6 +12,12 @@
 	status = "disabled";
 };
 
+&iris {
+	video-firmware {
+		iommus = <&apps_smmu 0x1942 0x0>;
+	};
+};
+
 &remoteproc_adsp {
 	iommus = <&apps_smmu 0x1000 0x0>,
 		 <&apps_smmu 0x10a0 0x0>,
