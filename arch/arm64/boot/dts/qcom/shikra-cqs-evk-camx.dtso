@@ -39,3 +39,7 @@
 &cci_i2c1 {
 	status = "disabled";
 };
+
+&isp_ope {
+	status = "disabled";
+};
