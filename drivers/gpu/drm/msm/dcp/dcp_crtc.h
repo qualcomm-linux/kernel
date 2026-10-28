@@ -53,6 +53,8 @@ struct dcp_crtc {
 	u32     vblank_cb_count;
 	bool    vblank_enabled;
 	ktime_t vblank_cb_time;
+	/* Latest firmware-reported VSYNC timestamp; 0 until the first HFI VSYNC. */
+	u64     hw_vblank_timestamp_ns;
 	bool    enabled;
 	u32 commit_seq_id;
 	u32 pending_seq_id;
@@ -87,12 +89,13 @@ void dcp_crtc_commit_kickoff(struct drm_crtc *crtc);
 void dcp_crtc_wait_for_commit_done(struct drm_crtc *crtc);
 void dcp_crtc_complete_commit(struct drm_crtc *crtc);
 int dcp_crtc_vblank(struct drm_crtc *crtc, bool enable);
-void dcp_crtc_vblank_callback(struct drm_crtc *crtc);
+void dcp_crtc_vblank_callback(struct drm_crtc *crtc, u64 timestamp_ns);
 void dcp_crtc_frame_done_callback(struct drm_crtc *crtc);
 
 struct dcp_drv;
-void dcp_crtc_hfi_vblank_cb(struct dcp_drv *drv, u32 session_id);
-void dcp_crtc_hfi_frame_done_cb(struct dcp_drv *drv, u32 session_id, u32 sequence_id);
+void dcp_crtc_hfi_vblank_cb(struct dcp_drv *drv, u32 session_id, u64 timestamp_ns);
+void dcp_crtc_hfi_frame_done_cb(struct dcp_drv *drv, u32 session_id,
+				u32 sequence_id, u64 timestamp_ns);
 
 void dcp_crtc_set_session(struct drm_crtc *crtc, u32 session_id);
 void dcp_crtc_clear_session(struct drm_crtc *crtc);
