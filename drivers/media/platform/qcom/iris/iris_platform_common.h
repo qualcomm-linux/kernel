@@ -199,6 +199,8 @@ enum platform_inst_fw_cap_type {
 	SLICE_MODE,
 	SLICE_MAX_BYTES,
 	SLICE_MAX_MB,
+	DISPLAY_DELAY_ENABLE,
+	DISPLAY_DELAY,
 	INST_FW_CAP_MAX,
 };
 
