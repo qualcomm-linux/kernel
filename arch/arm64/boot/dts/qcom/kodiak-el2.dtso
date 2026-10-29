@@ -5,6 +5,7 @@
  * Kodiak specific modifications required to boot in EL2.
  */
 
+
 /dts-v1/;
 /plugin/;
 
@@ -20,16 +21,6 @@
 	iommus = <&apps_smmu 0x11a0 0x0400>;
 };
 
-&reserved_memory {
-	#address-cells = <2>;
-	#size-cells = <2>;
-
-	wlan_ce_mem: wlan-ce@4cd000 {
-		no-map;
-		reg = <0x0 0x004cd000 0x0 0x1000>;
-	};
-};
-
 &venus {
 	status = "okay";
 	video-firmware {
@@ -42,9 +33,6 @@
 };
 
 &wifi {
-	memory-region = <&wlan_fw_mem>, <&wlan_ce_mem>;
-	status = "okay";
-
 	wifi-firmware {
 		iommus = <&apps_smmu 0x1c02 0x1>;
 	};
