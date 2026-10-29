@@ -8,9 +8,11 @@
 
 #include <linux/device.h>
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 
 struct dcp_drv;
 struct dcp_ipcc;
+#define VIRTIO_VENDOR_ID_DCP_HFI		1
 
 struct dcp_ipcc *dcp_virtio_get_ipcc(struct virtio_device *vdev);
 

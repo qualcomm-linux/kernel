@@ -1064,6 +1064,12 @@ static int add_gpu_components(struct device *dev,
 	return 0;
 }
 
+int msm_add_gpu_components(struct device *dev,
+			   struct component_match **matchptr)
+{
+	return add_gpu_components(dev, NULL, matchptr);
+}
+
 static int msm_drm_bind(struct device *dev)
 {
 	struct msm_drm_private *priv = msm_drm_get_priv(dev);
