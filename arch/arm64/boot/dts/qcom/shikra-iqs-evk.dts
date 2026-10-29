@@ -34,7 +34,7 @@
 
 		port {
 			hdmi_con: endpoint {
-				remote-endpoint = <&lt9611_out>;
+				remote-endpoint = <&hdmi_connector_out>;
 			};
 		};
 	};
@@ -108,14 +108,6 @@
 		};
 	};
 
-	vreg_bt_3p3_dummy: regulator-bt-3p3-dummy {
-		compatible = "regulator-fixed";
-		regulator-name = "bt_3p3_dummy";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
 	vreg_disp_3p3: regulator-disp-3p3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_disp_3p3";
@@ -127,6 +119,13 @@
 		pinctrl-names = "default";
 	};
 
+	vreg_bt_3p3_dummy: regulator-bt-3p3-dummy {
+		compatible = "regulator-fixed";
+		regulator-name = "bt_3p3_dummy";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 
 	vreg_wlan_3p3_dummy: regulator-wlan-3p3-dummy {
 		compatible = "regulator-fixed";
@@ -302,7 +301,7 @@
 &i2c4 {
 	status = "okay";
 
-	lt9611uxd: lt9611uxd@41 {
+	hdmi_bridge: hdmi-bridge@41 {
 		compatible = "lontium,lt9611uxd";
 		reg = <0x41>;
 		interrupts-extended = <&tlmm 85 IRQ_TYPE_EDGE_FALLING>;
@@ -310,7 +309,7 @@
 		vcc-supply = <&vreg_disp_3p3>;
 		vdd-supply = <&pm8150_s4>;
 
-		pinctrl-0 = <&bridge_irq_pin &bridge_rst_pin>;
+		pinctrl-0 = <&bridge_rst_pin &bridge_irq_pin>;
 		pinctrl-names = "default";
 
 		ports {
@@ -320,7 +319,7 @@
 			port@0 {
 				reg = <0>;
 
-				lt9611_a: endpoint {
+				bridge_dsi_in: endpoint {
 					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
@@ -328,7 +327,7 @@
 			port@2 {
 				reg = <2>;
 
-				lt9611_out: endpoint {
+				hdmi_connector_out: endpoint {
 					remote-endpoint = <&hdmi_con>;
 				};
 			};
@@ -347,7 +346,7 @@
 };
 
 &mdss_dsi0_out {
-	remote-endpoint = <&lt9611_a>;
+	remote-endpoint = <&bridge_dsi_in>;
 	data-lanes = <0 1 2 3>;
 };
 
@@ -608,6 +607,20 @@
 &tlmm {
 	gpio-reserved-ranges = <6 4>, <30 2>, <115 2>, <49 1>, <155 11>;
 
+	bridge_rst_pin: bridge-rst-state {
+		pins = "gpio76";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	bridge_irq_pin: bridge-irq-state {
+		pins = "gpio85";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	dmic_eldo_en_default: dmic-eldo-default-active-state {
 		pins = "gpio71";
 		function = "gpio";
@@ -672,20 +685,6 @@
 	i2s0_default: i2s0-default-active-state {
 		pins = "gpio105", "gpio106", "gpio107", "gpio108", "gpio109";
 		function = "i2s0";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
-	bridge_irq_pin: bridge-irq-state {
-		pins = "gpio85";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	bridge_rst_pin: bridge-rst-state {
-		pins = "gpio76";
-		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
 	};

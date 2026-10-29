@@ -17,8 +17,8 @@
 		type = "a";
 
 		port {
-			hdmi_con: endpoint {
-				remote-endpoint = <&lt9611_out>;
+			hdmi_connector_out: endpoint {
+				remote-endpoint = <&hdmi_bridge_out>;
 			};
 		};
 	};
@@ -30,14 +30,13 @@
 
 	status = "okay";
 
-	lt9611uxd: lt9611uxd@41 {
+	hdmi-bridge@41 {
 		compatible = "lontium,lt9611uxd";
 		reg = <0x41>;
 		interrupts-extended = <&tlmm 85 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&tlmm 76 GPIO_ACTIVE_LOW>;
 		vcc-supply = <&lcd_bias>;
 		vdd-supply = <&pm4125_l15>;
-
 		pinctrl-0 = <&bridge_irq_pin &bridge_rst_pin>;
 		pinctrl-names = "default";
 
@@ -48,7 +47,7 @@
 			port@0 {
 				reg = <0>;
 
-				lt9611_a: endpoint {
+				hdmi_bridge_in: endpoint {
 					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
@@ -56,8 +55,8 @@
 			port@2 {
 				reg = <2>;
 
-				lt9611_out: endpoint {
-					remote-endpoint = <&hdmi_con>;
+				hdmi_bridge_out: endpoint {
+					remote-endpoint = <&hdmi_connector_out>;
 				};
 			};
 		};
@@ -71,21 +70,21 @@
 };
 
 &mdss_dsi0_out {
-	remote-endpoint = <&lt9611_a>;
+	remote-endpoint = <&hdmi_bridge_in>;
 };
 
 &tlmm {
-	bridge_irq_pin: bridge-irq-state {
-		pins = "gpio85";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
 	bridge_rst_pin: bridge-rst-state {
 		pins = "gpio76";
 		function = "gpio";
 		drive-strength = <8>;
+		bias-disable;
+	};
+
+	bridge_irq_pin: bridge-irq-state {
+		pins = "gpio85";
+		function = "gpio";
+		drive-strength = <2>;
 		bias-disable;
 	};
 };
