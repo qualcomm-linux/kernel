@@ -1929,10 +1929,12 @@ static int qcom_swrm_setup_lane_provider(struct qcom_swrm_ctrl *ctrl)
 	/*
 	 * Hold a link to the provider: this controller dereferences it on every
 	 * bank switch and on every DPn access for a borrowed lane, so it must
-	 * not be unbound first.
+	 * not be unbound first. Keep its hclk active while the consumer is,
+	 * and resume it now before probe programs the provider's registers.
 	 */
 	ret = device_link_add(ctrl->dev, &pdev->dev,
-			      DL_FLAG_AUTOREMOVE_CONSUMER) ? 0 : -EINVAL;
+			      DL_FLAG_AUTOREMOVE_CONSUMER | DL_FLAG_PM_RUNTIME |
+			      DL_FLAG_RPM_ACTIVE) ? 0 : -EINVAL;
 	put_device(&pdev->dev);
 	if (ret)
 		return dev_err_probe(ctrl->dev, ret,
@@ -2093,6 +2095,9 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		 * touch the uninitialised sdw_bus.  The consumer starts the
 		 * frame generator once MM_SYNC ties the two together.
 		 */
+		/* runtime PM is driven by the consumer through the device link */
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
 		ctrl->lane_provider_ready = true;
 
 		dev_dbg(dev, "Qualcomm SoundWire lane provider v%x.%x.%x registered\n",
@@ -2220,8 +2225,31 @@ static void qcom_swrm_remove(struct platform_device *pdev)
 {
 	struct qcom_swrm_ctrl *ctrl = dev_get_drvdata(&pdev->dev);
 
-	if (!ctrl->is_lane_provider)
-		sdw_bus_master_delete(&ctrl->bus);
+	if (ctrl->is_lane_provider) {
+		pm_runtime_disable(&pdev->dev);
+		if (!pm_runtime_status_suspended(&pdev->dev))
+			clk_disable_unprepare(ctrl->hclk);
+		return;
+	}
+
+	/* delete bus before dropping lane_provider; in-flight ops deref it */
+	sdw_bus_master_delete(&ctrl->bus);
+
+	if (ctrl->lane_provider) {
+		struct qcom_swrm_ctrl *provider = ctrl->lane_provider;
+
+		/* provider hclk may be gated by runtime PM */
+		if (pm_runtime_resume_and_get(provider->dev) >= 0) {
+			provider->reg_write(provider,
+					    provider->reg_layout[SWRM_REG_INTERRUPT_CPU_EN], 0);
+			/* disable provider SWRM; releases shared SWR_CLK */
+			provider->reg_write(provider, SWRM_COMP_CFG_ADDR, 0);
+			pm_runtime_put(provider->dev);
+		}
+		provider->lane_consumer = NULL;
+		ctrl->lane_provider = NULL;
+	}
+
 	clk_disable_unprepare(ctrl->hclk);
 }
 
@@ -2229,6 +2257,10 @@ static int __maybe_unused swrm_runtime_resume(struct device *dev)
 {
 	struct qcom_swrm_ctrl *ctrl = dev_get_drvdata(dev);
 	int ret;
+
+	/* no bus of its own; the consumer restarts the link */
+	if (ctrl->is_lane_provider)
+		return clk_prepare_enable(ctrl->hclk);
 
 	if (ctrl->wake_irq > 0) {
 		if (!irqd_irq_disabled(irq_get_irq_data(ctrl->wake_irq)))
@@ -2257,6 +2289,9 @@ static int __maybe_unused swrm_runtime_resume(struct device *dev)
 		reset_control_reset(ctrl->audio_cgcr);
 
 		qcom_swrm_program_mm_sync(ctrl);
+		/* provider was resumed first via the device link */
+		if (ctrl->lane_provider)
+			qcom_swrm_program_mm_sync(ctrl->lane_provider);
 
 		if (ctrl->version == SWRM_VERSION_1_7_0) {
 			ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, ctrl->ee);
@@ -2299,6 +2334,12 @@ static int __maybe_unused swrm_runtime_suspend(struct device *dev)
 {
 	struct qcom_swrm_ctrl *ctrl = dev_get_drvdata(dev);
 	int ret;
+
+	/* the consumer has already stopped the bus clock */
+	if (ctrl->is_lane_provider) {
+		clk_disable_unprepare(ctrl->hclk);
+		return 0;
+	}
 
 	swrm_wait_for_wr_fifo_done(ctrl);
 	if (!ctrl->clock_stop_not_supported) {
