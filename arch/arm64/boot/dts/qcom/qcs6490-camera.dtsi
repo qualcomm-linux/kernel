@@ -1576,6 +1576,8 @@
 		clock-rates = <300000000 0 300000000 0>,
 			      <400000000 0 300000000 0>;
 		aggregator-rx;
+		mux-mode = <1>;
+		session-max-device-supported = <2>;
 		status = "ok";
 
 		csiphy4_opp_table: opp-table {
