@@ -595,6 +595,8 @@ struct ope_dev {
 
 	struct icc_path		*icc_data;
 	struct icc_path		*icc_config;
+	struct clk_bulk_data    *clks;
+	int         nclks;
 
 	void __iomem		*base;
 	void __iomem		*base_rd;
@@ -3696,16 +3698,15 @@ static int ope_init_power(struct ope_dev *ope)
 	if (ret && ret != -ENODEV)
 		return dev_err_probe(dev, ret, "invalid OPP table\n");
 
+	ret = devm_clk_bulk_get_all(dev, &ope->clks);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to get clocks\n");
+	else if (!ret)
+		return dev_err_probe(dev, -EINVAL, "not enough clocks in DT\n");
+
+	ope->nclks = ret;
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		return ret;
-
-	ret = devm_pm_clk_create(dev);
-	if (ret)
-		return ret;
-
-	ret = of_pm_clk_add_clks(dev);
-	if (ret < 0)
 		return ret;
 
 	return 0;
@@ -3752,6 +3753,7 @@ static int ope_probe(struct platform_device *pdev)
 	spin_lock_init(&ope->ctx_lock);
 	spin_lock_init(&ope->sched_lock);
 	INIT_WORK(&ope->run_work, ope_run_work);
+	platform_set_drvdata(pdev, ope);
 
 	ret = dma_set_mask(dev, DMA_BIT_MASK(32));
 	if (ret) {
@@ -3792,10 +3794,10 @@ static int ope_probe(struct platform_device *pdev)
 
 	/* ope ownership is transferred to ope_v4l2_register(), even on failure */
 	ret = ope_v4l2_register(ope);
-	if (ret)
+	if (ret) {
+		platform_set_drvdata(pdev, NULL);
 		return dev_err_probe(dev, ret, "V4L2 registration failed\n");
-
-	platform_set_drvdata(pdev, ope);
+	}
 
 	/* Everything @ope_irq() touches is in place, let interrupts in */
 	enable_irq(ope->irq);
@@ -3803,6 +3805,7 @@ static int ope_probe(struct platform_device *pdev)
 	return 0;
 
 err_free:
+	platform_set_drvdata(pdev, NULL);
 	mutex_destroy(&ope->mutex);
 	kfree(ope);
 	return ret;
@@ -3816,6 +3819,21 @@ static void ope_remove(struct platform_device *pdev)
 	ope_unregister(ope);
 }
 
+static int ope_runtime_suspend(struct device *dev)
+{
+	struct ope_dev *ope = dev_get_drvdata(dev);
+	clk_bulk_disable_unprepare(ope->nclks, ope->clks);
+
+	return 0;
+}
+
+static int ope_runtime_resume(struct device *dev)
+{
+	struct ope_dev *ope = dev_get_drvdata(dev);
+
+	return clk_bulk_prepare_enable(ope->nclks, ope->clks);
+}
+
 static const struct of_device_id ope_dt_ids[] = {
 	{ .compatible = "qcom,qcm2290-camss-ope" },
 	{ },
@@ -3823,7 +3841,7 @@ static const struct of_device_id ope_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ope_dt_ids);
 
 static const struct dev_pm_ops ope_pm_ops = {
-	SET_RUNTIME_PM_OPS(pm_clk_suspend, pm_clk_resume, NULL)
+	SET_RUNTIME_PM_OPS(ope_runtime_suspend, ope_runtime_resume, NULL)
 };
 
 static struct platform_driver ope_driver = {
