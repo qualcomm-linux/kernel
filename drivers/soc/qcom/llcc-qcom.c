@@ -3817,6 +3817,41 @@ static const struct llcc_edac_reg_offset llcc_v2_1_edac_reg_offset = {
 	.drp_ecc_db_err_syn0 = 0x52120,
 };
 
+static const struct llcc_edac_reg_offset llcc_lcp_srp_edac_reg_offset = {
+	.trp_ecc_error_status0 = 0x20344,
+	.trp_ecc_error_status1 = 0x20348,
+	.trp_ecc_sb_err_syn0 = 0x2034c,
+	.trp_ecc_db_err_syn0 = 0x20370,
+	.trp_ecc_error_cntr_clear = 0x20440,
+	.trp_interrupt_0_status = 0x20480,
+	.trp_interrupt_0_clear = 0x20484,
+	.trp_interrupt_0_enable = 0x20488,
+
+	/* LLCC Common registers */
+	.cmn_status0 = 0x3400c,
+	.cmn_interrupt_0_enable = 0x3401c,
+	.cmn_interrupt_1_enable = 0x3402c,
+	.cmn_interrupt_2_enable = 0x3403c,
+
+	/* LLCC DRP registers */
+	.drp_ecc_error_cfg = 0x50000,
+	.drp_ecc_error_cntr_clear = 0x50004,
+	.drp_interrupt_status = 0x50020,
+	.drp_interrupt_clear = 0x50028,
+	.drp_interrupt_enable = 0x5002c,
+	.drp_ecc_error_status0 = 0x520f4,
+	.drp_ecc_error_status1 = 0x520f8,
+	.drp_ecc_sb_err_syn0 = 0x520fc,
+	.drp_ecc_db_err_syn0 = 0x52120,
+
+	/* LCP/SRP DDR DRAM ECC registers (LLCC broadcast space) */
+	.lcp_srp_ecc_error_cntr_clear = 0x59004,
+	.lcp_srp_ecc_error_status1 = 0x59010,
+	.lcp_srp_interrupt_status = 0x59070,
+	.lcp_srp_interrupt_clear = 0x59074,
+	.lcp_srp_interrupt_enable = 0x59078,
+};
+
 static const struct llcc_edac_reg_offset llcc_v6_edac_reg_offset = {
 	.trp_ecc_error_status0 = 0x47448,
 	.trp_ecc_error_status1 = 0x47450,
@@ -4025,7 +4060,7 @@ static const struct qcom_llcc_config shikra_cfg[] = {
 		.sct_data	= shikra_data,
 		.size		= ARRAY_SIZE(shikra_data),
 		.reg_offset	= llcc_v2_1_reg_offset,
-		.edac_reg_offset = &llcc_v2_1_edac_reg_offset,
+		.edac_reg_offset = &llcc_lcp_srp_edac_reg_offset,
 		.irq_configured = true,
 	},
 };
@@ -4938,6 +4973,13 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 
 	drv_data->cfg = llcc_cfg;
 	drv_data->cfg_size = sz;
+	if (cfg->edac_reg_offset && cfg->edac_reg_offset->lcp_srp_interrupt_enable) {
+		drv_data->lcp_irq = platform_get_irq_optional(pdev, 1);
+		if (drv_data->lcp_irq < 0 && drv_data->lcp_irq != -ENXIO) {
+			ret = drv_data->lcp_irq;
+			goto err;
+		}
+	}
 	drv_data->edac_reg_offset = cfg->edac_reg_offset;
 	drv_data->ecc_irq_configured = cfg->irq_configured;
 	mutex_init(&drv_data->lock);
