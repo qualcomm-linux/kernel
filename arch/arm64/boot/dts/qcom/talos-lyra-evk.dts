@@ -4,6 +4,7 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "talos-lyra-evk-som.dtsi"
 
@@ -15,6 +16,8 @@
 
 	aliases {
 		serial1 = &uart7;
+		i2c2 = &i2c2;
+		i2c5 = &i2c5;
 	};
 
 	dp0-connector {
@@ -31,25 +34,25 @@
 		};
 	};
 
-	hdmi-connector {
+	hdmi_connector: hdmi-connector {
 		compatible = "hdmi-connector";
 		type = "a";
 
 		port {
-			hdmi_con: endpoint {
-				remote-endpoint = <&lt9611_out>;
+			hdmi_connector_out: endpoint {
+				remote-endpoint = <&hdmi_bridge_out>;
 			};
 		};
 	};
 
-	vreg_lt9611_vcc: regulator-lt9611-vcc {
+	vreg_disp_3p3: regulator-disp-3p3 {
 		compatible = "regulator-fixed";
-		regulator-name = "lt9611_vcc";
+		regulator-name = "vreg_disp_3p3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&tlmm 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		pinctrl-0 = <&lt9611_vcc_pin>;
+		pinctrl-0 = <&lcd_bias_en>;
 		pinctrl-names = "default";
 	};
 
@@ -145,15 +148,15 @@
 &i2c2 {
 	status = "okay";
 
-	lt9611uxd: lt9611uxd@41 {
+	hdmi_bridge: hdmi-bridge@41 {
 		compatible = "lontium,lt9611uxd";
 		reg = <0x41>;
 		interrupts-extended = <&tlmm 60 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
-		vcc-supply = <&vreg_lt9611_vcc>;
+		vcc-supply = <&vreg_disp_3p3>;
 		vdd-supply = <&vreg_s4a>;
 
-		pinctrl-0 = <&lt9611_irq_pin &lt9611_rst_pin>;
+		pinctrl-0 = <&bridge_irq_pin &bridge_rst_pin>;
 		pinctrl-names = "default";
 
 		ports {
@@ -163,7 +166,7 @@
 			port@0 {
 				reg = <0>;
 
-				lt9611_a: endpoint {
+				hdmi_bridge_in: endpoint {
 					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
@@ -171,8 +174,8 @@
 			port@2 {
 				reg = <2>;
 
-				lt9611_out: endpoint {
-					remote-endpoint = <&hdmi_con>;
+				hdmi_bridge_out: endpoint {
+					remote-endpoint = <&hdmi_connector_out>;
 				};
 			};
 		};
@@ -246,15 +249,19 @@
 };
 
 &mdss_dsi0 {
+	vdda-supply = <&vreg_l5a>;
+
 	status = "okay";
 };
 
 &mdss_dsi0_out {
-	remote-endpoint = <&lt9611_a>;
+	remote-endpoint = <&hdmi_bridge_in>;
 	data-lanes = <0 1 2 3>;
 };
 
 &mdss_dsi0_phy {
+	vdds-supply = <&vreg_l11a>;
+
 	status = "okay";
 };
 
@@ -484,27 +491,6 @@
 		function = "gpio";
 	};
 
-	lt9611_irq_pin: lt9611-irq-state {
-		pins = "gpio60";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	lt9611_rst_pin: lt9611-rst-state {
-		pins = "gpio61";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
-	lt9611_vcc_pin: lt9611-vcc-state {
-		pins = "gpio3";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
 	pcie_default_state: pcie-default-state {
 		clkreq-pins {
 			pins = "gpio90";
@@ -539,6 +525,29 @@
 		pins = "gpio85";
 		function = "gpio";
 		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&tlmm {
+	lcd_bias_en: lcd-bias-en-state {
+		pins = "gpio3";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	bridge_irq_pin: bridge-irq-state {
+		pins = "gpio60";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	bridge_rst_pin: bridge-rst-state {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <8>;
 		bias-disable;
 	};
 };
