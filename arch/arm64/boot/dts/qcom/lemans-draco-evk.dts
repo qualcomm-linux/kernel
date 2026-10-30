@@ -17,6 +17,7 @@
 		ethernet0 = &ethernet0;
 		ethernet1 = &ethernet1;
 		i2c1 = &i2c1;
+		i2c4 = &i2c4;
 	};
 
 	dp0-connector {
