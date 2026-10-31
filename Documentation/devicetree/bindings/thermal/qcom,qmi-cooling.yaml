@@ -74,10 +74,48 @@ allOf:
             label:
               const: cdsp_sw
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,qmi-cooling-modem
+    then:
+      properties:
+        pa:
+          $ref: "#/definitions/tmd"
+          description:
+            Power amplifier (PA) TMD
+          properties:
+            label:
+              const: pa
+        modem:
+          $ref: "#/definitions/tmd"
+          description:
+            Modem processor TMD
+          properties:
+            label:
+              const: modem
+
 unevaluatedProperties: false
 
 examples:
   - |
+    remoteproc-mpss {
+        cooling {
+            compatible = "qcom,qmi-cooling-modem";
+
+            pa: pa {
+              label = "pa";
+              #cooling-cells = <2>;
+            };
+
+            modem: modem {
+              label = "modem";
+              #cooling-cells = <2>;
+            };
+        };
+    };
+
     remoteproc-cdsp {
         cooling {
             compatible = "qcom,qmi-cooling-cdsp";
