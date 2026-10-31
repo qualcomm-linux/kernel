@@ -6646,11 +6646,18 @@
 					bias-bus-hold;
 				};
 
-				data-pins {
-					pins = "sdc1_data";
-					drive-strength = <2>;
-					bias-bus-hold;
-				};
+			cci_async0_default: cci-async0-state {
+				pins = "gpio70";
+				function = "cci_async";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			cci_async1_default: cci-async1-state {
+				pins = "gpio71";
+				function = "cci_async";
+				drive-strength = <2>;
+				bias-disable;
 			};
 		};
 
