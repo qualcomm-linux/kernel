@@ -141,6 +141,60 @@
 
 };
 
+&ethernet0 {
+	clocks = <&segcc SE_GCC_EMAC0_AXI_CLK>,
+		 <&segcc SE_GCC_EMAC0_CNOC_APB_CLK>,
+		 <&segcc SE_GCC_EMAC0_PTP_CLK>,
+		 <&segcc SE_GCC_EMAC0_PHY_AUX_CLK>,
+		 <&segcc SE_GCC_EEE_EMAC0_CLK>;
+	clock-names = "stmmaceth",
+		      "pclk",
+		      "ptp_ref",
+		      "phyaux",
+		      "eee";
+
+	resets = <&segcc SE_GCC_EMAC0_BCR>;
+
+	power-domains = <&segcc SE_GCC_EMAC0_GDSC>;
+
+	interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+			 &config_noc SLAVE_PS_ETH_0 QCOM_ICC_TAG_ALWAYS>,
+			<&aggre2_noc_tile MASTER_EMAC_0 QCOM_ICC_TAG_ALWAYS
+			 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+	interconnect-names = "cpu-mac",
+			     "mac-mem";
+
+	phys = <&serdes0>;
+	phy-names = "serdes";
+};
+
+&ethernet1 {
+	clocks = <&segcc SE_GCC_EMAC1_AXI_CLK>,
+		 <&segcc SE_GCC_EMAC1_CNOC_APB_CLK>,
+		 <&segcc SE_GCC_EMAC1_PTP_CLK>,
+		 <&segcc SE_GCC_EMAC1_PHY_AUX_CLK>,
+		 <&segcc SE_GCC_EEE_EMAC1_CLK>;
+	clock-names = "stmmaceth",
+		      "pclk",
+		      "ptp_ref",
+		      "phyaux",
+		      "eee";
+
+	resets = <&segcc SE_GCC_EMAC1_BCR>;
+
+	power-domains = <&segcc SE_GCC_EMAC1_GDSC>;
+
+	interconnects = <&hscnoc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+			 &config_noc SLAVE_PS_ETH_1 QCOM_ICC_TAG_ALWAYS>,
+			<&aggre2_noc_tile MASTER_EMAC_1 QCOM_ICC_TAG_ALWAYS
+			 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
+	interconnect-names = "cpu-mac",
+			     "mac-mem";
+
+	phys = <&serdes1>;
+	phy-names = "serdes";
+};
+
 &i2c0 {
 	clocks = <&segcc SE_GCC_QUPV3_WRAP0_S0_CLK>;
 	clock-names = "se";
@@ -2314,6 +2368,30 @@
 		status = "disabled";
 	};
 
+	serdes0: phy@88f8000 {
+		compatible = "qcom,nord-dwmac-sgmii-phy";
+		reg = <0x0 0x088f8000 0x0 0x4000>;
+
+		clocks = <&tcsrcc TCSR_UX_SGMII_0_CLKREF_EN>;
+		clock-names = "sgmi_ref";
+
+		#phy-cells = <0>;
+
+		status = "disabled";
+	};
+
+	serdes1: phy@88fc000 {
+		compatible = "qcom,nord-dwmac-sgmii-phy";
+		reg = <0x0 0x088fc000 0x0 0x4000>;
+
+		clocks = <&tcsrcc TCSR_UX_SGMII_1_CLKREF_EN>;
+		clock-names = "sgmi_ref";
+
+		#phy-cells = <0>;
+
+		status = "disabled";
+	};
+
 	negcc: clock-controller@8900000 {
 		compatible = "qcom,nord-negcc";
 		reg = <0x0 0x08900000 0x0 0xf4200>;
@@ -2730,6 +2808,38 @@
 		pins = "gpio54";
 		function = "edp3_hot";
 		bias-disable;
+	};
+
+	ethernet0_default: ethernet0-default-state {
+		mdc-pins {
+			pins = "gpio47";
+			function = "emac0_mdc";
+			drive-strength = <16>;
+			bias-pull-up;
+		};
+
+		mdio-pins {
+			pins = "gpio48";
+			function = "emac0_mdio";
+			drive-strength = <16>;
+			bias-pull-up;
+		};
+	};
+
+	ethernet1_default: ethernet1-default-state {
+		mdc-pins {
+			pins = "gpio49";
+			function = "emac1_mdc";
+			drive-strength = <16>;
+			bias-pull-up;
+		};
+
+		mdio-pins {
+			pins = "gpio50";
+			function = "emac1_mdio";
+			drive-strength = <16>;
+			bias-pull-up;
+		};
 	};
 
 	pcie0_default: pcie0-default-state {
@@ -3857,4 +3967,18 @@
 		usb_2_dwc3_hs: endpoint {
 		};
 	};
+};
+
+&xpcs0 {
+	clocks = <&segcc SE_GCC_EMAC0_CNOC_APB_CLK>;
+	clock-names = "csr";
+
+	power-domains = <&segcc SE_GCC_EMAC0_GDSC>;
+};
+
+&xpcs1 {
+	clocks = <&segcc SE_GCC_EMAC1_CNOC_APB_CLK>;
+	clock-names = "csr";
+
+	power-domains = <&segcc SE_GCC_EMAC1_GDSC>;
 };
