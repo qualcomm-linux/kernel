@@ -602,6 +602,56 @@
 	status = "okay";
 };
 
+&ethernet0 {
+	pinctrl-0 = <&ethernet0_default>, <&ethernet0_phy_int>;
+	pinctrl-names = "default";
+
+	phy-mode = "usxgmii";
+	phy-handle = <&sgmii_phy0>;
+
+	status = "okay";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sgmii_phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id31c3.1c12";
+			reg = <0x0>;
+			interrupts-extended = <&tlmm 141 IRQ_TYPE_EDGE_FALLING>;
+			reset-gpios = <&pmau0102_e_gpios 5 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <11000>;
+			reset-deassert-us = <70000>;
+		};
+	};
+};
+
+&ethernet1 {
+	pinctrl-0 = <&ethernet1_default>, <&ethernet1_phy_int>;
+	pinctrl-names = "default";
+
+	phy-mode = "usxgmii";
+	phy-handle = <&sgmii_phy1>;
+
+	status = "okay";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sgmii_phy1: ethernet-phy@8 {
+			compatible = "ethernet-phy-id31c3.1c12";
+			reg = <0x8>;
+			interrupts-extended = <&tlmm 55 IRQ_TYPE_EDGE_FALLING>;
+			reset-gpios = <&pmau0102_f_gpios 7 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <11000>;
+			reset-deassert-us = <70000>;
+		};
+	};
+};
+
 &i2c7 {
 	clock-frequency = <400000>;
 
@@ -910,8 +960,38 @@
 	firmware-name = "qcom/nord/soccp.mbn";
 };
 
+&serdes0 {
+	vdda-0p9-supply = <&vreg_l1h_0p9>;
+	vdda-1p2-supply = <&vreg_l2h_1p2>;
+
+	status = "okay";
+};
+
+&serdes1 {
+	vdda-0p9-supply = <&vreg_l1h_0p9>;
+	vdda-1p2-supply = <&vreg_l2h_1p2>;
+
+	status = "okay";
+};
+
 &spi16 {
 	status = "okay";
+};
+
+&tlmm {
+	ethernet0_phy_int: ethernet0-phy-int-state {
+		pins = "gpio141";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	ethernet1_phy_int: ethernet1-phy-int-state {
+		pins = "gpio55";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
 };
 
 &uart4 {
@@ -1023,5 +1103,13 @@
 	vdda-phy-supply = <&vreg_l2k_0p9>;
 	vdda-pll-supply = <&vreg_l2h_1p2>;
 
+	status = "okay";
+};
+
+&xpcs0 {
+	status = "okay";
+};
+
+&xpcs1 {
 	status = "okay";
 };
