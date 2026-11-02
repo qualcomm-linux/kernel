@@ -2378,6 +2378,7 @@ static int __maybe_unused swrm_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops swrm_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(swrm_runtime_suspend, swrm_runtime_resume, NULL)
 };
 
