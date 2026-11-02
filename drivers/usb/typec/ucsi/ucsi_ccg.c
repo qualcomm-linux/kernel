@@ -1842,6 +1842,8 @@ static int ucsi_ccg_read_cci(struct ucsi *ucsi, u32 *cci)
 {
         struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
 
+	duump_stack();
+	pr_err("%s\n",__func__):
         spin_lock(&uc->op_lock);
         *cci = uc->op_data.cci;
         spin_unlock(&uc->op_lock);
@@ -1955,6 +1957,7 @@ static irqreturn_t ccg_irq_handler(int irq, void *data)
         u32 cci = 0;
         int ret = 0;
 
+	pr_err("%s\n", __func__);
         ret = ccg_read(uc, CCGX_RAB_INTR_REG, &intr_reg, sizeof(intr_reg));
         if (ret)
                 return ret;
@@ -1964,6 +1967,7 @@ static irqreturn_t ccg_irq_handler(int irq, void *data)
         else if (!(intr_reg & UCSI_READ_INT))
                 goto err_clear_irq;
 
+	pr_err("%s cci:%x\n", __func__, cci);
         ret = ccg_read(uc, reg, (void *)&cci, sizeof(cci));
         if (ret)
                 goto err_clear_irq;
@@ -1981,6 +1985,7 @@ err_clear_irq:
         if (!ret)
                 ucsi_notify_common(uc->ucsi, cci);
 
+	pr_err("%s cci:%x done\n", __func__, cci);
         return IRQ_HANDLED;
 }
 

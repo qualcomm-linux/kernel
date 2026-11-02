@@ -123,6 +123,7 @@ static inline void dwc3_qcom_clrbits(void __iomem *base, u32 offset, u32 val)
 
 static void dwc3_qcom_vbus_override_enable(struct dwc3_qcom *qcom, bool enable)
 {
+	pr_err("%s enable:%d\n",__func__, enable );
 	if (enable) {
 		dwc3_qcom_setbits(qcom->qscratch_base, QSCRATCH_SS_PHY_CTRL,
 				  LANE0_PWR_PRESENT);
@@ -573,6 +574,7 @@ static void dwc3_qcom_set_role_notifier(struct dwc3 *dwc, enum usb_role next_rol
 	struct dwc3_qcom *qcom = to_dwc3_qcom(dwc);
 	int ret;
 
+	dump_stack();
 	dev_info(qcom->dev, "dwc3-pmdbg: set_role_notifier: current=%d next=%d usage_count=%d\n",
 		 qcom->current_role, next_role,
 		 atomic_read(&qcom->dev->power.usage_count));
@@ -602,6 +604,9 @@ static void dwc3_qcom_set_role_notifier(struct dwc3 *dwc, enum usb_role next_rol
 	 * internally by mutex lock.
 	 */
 	qcom->current_role = next_role;
+	dev_info(qcom->dev, "Done dwc3-pmdbg: set_role_notifier: current=%d next=%d usage_count=%d\n",
+		 qcom->current_role, next_role,
+		 atomic_read(&qcom->dev->power.usage_count));
 }
 
 static void dwc3_qcom_run_stop_notifier(struct dwc3 *dwc, bool is_on)
