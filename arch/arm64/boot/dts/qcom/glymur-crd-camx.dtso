@@ -38,3 +38,7 @@
 &cci1_i2c1 {
 	status = "disabled";
 };
+
+&csiphy4 {
+	status = "disabled";
+};
