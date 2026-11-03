@@ -1517,7 +1517,7 @@ u32 size_enc_ref_buffer(u32 frame_width, u32 frame_height)
 {
 	u32 u_chroma_buffer_height = ALIGN(frame_height >> 1, 32);
 	u32 u_buffer_height = ALIGN(frame_height, 32);
-	u32 u_buffer_width = ALIGN(frame_width, 32);
+	u32 u_buffer_width = ALIGN(frame_width, 128);
 
 	return (u_buffer_height + u_chroma_buffer_height) * u_buffer_width;
 }
