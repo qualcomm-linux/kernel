@@ -46,6 +46,16 @@
 	status = "disabled";
 };
 
+&deserializer_0 {
+	cam_vio-supply = <&pm8150_s4>;
+
+};
+
+&deserializer_1 {
+	cam_vio-supply = <&pm8150_s4>;
+
+};
+
 &eeprom_cam0 {
 	cam_vio-supply = <&pm8150_s4>;
 	gpios = <&tlmm 34 0>,
