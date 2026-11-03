@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&pcie4_port0 {
+
+	pci@0,0 {
+		reg = <0x10000 0x0 0x0 0x0 0x0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges;
+		bus-range = <0x2 0xff>;
+		aspm-no-l1;
+		aspm-no-l0s;
+
+		pci@3,0 {
+			reg = <0x21800 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x5 0xff>;
+			aspm-no-l1;
+			aspm-no-l0s;
+
+			qps615: pci@0,0 {
+				reg = <0x50000 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+				aspm-no-l1;
+				aspm-no-l0s;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				phy-reset-gpios = <&qps615 0 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <221000>;
+			};
+
+			pci@0,1 {
+				reg = <0x50100 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+				aspm-no-l1;
+				aspm-no-l0s;
+
+				phy-reset-gpios = <&qps615 1 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <20000>;
+			};
+		};
+	};
+};
