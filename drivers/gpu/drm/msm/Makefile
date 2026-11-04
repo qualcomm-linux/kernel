@@ -4,6 +4,7 @@ ccflags-y += -I $(obj)/generated
 ccflags-y += -I $(src)/disp/dpu1
 ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(src)/dsi
 ccflags-$(CONFIG_DRM_MSM_DP) += -I $(src)/dp
+ccflags-$(CONFIG_DRM_MSM_DCP) += -I $(src)/dcp
 
 adreno-y := \
 	adreno/adreno_device.o \
@@ -67,6 +68,27 @@ msm-display-$(CONFIG_DRM_MSM_MDP5) += \
 	disp/mdp5/mdp5_mixer.o \
 	disp/mdp5/mdp5_plane.o \
 	disp/mdp5/mdp5_smp.o \
+
+msm-display-$(CONFIG_DRM_MSM_DCP) += \
+	dcp/dcp_crtc.o \
+	dcp/dcp_dpu_kms.o \
+	dcp/dcp_plane.o \
+	dcp/dcp_dsi_bridge.o \
+	dcp/dcp_hfi_core.o \
+	dcp/dcp_hfi_crtc.o \
+	dcp/dcp_hfi_dsi.o \
+	dcp/dcp_hfi_dsi_panel.o \
+	dcp/dcp_hfi_encoder.o \
+	dcp/dcp_hfi_kms.o \
+	dcp/dcp_hfi_plane.o \
+	dcp/dcp_ipcc.o \
+	dcp/dcp_encoder.o \
+	dcp/dcp_drv.o \
+	dcp/dcp_virtio.o \
+	dcp/dcp_virtio_transport.o \
+	dcp/hfi/hfi_packer.o \
+	dcp/hfi/hfi_unpacker.o \
+	dcp/hfi/hfi_utils.o
 
 msm-display-$(CONFIG_DRM_MSM_DPU) += \
 	disp/dpu1/dpu_core_perf.o \
