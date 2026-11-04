@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/novatek,nt37802.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Novatek NT37802 AMOLED DSI Command-Mode Panel
+
+maintainers:
+  - Jayant Shekhar <jshekhar@oss.qualcomm.com>
+
+description:
+  The Novatek NT37802 command-mode AMOLED panel described by the Maili/Pebble
+  platform. The downstream panel description identifies the module as CSOT.
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    const: novatek,nt37802
+
+  reg:
+    maxItems: 1
+    description: DSI virtual channel number
+
+  exvdd-supply: true
+  vci-supply: true
+  vdd-supply: true
+  vddio-supply: true
+  reset-gpios: true
+  port: true
+
+required:
+  - compatible
+  - reg
+  - exvdd-supply
+  - vci-supply
+  - vdd-supply
+  - vddio-supply
+  - reset-gpios
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        panel@0 {
+            compatible = "novatek,nt37802";
+            reg = <0>;
+            reset-gpios = <&tlmm 210 GPIO_ACTIVE_LOW>;
+            vddio-supply = <&vreg_l12b_1p8>;
+            vdd-supply = <&vreg_l11b_1p2>;
+            vci-supply = <&vreg_l13b_3p0>;
+            exvdd-supply = <&display_panel_vdd>;
+
+            port {
+                endpoint {
+                    remote-endpoint = <&dsi0_out>;
+                };
+            };
+        };
+    };
