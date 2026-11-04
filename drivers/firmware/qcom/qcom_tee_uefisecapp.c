@@ -564,11 +564,13 @@ static int qcomtee_ctx_match(struct tee_ioctl_version_data *ver,
 	return (ver->impl_id == TEE_IMPL_ID_QTEE);
 }
 
-static int qcomtee_uefisecapp_probe(struct tee_client_device *tee_dev)
+static int qcomtee_uefisecapp_probe(struct device *dev)
 {
 	int ret, err;
 	struct tee_param_objref client_env_obj;
 	struct tee_param_objref uefisec_svc_obj;
+
+	struct tee_client_device *tee_dev = to_tee_client_device(dev);
 
 	uefisec_app.dev = &tee_dev->dev;
 	/* Open context with QCOMTEE driver */
@@ -619,11 +621,13 @@ err_get_client_env:
 	return err;
 }
 
-static void qcomtee_uefisecapp_remove(struct tee_client_device *tee_dev)
+static int qcomtee_uefisecapp_remove(struct device *dev)
 {
 	efivars_unregister(&uefisec_app.efivars);
 	qcomtee_release_object(uefisec_app.ctx, uefisec_app.uefisec_svc_obj);
 	tee_client_close_context(uefisec_app.ctx);
+
+	return 0;
 }
 
 static const struct tee_client_device_id qcomtee_uefisecapp_id_table[] = {
@@ -634,14 +638,25 @@ MODULE_DEVICE_TABLE(tee, qcomtee_uefisecapp_id_table);
 
 static struct tee_client_driver qcomtee_uefisecapp_driver = {
 	.id_table	= qcomtee_uefisecapp_id_table,
-	.probe		= qcomtee_uefisecapp_probe,
-	.remove		= qcomtee_uefisecapp_remove,
 	.driver		= {
 		.name		= "qcom-tee-uefisecapp",
+		.bus		= &tee_bus_type,
+		.probe		= qcomtee_uefisecapp_probe,
+		.remove		= qcomtee_uefisecapp_remove,
 	},
 };
 
-module_tee_client_driver(qcomtee_uefisecapp_driver);
+static int __init qcomtee_uefisecapp_init(void)
+{
+	return driver_register(&qcomtee_uefisecapp_driver.driver);
+}
+
+static void __exit qcomtee_uefisecapp_exit(void)
+{
+	driver_unregister(&qcomtee_uefisecapp_driver.driver);
+}
+module_init(qcomtee_uefisecapp_init);
+module_exit(qcomtee_uefisecapp_exit);
 
 MODULE_AUTHOR("Qualcomm");
 MODULE_DESCRIPTION("TEE client driver for Qualcomm TEE UEFI Secure App");
