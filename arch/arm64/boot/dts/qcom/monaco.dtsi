@@ -847,10 +847,6 @@
 			reg = <0x0 0x9be82000 0x0 0x700000>;
 			no-map;
 		};
-
-		iris_resv: reservation-iris {
-			iommu-addresses = <&iris_non_pixel 0x0 0x0 0x0 0x25800000>;
-		};
 	};
 
 	smp2p-adsp {
@@ -5475,21 +5471,11 @@
 			resets = <&gcc GCC_VIDEO_AXI0_CLK_ARES>;
 			reset-names = "bus";
 
+			iommus = <&apps_smmu 0x0880 0x0400>,
+				 <&apps_smmu 0x0887 0x0400>;
 			dma-coherent;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-
 			status = "disabled";
-
-			iris_non_pixel: non-pixel {
-				iommus = <&apps_smmu 0x0880 0x0400>;
-				memory-region = <&iris_resv>;
-			};
-
-			iris_pixel: pixel {
-				iommus = <&apps_smmu 0x0887 0x0400>;
-			};
 
 			iris_opp_table: opp-table {
 				compatible = "operating-points-v2";
