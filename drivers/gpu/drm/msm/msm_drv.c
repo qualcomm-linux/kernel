@@ -66,10 +66,19 @@ bool msm_gpu_no_components(void)
 	return separate_gpu_kms;
 }
 
+static void msm_drm_priv_release(struct device *dev, void *res)
+{
+	/* The devres core frees the allocation after this callback. */
+}
+
+struct msm_drm_private *msm_drm_get_priv(struct device *dev)
+{
+	return devres_find(dev, msm_drm_priv_release, NULL, NULL);
+}
+
 static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_ops)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct drm_device *ddev = priv->dev;
 
 	/*
@@ -106,7 +115,7 @@ static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_op
 static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
 			const struct component_ops *gpu_ops)
 {
-	struct msm_drm_private *priv = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct drm_device *ddev;
 	int ret;
 
@@ -1064,13 +1073,14 @@ int msm_drv_probe(struct device *master_dev,
 	struct component_match *match = NULL;
 	int ret;
 
-	priv = devm_kzalloc(master_dev, sizeof(*priv), GFP_KERNEL);
+	priv = devres_alloc(msm_drm_priv_release, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->kms = kms;
 	priv->kms_init = kms_init;
-	dev_set_drvdata(master_dev, priv);
+	/* Register before component binding so priv survives unbind/rebind. */
+	devres_add(master_dev, priv);
 
 	/* Add mdp components if we have KMS. */
 	if (kms_init) {
@@ -1105,11 +1115,11 @@ int msm_gpu_probe(struct platform_device *pdev,
 	struct msm_drm_private *priv;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devres_alloc(msm_drm_priv_release, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, priv);
+	devres_add(&pdev->dev, priv);
 
 	/* on all devices that I am aware of, iommu's which can map
 	 * any address the cpu can see are used:
