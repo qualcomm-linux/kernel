@@ -8,7 +8,7 @@
 
 /* Board subtype 0: LT9611UXD as I2S audio codec, no MAX98091 */
 
-&lt9611uxd {
+&hdmi_bridge {
 	#sound-dai-cells = <1>;
 };
 
@@ -22,7 +22,7 @@
 
 	pri-i2s-playback-dai-link {
 		codec {
-			sound-dai = <&lt9611uxd 0>;
+			sound-dai = <&hdmi_bridge 0>;
 		};
 	};
 

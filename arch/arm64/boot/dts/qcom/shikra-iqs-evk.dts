@@ -211,7 +211,7 @@
 &i2c4 {
 	status = "okay";
 
-	lt9611uxd: lt9611uxd@41 {
+	hdmi_bridge: lt9611uxd@41 {
 		compatible = "lontium,lt9611uxd";
 		reg = <0x41>;
 		interrupts-extended = <&tlmm 85 IRQ_TYPE_EDGE_FALLING>;
