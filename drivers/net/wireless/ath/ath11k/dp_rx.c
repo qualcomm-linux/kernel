@@ -2516,7 +2516,7 @@ static bool ath11k_dp_rx_check_nwifi_hdr_len_valid(struct ath11k_base *ab,
 	hdr = (struct ieee80211_hdr *)msdu->data;
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
 
-	if ((likely(hdr_len <= DP_MAX_NWIFI_HDR_LEN)))
+	if (likely(hdr_len <= DP_MAX_NWIFI_HDR_LEN))
 		return true;
 
 	ab->soc_stats.invalid_rbm++;
