@@ -1524,22 +1524,27 @@ static int lt9211_probe(struct i2c_client *client)
 	if (IS_ERR(ctx->regmap))
 		return PTR_ERR(ctx->regmap);
 
+	ctx->bridge.of_node = dev->of_node;
+	ret = devm_drm_bridge_add(dev, &ctx->bridge);
+	if (ret)
+		return ret;
+
+	ret = lt9211_host_attach(ctx);
+	if (ret)
+		return ret;
+
 	if (ctx->chip_data->chip_type == LT9211C) {
 		ctx->wq = create_workqueue("lt9211_work");
 		if (!ctx->wq)
 			return -ENOMEM;
+		/* Register after DSI attach so devres flushes work before freeing ctx->dsi. */
 		ret = devm_add_action_or_reset(dev, lt9211_destroy_wq, ctx->wq);
 		if (ret)
 			return ret;
 		INIT_WORK(&ctx->lt9211_work, lt9211_work_func);
 	}
 
-	ctx->bridge.of_node = dev->of_node;
-	ret = devm_drm_bridge_add(dev, &ctx->bridge);
-	if (ret)
-		return ret;
-
-	return lt9211_host_attach(ctx);
+	return 0;
 }
 
 static const struct i2c_device_id lt9211_id[] = {
