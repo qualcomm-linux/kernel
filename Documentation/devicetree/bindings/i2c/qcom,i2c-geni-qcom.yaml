@@ -60,6 +60,13 @@ properties:
   power-domains:
     maxItems: 1
 
+  qcom,qup-multi-owner:
+    type: boolean
+    description:
+      Indicates that the QUP-based controller is shared with one or more
+      other system processors and must not be assumed to have exclusive
+      ownership by the operating system.
+
   reg:
     maxItems: 1
 
