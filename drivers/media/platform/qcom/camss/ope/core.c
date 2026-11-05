@@ -2809,6 +2809,7 @@ static bool ope_state_is_busy(struct v4l2_subdev *sd, struct v4l2_subdev_state *
 }
 
 static int ope_proc_set_fmt(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 			    struct v4l2_subdev_state *state,
 			    struct v4l2_subdev_format *fmt)
 {
@@ -2871,6 +2872,7 @@ static int ope_proc_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ope_proc_get_selection(struct v4l2_subdev *sd,
+				  const struct v4l2_subdev_client_info *ci,
 				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_selection *sel)
 {
@@ -2912,6 +2914,7 @@ static int ope_proc_get_selection(struct v4l2_subdev *sd,
 }
 
 static int ope_proc_set_selection(struct v4l2_subdev *sd,
+				  const struct v4l2_subdev_client_info *ci,
 				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_selection *sel)
 {
@@ -2954,6 +2957,7 @@ static const struct v4l2_subdev_ops ope_proc_ops = {
 /* -------- disp subdev ops -------- */
 
 static int ope_disp_set_fmt(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 			    struct v4l2_subdev_state *state,
 			    struct v4l2_subdev_format *fmt)
 {
