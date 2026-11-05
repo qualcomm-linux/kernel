@@ -7,5 +7,6 @@ obj-$(CONFIG_ACPI_IORT) 	+= iort.o
 obj-$(CONFIG_ACPI_MPAM) 	+= mpam.o
 obj-$(CONFIG_ACPI_PROCESSOR_IDLE) += cpuidle.o
 obj-$(CONFIG_ARM_AMBA)		+= amba.o
+obj-$(CONFIG_ACPI_AEST) 	+= aest.o
 obj-y				+= dma.o init.o
 obj-y				+= thermal_cpufreq.o
