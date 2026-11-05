@@ -5,6 +5,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/dma-mapping.h>
 #include <linux/fault-inject.h>
 #include <linux/debugfs.h>
@@ -66,10 +67,19 @@ bool msm_gpu_no_components(void)
 	return separate_gpu_kms;
 }
 
-static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_ops)
+static void msm_drm_priv_release(struct device *dev, void *res)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	/* The devres core frees the allocation after this callback. */
+}
+
+struct msm_drm_private *msm_drm_get_priv(struct device *dev)
+{
+	return devres_find(dev, msm_drm_priv_release, NULL, NULL);
+}
+
+static int msm_drm_uninit(struct device *dev)
+{
+	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct drm_device *ddev = priv->dev;
 
 	/*
@@ -92,10 +102,15 @@ static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_op
 	if (priv->kms)
 		msm_drm_kms_uninit(dev);
 
-	if (gpu_ops)
-		gpu_ops->unbind(dev, dev, NULL);
-	else
-		component_unbind_all(dev, ddev);
+	if (priv->gpu_pdev) {
+		struct device *gpu_dev = &priv->gpu_pdev->dev;
+
+		if (pm_runtime_enabled(gpu_dev))
+			WARN_ON_ONCE(adreno_system_suspend(gpu_dev));
+		msm_devfreq_cleanup(dev_to_gpu(gpu_dev));
+	}
+
+	component_unbind_all(dev, ddev);
 
 	ddev->dev_private = NULL;
 	drm_dev_put(ddev);
@@ -103,10 +118,9 @@ static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_op
 	return 0;
 }
 
-static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
-			const struct component_ops *gpu_ops)
+static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 {
-	struct msm_drm_private *priv = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct drm_device *ddev;
 	int ret;
 
@@ -150,12 +164,13 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
 	dma_set_max_seg_size(dev, UINT_MAX);
 
 	/* Bind all our sub-components: */
-	if (gpu_ops)
-		ret = gpu_ops->bind(dev, dev, NULL);
-	else
-		ret = component_bind_all(dev, ddev);
+	ret = component_bind_all(dev, ddev);
 	if (ret)
 		goto err_put_dev;
+
+	/* Devfreq callbacks require the GPU and GMU to be initialized. */
+	if (priv->gpu_pdev)
+		msm_devfreq_init(dev_to_gpu(&priv->gpu_pdev->dev));
 
 	ret = msm_gem_shrinker_init(ddev);
 	if (ret)
@@ -181,7 +196,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
 	return 0;
 
 err_msm_uninit:
-	msm_drm_uninit(dev, gpu_ops);
+	msm_drm_uninit(dev);
 
 	return ret;
 
@@ -1021,34 +1036,42 @@ static const struct of_device_id msm_gpu_match[] = {
 };
 
 static int add_gpu_components(struct device *dev,
+			      struct device_node *gpu_np,
 			      struct component_match **matchptr)
 {
-	struct device_node *np;
+	struct device_node *np __free(device_node) = gpu_np ?
+		of_node_get(gpu_np) : of_find_matching_node(NULL, msm_gpu_match);
 
-	np = of_find_matching_node(NULL, msm_gpu_match);
-	if (!np)
+	if (!np || !of_device_is_available(np) || !adreno_has_gpu(np))
 		return 0;
 
-	if (of_device_is_available(np) && adreno_has_gpu(np))
-		drm_of_component_match_add(dev, matchptr, component_compare_of, np);
+	drm_of_component_match_add(dev, matchptr, component_compare_of, np);
 
-	of_node_put(np);
+	struct device_node *gmu_np __free(device_node) = of_parse_phandle(np, "qcom,gmu", 0);
+	if (of_device_is_available(gmu_np))
+		drm_of_component_match_add(dev, matchptr, component_compare_of, gmu_np);
 
 	return 0;
 }
 
 static int msm_drm_bind(struct device *dev)
 {
-	return msm_drm_init(dev,
-			    msm_gpu_no_components() ?
-				    &msm_kms_driver :
-				    &msm_driver,
-			    NULL);
+	struct msm_drm_private *priv = msm_drm_get_priv(dev);
+	const struct drm_driver *drv;
+
+	if (!priv->kms_init)
+		drv = &msm_gpu_driver;
+	else if (msm_gpu_no_components())
+		drv = &msm_kms_driver;
+	else
+		drv = &msm_driver;
+
+	return msm_drm_init(dev, drv);
 }
 
 static void msm_drm_unbind(struct device *dev)
 {
-	msm_drm_uninit(dev, NULL);
+	msm_drm_uninit(dev);
 }
 
 const struct component_master_ops msm_drm_ops = {
@@ -1057,6 +1080,7 @@ const struct component_master_ops msm_drm_ops = {
 };
 
 int msm_drv_probe(struct device *master_dev,
+	struct device_node *gpu_np,
 	int (*kms_init)(struct drm_device *dev),
 	struct msm_kms *kms)
 {
@@ -1064,13 +1088,14 @@ int msm_drv_probe(struct device *master_dev,
 	struct component_match *match = NULL;
 	int ret;
 
-	priv = devm_kzalloc(master_dev, sizeof(*priv), GFP_KERNEL);
+	priv = devres_alloc(msm_drm_priv_release, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->kms = kms;
 	priv->kms_init = kms_init;
-	dev_set_drvdata(master_dev, priv);
+	/* Register before component binding so priv survives unbind/rebind. */
+	devres_add(master_dev, priv);
 
 	/* Add mdp components if we have KMS. */
 	if (kms_init) {
@@ -1079,8 +1104,8 @@ int msm_drv_probe(struct device *master_dev,
 			return ret;
 	}
 
-	if (!msm_gpu_no_components()) {
-		ret = add_gpu_components(master_dev, &match);
+	if (!kms_init || !msm_gpu_no_components()) {
+		ret = add_gpu_components(master_dev, gpu_np, &match);
 		if (ret)
 			return ret;
 	}
@@ -1099,32 +1124,14 @@ int msm_drv_probe(struct device *master_dev,
 	return 0;
 }
 
-int msm_gpu_probe(struct platform_device *pdev,
-		  const struct component_ops *ops)
+int msm_gpu_probe(struct platform_device *pdev)
 {
-	struct msm_drm_private *priv;
-	int ret;
-
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, priv);
-
-	/* on all devices that I am aware of, iommu's which can map
-	 * any address the cpu can see are used:
-	 */
-	ret = dma_set_mask_and_coherent(&pdev->dev, ~0);
-	if (ret)
-		return ret;
-
-	return msm_drm_init(&pdev->dev, &msm_gpu_driver, ops);
+	return msm_drv_probe(&pdev->dev, pdev->dev.of_node, NULL, NULL);
 }
 
-void msm_gpu_remove(struct platform_device *pdev,
-		    const struct component_ops *ops)
+void msm_gpu_remove(struct platform_device *pdev)
 {
-	msm_drm_uninit(&pdev->dev, ops);
+	component_master_del(&pdev->dev, &msm_drm_ops);
 }
 
 static int __init msm_drm_register(void)
