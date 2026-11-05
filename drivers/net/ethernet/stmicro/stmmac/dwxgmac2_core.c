@@ -13,6 +13,7 @@
 #include "stmmac_vlan.h"
 #include "dwxlgmac2.h"
 #include "dwxgmac2.h"
+#include "dw25gmac.h"
 
 static void dwxgmac2_core_init(struct mac_device_info *hw,
 			       struct net_device *dev)
@@ -234,11 +235,11 @@ static void dwxgmac2_prog_mtl_tx_algorithms(struct mac_device_info *hw,
 
 	/* Set ETS if desired */
 	for (i = 0; i < MTL_MAX_TX_QUEUES; i++) {
-		value = readl(ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(i));
+		value = readl(ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(hw->dwxgmac_addrs, i));
 		value &= ~XGMAC_TSA;
 		if (ets)
 			value |= XGMAC_ETS;
-		writel(value, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(i));
+		writel(value, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(hw->dwxgmac_addrs, i));
 	}
 }
 
@@ -246,9 +247,10 @@ static void dwxgmac2_set_mtl_tx_queue_weight(struct stmmac_priv *priv,
 					     struct mac_device_info *hw,
 					     u32 weight, u32 queue)
 {
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
 	void __iomem *ioaddr = hw->pcsr;
 
-	writel(weight, ioaddr + XGMAC_MTL_TCx_QUANTUM_WEIGHT(queue));
+	writel(weight, ioaddr + XGMAC_MTL_TCx_QUANTUM_WEIGHT(addrs, queue));
 }
 
 static void dwxgmac2_map_mtl_to_dma(struct mac_device_info *hw, u32 queue,
@@ -273,18 +275,19 @@ static void dwxgmac2_config_cbs(struct stmmac_priv *priv,
 				u32 send_slope, u32 idle_slope,
 				u32 high_credit, u32 low_credit, u32 queue)
 {
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
-	writel(send_slope, ioaddr + XGMAC_MTL_TCx_SENDSLOPE(queue));
-	writel(idle_slope, ioaddr + XGMAC_MTL_TCx_QUANTUM_WEIGHT(queue));
-	writel(high_credit, ioaddr + XGMAC_MTL_TCx_HICREDIT(queue));
-	writel(low_credit, ioaddr + XGMAC_MTL_TCx_LOCREDIT(queue));
+	writel(send_slope, ioaddr + XGMAC_MTL_TCx_SENDSLOPE(addrs, queue));
+	writel(idle_slope, ioaddr + XGMAC_MTL_TCx_QUANTUM_WEIGHT(addrs, queue));
+	writel(high_credit, ioaddr + XGMAC_MTL_TCx_HICREDIT(addrs, queue));
+	writel(low_credit, ioaddr + XGMAC_MTL_TCx_LOCREDIT(addrs, queue));
 
-	value = readl(ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(queue));
+	value = readl(ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(addrs, queue));
 	value &= ~XGMAC_TSA;
 	value |= XGMAC_CC | XGMAC_CBS;
-	writel(value, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(queue));
+	writel(value, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(addrs, queue));
 }
 
 static void dwxgmac2_dump_regs(struct mac_device_info *hw, u32 *reg_space)
@@ -292,7 +295,7 @@ static void dwxgmac2_dump_regs(struct mac_device_info *hw, u32 *reg_space)
 	void __iomem *ioaddr = hw->pcsr;
 	int i;
 
-	for (i = 0; i < XGMAC_MAC_REGSIZE; i++)
+	for (i = 0; i < XGMAC_MAC_REGSIZE(hw->dwxgmac_addrs); i++)
 		reg_space[i] = readl(ioaddr + i * 4);
 }
 
@@ -336,18 +339,19 @@ static int dwxgmac2_host_irq_status(struct stmmac_priv *priv,
 static int dwxgmac2_host_mtl_irq_status(struct stmmac_priv *priv,
 					struct mac_device_info *hw, u32 chan)
 {
+	const struct dwxgmac_addrs *addrs = priv->plat->dwxgmac_addrs;
 	void __iomem *ioaddr = hw->pcsr;
 	int ret = 0;
 	u32 status;
 
 	status = readl(ioaddr + XGMAC_MTL_INT_STATUS);
 	if (status & BIT(chan)) {
-		u32 chan_status = readl(ioaddr + XGMAC_MTL_QINT_STATUS(chan));
+		u32 chan_status = readl(ioaddr + XGMAC_MTL_QINT_STATUS(addrs, chan));
 
 		if (chan_status & XGMAC_RXOVFIS)
 			ret |= CORE_IRQ_MTL_RX_OVERFLOW;
 
-		writel(~0x0, ioaddr + XGMAC_MTL_QINT_STATUS(chan));
+		writel(~0x0, ioaddr + XGMAC_MTL_QINT_STATUS(addrs, chan));
 	}
 
 	return ret;
@@ -1143,14 +1147,15 @@ re_enable:
 static int dwxgmac2_get_mac_tx_timestamp(struct mac_device_info *hw, u64 *ts)
 {
 	void __iomem *ioaddr = hw->pcsr;
+	const struct dwxgmac_addrs *addrs = hw->dwxgmac_addrs;
 	u32 value;
 
-	if (readl_poll_timeout_atomic(ioaddr + XGMAC_TIMESTAMP_STATUS,
+	if (readl_poll_timeout_atomic(ioaddr + XGMAC_TIMESTAMP_STATUS(addrs),
 				      value, value & XGMAC_TXTSC, 100, 10000))
 		return -EBUSY;
 
-	*ts = readl(ioaddr + XGMAC_TXTIMESTAMP_NSEC) & XGMAC_TXTSSTSLO;
-	*ts += readl(ioaddr + XGMAC_TXTIMESTAMP_SEC) * 1000000000ULL;
+	*ts = readl(ioaddr + XGMAC_TXTIMESTAMP_NSEC(addrs)) & XGMAC_TXTSSTSLO;
+	*ts += readl(ioaddr + XGMAC_TXTIMESTAMP_SEC(addrs)) * 1000000000ULL;
 	return 0;
 }
 
@@ -1505,11 +1510,11 @@ const struct stmmac_ops dwxlgmac2_ops = {
 	.fpe_map_preemption_class = dwxgmac3_fpe_map_preemption_class,
 };
 
-int dwxgmac2_setup(struct stmmac_priv *priv)
+static void dwxgmac2_common_setup(struct stmmac_priv *priv, char *mac_name)
 {
 	struct mac_device_info *mac = priv->hw;
 
-	dev_info(priv->device, "\tXGMAC2\n");
+	dev_info(priv->device, "\t%s\n", mac_name);
 
 	priv->dev->priv_flags |= IFF_UNICAST_FLT;
 	mac->pcsr = priv->ioaddr;
@@ -1519,6 +1524,19 @@ int dwxgmac2_setup(struct stmmac_priv *priv)
 
 	if (mac->multicast_filter_bins)
 		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
+
+	mac->mii.addr = XGMAC_MDIO_ADDR;
+	mac->mii.data = XGMAC_MDIO_DATA;
+	mac->mii.addr_mask = GENMASK_U32(20, 16);
+	mac->mii.reg_mask = GENMASK_U32(15, 0);
+	mac->mii.clk_csr_mask = GENMASK_U32(21, 19);
+}
+
+int dwxgmac2_setup(struct stmmac_priv *priv)
+{
+	struct mac_device_info *mac = priv->hw;
+
+	dwxgmac2_common_setup(priv, "XGMAC2");
 
 	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 			 MAC_10 | MAC_100 | MAC_1000FD |
@@ -1533,12 +1551,28 @@ int dwxgmac2_setup(struct stmmac_priv *priv)
 	mac->link.xgmii.speed10000 = XGMAC_CONFIG_SS_10000;
 	mac->link.speed_mask = XGMAC_CONFIG_SS_MASK;
 
-	mac->mii.addr = XGMAC_MDIO_ADDR;
-	mac->mii.data = XGMAC_MDIO_DATA;
-	mac->mii.addr_mask = GENMASK_U32(20, 16);
-	mac->mii.reg_mask = GENMASK_U32(15, 0);
-	mac->mii.clk_csr_mask = GENMASK_U32(21, 19);
 	mac->num_vlan = stmmac_get_num_vlan(priv->ioaddr);
+
+	return 0;
+}
+
+int dw25gmac_setup(struct stmmac_priv *priv)
+{
+	struct mac_device_info *mac = priv->hw;
+
+	dwxgmac2_common_setup(priv, "DW25GMAC");
+
+	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+			 MAC_1000FD | MAC_2500FD | MAC_5000FD |
+			 MAC_10000FD | MAC_25000FD;
+	mac->link.duplex = 0;
+	mac->link.speed1000 = XGMAC_CONFIG_SS_1000_GMII;
+	mac->link.speed2500 = XGMAC_CONFIG_SS_2500_GMII;
+	mac->link.xgmii.speed2500 = XGMAC_CONFIG_SS_2500;
+	mac->link.xgmii.speed5000 = XGMAC_CONFIG_SS_5000;
+	mac->link.xgmii.speed10000 = XGMAC_CONFIG_SS_10000;
+	mac->link.xgmii.speed25000 = XGMAC_CONFIG_SS_25000;
+	mac->link.speed_mask = XGMAC_CONFIG_SS_MASK;
 
 	return 0;
 }
@@ -1547,16 +1581,7 @@ int dwxlgmac2_setup(struct stmmac_priv *priv)
 {
 	struct mac_device_info *mac = priv->hw;
 
-	dev_info(priv->device, "\tXLGMAC\n");
-
-	priv->dev->priv_flags |= IFF_UNICAST_FLT;
-	mac->pcsr = priv->ioaddr;
-	mac->multicast_filter_bins = priv->plat->multicast_filter_bins;
-	mac->unicast_filter_entries = priv->plat->unicast_filter_entries;
-	mac->mcast_bits_log2 = 0;
-
-	if (mac->multicast_filter_bins)
-		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
+	dwxgmac2_common_setup(priv, "XLGMAC");
 
 	mac->link.caps = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 			 MAC_1000FD | MAC_2500FD | MAC_5000FD |
@@ -1572,12 +1597,6 @@ int dwxlgmac2_setup(struct stmmac_priv *priv)
 	mac->link.xlgmii.speed50000 = XLGMAC_CONFIG_SS_50G;
 	mac->link.xlgmii.speed100000 = XLGMAC_CONFIG_SS_100G;
 	mac->link.speed_mask = XLGMAC_CONFIG_SS;
-
-	mac->mii.addr = XGMAC_MDIO_ADDR;
-	mac->mii.data = XGMAC_MDIO_DATA;
-	mac->mii.addr_mask = GENMASK_U32(20, 16);
-	mac->mii.reg_mask = GENMASK_U32(15, 0);
-	mac->mii.clk_csr_mask = GENMASK_U32(21, 19);
 
 	return 0;
 }

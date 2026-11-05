@@ -22,6 +22,17 @@ description:
   by means of the APB3/MCI interfaces. In the later case the XPCS can be mapped
   right to the system IO memory space.
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: qcom,nord-dw-xpcs
+    then:
+      required:
+        - clocks
+        - clock-names
+        - power-domains
+
 properties:
   compatible:
     oneOf:
@@ -41,6 +52,8 @@ properties:
         const: snps,dw-xpcs-gen5-10g
       - description: Synopsys DesignWare XPCS with Consumer Gen5 12G PMA
         const: snps,dw-xpcs-gen5-12g
+      - description: Qualcomm Nord integrated DesignWare XPCS
+        const: qcom,nord-dw-xpcs
 
   reg:
     items:
@@ -97,6 +110,10 @@ properties:
           - const: csr
           - enum: [core, pad]
           - const: pad
+
+  power-domains:
+    description: Power domain containing the integrated PCS registers
+    maxItems: 1
 
 required:
   - compatible
