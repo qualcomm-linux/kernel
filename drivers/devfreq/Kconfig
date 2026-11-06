@@ -56,6 +56,14 @@ config DEVFREQ_GOV_POWERSAVE
 	  the DEVFREQ framework returns the lowest frequency available
 	  at any time.
 
+config DEVFREQ_GOV_REMOTE
+	tristate "Remote"
+	help
+	  A simple governor to track the frequency of devices whose
+	  dvfs control lies outside the kernel. This governor acts
+	  as an observer and provides for ways to track frequency and
+	  set/get information related to the remote dvfs device.
+
 config DEVFREQ_GOV_USERSPACE
 	tristate "Userspace"
 	help
@@ -160,6 +168,19 @@ config ARM_SUN8I_A33_MBUS_DEVFREQ
 	help
 	  This adds the DEVFREQ driver for the MBUS controller in some
 	  Allwinner sun8i (A33 through H3) and sun50i (A64 and H5) SoCs.
+
+config SCMI_QCOM_MEMLAT_DEVFREQ
+	tristate "Qualcomm Technologies Inc. SCMI client driver"
+	depends on QCOM_SCMI_GENERIC_EXT || COMPILE_TEST
+	select DEVFREQ_GOV_REMOTE
+	help
+	  This driver uses the MEMLAT (memory latency) algorithm string
+	  hosted on QCOM SCMI Vendor Protocol to detect memory latency
+	  workloads and control frequency/level of the various memory
+	  buses (DDR/LLCC/DDR_QOS).
+
+	  This driver defines/documents the parameter IDs used while configuring
+	  the memory buses.
 
 source "drivers/devfreq/event/Kconfig"
 
