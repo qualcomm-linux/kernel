@@ -6,9 +6,390 @@
 #include <dt-bindings/camera/msm-camera.h>
 
 &cam_cci {
+	/* MAX96724 Deserializer 0 */
+	deserializer_0: qcom,cam-gmsl-deserializer0 {
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_active_rst0>;
+		pinctrl-1 = <&cam_sensor_suspend_rst0>;
+		gpios = <&tlmm 40 0>, <&expander0 0 0>, <&expander1 0 0>;
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-custom2 = <2>;
+		gpio-req-tbl-num = <0 1 2>;
+		gpio-req-tbl-flags = <0 0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
+				     "CAM_CUSTOM1",
+				     "CAM_CUSTOM2";
+		cci-master = <0>;
+		clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			deser0_port0: endpoint {
+				remote-endpoint = <&gmsl_sensor0_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			deser0_port1: endpoint {
+				remote-endpoint = <&gmsl_sensor1_ep>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			deser0_port2: endpoint {
+				remote-endpoint = <&gmsl_sensor2_ep>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+			deser0_port3: endpoint {
+				remote-endpoint = <&gmsl_sensor3_ep>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 0 */
+	qcom,cam-gmsl-sensor0 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <4>;
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor0_ep: endpoint {
+				remote-endpoint = <&deser0_port0>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 1 */
+	qcom,cam-gmsl-sensor1 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <5>;
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor1_ep: endpoint {
+				remote-endpoint = <&deser0_port1>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 2 */
+	qcom,cam-gmsl-sensor2 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <6>;
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor2_ep: endpoint {
+				remote-endpoint = <&deser0_port2>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 0 AR0544 Sensor 3 */
+	qcom,cam-gmsl-sensor3 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <7>;
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor3_ep: endpoint {
+				remote-endpoint = <&deser0_port3>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 */
+	deserializer_1: qcom,cam-gmsl-deserializer1 {
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_active_rst1>;
+		pinctrl-1 = <&cam_sensor_suspend_rst1>;
+		gpios = <&tlmm 54 0>, <&expander0 1 0>, <&expander1 1 0>;
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-custom2 = <2>;
+		gpio-req-tbl-num = <0 1 2>;
+		gpio-req-tbl-flags = <0 0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
+				     "CAM_CUSTOM1",
+				     "CAM_CUSTOM2";
+		cci-master = <1>;
+		clocks = <&camcc CAM_CC_MCLK1_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			deser1_port0: endpoint {
+				remote-endpoint = <&gmsl_sensor4_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			deser1_port1: endpoint {
+				remote-endpoint = <&gmsl_sensor5_ep>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			deser1_port2: endpoint {
+				remote-endpoint = <&gmsl_sensor6_ep>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+			deser1_port3: endpoint {
+				remote-endpoint = <&gmsl_sensor7_ep>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 0 */
+	qcom,cam-gmsl-sensor4 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <8>;
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor4_ep: endpoint {
+				remote-endpoint = <&deser1_port0>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 1 */
+	qcom,cam-gmsl-sensor5 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <9>;
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor5_ep: endpoint {
+				remote-endpoint = <&deser1_port1>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 2 */
+	qcom,cam-gmsl-sensor6 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <10>;
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor6_ep: endpoint {
+				remote-endpoint = <&deser1_port2>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 1 AR0544 Sensor 3 */
+	qcom,cam-gmsl-sensor7 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <11>;
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor7_ep: endpoint {
+				remote-endpoint = <&deser1_port3>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 2 */
+	deserializer_2: qcom,cam-gmsl-deserializer2 {
+		csiphy-sd-index = <2>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_active_rst2>;
+		pinctrl-1 = <&cam_sensor_suspend_rst2>;
+		gpios = <&tlmm 42 0>, <&expander0 2 0>, <&expander1 2 0>;
+		gpio-reset = <0>;
+		gpio-custom1 = <1>;
+		gpio-custom2 = <2>;
+		gpio-req-tbl-num = <0 1 2>;
+		gpio-req-tbl-flags = <0 0 0>;
+		gpio-req-tbl-label = "CAMIF_RESET0",
+				     "CAM_CUSTOM1",
+				     "CAM_CUSTOM2";
+		cci-master = <1>;
+		clocks = <&camcc CAM_CC_MCLK2_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			deser2_port0: endpoint {
+				remote-endpoint = <&gmsl_sensor8_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			deser2_port1: endpoint {
+				remote-endpoint = <&gmsl_sensor9_ep>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			deser2_port2: endpoint {
+				remote-endpoint = <&gmsl_sensor10_ep>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+			deser2_port3: endpoint {
+				remote-endpoint = <&gmsl_sensor11_ep>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 2 AR0544 Sensor 0 */
+	qcom,cam-gmsl-sensor8 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <12>;
+		csiphy-sd-index = <2>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor8_ep: endpoint {
+				remote-endpoint = <&deser2_port0>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 2 AR0544 Sensor 1 */
+	qcom,cam-gmsl-sensor9 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <13>;
+		csiphy-sd-index = <2>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor9_ep: endpoint {
+				remote-endpoint = <&deser2_port1>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 2 AR0544 Sensor 2 */
+	qcom,cam-gmsl-sensor10 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <14>;
+		csiphy-sd-index = <2>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor10_ep: endpoint {
+				remote-endpoint = <&deser2_port2>;
+			};
+		};
+	};
+
+	/* MAX96724 Deserializer 2 AR0544 Sensor 3 */
+	qcom,cam-gmsl-sensor11 {
+		compatible = "qcom,cam-gmsl-sensor";
+		cell-index = <15>;
+		csiphy-sd-index = <2>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+
+		port {
+			gmsl_sensor11_ep: endpoint {
+				remote-endpoint = <&deser2_port3>;
+			};
+		};
+	};
+
 	/*ACTUATOR0: OV13B10*/
 	actuator_cam4: qcom,actuator4 {
-		cell-index = <4>;
+		cell-index = <16>;
 		compatible = "qcom,actuator";
 		cci-master = <0>;
 		cam_vio-supply = <&vreg_campin>;
@@ -22,7 +403,7 @@
 
 	/*EEPROM0: OV13B10*/
 	eeprom_cam4: qcom,eeprom4 {
-		cell-index = <4>;
+		cell-index = <16>;
 		compatible = "qcom,eeprom";
 		cam_vio-supply = <&vreg_campin>;
 		regulator-names = "cam_vio";
@@ -52,7 +433,7 @@
 
 	/*CAM0: OV13B10*/
 	tl_slot4: qcom,cam-sensor4 {
-		cell-index = <4>;
+		cell-index = <16>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <0>;
 		sensor-position-roll = <0>;
@@ -88,7 +469,7 @@
 
 	/*ACTUATOR1: OV13B10*/
 	actuator_cam5: qcom,actuator5 {
-		cell-index = <5>;
+		cell-index = <17>;
 		compatible = "qcom,actuator";
 		cci-master = <1>;
 		cam_vio-supply = <&vreg_campin>;
@@ -102,7 +483,7 @@
 
 	/*EEPROM1: OV13B10*/
 	eeprom_cam5: qcom,eeprom5 {
-		cell-index = <5>;
+		cell-index = <17>;
 		compatible = "qcom,eeprom";
 		cam_vio-supply = <&vreg_campin>;
 		regulator-names = "cam_vio";
@@ -132,7 +513,7 @@
 
 	/*CAM1: OV13B10*/
 	tl_slot5: qcom,cam-sensor5 {
-		cell-index = <5>;
+		cell-index = <17>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <1>;
 		sensor-position-roll = <0>;
@@ -168,7 +549,7 @@
 
 	/*ACTUATOR2: OV13B10*/
 	actuator_cam6: qcom,actuator6 {
-		cell-index = <6>;
+		cell-index = <18>;
 		compatible = "qcom,actuator";
 		cci-master = <1>;
 		cam_vio-supply = <&vreg_campin>;
@@ -182,7 +563,7 @@
 
 	/*EEPROM2: OV13B10*/
 	eeprom_cam6: qcom,eeprom6 {
-		cell-index = <6>;
+		cell-index = <18>;
 		compatible = "qcom,eeprom";
 		cam_vio-supply = <&vreg_campin>;
 		regulator-names = "cam_vio";
@@ -212,7 +593,7 @@
 
 	/*CAM2: OV13B10*/
 	tl_slot6: qcom,cam-sensor6 {
-		cell-index = <6>;
+		cell-index = <18>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <2>;
 		sensor-position-roll = <0>;
@@ -248,7 +629,7 @@
 
 	/*ACTUATOR3: IMX858*/
 	actuator_cam7: qcom,actuator7 {
-		cell-index = <7>;
+		cell-index = <19>;
 		compatible = "qcom,actuator";
 		cci-master = <0>;
 		cam_vio-supply = <&vreg_campin>;
@@ -262,7 +643,7 @@
 
 	/*EEPROM3: IMX858*/
 	eeprom_cam7: qcom,eeprom7 {
-		cell-index = <7>;
+		cell-index = <19>;
 		compatible = "qcom,eeprom";
 		cam_vio-supply = <&vreg_campin>;
 		regulator-names = "cam_vio";
@@ -292,7 +673,7 @@
 
 	/*CAM3: IMX858*/
 	tl_slot7: qcom,cam-sensor7 {
-		cell-index = <7>;
+		cell-index = <19>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <0>;
 		sensor-position-roll = <0>;
@@ -328,7 +709,7 @@
 
 	/*ACTUATOR4: IMX858*/
 	actuator_cam8: qcom,actuator8 {
-		cell-index = <8>;
+		cell-index = <20>;
 		compatible = "qcom,actuator";
 		cci-master = <1>;
 		cam_vio-supply = <&vreg_campin>;
@@ -342,7 +723,7 @@
 
 	/*EEPROM4: IMX858*/
 	eeprom_cam8: qcom,eeprom8 {
-		cell-index = <8>;
+		cell-index = <20>;
 		compatible = "qcom,eeprom";
 		cam_vio-supply = <&vreg_campin>;
 		regulator-names = "cam_vio";
@@ -372,7 +753,7 @@
 
 	/*CAM4: IMX858*/
 	tl_slot8: qcom,cam-sensor8 {
-		cell-index = <8>;
+		cell-index = <20>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <1>;
 		sensor-position-roll = <0>;
@@ -408,7 +789,7 @@
 
 	/*ACTUATOR5: IMX858*/
 	actuator_cam9: qcom,actuator9 {
-		cell-index = <9>;
+		cell-index = <21>;
 		compatible = "qcom,actuator";
 		cci-master = <1>;
 		cam_vio-supply = <&vreg_campin>;
@@ -422,7 +803,7 @@
 
 	/*EEPROM5: IMX858*/
 	eeprom_cam9: qcom,eeprom9 {
-		cell-index = <9>;
+		cell-index = <21>;
 		compatible = "qcom,eeprom";
 		cam_vio-supply = <&vreg_campin>;
 		regulator-names = "cam_vio";
@@ -452,7 +833,7 @@
 
 	/*CAM5: IMX858*/
 	tl_slot9: qcom,cam-sensor9 {
-		cell-index = <9>;
+		cell-index = <21>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <2>;
 		sensor-position-roll = <0>;
@@ -488,7 +869,7 @@
 
 	/*CAM6: IMX577*/
 	tl_slot10: qcom,cam-sensor10 {
-		cell-index = <10>;
+		cell-index = <22>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <0>;
 		sensor-position-roll = <0>;
@@ -520,7 +901,7 @@
 
 	/*CAM7: IMX577*/
 	tl_slot11: qcom,cam-sensor11 {
-		cell-index = <11>;
+		cell-index = <23>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <1>;
 		sensor-position-roll = <0>;
@@ -552,7 +933,7 @@
 
 	/*CAM8: IMX577*/
 	tl_slot12: qcom,cam-sensor12 {
-		cell-index = <12>;
+		cell-index = <24>;
 		compatible = "qcom,cam-sensor";
 		csiphy-sd-index = <2>;
 		sensor-position-roll = <0>;
