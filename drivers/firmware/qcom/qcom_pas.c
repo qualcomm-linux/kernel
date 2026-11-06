@@ -60,17 +60,23 @@ EXPORT_SYMBOL_GPL(devm_qcom_pas_context_alloc);
  *
  * Return: 0 on success.
  *
- * Upon successful return, the PAS metadata context (@ctx) will be used to
- * track the metadata allocation, this needs to be released by invoking
+ * If @ctx requests metadata retention, the PAS metadata context will track
+ * the allocation, which needs to be released by invoking
  * qcom_pas_metadata_release() by the caller.
  */
 int qcom_pas_init_image(u32 pas_id, const void *metadata, size_t size,
 			struct qcom_pas_context *ctx)
 {
+	int ret;
+
 	if (!ops_ptr)
 		return -ENODEV;
 
-	return ops_ptr->init_image(ops_ptr->dev, pas_id, metadata, size, ctx);
+	ret = ops_ptr->init_image(ops_ptr->dev, pas_id, metadata, size, ctx);
+	if (!ret && ctx && !ctx->keep_mdt_buf)
+		qcom_pas_metadata_release(ctx);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(qcom_pas_init_image);
 
@@ -252,6 +258,14 @@ bool qcom_pas_supported(u32 pas_id)
 	return ops_ptr->supported(ops_ptr->dev, pas_id);
 }
 EXPORT_SYMBOL_GPL(qcom_pas_supported);
+
+const char *qcom_pas_get_backend(void)
+{
+	struct qcom_pas_ops *ops = ops_ptr;
+
+	return ops ? ops->drv_name : NULL;
+}
+EXPORT_SYMBOL_GPL(qcom_pas_get_backend);
 
 /**
  * qcom_pas_is_available() - Check if the peripheral authentication service is

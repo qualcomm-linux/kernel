@@ -23,6 +23,8 @@ properties:
     maxItems: 1
     description: DSI virtual channel
 
+  backlight: true
+
   vddi-supply:
     description: I/O voltage supply (1.8V)
 

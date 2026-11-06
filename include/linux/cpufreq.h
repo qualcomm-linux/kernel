@@ -45,6 +45,7 @@ enum cpufreq_table_sorting {
 struct cpufreq_cpuinfo {
 	unsigned int		max_freq;
 	unsigned int		min_freq;
+	unsigned int		max_base_freq; /* Highest non-boost frequency in the table */
 
 	/* in 10^(-9) s = nanoseconds */
 	unsigned int		transition_latency;
@@ -794,6 +795,8 @@ struct cpufreq_frequency_table {
 
 int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy);
 
+bool policy_has_boost_freq(struct cpufreq_policy *policy);
+
 int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy);
 
 int cpufreq_generic_frequency_table_verify(struct cpufreq_policy_data *policy);
@@ -1110,6 +1113,19 @@ retry:
 	return idx;
 }
 
+static inline unsigned int cpufreq_frequency_table_max(struct cpufreq_policy *policy)
+{
+	int idx;
+
+	if (!policy->freq_table)
+		return policy->cpuinfo.max_freq;
+
+	idx = cpufreq_frequency_table_target(policy, UINT_MAX, 0, UINT_MAX,
+					 CPUFREQ_RELATION_H);
+
+	return policy->freq_table[idx].frequency;
+}
+
 static inline int cpufreq_table_count_valid_entries(const struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *pos;
@@ -1153,6 +1169,24 @@ cpufreq_table_set_inefficient(struct cpufreq_policy *policy,
 	}
 
 	return -EINVAL;
+}
+
+static inline unsigned int
+cpufreq_table_max_nonboost_freq(struct cpufreq_policy *policy)
+{
+	struct cpufreq_frequency_table *pos;
+	unsigned int max = 0;
+
+	if (!policy->freq_table)
+		return 0;
+
+	/* The table may be unsorted, scan all of it for the highest one. */
+	cpufreq_for_each_valid_entry(pos, policy->freq_table) {
+		if (!(pos->flags & CPUFREQ_BOOST_FREQ) && pos->frequency > max)
+			max = pos->frequency;
+	}
+
+	return max;
 }
 
 static inline int parse_perf_domain(int cpu, const char *list_name,
@@ -1217,6 +1251,12 @@ cpufreq_table_set_inefficient(struct cpufreq_policy *policy,
 			      unsigned int frequency)
 {
 	return -EINVAL;
+}
+
+static inline unsigned int
+cpufreq_table_max_nonboost_freq(struct cpufreq_policy *policy)
+{
+	return 0;
 }
 
 static inline int of_perf_domain_get_sharing_cpumask(int pcpu, const char *list_name,

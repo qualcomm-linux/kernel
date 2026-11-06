@@ -1,0 +1,10 @@
+What:		/sys/bus/i2c/drivers/<driver>/.../firmware
+Date:		July 2026
+KernelVersion:	7.3
+Contact:	Mohit Dsor <mohit.dsor@oss.qualcomm.com>
+Description:
+		Read: Returns the current firmware version loaded on the
+		Lontium bridge chip in hex format (e.g. "0x0105").
+
+		Write: Triggers a firmware upgrade of the chip using the
+		firmware file loaded via the firmware loader.

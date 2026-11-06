@@ -3705,6 +3705,7 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 				      &genpd_state->name);
 	if (err)
 		genpd_state->name = state_node->name;
+	genpd_state->system_state = of_property_read_bool(state_node, "system-state");
 
 	genpd_state->power_on_latency_ns = 1000LL * exit_latency;
 	genpd_state->power_off_latency_ns = 1000LL * entry_latency;

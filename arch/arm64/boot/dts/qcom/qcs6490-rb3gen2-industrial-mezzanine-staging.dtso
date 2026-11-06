@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&{/} {
+	qep_vreg: qep_vreg {
+		compatible = "regulator-fixed";
+		regulator-name = "qep_vreg";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&pm7325_gpios 8 0>;
+		enable-active-high;
+	};
+
+	aqr_vreg: aqr_vreg {
+		compatible = "regulator-fixed";
+		regulator-name = "aqr_vreg";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&pm7250b_gpios 4 0>;
+		enable-active-high;
+	};
+};
+
+&pcie1_port0 {
+	pcie@0,0 {
+		pcie@3,0 {
+			qps615: pci@0,0 {
+				compatible = "pci1179,0220";
+				interrupts-extended = <&tlmm 141 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-names = "wol_irq";
+				pinctrl-names = "default";
+				pinctrl-0 = <&aqr_intn_wol_sig>;
+				phy-reset-gpios = <&qps615 0 GPIO_ACTIVE_LOW>;
+				phy-supply = <&aqr_vreg>;
+				reset-deassert-us = <221000>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			pci@0,1 {
+				compatible = "pci1179,0220";
+				interrupts-extended = <&tlmm 101 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-names = "wol_irq";
+				pinctrl-names = "default";
+				pinctrl-0 = <&napa_intn_wol_sig>;
+				phy-reset-gpios = <&qps615 1 GPIO_ACTIVE_LOW>;
+				phy-supply = <&qep_vreg>;
+				reset-deassert-us = <20000>;
+			};
+		};
+	};
+};
+
+&pcie0_port {
+	pcie@0,0 {
+		pcie@3,0 {
+			pci@0,0 {
+				interrupts-extended = <&tlmm 136 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-names = "wol_irq";
+				pinctrl-names = "default";
+				pinctrl-0 = <&rtl_rc0_intn_wol_sig>;
+				phy-mode = "sgmii";
+				phy-reset-gpios = <&tlmm 90 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <75000>;
+			};
+
+			pci@0,1 {
+				interrupts-extended = <&tlmm 142 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-names = "wol_irq";
+				pinctrl-names = "default";
+				pinctrl-0 = <&napa_rc0_intn_wol_sig>;
+				phy-reset-gpios = <&tlmm 25 GPIO_ACTIVE_LOW>;
+				phy-supply = <&qep_vreg>;
+				reset-deassert-us = <20000>;
+			};
+		};
+	};
+};
+
+&tlmm {
+	qps615_intn_wol {
+		aqr_intn_wol_sig: aqr_intn_wol_sig {
+			pins = "gpio141";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+
+		napa_intn_wol_sig: napa_intn_wol_sig {
+			pins = "gpio101";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+
+		rtl_rc0_intn_wol_sig: rtl_rc0_intn_wol_sig {
+			pins = "gpio136";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+
+		napa_rc0_intn_wol_sig: napa_rc0_intn_wol_sig {
+			pins = "gpio142";
+			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+	};
+};
