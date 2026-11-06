@@ -8,7 +8,7 @@
 #include "talos-lyra-evk-som.dtsi"
 
 / {
-	model = "Qualcomm QCS615 Talos Lyra EVK";
+	model = "Qualcomm Technologies, Inc. QCS615 Talos Lyra EVK";
 	compatible = "qcom,talos-lyra-evk", "qcom,talos-lyra-evk-som", "qcom,qcs615",
 		     "qcom,sm6150";
 	chassis-type = "embedded";
