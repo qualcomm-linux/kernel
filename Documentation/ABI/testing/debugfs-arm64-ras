@@ -1,67 +1,55 @@
-What:		/sys/kernel/debug/aest/<name>.<id>/
+What:		/sys/kernel/debug/ras/arm64/<node_name>/
 Date:		Dec 2025
 KernelVersion:	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
 Description:
-		Directory represented a AEST device, <name> means device type,
-		like:
+		Directory representing a RAS node device, <name> means device
+		type, like:
 
 		- processor
 		- memory
 		- smmu
 		- ...
 
-		<id> is the unique ID for this device.
-
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/*
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/err_*
 Date:		Dec 2025
 KernelVersion:	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
 Description:
-		Attibute for aest node which belong this device, the format
-		of node name is: <Node Type>-<Node Address>
+		(RW) Read/Write err_* register.
 
-		See more at:
-			https://developer.arm.com/documentation/den0085/latest/
-
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/ce_threshold
+What:		/sys/kernel/debug/ras/arm64/<node_name>/err_count
 Date:		Dec 2025
-KernelVersion	6.19
-Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
-Description:
-		(WO) Write the ce threshold to all records of this node. Failed
-		if input exceeded the maximum threshold
-
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/err_count
-Date:		Dec 2025
-KernelVersion	6.19
+KernelVersion:	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
 Description:
 		(RO) Outputs error statistics for all error records of this node.
 
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/record<index>/err_*
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/err_count
 Date:		Dec 2025
 KernelVersion:	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
 Description:
-		(RO) Read err_* register and return val.
+		(RO) Outputs error statistics for this record.
 
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/record<index>/ce_threshold
+What:		/sys/kernel/debug/ras/arm64/<node_name>/ce_threshold
 Date:		Dec 2025
-KernelVersion	6.19
+KernelVersion:	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
 Description:
-		(RW) Read and write the ce threshold to this record. Failed
-		if input exceeded the maximum threshold
+		(WO) Write the CE threshold to all records of this node.
+		Returns error if input exceeded the maximum threshold.
 
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/record<index>/err_count
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/ce_threshold
 Date:		Dec 2025
-KernelVersion	6.19
+KernelVersion:	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
 Description:
-		(RO) Outputs error statistics for all this records.
+		(RW) Read and write the CE threshold to this record.
+		Returns error if input exceeded the maximum threshold.
 
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/record<index>/inject/err_*
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/inject/err_*
 Date:		Dec 2025
 KernelVersion	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
@@ -74,7 +62,7 @@ Description:
 
 		Accepts values -  any.
 
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/record<index>/inject/soft_inject
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/inject/soft_inject
 Date:		Dec 2025
 KernelVersion	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
@@ -86,7 +74,7 @@ Description:
 
 		Accepts values -  any.
 
-What:		/sys/kernel/debug/aest/<name>.<id>/<node_name>/record<index>/inject/hard_inject
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/inject/hard_inject
 Date:		Dec 2025
 KernelVersion	6.19
 Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
