@@ -21,6 +21,41 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "bus.h"
+#include <linux/delay.h>
+
+/*
+ * Bounded retry for deferred clock providers. Clock-provider registration
+ * does not trigger deferred-probe retries, so a consumer that loses the
+ * probe-order race stays deferred forever. Wait up to 30 s for providers
+ * that are registered milliseconds later.
+ */
+static struct clk *clk_get_retry(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
+
+static struct clk *clk_get_retry_optional(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get_optional(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
 
 #define SWRM_COMP_SW_RESET					0x008
 #define SWRM_COMP_STATUS					0x014
@@ -1669,7 +1704,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		goto err_init;
 	}
 
-	ctrl->hclk = devm_clk_get(dev, "iface");
+	ctrl->hclk = clk_get_retry(dev, "iface");
 	if (IS_ERR(ctrl->hclk)) {
 		ret = dev_err_probe(dev, PTR_ERR(ctrl->hclk), "unable to get iface clock\n");
 		goto err_init;
