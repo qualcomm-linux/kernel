@@ -18,6 +18,41 @@
 #include <linux/clk-provider.h>
 
 #include "lpass-macro-common.h"
+#include <linux/delay.h>
+
+/*
+ * Bounded retry for deferred clock providers. Clock-provider registration
+ * does not trigger deferred-probe retries, so a consumer that loses the
+ * probe-order race stays deferred forever. Wait up to 30 s for providers
+ * that are registered milliseconds later.
+ */
+static struct clk *clk_get_retry(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
+
+static struct clk *clk_get_retry_optional(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get_optional(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
 
 #define CDC_RX_TOP_TOP_CFG0		(0x0000)
 #define CDC_RX_TOP_SWR_CTRL		(0x0008)
@@ -3780,25 +3815,25 @@ static int rx_macro_probe(struct platform_device *pdev)
 	if (!rx)
 		return -ENOMEM;
 
-	rx->macro = devm_clk_get_optional(dev, "macro");
+	rx->macro = clk_get_retry_optional(dev, "macro");
 	if (IS_ERR(rx->macro))
 		return dev_err_probe(dev, PTR_ERR(rx->macro), "unable to get macro clock\n");
 
-	rx->dcodec = devm_clk_get_optional(dev, "dcodec");
+	rx->dcodec = clk_get_retry_optional(dev, "dcodec");
 	if (IS_ERR(rx->dcodec))
 		return dev_err_probe(dev, PTR_ERR(rx->dcodec), "unable to get dcodec clock\n");
 
-	rx->mclk = devm_clk_get(dev, "mclk");
+	rx->mclk = clk_get_retry(dev, "mclk");
 	if (IS_ERR(rx->mclk))
 		return dev_err_probe(dev, PTR_ERR(rx->mclk), "unable to get mclk clock\n");
 
 	if (flags & LPASS_MACRO_FLAG_HAS_NPL_CLOCK) {
-		rx->npl = devm_clk_get(dev, "npl");
+		rx->npl = clk_get_retry(dev, "npl");
 		if (IS_ERR(rx->npl))
 			return dev_err_probe(dev, PTR_ERR(rx->npl), "unable to get npl clock\n");
 	}
 
-	rx->fsgen = devm_clk_get(dev, "fsgen");
+	rx->fsgen = clk_get_retry(dev, "fsgen");
 	if (IS_ERR(rx->fsgen))
 		return dev_err_probe(dev, PTR_ERR(rx->fsgen), "unable to get fsgen clock\n");
 
