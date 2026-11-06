@@ -11,6 +11,7 @@ qcom-camss-objs += \
 		camss-csid-900.o \
 		camss-csid-980.o \
 		camss-csid-1080.o \
+		camss-csid-1190.o \
 		camss-csid-gen2.o \
 		camss-csid-gen3.o \
 		camss-csiphy.o \
@@ -31,6 +32,7 @@ qcom-camss-objs += \
 		camss-vfe-900.o \
 		camss-vfe-980.o \
 		camss-vfe-1080.o \
+		camss-vfe-1190.o \
 		camss-vfe-gen1.o \
 		camss-vfe-gen3.o \
 		camss-vfe-vbif.o \

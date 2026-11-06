@@ -228,6 +228,7 @@ extern const struct csid_hw_ops csid_ops_680;
 extern const struct csid_hw_ops csid_ops_900;
 extern const struct csid_hw_ops csid_ops_980;
 extern const struct csid_hw_ops csid_ops_1080;
+extern const struct csid_hw_ops csid_ops_1190;
 extern const struct csid_hw_ops csid_ops_gen2;
 extern const struct csid_hw_ops csid_ops_gen3;
 
