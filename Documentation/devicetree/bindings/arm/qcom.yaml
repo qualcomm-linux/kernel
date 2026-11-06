@@ -98,6 +98,7 @@ properties:
               - asus,zenbook-a16-ux3607oa
               - qcom,glymur-crd
               - qcom,glymur-qcb
+              - qcom,glymur-sip-crd
           - const: qcom,glymur
 
       - items:
