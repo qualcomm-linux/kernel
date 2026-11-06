@@ -37,6 +37,16 @@ config NVMEM_LAYOUT_U_BOOT_ENV
 
 	  If unsure, say N.
 
+config NVMEM_LAYOUT_PSCRR
+	tristate "PSCRR NVMEM recorder provider"
+	depends on PSCRR
+	help
+	  PSCRR recorder that stores the power state change reason in a
+	  small NVMEM cell (such as an RTC scratch register) and reads it
+	  back on the next boot, so the cause survives a power cycle.
+
+	  If unsure, say N.
+
 endmenu
 
 endif
