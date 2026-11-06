@@ -2685,7 +2685,6 @@ static int tx_macro_register_mclk_output(struct tx_macro *tx)
 	const char *clk_name = "lpass-tx-mclk";
 	struct clk_hw *hw;
 	struct clk_init_data init;
-	int ret;
 
 	if (tx->npl)
 		parent_clk_name = __clk_get_name(tx->npl);
@@ -2699,11 +2698,7 @@ static int tx_macro_register_mclk_output(struct tx_macro *tx)
 	init.num_parents = 1;
 	tx->hw.init = &init;
 	hw = &tx->hw;
-	ret = devm_clk_hw_register(dev, hw);
-	if (ret)
-		return ret;
-
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, hw);
+	return devm_clk_hw_register(dev, hw);
 }
 
 static const struct snd_soc_component_driver tx_macro_component_drv = {
@@ -2801,6 +2796,15 @@ static int tx_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
+	/*
+	 * Register before enabling runtime PM so the clk core doesn't wake
+	 * the macro on every clk_summary read. The gate takes runtime PM in
+	 * prepare and is_enabled reads a cached register.
+	 */
+	ret = tx_macro_register_mclk_output(tx);
+	if (ret)
+		goto err;
+
 	pm_runtime_set_autosuspend_delay(dev, 100);
 	pm_runtime_use_autosuspend(dev);
 	ret = devm_pm_runtime_enable(dev);
@@ -2830,7 +2834,7 @@ static int tx_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_rpm_put;
 
-	ret = tx_macro_register_mclk_output(tx);
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, &tx->hw);
 	if (ret)
 		goto err_rpm_put;
 

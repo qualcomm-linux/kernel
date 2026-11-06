@@ -1759,7 +1759,6 @@ static int va_macro_register_fsgen_output(struct va_macro *va)
 	const char *parent_clk_name;
 	const char *clk_name = "fsgen";
 	struct clk_init_data init;
-	int ret;
 
 	if (va->has_npl_clk)
 		parent = va->npl;
@@ -1774,11 +1773,7 @@ static int va_macro_register_fsgen_output(struct va_macro *va)
 	init.parent_names = &parent_clk_name;
 	init.num_parents = 1;
 	va->hw.init = &init;
-	ret = devm_clk_hw_register(va->dev, &va->hw);
-	if (ret)
-		return ret;
-
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, &va->hw);
+	return devm_clk_hw_register(dev, &va->hw);
 }
 
 static int va_macro_validate_dmic_sample_rate(u32 dmic_sample_rate,
@@ -1977,6 +1972,15 @@ static int va_macro_probe(struct platform_device *pdev)
 			goto err;
 	}
 
+	/*
+	 * Register before enabling runtime PM so the clk core doesn't wake
+	 * the macro on every clk_summary read. The gate takes runtime PM in
+	 * prepare and is_enabled reads a cached register.
+	 */
+	ret = va_macro_register_fsgen_output(va);
+	if (ret)
+		goto err;
+
 	pm_runtime_set_autosuspend_delay(dev, 100);
 	pm_runtime_use_autosuspend(dev);
 	ret = devm_pm_runtime_enable(dev);
@@ -2031,7 +2035,7 @@ static int va_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_rpm_put;
 
-	ret = va_macro_register_fsgen_output(va);
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, &va->hw);
 	if (ret)
 		goto err_rpm_put;
 
