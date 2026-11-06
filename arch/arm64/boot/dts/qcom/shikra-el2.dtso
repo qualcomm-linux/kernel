@@ -27,3 +27,9 @@
 		 <&apps_smmu 0x0366 0x0000>,
 		 <&apps_smmu 0x00e7 0x0000>;
 };
+
+&wifi {
+	wifi-firmware {
+		iommus = <&apps_smmu 0x01a2 0x0001>;
+	};
+};
