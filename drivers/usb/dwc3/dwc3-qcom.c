@@ -54,6 +54,13 @@
 /* Qualcomm SoCs with multiport support has up to 4 ports */
 #define DWC3_QCOM_MAX_PORTS	4
 
+#undef dev_dbg
+#define dev_dbg dev_err
+#undef dev_info
+#define dev_info dev_err
+#undef pr_debug
+#define pr_debug pr_err
+
 static const u32 pwr_evnt_irq_stat_reg[DWC3_QCOM_MAX_PORTS] = {
 	0x58,
 	0x1dc,
@@ -117,6 +124,7 @@ static inline void dwc3_qcom_clrbits(void __iomem *base, u32 offset, u32 val)
 
 static void dwc3_qcom_vbus_override_enable(struct dwc3_qcom *qcom, bool enable)
 {
+	pr_err("%s enable:%d\n",__func__, enable );
 	if (enable) {
 		dwc3_qcom_setbits(qcom->qscratch_base, QSCRATCH_SS_PHY_CTRL,
 				  LANE0_PWR_PRESENT);
@@ -585,6 +593,12 @@ static int dwc3_qcom_setup_irq(struct dwc3_qcom *qcom, struct platform_device *p
 static void dwc3_qcom_set_role_notifier(struct dwc3 *dwc, enum usb_role next_role)
 {
 	struct dwc3_qcom *qcom = to_dwc3_qcom(dwc);
+	int ret;
+
+	dump_stack();
+	dev_info(qcom->dev, "dwc3-pmdbg: set_role_notifier: current=%d next=%d usage_count=%d\n",
+		 qcom->current_role, next_role,
+		 atomic_read(&qcom->dev->power.usage_count));
 
 	if (qcom->current_role == next_role)
 		return;
@@ -600,13 +614,20 @@ static void dwc3_qcom_set_role_notifier(struct dwc3 *dwc, enum usb_role next_rol
 		dwc3_qcom_vbus_override_enable(qcom, true);
 
 	pm_runtime_mark_last_busy(qcom->dev);
-	pm_runtime_put_sync(qcom->dev);
+	ret = pm_runtime_put_sync(qcom->dev);
+
+	dev_info(qcom->dev, "dwc3-pmdbg: set_role_notifier: put_sync ret=%d usage_count=%d runtime_status=%d\n",
+		 ret, atomic_read(&qcom->dev->power.usage_count),
+		 qcom->dev->power.runtime_status);
 
 	/*
 	 * Current role changes via usb_role_switch_set_role callback protected
 	 * internally by mutex lock.
 	 */
 	qcom->current_role = next_role;
+	dev_info(qcom->dev, "Done dwc3-pmdbg: set_role_notifier: current=%d next=%d usage_count=%d\n",
+		 qcom->current_role, next_role,
+		 atomic_read(&qcom->dev->power.usage_count));
 }
 
 static void dwc3_qcom_run_stop_notifier(struct dwc3 *dwc, bool is_on)
@@ -840,11 +861,17 @@ static int dwc3_qcom_runtime_suspend(struct device *dev)
 	struct dwc3_qcom *qcom = to_dwc3_qcom(dwc);
 	int ret;
 
-	ret = dwc3_runtime_suspend(&qcom->dwc);
-	if (ret)
-		return ret;
+	dev_info(dev, "dwc3-pmdbg: qcom_runtime_suspend enter\n");
 
-	return dwc3_qcom_suspend(qcom, true);
+	ret = dwc3_runtime_suspend(&qcom->dwc);
+	if (ret) {
+		dev_info(dev, "dwc3-pmdbg: qcom_runtime_suspend: dwc3_runtime_suspend failed ret=%d\n", ret);
+		return ret;
+	}
+
+	ret = dwc3_qcom_suspend(qcom, true);
+	dev_info(dev, "dwc3-pmdbg: qcom_runtime_suspend exit: ret=%d\n", ret);
+	return ret;
 }
 
 static int dwc3_qcom_runtime_resume(struct device *dev)
@@ -853,16 +880,25 @@ static int dwc3_qcom_runtime_resume(struct device *dev)
 	struct dwc3_qcom *qcom = to_dwc3_qcom(dwc);
 	int ret;
 
+	dev_info(dev, "dwc3-pmdbg: qcom_runtime_resume enter\n");
+
 	ret = dwc3_qcom_resume(qcom, true);
 	if (ret)
 		return ret;
 
-	return dwc3_runtime_resume(&qcom->dwc);
+	ret = dwc3_runtime_resume(&qcom->dwc);
+	dev_info(dev, "dwc3-pmdbg: qcom_runtime_resume exit: ret=%d\n", ret);
+	return ret;
 }
 
 static int dwc3_qcom_runtime_idle(struct device *dev)
 {
-	return dwc3_runtime_idle(dev_get_drvdata(dev));
+	int ret;
+
+	dev_info(dev, "dwc3-pmdbg: qcom_runtime_idle enter\n");
+	ret = dwc3_runtime_idle(dev_get_drvdata(dev));
+	dev_info(dev, "dwc3-pmdbg: qcom_runtime_idle exit: ret=%d\n", ret);
+	return ret;
 }
 
 static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {

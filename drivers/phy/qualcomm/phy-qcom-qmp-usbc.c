@@ -1750,11 +1750,13 @@ static int qmp_usbc_typec_switch_set(struct typec_switch_dev *sw,
 {
 	struct qmp_usbc *qmp = typec_switch_get_drvdata(sw);
 
+	dump_stack();
 	if (orientation == qmp->orientation || orientation == TYPEC_ORIENTATION_NONE)
 		return 0;
 
 	mutex_lock(&qmp->phy_mutex);
 	qmp->orientation = orientation;
+	pr_err("%s orientation:%d end\n",__func__, orientation);
 
 	if (qmp->usb_init_count) {
 		qmp_usbc_usb_power_off(qmp->usb_phy);
