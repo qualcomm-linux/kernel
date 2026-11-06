@@ -26,6 +26,9 @@ static int qcom_smd_qrtr_callback(struct rpmsg_device *rpdev,
 	if (!qdev)
 		return -EAGAIN;
 
+	if (!READ_ONCE(qdev->ep.node))
+		return -EAGAIN;
+
 	rc = qrtr_endpoint_post(&qdev->ep, data, len);
 	if (rc == -EINVAL) {
 		dev_err(qdev->dev, "invalid ipcrouter packet\n");
