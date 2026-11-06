@@ -19,6 +19,41 @@
 #include <sound/tlv.h>
 
 #include "lpass-macro-common.h"
+#include <linux/delay.h>
+
+/*
+ * Local helper: bounded retry for deferred clock providers.
+ * Clock-provider registration does not trigger deferred-probe retries,
+ * so a consumer that loses the probe-order race stays deferred forever.
+ * Wait up to 30s for providers that are registered milliseconds later.
+ */
+static struct clk *clk_get_retry(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
+
+static struct clk *clk_get_retry_optional(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get_optional(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
 
 /* VA macro registers */
 #define CDC_VA_CLK_RST_CTRL_MCLK_CONTROL	(0x0000)
@@ -1557,15 +1592,15 @@ static int va_macro_probe(struct platform_device *pdev)
 
 	va->dev = dev;
 
-	va->macro = devm_clk_get_optional(dev, "macro");
+	va->macro = clk_get_retry_optional(dev, "macro");
 	if (IS_ERR(va->macro))
 		return dev_err_probe(dev, PTR_ERR(va->macro), "unable to get macro clock\n");
 
-	va->dcodec = devm_clk_get_optional(dev, "dcodec");
+	va->dcodec = clk_get_retry_optional(dev, "dcodec");
 	if (IS_ERR(va->dcodec))
 		return dev_err_probe(dev, PTR_ERR(va->dcodec), "unable to get dcodec clock\n");
 
-	va->mclk = devm_clk_get(dev, "mclk");
+	va->mclk = clk_get_retry(dev, "mclk");
 	if (IS_ERR(va->mclk))
 		return dev_err_probe(dev, PTR_ERR(va->mclk), "unable to get mclk clock\n");
 
@@ -1610,7 +1645,7 @@ static int va_macro_probe(struct platform_device *pdev)
 		goto err;
 
 	if (va->has_npl_clk) {
-		va->npl = devm_clk_get(dev, "npl");
+		va->npl = clk_get_retry(dev, "npl");
 		if (IS_ERR(va->npl)) {
 			ret = PTR_ERR(va->npl);
 			goto err;

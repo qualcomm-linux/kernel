@@ -16,6 +16,41 @@
 #include <linux/clk-provider.h>
 
 #include "lpass-macro-common.h"
+#include <linux/delay.h>
+
+/*
+ * Local helper: bounded retry for deferred clock providers.
+ * Clock-provider registration does not trigger deferred-probe retries,
+ * so a consumer that loses the probe-order race stays deferred forever.
+ * Wait up to 30s for providers that are registered milliseconds later.
+ */
+static struct clk *clk_get_retry(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
+
+static struct clk *clk_get_retry_optional(struct device *dev, const char *id)
+{
+	struct clk *c;
+	int i;
+
+	for (i = 0; i < 60; i++) {
+		c = devm_clk_get_optional(dev, id);
+		if (!IS_ERR(c) || PTR_ERR(c) != -EPROBE_DEFER)
+			return c;
+		msleep(500);
+	}
+	return c;
+}
 
 #define CDC_TX_CLK_RST_CTRL_MCLK_CONTROL (0x0000)
 #define CDC_TX_MCLK_EN_MASK		BIT(0)
@@ -2258,25 +2293,25 @@ static int tx_macro_probe(struct platform_device *pdev)
 
 	tx->data = device_get_match_data(dev);
 
-	tx->macro = devm_clk_get_optional(dev, "macro");
+	tx->macro = clk_get_retry_optional(dev, "macro");
 	if (IS_ERR(tx->macro))
 		return dev_err_probe(dev, PTR_ERR(tx->macro), "unable to get macro clock\n");
 
-	tx->dcodec = devm_clk_get_optional(dev, "dcodec");
+	tx->dcodec = clk_get_retry_optional(dev, "dcodec");
 	if (IS_ERR(tx->dcodec))
 		return dev_err_probe(dev, PTR_ERR(tx->dcodec), "unable to get dcodec clock\n");
 
-	tx->mclk = devm_clk_get(dev, "mclk");
+	tx->mclk = clk_get_retry(dev, "mclk");
 	if (IS_ERR(tx->mclk))
 		return dev_err_probe(dev, PTR_ERR(tx->mclk), "unable to get mclk clock\n");
 
 	if (tx->data->flags & LPASS_MACRO_FLAG_HAS_NPL_CLOCK) {
-		tx->npl = devm_clk_get(dev, "npl");
+		tx->npl = clk_get_retry(dev, "npl");
 		if (IS_ERR(tx->npl))
 			return dev_err_probe(dev, PTR_ERR(tx->npl), "unable to get npl clock\n");
 	}
 
-	tx->fsgen = devm_clk_get(dev, "fsgen");
+	tx->fsgen = clk_get_retry(dev, "fsgen");
 	if (IS_ERR(tx->fsgen))
 		return dev_err_probe(dev, PTR_ERR(tx->fsgen), "unable to get fsgen clock\n");
 
