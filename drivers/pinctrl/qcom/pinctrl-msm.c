@@ -39,6 +39,31 @@
 #define MAX_NR_TILES 4
 #define PS_HOLD_OFFSET 0x820
 
+/*
+ * Driver specific pinconf parameter to hand a pin over to its eGPIO owner
+ * without muxing the TLMM away to the virtual eGPIO function. The eGPIO
+ * present bit only describes whether a pin is capable of being owned
+ * remotely; ownership itself is independent of the selected mux function,
+ * so a pin can keep its normal function selected while being owned by the
+ * remote subsystem.
+ *
+ * The "remote-owned" property is a boolean flag: its mere presence releases
+ * the pin to the remote owner. The default value below is what makes a
+ * valueless property come out as "release", as pinconf-generic falls back to
+ * it whenever the property carries no value.
+ */
+#define PIN_CONFIG_REMOTE_OWNED	(PIN_CONFIG_END + 1)
+
+static const struct pinconf_generic_params msm_gpio_bindings[] = {
+	{ "qcom,remote-owned", PIN_CONFIG_REMOTE_OWNED, 1 },
+};
+
+#ifdef CONFIG_DEBUG_FS
+static const struct pin_config_item msm_conf_items[] = {
+	PCONFDUMP(PIN_CONFIG_REMOTE_OWNED, "qcom,remote-owned", NULL, false),
+};
+#endif
+
 /**
  * struct msm_pinctrl - state for a pinctrl-msm device
  * @dev:            device handle.
@@ -316,6 +341,10 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*bit = g->oe_bit;
 		*mask = 1;
 		break;
+	case PIN_CONFIG_REMOTE_OWNED:
+		*bit = g->egpio_enable;
+		*mask = 1;
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -411,6 +440,17 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		if (!arg)
 			return -EINVAL;
+		break;
+	case PIN_CONFIG_REMOTE_OWNED:
+		/* Pin is not eGPIO capable */
+		if (!pctrl->soc->egpio_func || !(val & BIT(g->egpio_present)))
+			return -ENOTSUPP;
+
+		/* The enable bit is cleared when the remote owns the pin */
+		if (arg)
+			return -EINVAL;
+
+		arg = 1;
 		break;
 	default:
 		return -ENOTSUPP;
@@ -524,6 +564,29 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			arg = !!arg;
 			break;
+		case PIN_CONFIG_REMOTE_OWNED:
+			if (!pctrl->soc->egpio_func)
+				return -ENOTSUPP;
+
+			/*
+			 * Ownership may only be handed over on eGPIO capable
+			 * pins and is released by clearing the enable bit, so
+			 * this is applied here rather than through the generic
+			 * read-modify-write below.
+			 */
+			raw_spin_lock_irqsave(&pctrl->lock, flags);
+			val = msm_readl_ctl(pctrl, g);
+			if (!(val & BIT(g->egpio_present))) {
+				raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+				dev_err(pctrl->dev, "%s is not eGPIO capable\n",
+					g->grp.name);
+				return -ENOTSUPP;
+			}
+
+			val &= ~BIT(g->egpio_enable);
+			msm_writel_ctl(val, pctrl, g);
+			raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+			continue;
 		default:
 			dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
 				param);
@@ -664,7 +727,7 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	int drive;
 	int pull;
 	int val;
-	int egpio_enable;
+	bool remote_owned;
 	u32 ctl_reg, io_reg;
 
 	static const char * const pulls_keeper[] = {
@@ -691,19 +754,14 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	func = (ctl_reg >> g->mux_bit) & 7;
 	drive = (ctl_reg >> g->drv_bit) & 7;
 	pull = (ctl_reg >> g->pull_bit) & 3;
-	egpio_enable = 0;
+	remote_owned = false;
 	if (pctrl->soc->egpio_func && ctl_reg & BIT(g->egpio_present))
-		egpio_enable = !(ctl_reg & BIT(g->egpio_enable));
+		remote_owned = !(ctl_reg & BIT(g->egpio_enable));
 
 	if (is_out)
 		val = !!(io_reg & BIT(g->out_bit));
 	else
 		val = !!(io_reg & BIT(g->in_bit));
-
-	if (egpio_enable) {
-		seq_printf(s, " %-8s: egpio\n", g->grp.name);
-		return;
-	}
 
 	seq_printf(s, " %-8s: %-3s", g->grp.name, is_out ? "out" : "in");
 	seq_printf(s, " %-4s func%d", str_high_low(val), func);
@@ -712,6 +770,8 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 		seq_printf(s, " %s", pulls_no_keeper[pull]);
 	else
 		seq_printf(s, " %s", pulls_keeper[pull]);
+	if (remote_owned)
+		seq_puts(s, " remote-owned");
 	seq_puts(s, "\n");
 }
 
@@ -1639,6 +1699,11 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	pctrl->desc.name = dev_name(&pdev->dev);
 	pctrl->desc.pins = pctrl->soc->pins;
 	pctrl->desc.npins = pctrl->soc->npins;
+	pctrl->desc.num_custom_params = ARRAY_SIZE(msm_gpio_bindings);
+	pctrl->desc.custom_params = msm_gpio_bindings;
+#ifdef CONFIG_DEBUG_FS
+	pctrl->desc.custom_conf_items = msm_conf_items;
+#endif
 
 	ret = devm_pinctrl_register_and_init(&pdev->dev, &pctrl->desc,
 					     pctrl, &pctrl->pctrl);
