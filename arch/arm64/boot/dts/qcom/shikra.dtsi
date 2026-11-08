@@ -3083,6 +3083,18 @@
 			};
 		};
 
+		ptp@4b00000 {
+			compatible = "qcom,shikra-tscss", "qcom,nord-tscss";
+			reg = <0x0 0x04b00000 0x0 0x2000>;
+			reg-names = "tsc";
+			clocks = <&gcc GCC_TSCSS_AHB_CLK>,
+				 <&gcc GCC_TSCSS_CNTR_CLK>,
+				 <&gcc GCC_TSCSS_ETU_CLK>;
+			clock-names = "ahb", "cntr", "etu";
+			assigned-clocks = <&gcc GCC_TSCSS_CNTR_CLK>;
+			assigned-clock-rates = <250000000>;
+		};
+
 		usb_2: usb@4c00000 {
 			compatible = "qcom,shikra-dwc3", "qcom,snps-dwc3";
 			reg = <0x0 0x04c00000 0x0 0xfc100>;
