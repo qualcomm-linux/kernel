@@ -36,6 +36,15 @@ static const struct dcc_pdata hamoa_pdata = {
 	.map_ver	= 0x3,
 };
 
+static const struct dcc_pdata glymur_pdata = {
+	.base		= 0x100ff000,
+	.size		= 0x1000,
+	.ram_base	= 0x10080000,
+	.ram_size	= 0x8000,
+	.dcc_offset	= 0x0,
+	.map_ver	= 0x3,
+};
+
 static int __init dcc_dev_init(void)
 {
 	int ret;
@@ -112,6 +121,16 @@ static int __init dcc_dev_init(void)
 	case 709:
 	case 710:
 		ret = platform_device_add_data(dcc_pdev, &hamoa_pdata, sizeof(hamoa_pdata));
+		if (ret)
+			goto fail;
+
+		break;
+	case 662:
+	case 698:
+	case 699:
+	case 718:
+	case 719:
+		ret = platform_device_add_data(dcc_pdev, &glymur_pdata, sizeof(glymur_pdata));
 		if (ret)
 			goto fail;
 
