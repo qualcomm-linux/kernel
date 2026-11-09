@@ -63,6 +63,8 @@ static int __init dcc_dev_init(void)
 	case 497:
 	case 498:
 	case 515:
+	case 575:
+	case 576:
 		ret = platform_device_add_data(dcc_pdev, &kodiak_pdata, sizeof(kodiak_pdata));
 		if (ret)
 			goto fail;
