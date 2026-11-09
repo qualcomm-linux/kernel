@@ -600,6 +600,59 @@ static const struct dump_item nord_items[] = {
 	{ SCANDUMP_GPU, 0x300000, "scandump-gpu" },
 };
 
+static const struct dump_item hawi_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c100-context" },
+	{ C200_CONTEXT, 0x800, "c200-context" },
+	{ C300_CONTEXT, 0x800, "c300-context" },
+	{ C400_CONTEXT, 0x800, "c400-context" },
+	{ C500_CONTEXT, 0x800, "c500-context" },
+	{ C600_CONTEXT, 0x800, "c600-context" },
+	{ C700_CONTEXT, 0x800, "c700-context" },
+	{ RPMH, 0x400000, "rpmh" },
+	{ PMIC, 0x200000, "pmic" },
+	{ MISC_DATA, 0x1000, "misc-data" },
+	{ ETF_SWAO, 0x10000, "etf-swao" },
+	{ ETR_REG, 0x1000, "etr-reg" },
+	{ ETFSWAO_REG, 0x1000, "etfswao-reg" },
+	{ ETR1_REG, 0x1000, "etr1-reg" },
+	{ ETF_SLPI, 0x4000, "etf-slpi" },
+	{ ETFSLPI_REG, 0x1000, "etfslpi-reg" },
+	{ ETF_LPASS, 0x4000, "etf-lpass" },
+	{ ETFLPASS_REG, 0x1000, "etflpass-reg" },
+	{ CACHE_CLUSTER0, 0x1600000, "cache-cluster0" },
+	{ CACHE_CPU0, 0x200000, "cache-cpu0" },
+	{ CACHE_CPU1, 0x200000, "cache-cpu1" },
+	{ CACHE_CPU2, 0x200000, "cache-cpu2" },
+	{ CACHE_CPU3, 0x200000, "cache-cpu3" },
+	{ CACHE_CPU4, 0x200000, "cache-cpu4" },
+	{ CACHE_CPU5, 0x200000, "cache-cpu5" },
+	{ CACHE_CPU6, 0x200000, "cache-cpu6" },
+	{ CACHE_CPU7, 0x200000, "cache-cpu7" },
+	{ CPUCP, 0x80000, "cpucp" },
+	{ CPUSS_CLUSTER0, 0x40000, "cpuss-cluster0" },
+	{ CPUSS_CLUSTER1, 0x40000, "cpuss-cluster1" },
+	{ CPUSS_CPU0, 0x40000, "cpuss-cpu0" },
+	{ CPUSS_CPU1, 0x40000, "cpuss-cpu1" },
+	{ CPUSS_CPU2, 0x40000, "cpuss-cpu2" },
+	{ CPUSS_CPU3, 0x40000, "cpuss-cpu3" },
+	{ CPUSS_CPU4, 0x40000, "cpuss-cpu4" },
+	{ CPUSS_CPU5, 0x40000, "cpuss-cpu5" },
+	{ CPUSS_CPU6, 0x40000, "cpuss-cpu6" },
+	{ CPUSS_CPU7, 0x40000, "cpuss-cpu7" },
+	{ SPR_CPU0, 0x2000, "spr-cpu0" },
+	{ SPR_CPU1, 0x2000, "spr-cpu1" },
+	{ SPR_CPU2, 0x2000, "spr-cpu2" },
+	{ SPR_CPU3, 0x2000, "spr-cpu3" },
+	{ SPR_CPU4, 0x2000, "spr-cpu4" },
+	{ SPR_CPU5, 0x2000, "spr-cpu5" },
+	{ SPR_CPU6, 0x2000, "spr-cpu6" },
+	{ SPR_CPU7, 0x2000, "spr-cpu7" },
+	{ CPUSS_REG, 0xa00000, "cpuss-reg" },
+	{ SCANDUMP_GPU, 0x300000, "scandump-gpu" },
+	{ SCANDUMP_SMMU, 0x40000, "scandump-smmu" },
+};
+
 static const struct dump_table lemans_dump_table = {
 	.items		= lemans_items,
 	.num_of_items	= ARRAY_SIZE(lemans_items),
@@ -659,6 +712,13 @@ static const struct dump_table glymur_dump_table = {
 static const struct dump_table nord_dump_table = {
 	.items		= nord_items,
 	.num_of_items	= ARRAY_SIZE(nord_items),
+	.imem_base	= 0x14680010,
+	.imem_size	= 0x8,
+};
+
+static const struct dump_table hawi_dump_table = {
+	.items		= hawi_items,
+	.num_of_items	= ARRAY_SIZE(hawi_items),
 	.imem_base	= 0x14680010,
 	.imem_size	= 0x8,
 };
@@ -772,6 +832,15 @@ static int __init mem_dump_dev_init(void)
 	case 803:
 		ret = platform_device_add_data(mem_dump_pdev,
 				&nord_dump_table, sizeof(nord_dump_table));
+		if (ret)
+			goto fail;
+		break;
+	case 707:
+	case 708:
+	case 755:
+	case 760:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&hawi_dump_table, sizeof(hawi_dump_table));
 		if (ret)
 			goto fail;
 		break;
