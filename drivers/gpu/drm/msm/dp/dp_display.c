@@ -1151,10 +1151,7 @@ static irqreturn_t msm_dp_display_irq_thread(int irq, void *dev_id)
 		drm_bridge_hpd_notify(dp->msm_dp_display.bridge,
 				      connector_status_connected);
 
-	/* Do not access a link torn down by an unplug latched after an IRQ. */
-	if ((hpd_isr_status & DP_DP_IRQ_HPD_INT_MASK) &&
-	    (!(hpd_isr_status & DP_DP_HPD_UNPLUG_INT_MASK) ||
-	     (hpd_isr_status & DP_DP_HPD_PLUG_INT_MASK)))
+	if (hpd_isr_status & DP_DP_IRQ_HPD_INT_MASK)
 		drm_bridge_hpd_notify_extra(dp->msm_dp_display.bridge,
 					    connector_status_connected,
 					    DRM_CONNECTOR_DP_IRQ_HPD);
@@ -1843,9 +1840,6 @@ void msm_dp_bridge_hpd_notify(struct drm_bridge *bridge,
 	if (status == connector_status_connected) {
 		if (hpd_link_status == ISR_IRQ_HPD_PULSE_COUNT ||
 		    event == DRM_CONNECTOR_DP_IRQ_HPD) {
-			if (!dp->plugged)
-				msm_dp_hpd_plug_handle(dp);
-
 			msm_dp_irq_hpd_handle(dp);
 		} else if (hpd_link_status == ISR_HPD_REPLUG_COUNT) {
 			msm_dp_hpd_unplug_handle(dp);
