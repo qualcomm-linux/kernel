@@ -142,6 +142,16 @@
 			};
 		};
 	};
+
+	regulator-usb1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USB1_VBUS";
+		gpio = <&pm8150_gpios 10 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&usb1_en>;
+		pinctrl-names = "default";
+		enable-active-high;
+		regulator-always-on;
+	};
 };
 
 &i2c2 {
@@ -219,6 +229,68 @@
 		reg = <0x3c>;
 		#gpio-cells = <2>;
 		gpio-controller;
+	};
+
+	typec@40 {
+		compatible = "cypress,cypd6129";
+		reg = <0x40>;
+		interrupts-extended = <&tlmm 86 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&usb0_intr_state>;
+		pinctrl-names = "default";
+		wakeup-source;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ccg_typec_con0: connector@0 {
+			compatible = "usb-c-connector";
+			reg = <0>;
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					ucsi_ccg_port_0_hs: endpoint {
+						remote-endpoint = <&usb_2_dwc3_hs>;
+					};
+				};
+			};
+		};
+
+		ccg_typec_con1: connector@1 {
+			compatible = "usb-c-connector";
+			reg = <1>;
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					ucsi_ccg_port_1_hs: endpoint {
+						remote-endpoint = <&usb_1_dwc3_hs>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					ccg_typec_con1_ss: endpoint {
+						remote-endpoint = <&usb_qmpphy_out>;
+					};
+				};
+			};
+		};
 	};
 
 	max98091: max98091@10 {
@@ -340,6 +412,15 @@
 				ranges;
 			};
 		};
+	};
+};
+
+&pm8150_gpios {
+	usb1_en: usb1-en-state {
+		pins = "gpio10";
+		function = "normal";
+		output-enable;
+		power-source = <0>;
 	};
 };
 
@@ -545,6 +626,20 @@
 		drive-strength = <2>;
 		bias-disable;
 	};
+
+	usb0_intr_state: usb0-intr-state {
+		pins = "gpio86";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	vbus_boost_5v: vbus-boost-5v-hog {
+		gpio-hog;
+		gpios = <64 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "vbus-boost-5v";
+	};
 };
 
 &uart7 {
@@ -558,9 +653,14 @@
 };
 
 &usb_1 {
-	dr_mode = "peripheral";
+	dr_mode = "otg";
+	usb-role-switch;
 
 	status = "okay";
+};
+
+&usb_1_dwc3_hs {
+	remote-endpoint = <&ucsi_ccg_port_1_hs>;
 };
 
 &usb_hsphy_1 {
@@ -572,9 +672,14 @@
 };
 
 &usb_2 {
-	dr_mode = "host";
+	dr_mode = "otg";
+	usb-role-switch;
 
 	status = "okay";
+};
+
+&usb_2_dwc3_hs {
+	remote-endpoint = <&ucsi_ccg_port_0_hs>;
 };
 
 &usb_hsphy_2 {
@@ -590,6 +695,10 @@
 	vdda-pll-supply = <&vreg_l12a>;
 
 	status = "okay";
+};
+
+&usb_qmpphy_out {
+	remote-endpoint = <&ccg_typec_con1_ss>;
 };
 
 &usb_qmpphy_2 {
