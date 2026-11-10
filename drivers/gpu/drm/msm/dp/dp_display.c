@@ -472,6 +472,16 @@ static void msm_dp_display_handle_plugged_change(struct msm_dp *msm_dp_display,
 							plugged);
 }
 
+bool msm_dp_display_is_plugged(struct msm_dp *msm_dp_display)
+{
+	struct msm_dp_display_private *dp;
+
+	dp = container_of(msm_dp_display,
+			  struct msm_dp_display_private, msm_dp_display);
+
+	return READ_ONCE(dp->plugged);
+}
+
 static int msm_dp_hpd_unplug_handle(struct msm_dp_display_private *dp)
 {
 	struct platform_device *pdev = dp->msm_dp_display.pdev;
@@ -1317,7 +1327,8 @@ int msm_dp_mst_register(struct msm_dp *msm_dp_display)
 
 	dp = container_of(msm_dp_display, struct msm_dp_display_private, msm_dp_display);
 
-	return msm_dp_mst_mgr_init(msm_dp_display, msm_dp_ctrl_get_stream_cnt(dp->ctrl), dp->aux);
+	return msm_dp_mst_mgr_init(msm_dp_display, dp->link,
+				   msm_dp_ctrl_get_stream_cnt(dp->ctrl), dp->aux);
 }
 
 void msm_dp_mst_unregister(struct msm_dp *msm_dp_display)
@@ -1579,28 +1590,34 @@ void msm_dp_display_atomic_pre_enable(struct msm_dp *msm_dp_display,
 		DRM_ERROR("DP display prepare failed, rc=%d\n", rc);
 }
 
-void msm_dp_display_enable_helper(struct msm_dp *msm_dp_display,
-				  struct msm_dp_panel *msm_dp_panel,
-				  const struct msm_dp_mst_slot_info *slots)
+int msm_dp_display_enable_helper(struct msm_dp *msm_dp_display,
+				 struct msm_dp_panel *msm_dp_panel,
+				 const struct msm_dp_mst_slot_info *slots)
 {
-	int rc = 0;
+	int rc;
 	struct msm_dp_display_private *dp;
 
 	dp = container_of(msm_dp_display, struct msm_dp_display_private, msm_dp_display);
 
-	if (msm_dp_display->link_ready) {
-		rc = msm_dp_display_enable(dp, msm_dp_panel, slots);
-		if (rc)
-			DRM_ERROR("DP display enable failed, rc=%d\n", rc);
+	if (!msm_dp_display->link_ready)
+		return -ENOLINK;
 
-		rc = msm_dp_display_post_enable(msm_dp_display);
-		if (rc) {
-			DRM_ERROR("DP display post enable failed, rc=%d\n", rc);
-			msm_dp_display_disable(dp, msm_dp_panel);
-		}
+	rc = msm_dp_display_enable(dp, msm_dp_panel, slots);
+	if (rc) {
+		DRM_ERROR("DP display enable failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = msm_dp_display_post_enable(msm_dp_display);
+	if (rc) {
+		DRM_ERROR("DP display post enable failed, rc=%d\n", rc);
+		msm_dp_display_disable(dp, msm_dp_panel);
+		return rc;
 	}
 
 	drm_dbg_dp(msm_dp_display->drm_dev, "type=%d Done\n", msm_dp_display->connector_type);
+
+	return 0;
 }
 
 void msm_dp_display_atomic_enable(struct msm_dp *msm_dp_display,
