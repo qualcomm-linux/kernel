@@ -142,7 +142,6 @@ struct msm_dp_ctrl_private {
 	bool core_clks_on;
 	bool link_clks_on;
 	bool stream_clks_on[DP_STREAM_MAX];
-	bool mst_active;
 };
 
 static inline u32 msm_dp_read_ahb(const struct msm_dp_ctrl_private *ctrl, u32 offset)
@@ -243,37 +242,6 @@ static int msm_dp_aux_link_configure(struct drm_dp_aux *aux,
 	}
 
 	return err;
-}
-
-int msm_dp_ctrl_mst_send_act(struct msm_dp_ctrl *msm_dp_ctrl,
-			     struct msm_dp_panel *panel)
-{
-	struct msm_dp_ctrl_private *ctrl;
-	const struct drm_display_mode *mode;
-	u32 frame_time_ms;
-
-	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
-
-	if (!ctrl->mst_active)
-		return 0;
-
-	mode = &panel->msm_dp_mode.drm_mode;
-	frame_time_ms = DIV_ROUND_UP((u64)mode->htotal * mode->vtotal,
-				     mode->clock) + 1;
-
-	msm_dp_write_link(ctrl, REG_DP_MST_ACT, 0x1);
-	/* make sure ACT signal is performed */
-	wmb();
-
-	msleep(frame_time_ms);
-
-	/* Hardware clears this bit after sending 4 ACT headers */
-	if (msm_dp_read_link(ctrl, REG_DP_MST_ACT)) {
-		drm_dbg_dp(ctrl->drm_dev, "MST ACT trigger complete failed\n");
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 /*
@@ -2646,8 +2614,7 @@ int msm_dp_ctrl_prepare_stream_on(struct msm_dp_ctrl *msm_dp_ctrl,
 	return ret;
 }
 
-int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *panel,
-			  bool mst_active)
+int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *panel)
 {
 	int ret = 0;
 	bool mainlink_ready = false;
@@ -2658,8 +2625,6 @@ int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *
 		return -EINVAL;
 
 	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
-
-	ctrl->mst_active = mst_active;
 
 	pixel_rate = panel->msm_dp_mode.drm_mode.clock;
 
@@ -2691,10 +2656,6 @@ int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *
 	msm_dp_ctrl_setup_tr_unit(ctrl, panel);
 
 	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
-
-	ret = msm_dp_ctrl_mst_send_act(msm_dp_ctrl, panel);
-	if (ret)
-		return ret;
 
 	ret = msm_dp_ctrl_wait4video_ready(ctrl);
 	if (ret)
@@ -2732,8 +2693,6 @@ void msm_dp_ctrl_off_link(struct msm_dp_ctrl *msm_dp_ctrl,
 	msm_dp_ctrl_mainlink_disable(ctrl);
 
 	msm_dp_ctrl_reset(&ctrl->msm_dp_ctrl, panel);
-
-	ctrl->mst_active = false;
 
 	msm_dp_ctrl_link_clk_disable(&ctrl->msm_dp_ctrl);
 
@@ -2914,7 +2873,6 @@ struct msm_dp_ctrl *msm_dp_ctrl_get(struct device *dev, struct msm_dp_link *link
 	ctrl->link_base = link_base;
 	ctrl->mst2link_base = mst2link_base;
 	ctrl->mst3link_base = mst3link_base;
-	ctrl->mst_active = false;
 
 	ret = msm_dp_ctrl_clk_init(&ctrl->msm_dp_ctrl);
 	if (ret) {
