@@ -309,10 +309,6 @@ static void msm_dp_display_mst_enable(struct msm_dp_display_private *dp)
 	}
 
 	msm_dp->mst_active = true;
-
-	scoped_guard(mutex, &msm_dp->connector->dev->mode_config.mutex)
-		msm_dp->connector->status = connector_status_disconnected;
-
 	msm_dp_mst_display_set_mgr_state(msm_dp, true);
 }
 
