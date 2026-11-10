@@ -565,6 +565,11 @@ glymur-crd-camx-dtbs    := glymur-crd.dtb glymur-crd-camx.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= glymur-crd-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= glymur-crd-camx.dtbo
 
+mahua-crd-camx-dtbs := mahua-crd.dtb mahua-crd-camx.dtbo
+
+dtb-$(CONFIG_ARCH_QCOM) += mahua-crd-camx.dtb
+dtb-$(CONFIG_ARCH_QCOM) += mahua-crd-camx.dtbo
+
 hamoa-evk-camx-dtbs  := hamoa-iot-evk.dtb hamoa-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-evk-camx.dtb
