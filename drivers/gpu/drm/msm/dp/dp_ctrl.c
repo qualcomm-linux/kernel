@@ -276,19 +276,6 @@ int msm_dp_ctrl_mst_send_act(struct msm_dp_ctrl *msm_dp_ctrl,
 	return 0;
 }
 
-static void msm_dp_ctrl_mst_config(struct msm_dp_ctrl_private *ctrl, bool enable)
-{
-	u32 mainlink_ctrl;
-
-	mainlink_ctrl = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
-	if (enable)
-		mainlink_ctrl |= DP_MAINLINK_CTRL_MST_EN;
-	else
-		mainlink_ctrl &= ~DP_MAINLINK_CTRL_MST_EN;
-
-	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
-}
-
 /*
  * NOTE: resetting DP controller will also clear any pending HPD related interrupts
  */
@@ -2693,8 +2680,6 @@ int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *
 
 	msm_dp_ctrl_lane_mapping(ctrl);
 	msm_dp_setup_peripheral_flush(ctrl);
-	if (ctrl->mst_active)
-		msm_dp_ctrl_mst_config(ctrl, true);
 
 	msm_dp_ctrl_configure_source_params(ctrl, panel);
 
@@ -2745,7 +2730,6 @@ void msm_dp_ctrl_off_link(struct msm_dp_ctrl *msm_dp_ctrl,
 	phy = ctrl->phy;
 
 	msm_dp_ctrl_mainlink_disable(ctrl);
-	msm_dp_ctrl_mst_config(ctrl, false);
 
 	msm_dp_ctrl_reset(&ctrl->msm_dp_ctrl, panel);
 
