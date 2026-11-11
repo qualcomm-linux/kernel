@@ -122,6 +122,130 @@ struct qcom_ice {
 static DEFINE_XARRAY(ice_handles);
 static DEFINE_MUTEX(ice_mutex);
 
+static struct qcom_ice_tz_ops *ice_tz_ops;
+
+static bool qcom_ice_tz_ops_registered(void)
+{
+	/*
+	 * The barrier is intended to synchronize the data stores for the
+	 * ice_tz_ops data structure when client drivers (UFS/SDHC) are in
+	 * parallel checking for ICE service availability.
+	 */
+	return !!smp_load_acquire(&ice_tz_ops);
+}
+
+static bool qcom_ice_tz_is_available(void)
+{
+	return qcom_scm_is_available();
+}
+
+static int qcom_ice_tz_invalidate_key(u32 index)
+{
+	struct qcom_ice_tz_ops *ops;
+
+	ops = ice_tz_ops;
+	if (!ops)
+		return -ENODEV;
+
+	return ops->ice_invalidate_key(ops->dev, index);
+}
+
+static int qcom_ice_tz_set_key(u32 index, const u8 *key, u32 key_size,
+			       enum qcom_ice_cipher cipher,
+			       u32 data_unit_size)
+{
+	struct qcom_ice_tz_ops *ops;
+
+	ops = ice_tz_ops;
+	if (!ops)
+		return -ENODEV;
+
+	return ops->ice_set_key(ops->dev, index, key, key_size, cipher,
+				data_unit_size);
+}
+
+static bool qcom_ice_tz_has_wrapped_key_support(void)
+{
+	struct qcom_ice_tz_ops *ops;
+
+	ops = ice_tz_ops;
+	if (!ops)
+		return -ENODEV;
+
+	return ops->ice_has_wrapped_key_support(ops->dev);
+}
+
+static int qcom_ice_tz_derive_sw_secret(const u8 *eph_key,
+					size_t eph_key_size, u8 *sw_secret,
+					size_t sw_secret_size)
+{
+	struct qcom_ice_tz_ops *ops;
+
+	ops = ice_tz_ops;
+	if (!ops)
+		return -ENODEV;
+
+	return ops->ice_derive_sw_secret(ops->dev, eph_key, eph_key_size,
+					 sw_secret, sw_secret_size);
+}
+
+static int qcom_ice_tz_generate_key(u8 *lt_key, size_t lt_key_size)
+{
+	struct qcom_ice_tz_ops *ops;
+
+	ops = ice_tz_ops;
+	if (!ops)
+		return -ENODEV;
+
+	return ops->ice_generate_key(ops->dev, lt_key, lt_key_size);
+}
+
+static int qcom_ice_tz_prepare_key(const u8 *lt_key, size_t lt_key_size,
+				   u8 *eph_key, size_t eph_key_size)
+{
+	struct qcom_ice_tz_ops *ops;
+
+	ops = ice_tz_ops;
+	if (!ops)
+		return -ENODEV;
+
+	return ops->ice_prepare_key(ops->dev, lt_key, lt_key_size, eph_key,
+				    eph_key_size);
+}
+
+static int qcom_ice_tz_import_key(const u8 *raw_key, size_t raw_key_size,
+				  u8 *lt_key, size_t lt_key_size)
+{
+	struct qcom_ice_tz_ops *ops;
+
+	ops = ice_tz_ops;
+	if (!ops)
+		return -ENODEV;
+
+	return ops->ice_import_key(ops->dev, raw_key, raw_key_size, lt_key,
+				   lt_key_size);
+}
+
+int qcom_ice_tz_ops_register(struct qcom_ice_tz_ops *ops)
+{
+	if (!qcom_ice_tz_ops_registered())
+		/* Paired with smp_load_acquire() in qcom_ice_tz_ops_registered() */
+		smp_store_release(&ice_tz_ops, ops);
+	else
+		return -EBUSY;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_ice_tz_ops_register);
+
+void qcom_ice_tz_ops_unregister(struct qcom_ice_tz_ops *ops)
+{
+	if (READ_ONCE(ice_tz_ops) == ops)
+		/* Paired with smp_load_acquire() in qcom_ice_tz_ops_registered() */
+		smp_store_release(&ice_tz_ops, NULL);
+}
+EXPORT_SYMBOL_GPL(qcom_ice_tz_ops_unregister);
+
 static bool qcom_ice_check_supported(struct qcom_ice *ice)
 {
 	u32 regval = qcom_ice_readl(ice, QCOM_ICE_REG_VERSION);
