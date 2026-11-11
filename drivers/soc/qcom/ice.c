@@ -311,7 +311,7 @@ static bool qcom_ice_check_supported(struct qcom_ice *ice)
 	 * advertise support for raw keys or wrapped keys, HWKM cannot be used
 	 * unconditionally.  A module parameter is used to opt into using it.
 	 */
-	if (ice->hwkm_version && qcom_scm_has_wrapped_key_support()) {
+	if (ice->hwkm_version && qcom_ice_tz_has_wrapped_key_support()) {
 		if (qcom_ice_use_wrapped_keys) {
 			dev_info(dev, "Using HWKM. Supporting wrapped keys only.\n");
 			ice->use_hwkm = true;
@@ -552,7 +552,7 @@ static int qcom_ice_program_wrapped_key(struct qcom_ice *ice, unsigned int slot,
 	struct device *dev = ice->dev;
 	union crypto_cfg cfg = {
 		.dusize = bkey->crypto_cfg.data_unit_size / 512,
-		.capidx = QCOM_SCM_ICE_CIPHER_AES_256_XTS,
+		.capidx = QCOM_ICE_CIPHER_AES_256_XTS,
 		.cfge = QCOM_ICE_HWKM_CFG_ENABLE_VAL,
 	};
 	int err;
@@ -570,11 +570,11 @@ static int qcom_ice_program_wrapped_key(struct qcom_ice *ice, unsigned int slot,
 	qcom_ice_writel(ice, 0x0, QCOM_ICE_REG_CRYPTOCFG(slot));
 
 	/* Call into TrustZone to program the wrapped key using HWKM. */
-	err = qcom_scm_ice_set_key(translate_hwkm_slot(ice, slot), bkey->bytes,
-				   bkey->size, cfg.capidx, cfg.dusize);
+	err = qcom_ice_tz_set_key(translate_hwkm_slot(ice, slot), bkey->bytes,
+				  bkey->size, cfg.capidx, cfg.dusize);
 	if (err) {
 		dev_err_ratelimited(dev,
-				    "qcom_scm_ice_set_key failed; err=%d, slot=%u\n",
+				    "qcom_ice_tz_set_key failed; err=%d, slot=%u\n",
 				    err, slot);
 		return err;
 	}
@@ -622,9 +622,9 @@ int qcom_ice_program_key(struct qcom_ice *ice, unsigned int slot,
 	for (i = 0; i < ARRAY_SIZE(key.words); i++)
 		__cpu_to_be32s(&key.words[i]);
 
-	err = qcom_scm_ice_set_key(slot, key.bytes, AES_256_XTS_KEY_SIZE,
-				   QCOM_SCM_ICE_CIPHER_AES_256_XTS,
-				   blk_key->crypto_cfg.data_unit_size / 512);
+	err = qcom_ice_tz_set_key(slot, key.bytes, AES_256_XTS_KEY_SIZE,
+				  QCOM_ICE_CIPHER_AES_256_XTS,
+				  blk_key->crypto_cfg.data_unit_size / 512);
 
 	memzero_explicit(&key, sizeof(key));
 
@@ -636,7 +636,7 @@ int qcom_ice_evict_key(struct qcom_ice *ice, int slot)
 {
 	if (ice->hwkm_init_complete)
 		slot = translate_hwkm_slot(ice, slot);
-	return qcom_scm_ice_invalidate_key(slot);
+	return qcom_ice_tz_invalidate_key(slot);
 }
 EXPORT_SYMBOL_GPL(qcom_ice_evict_key);
 
@@ -673,9 +673,9 @@ int qcom_ice_derive_sw_secret(struct qcom_ice *ice,
 			      const u8 *eph_key, size_t eph_key_size,
 			      u8 sw_secret[BLK_CRYPTO_SW_SECRET_SIZE])
 {
-	int err = qcom_scm_derive_sw_secret(eph_key, eph_key_size,
-					    sw_secret,
-					    BLK_CRYPTO_SW_SECRET_SIZE);
+	int err = qcom_ice_tz_derive_sw_secret(eph_key, eph_key_size,
+					       sw_secret,
+					       BLK_CRYPTO_SW_SECRET_SIZE);
 	if (err == -EIO || err == -EINVAL)
 		err = -EBADMSG; /* probably invalid key */
 	return err;
@@ -696,8 +696,8 @@ int qcom_ice_generate_key(struct qcom_ice *ice,
 {
 	int err;
 
-	err = qcom_scm_generate_ice_key(lt_key,
-					QCOM_ICE_HWKM_WRAPPED_KEY_SIZE(ice->hwkm_version));
+	err = qcom_ice_tz_generate_key(lt_key,
+				       QCOM_ICE_HWKM_WRAPPED_KEY_SIZE(ice->hwkm_version));
 	if (err)
 		return err;
 
@@ -723,8 +723,8 @@ int qcom_ice_prepare_key(struct qcom_ice *ice,
 {
 	int err;
 
-	err = qcom_scm_prepare_ice_key(lt_key, lt_key_size,
-				       eph_key, QCOM_ICE_HWKM_WRAPPED_KEY_SIZE(ice->hwkm_version));
+	err = qcom_ice_tz_prepare_key(lt_key, lt_key_size,
+				      eph_key, QCOM_ICE_HWKM_WRAPPED_KEY_SIZE(ice->hwkm_version));
 	if (err == -EIO || err == -EINVAL)
 		err = -EBADMSG; /* probably invalid key */
 	if (err)
@@ -751,8 +751,8 @@ int qcom_ice_import_key(struct qcom_ice *ice,
 {
 	int err;
 
-	err = qcom_scm_import_ice_key(raw_key, raw_key_size,
-				      lt_key, QCOM_ICE_HWKM_WRAPPED_KEY_SIZE(ice->hwkm_version));
+	err = qcom_ice_tz_import_key(raw_key, raw_key_size,
+				     lt_key, QCOM_ICE_HWKM_WRAPPED_KEY_SIZE(ice->hwkm_version));
 	if (err)
 		return err;
 
@@ -811,11 +811,11 @@ static struct qcom_ice *qcom_ice_create(struct device *dev, void __iomem *base,
 	struct qcom_ice *engine;
 	int err;
 
-	if (!qcom_scm_is_available())
+	if (!qcom_ice_tz_is_available())
 		return ERR_PTR(-EPROBE_DEFER);
 
-	if (!qcom_scm_ice_available()) {
-		dev_warn(dev, "ICE SCM interface not found\n");
+	if (!qcom_ice_tz_ops_registered()) {
+		dev_warn(dev, "ICE firmware service interface not found\n");
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
