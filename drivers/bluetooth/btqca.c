@@ -1050,6 +1050,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	switch (soc_type) {
 	case QCA_WCN3991:
 	case QCA_WCN6750:
+	case QCA_QCA2066:
 	case QCA_WCN6855:
 	case QCA_WCN7850:
 	case QCA_QCC2072:
