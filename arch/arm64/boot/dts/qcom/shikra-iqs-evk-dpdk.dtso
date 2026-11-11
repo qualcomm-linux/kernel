@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * DPDK overlay: expand the RGMII register window for the DPDK STMMAC PMD.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&ethernet0 {
+	reg = <0x0 0x05d00000 0x0 0x10000>,
+	      <0x0 0x05d16000 0x0 0x1000>;
+};
+
+&ethernet1 {
+	reg = <0x0 0x05d20000 0x0 0x10000>,
+	      <0x0 0x05d36000 0x0 0x1000>;
+};
