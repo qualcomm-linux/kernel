@@ -33,7 +33,7 @@
 				nvmem-cell-names = "mac-address";
 				pinctrl-names = "default";
 				pinctrl-0 = <&aqr_intn_wol_sig>;
-				phy-reset-gpios = <&tlmm 10 GPIO_ACTIVE_HIGH>;
+				phy-reset-gpios = <&tlmm 10 GPIO_ACTIVE_LOW>;
 				reset-deassert-us = <221000>;
 			};
 
