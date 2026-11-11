@@ -1455,7 +1455,7 @@ static int dpu_dev_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return msm_drv_probe(&pdev->dev, dpu_kms_init, &dpu_kms->base);
+	return msm_drv_probe(&pdev->dev, NULL, dpu_kms_init, &dpu_kms->base);
 }
 
 static void dpu_dev_remove(struct platform_device *pdev)
@@ -1466,8 +1466,7 @@ static void dpu_dev_remove(struct platform_device *pdev)
 static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 {
 	int i;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 
 	clk_bulk_disable_unprepare(dpu_kms->num_clocks, dpu_kms->clocks);
@@ -1481,8 +1480,7 @@ static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 static int __maybe_unused dpu_runtime_resume(struct device *dev)
 {
 	int rc = -1;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 	struct drm_encoder *encoder;
 	struct drm_device *ddev;
