@@ -120,12 +120,6 @@ struct msm_dp_vc_tu_mapping_table {
 	u8 tu_size_minus1;
 };
 
-struct msm_dp_mst_ch_slot_info {
-	u32 start_slot;
-	u32 tot_slots;
-	u32 pbn;
-};
-
 struct msm_dp_ctrl_private {
 	struct msm_dp_ctrl msm_dp_ctrl;
 	struct drm_device *drm_dev;
@@ -159,9 +153,7 @@ struct msm_dp_ctrl_private {
 	bool core_clks_on;
 	bool link_clks_on;
 	bool stream_clks_on[DP_STREAM_MAX];
-	bool mst_active;
-
-	struct msm_dp_mst_ch_slot_info mst_ch_info[DP_STREAM_MAX];
+	bool mst_mode;
 };
 
 static inline u32 msm_dp_read_ahb(const struct msm_dp_ctrl_private *ctrl, u32 offset)
@@ -273,12 +265,12 @@ int msm_dp_ctrl_mst_send_act(struct msm_dp_ctrl *msm_dp_ctrl,
 
 	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
 
-	if (!ctrl->mst_active)
+	if (!ctrl->mst_mode)
 		return 0;
 
 	mode = &panel->msm_dp_mode.drm_mode;
-	frame_time_ms = DIV_ROUND_UP((u64)mode->htotal * mode->vtotal,
-				     mode->clock) + 1;
+	frame_time_ms = DIV_ROUND_UP_ULL((u64)mode->htotal * mode->vtotal,
+					 mode->clock) + 1;
 
 	msm_dp_write_link(ctrl, REG_DP_MST_ACT, 0x1);
 	/* make sure ACT signal is performed */
@@ -449,7 +441,7 @@ static u32 msm_dp_ctrl_get_mst_vcpf_interrupt_0_1(struct msm_dp_ctrl_private *ct
 	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS5,
 			 intr_ack | DP_INTERRUPT_STATUS5_MASK);
 
-	return intr;
+	return intr & DP_INTERRUPT_STATUS5;
 }
 
 static u32 msm_dp_ctrl_get_mst_vcpf_interrupt_2_3(struct msm_dp_ctrl_private *ctrl)
@@ -463,7 +455,7 @@ static u32 msm_dp_ctrl_get_mst_vcpf_interrupt_2_3(struct msm_dp_ctrl_private *ct
 	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS7,
 			 intr_ack | DP_INTERRUPT_STATUS7_MASK);
 
-	return intr;
+	return intr & DP_INTERRUPT_STATUS7;
 }
 
 static void msm_dp_ctrl_psr_mainlink_enable(struct msm_dp_ctrl_private *ctrl)
@@ -573,7 +565,7 @@ void msm_dp_ctrl_push_vcpf(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel 
 
 	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
 
-	if (!ctrl->mst_active) {
+	if (!ctrl->mst_mode) {
 		msm_dp_ctrl_push_idle(msm_dp_ctrl);
 		return;
 	}
@@ -701,7 +693,7 @@ static void msm_dp_ctrl_configure_source_params(struct msm_dp_ctrl_private *ctrl
 
 	msm_dp_panel_timing_cfg(panel, ctrl->msm_dp_ctrl.wide_bus_en);
 
-	msm_dp_panel_mst_async_fifo(panel, ctrl->mst_active);
+	msm_dp_panel_mst_async_fifo(panel, ctrl->mst_mode);
 }
 
 /*
@@ -2484,6 +2476,12 @@ void msm_dp_ctrl_handle_sink_request(struct msm_dp_ctrl *msm_dp_ctrl,
 	}
 
 	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
+
+	if (!ctrl->link_clks_on) {
+		drm_dbg_dp(ctrl->drm_dev, "link clocks off, skipping sink request\n");
+		return;
+	}
+
 	sink_request = ctrl->link->sink_request;
 
 	if (sink_request & DP_TEST_LINK_PHY_TEST_PATTERN) {
@@ -2645,6 +2643,9 @@ int msm_dp_ctrl_on_link(struct msm_dp_ctrl *msm_dp_ctrl,
 	if (ctrl->link->sink_request & DP_TEST_LINK_PHY_TEST_PATTERN)
 		return rc;
 
+	if (!link_train_max_retries)
+		rc = -ETIMEDOUT;
+
 	if (rc == 0) {  /* link train successfully */
 		/*
 		 * do not stop train pattern here
@@ -2758,19 +2759,19 @@ static void msm_dp_ctrl_config_msa(struct msm_dp_ctrl_private *ctrl,
  */
 static void msm_dp_ctrl_mst_calculate_rg(struct msm_dp_ctrl_private *ctrl,
 					 struct msm_dp_panel *panel,
+					 const struct msm_dp_mst_slot_info *slots,
 					 u32 *p_x_int, u32 *p_y_frac_enum)
 {
 	u64 min_slot_cnt, max_slot_cnt;
-	u64 raw_target_sc, target_sc_fixp;
-	u64 ts_denom, ts_enum, ts_int;
+	u64 raw_target_sc, target_sc_fixp, scale_fixp;
 	u64 pclk = panel->msm_dp_mode.drm_mode.clock;
 	u64 lclk = 0;
 	u64 lanes = ctrl->link->link_params.num_lanes;
 	u64 bpp = panel->msm_dp_mode.bpp;
-	u64 pbn = ctrl->mst_ch_info[panel->stream_id].pbn;
-	u64 numerator, denominator, temp, temp1, temp2;
+	u64 pbn = slots[panel->stream_id].pbn;
+	u64 numerator, denominator, temp, temp1, scaled_target_sc;
 	u32 x_int = 0, y_frac_enum = 0;
-	u64 target_strm_sym, ts_int_fixp, ts_frac_fixp, y_frac_enum_fixp;
+	u64 target_strm_sym, y_frac_enum_fixp;
 
 	lclk = ctrl->link->link_params.rate;
 
@@ -2789,30 +2790,15 @@ static void msm_dp_ctrl_mst_calculate_rg(struct msm_dp_ctrl_private *ctrl,
 	denominator = drm_fixp_from_fraction(2, 1);
 	raw_target_sc = drm_fixp_div(numerator, denominator);
 
-	/* target_sc */
-	temp = drm_fixp_from_fraction(256 * lanes, 1);
-	numerator = drm_fixp_mul(raw_target_sc, temp);
-	denominator = drm_fixp_from_fraction(256 * lanes, 1);
-	target_sc_fixp = drm_fixp_div(numerator, denominator);
-
-	ts_enum = 256 * lanes;
-	ts_denom = drm_fixp_from_fraction(256 * lanes, 1);
-	ts_int = drm_fixp2int(target_sc_fixp);
-
-	temp = drm_fixp2int_ceil(raw_target_sc);
-	if (temp != ts_int) {
-		temp = drm_fixp_from_fraction(ts_int, 1);
-		temp1 = raw_target_sc - temp;
-		temp2 = drm_fixp_mul(temp1, ts_denom);
-		ts_enum = drm_fixp2int(temp2);
-	}
+	/* Quantize target_sc to the nearest 1 / (256 * lanes). */
+	scale_fixp = drm_fixp_from_fraction(256 * lanes, 1);
+	scaled_target_sc = drm_fixp_mul(raw_target_sc, scale_fixp);
+	numerator = drm_fixp_from_fraction(drm_fixp2int_round(scaled_target_sc), 1);
+	target_sc_fixp = drm_fixp_div(numerator, scale_fixp);
 
 	/* target_strm_sym */
-	ts_int_fixp = drm_fixp_from_fraction(ts_int, 1);
-	ts_frac_fixp = drm_fixp_from_fraction(ts_enum, drm_fixp2int(ts_denom));
-	temp = ts_int_fixp + ts_frac_fixp;
 	temp1 = drm_fixp_from_fraction(lanes, 1);
-	target_strm_sym = drm_fixp_mul(temp, temp1);
+	target_strm_sym = drm_fixp_mul(target_sc_fixp, temp1);
 
 	/* x_int */
 	x_int = drm_fixp2int(target_strm_sym);
@@ -2820,13 +2806,10 @@ static void msm_dp_ctrl_mst_calculate_rg(struct msm_dp_ctrl_private *ctrl,
 	/* y_enum_frac */
 	temp = drm_fixp_from_fraction(x_int, 1);
 	temp1 = target_strm_sym - temp;
-	temp2 = drm_fixp_from_fraction(256, 1);
-	y_frac_enum_fixp = drm_fixp_mul(temp1, temp2);
+	temp = drm_fixp_from_fraction(256, 1);
+	y_frac_enum_fixp = drm_fixp_mul(temp1, temp);
 
-	temp1 = drm_fixp2int(y_frac_enum_fixp);
-	temp2 = drm_fixp2int_ceil(y_frac_enum_fixp);
-
-	y_frac_enum = (u32)((temp1 == temp2) ? temp1 : temp1 + 1);
+	y_frac_enum = drm_fixp2int(y_frac_enum_fixp);
 
 	*p_x_int = x_int;
 	*p_y_frac_enum = y_frac_enum;
@@ -2836,18 +2819,19 @@ static void msm_dp_ctrl_mst_calculate_rg(struct msm_dp_ctrl_private *ctrl,
 }
 
 static void msm_dp_ctrl_mst_stream_setup(struct msm_dp_ctrl_private *ctrl,
-					 struct msm_dp_panel *panel)
+					 struct msm_dp_panel *panel,
+					 const struct msm_dp_mst_slot_info *slots)
 {
 	u32 x_int, y_frac_enum;
 
-	if (!ctrl->mst_active)
+	if (!ctrl->mst_mode || !slots)
 		return;
 
 	drm_dbg_dp(ctrl->drm_dev, "MST stream channel allocation\n");
 
-	msm_dp_ctrl_mst_timeslot_setup(&ctrl->msm_dp_ctrl);
+	msm_dp_ctrl_mst_timeslot_setup(&ctrl->msm_dp_ctrl, slots);
 
-	msm_dp_ctrl_mst_calculate_rg(ctrl, panel, &x_int, &y_frac_enum);
+	msm_dp_ctrl_mst_calculate_rg(ctrl, panel, slots, &x_int, &y_frac_enum);
 
 	msm_dp_ctrl_update_rg(ctrl, panel->stream_id, x_int, y_frac_enum);
 }
@@ -2889,7 +2873,7 @@ int msm_dp_ctrl_prepare_stream_on(struct msm_dp_ctrl *msm_dp_ctrl,
 }
 
 int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *panel,
-			  bool mst_active)
+			  bool mst_active, const struct msm_dp_mst_slot_info *slots)
 {
 	int ret = 0;
 	bool mainlink_ready = false;
@@ -2901,7 +2885,7 @@ int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *
 
 	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
 
-	ctrl->mst_active = mst_active;
+	ctrl->mst_mode = mst_active;
 
 	pixel_rate = panel->msm_dp_mode.drm_mode.clock;
 
@@ -2922,7 +2906,7 @@ int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *
 
 	msm_dp_ctrl_lane_mapping(ctrl);
 	msm_dp_setup_peripheral_flush(ctrl);
-	if (ctrl->mst_active)
+	if (ctrl->mst_mode)
 		msm_dp_ctrl_mst_config(ctrl, true);
 
 	msm_dp_ctrl_configure_source_params(ctrl, panel);
@@ -2932,10 +2916,10 @@ int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, struct msm_dp_panel *
 
 	msm_dp_panel_clear_dsc_dto(panel);
 
-	if (!ctrl->mst_active)
+	if (!ctrl->mst_mode)
 		msm_dp_ctrl_setup_tr_unit(ctrl, panel);
 
-	msm_dp_ctrl_mst_stream_setup(ctrl, panel);
+	msm_dp_ctrl_mst_stream_setup(ctrl, panel, slots);
 
 	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
 
@@ -2981,44 +2965,27 @@ void msm_dp_ctrl_off_link(struct msm_dp_ctrl *msm_dp_ctrl,
 
 	msm_dp_ctrl_reset(&ctrl->msm_dp_ctrl, panel);
 
-	ctrl->mst_active = false;
+	ctrl->mst_mode = false;
 
 	msm_dp_ctrl_link_clk_disable(&ctrl->msm_dp_ctrl);
 
 	phy_power_off(phy);
 }
 
-void msm_dp_ctrl_set_mst_channel_info(struct msm_dp_ctrl *msm_dp_ctrl,
-				      enum msm_dp_stream_id stream_id,
-				      u32 start_slot, u32 tot_slots, u32 pbn)
-{
-	struct msm_dp_ctrl_private *ctrl;
-
-	if (!msm_dp_ctrl || stream_id >= DP_STREAM_MAX) {
-		DRM_ERROR("invalid input\n");
-		return;
-	}
-
-	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
-
-	ctrl->mst_ch_info[stream_id].start_slot = start_slot;
-	ctrl->mst_ch_info[stream_id].tot_slots = tot_slots;
-	ctrl->mst_ch_info[stream_id].pbn = pbn;
-}
-
-void msm_dp_ctrl_mst_timeslot_setup(struct msm_dp_ctrl *msm_dp_ctrl)
+void msm_dp_ctrl_mst_timeslot_setup(struct msm_dp_ctrl *msm_dp_ctrl,
+				    const struct msm_dp_mst_slot_info *slots)
 {
 	struct msm_dp_ctrl_private *ctrl;
 	int i;
 
 	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
 
-	if (!ctrl->mst_active)
+	if (!ctrl->mst_mode || !slots)
 		return;
 
 	for (i = DP_STREAM_0; i < ctrl->num_pixel_clks; i++) {
-		msm_dp_ctrl_mst_update_timeslot(ctrl, i, ctrl->mst_ch_info[i].start_slot,
-					      ctrl->mst_ch_info[i].tot_slots);
+		msm_dp_ctrl_mst_update_timeslot(ctrl, i, slots[i].start_slot,
+						slots[i].tot_slots);
 	}
 }
 
@@ -3218,7 +3185,7 @@ struct msm_dp_ctrl *msm_dp_ctrl_get(struct device *dev, struct msm_dp_link *link
 	ctrl->link_base = link_base;
 	ctrl->mst2link_base = mst2link_base;
 	ctrl->mst3link_base = mst3link_base;
-	ctrl->mst_active = false;
+	ctrl->mst_mode = false;
 
 	ret = msm_dp_ctrl_clk_init(&ctrl->msm_dp_ctrl);
 	if (ret) {

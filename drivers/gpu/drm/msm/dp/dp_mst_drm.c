@@ -23,6 +23,14 @@ struct msm_dp_mst_connector {
 	struct msm_dp_mst *dp_mst;
 };
 
+struct msm_dp_mst_connector_state {
+	struct drm_connector_state base;
+	u32 bpp;
+};
+
+#define to_msm_dp_mst_connector_state(x) \
+	container_of((x), struct msm_dp_mst_connector_state, base)
+
 struct msm_dp_mst_encoder {
 	struct drm_encoder *enc;
 	int stream_id;
@@ -51,12 +59,51 @@ static void dp_mst_connector_destroy(struct drm_connector *connector)
 	kfree(mst_conn);
 }
 
+static void msm_dp_mst_connector_reset(struct drm_connector *connector)
+{
+	struct msm_dp_mst_connector_state *mst_state = kzalloc_obj(*mst_state);
+
+	if (connector->state)
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+
+	kfree(connector->state);
+	__drm_atomic_helper_connector_reset(connector, mst_state ? &mst_state->base : NULL);
+}
+
+static struct drm_connector_state *
+msm_dp_mst_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct msm_dp_mst_connector_state *old_state, *new_state;
+
+	if (drm_WARN_ON(connector->dev, !connector->state))
+		return NULL;
+
+	old_state = to_msm_dp_mst_connector_state(connector->state);
+	new_state = kmemdup(old_state, sizeof(*new_state), GFP_KERNEL);
+	if (!new_state)
+		return NULL;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, &new_state->base);
+
+	return &new_state->base;
+}
+
+static void msm_dp_mst_connector_destroy_state(struct drm_connector *connector,
+					       struct drm_connector_state *state)
+{
+	struct msm_dp_mst_connector_state *mst_state =
+		to_msm_dp_mst_connector_state(state);
+
+	__drm_atomic_helper_connector_destroy_state(&mst_state->base);
+	kfree(mst_state);
+}
+
 static const struct drm_connector_funcs msm_dp_drm_mst_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
+	.reset = msm_dp_mst_connector_reset,
 	.destroy = dp_mst_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = msm_dp_mst_connector_duplicate_state,
+	.atomic_destroy_state = msm_dp_mst_connector_destroy_state,
 };
 
 /* DP MST Connector OPs */
@@ -68,17 +115,19 @@ msm_dp_mst_connector_detect(struct drm_connector *connector,
 	struct msm_dp_mst_connector *mst_conn = to_dp_mst_connector(connector);
 	struct msm_dp_mst *mst = mst_conn->dp_mst;
 	struct msm_dp *dp_display = mst->msm_dp;
-	struct device *dev = dp_display->drm_dev->dev;
+	struct device *dev = &dp_display->pdev->dev;
 	enum drm_connector_status status = connector_status_disconnected;
 	int ret;
+
+	if (!dp_display->mst_active)
+		return status;
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
 		return status;
 
-	if (dp_display->mst_active)
-		status = drm_dp_mst_detect_port(connector,
-						ctx, &mst->mst_mgr, mst_conn->mst_port);
+	status = drm_dp_mst_detect_port(connector, ctx, &mst->mst_mgr,
+					mst_conn->mst_port);
 
 	pm_runtime_put_autosuspend(dev);
 
@@ -140,6 +189,42 @@ static int msm_dp_mst_connector_atomic_check(struct drm_connector *connector,
 	return drm_dp_atomic_release_time_slots(state, &mst->mst_mgr, mst_conn->mst_port);
 }
 
+static int msm_dp_mst_select_bpp(struct drm_atomic_commit *state,
+				 struct msm_dp_mst *mst,
+				 const struct drm_dp_mst_topology_state *mst_state,
+				 struct drm_dp_mst_port *port,
+				 const struct drm_display_mode *mode,
+				 u32 max_bpp, u32 *bpp)
+{
+	static const u32 bpps[] = { 30, 24, 18 };
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(bpps); i++) {
+		int pbn, slots;
+
+		if (bpps[i] > max_bpp)
+			continue;
+
+		pbn = drm_dp_calc_pbn_mode(mode->clock, bpps[i] << 4);
+		if (pbn > port->full_pbn)
+			continue;
+
+		slots = drm_dp_atomic_find_time_slots(state, &mst->mst_mgr, port, pbn);
+		if (slots < 0)
+			return slots;
+
+		if (slots <= mst_state->total_avail_slots) {
+			drm_dbg_kms(mst->msm_dp->drm_dev,
+				    "[MST] bpp=%u pbn=%d slots=%d\n",
+				    bpps[i], pbn, slots);
+			*bpp = bpps[i];
+			return 0;
+		}
+	}
+
+	return -ENOSPC;
+}
+
 static struct msm_dp_panel *msm_dp_mst_panel_from_encoder(struct msm_dp_mst *mst,
 							   struct drm_encoder *enc)
 {
@@ -152,20 +237,17 @@ static struct msm_dp_panel *msm_dp_mst_panel_from_encoder(struct msm_dp_mst *mst
 	return NULL;
 }
 
-static void msm_dp_mst_remove_payload(struct msm_dp_mst *mst,
-				      struct drm_dp_mst_topology_state *mst_state,
-				      struct msm_dp_panel *panel)
+static void msm_dp_mst_collect_slots(struct msm_dp_mst *mst,
+				     struct drm_dp_mst_topology_state *mst_state,
+				     struct msm_dp_mst_slot_info *slots)
 {
-	struct msm_dp_panel *dp_panel;
-	struct drm_dp_mst_atomic_payload *payload;
 	int i;
 
-	msm_dp_display_set_stream_info(mst->msm_dp, panel, 0, 0, 0);
-
-	/* Apply the slot shift to the remaining payloads. */
 	for (i = 0; i < mst->max_streams; i++) {
-		dp_panel = mst->mst_encoders[i].dp_panel;
-		if (dp_panel == panel || !dp_panel->connector)
+		struct msm_dp_panel *dp_panel = mst->mst_encoders[i].dp_panel;
+		struct drm_dp_mst_atomic_payload *payload;
+
+		if (!dp_panel->connector)
 			continue;
 
 		payload = drm_atomic_get_mst_payload_state(mst_state,
@@ -173,9 +255,9 @@ static void msm_dp_mst_remove_payload(struct msm_dp_mst *mst,
 		if (!payload || payload->vc_start_slot < 0)
 			continue;
 
-		msm_dp_display_set_stream_info(mst->msm_dp, dp_panel,
-					       payload->vc_start_slot,
-					       payload->time_slots, payload->pbn);
+		slots[dp_panel->stream_id].start_slot = payload->vc_start_slot;
+		slots[dp_panel->stream_id].tot_slots = payload->time_slots;
+		slots[dp_panel->stream_id].pbn = payload->pbn;
 	}
 }
 
@@ -191,8 +273,8 @@ static int msm_dp_mst_encoder_stream_id(struct msm_dp_mst *mst,
 	return -1;
 }
 
-int msm_dp_mst_stream_enable(struct drm_encoder *encoder,
-			      struct drm_atomic_commit *state)
+void msm_dp_mst_stream_enable(struct drm_encoder *encoder,
+			       struct drm_atomic_commit *state)
 {
 	struct drm_connector *connector =
 		drm_atomic_get_new_connector_for_encoder(state, encoder);
@@ -205,6 +287,10 @@ int msm_dp_mst_stream_enable(struct drm_encoder *encoder,
 		drm_atomic_get_new_mst_topology_state(state, &mst->mst_mgr);
 	struct drm_dp_mst_atomic_payload *payload =
 		drm_atomic_get_mst_payload_state(mst_state, port);
+	struct msm_dp_mst_connector_state *mst_conn_state =
+		to_msm_dp_mst_connector_state(drm_atomic_get_new_connector_state(state,
+									 connector));
+	struct msm_dp_mst_slot_info slots[DP_STREAM_MAX] = {};
 	int rc;
 
 	guard(mutex)(&mst->mst_lock);
@@ -212,41 +298,41 @@ int msm_dp_mst_stream_enable(struct drm_encoder *encoder,
 	drm_connector_get(connector);
 	panel->connector = connector;
 
-	rc = msm_dp_display_set_mode_helper(dp_display, state, encoder, panel);
+	rc = msm_dp_display_set_mode_helper(dp_display, state, encoder, panel,
+					mst_conn_state->bpp);
 	if (rc) {
 		drm_err(dp_display->drm_dev,
 			"[MST] stream:%u set_mode failed rc=%d\n", panel->stream_id, rc);
-		return rc;
+		return;
 	}
 
 	rc = msm_dp_display_prepare_link(dp_display);
 	if (rc) {
 		drm_err(dp_display->drm_dev,
 			"[MST] stream:%u prepare_link failed rc=%d\n", panel->stream_id, rc);
-		return rc;
+		return;
 	}
 
 	drm_dp_mst_update_slots(mst_state, DP_CAP_ANSI_8B10B);
 
 	rc = drm_dp_add_payload_part1(&mst->mst_mgr, mst_state, payload);
 	if (rc)
-		return rc;
+		return;
 
-	msm_dp_display_set_stream_info(mst->msm_dp, panel,
-				       payload->vc_start_slot,
-				       payload->time_slots, payload->pbn);
+	msm_dp_mst_collect_slots(mst, mst_state, slots);
+
 	drm_dbg_kms(dp_display->drm_dev,
 		    "[MST] stream:%u timeslots vc_start:%d slots:%d pbn:%d\n",
 		    panel->stream_id, payload->vc_start_slot,
 		    payload->time_slots, payload->pbn);
 
-	msm_dp_display_enable_helper(dp_display, panel);
+	rc = msm_dp_display_enable_helper(dp_display, panel, slots);
+	if (rc)
+		return;
 
 	drm_dp_check_act_status(&mst->mst_mgr);
 
 	drm_dp_add_payload_part2(&mst->mst_mgr, payload);
-
-	return 0;
 }
 
 void msm_dp_mst_stream_disable(struct drm_encoder *encoder,
@@ -264,6 +350,7 @@ void msm_dp_mst_stream_disable(struct drm_encoder *encoder,
 		drm_atomic_get_mst_payload_state(old_mst_state, mst_conn->mst_port);
 	struct drm_dp_mst_atomic_payload *new_payload =
 		drm_atomic_get_mst_payload_state(new_mst_state, mst_conn->mst_port);
+	struct msm_dp_mst_slot_info slots[DP_STREAM_MAX] = {};
 
 	guard(mutex)(&mst->mst_lock);
 
@@ -271,7 +358,8 @@ void msm_dp_mst_stream_disable(struct drm_encoder *encoder,
 
 	drm_dp_remove_payload_part2(&mst->mst_mgr, new_mst_state, old_payload, new_payload);
 
-	msm_dp_mst_remove_payload(mst, new_mst_state, panel);
+	msm_dp_mst_collect_slots(mst, new_mst_state, slots);
+
 	drm_dbg_kms(mst->msm_dp->drm_dev,
 		    "[MST] stream:%u timeslots vc_start:%d slots:%d pbn:%d\n",
 		    panel->stream_id, new_payload->vc_start_slot,
@@ -280,7 +368,7 @@ void msm_dp_mst_stream_disable(struct drm_encoder *encoder,
 	if (!msm_dp_display_is_plugged(mst->msm_dp))
 		return;
 
-	msm_dp_display_disable_helper(mst->msm_dp, panel);
+	msm_dp_display_disable_helper(mst->msm_dp, panel, slots);
 
 	drm_dp_check_act_status(&mst->mst_mgr);
 }
@@ -310,18 +398,18 @@ int msm_dp_mst_stream_atomic_check(struct drm_encoder *enc,
 				   struct drm_connector_state *conn_state)
 {
 	struct msm_dp_mst_connector *mst_conn = to_dp_mst_connector(conn_state->connector);
+	struct msm_dp_mst_connector_state *mst_conn_state =
+		to_msm_dp_mst_connector_state(conn_state);
 	struct msm_dp_mst *mst = mst_conn->dp_mst;
 	struct drm_dp_mst_topology_state *mst_state;
-	int bpp, pbn, slots;
+	u32 bpp, max_bpp;
+	int rc;
 
 	if (!conn_state->crtc)
 		return 0;
 
 	if (!drm_atomic_crtc_needs_modeset(crtc_state) || !crtc_state->active)
 		return 0;
-
-	bpp = (conn_state->connector->display_info.bpc * 3) ?: 24; /* fallback: assume 8bpc */
-	pbn = drm_dp_calc_pbn_mode(crtc_state->mode.clock, bpp << 4);
 
 	mst_state = drm_atomic_get_mst_topology_state(crtc_state->state, &mst->mst_mgr);
 	if (IS_ERR(mst_state))
@@ -333,10 +421,15 @@ int msm_dp_mst_stream_atomic_check(struct drm_encoder *enc,
 						 mst->link->link_caps.num_lanes);
 	}
 
-	slots = drm_dp_atomic_find_time_slots(crtc_state->state, &mst->mst_mgr,
-					      mst_conn->mst_port, pbn);
-	if (slots < 0)
-		return slots;
+	max_bpp = clamp(conn_state->connector->display_info.bpc ?: 8, 6, 10) * 3;
+
+	rc = msm_dp_mst_select_bpp(crtc_state->state, mst, mst_state,
+				   mst_conn->mst_port, &crtc_state->adjusted_mode,
+				   max_bpp, &bpp);
+	if (rc)
+		return rc;
+
+	mst_conn_state->bpp = bpp;
 
 	return 0;
 }
