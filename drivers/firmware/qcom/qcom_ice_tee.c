@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/uuid.h>
@@ -21,6 +22,9 @@
 #define PTA_QCOM_ICE_HAS_WRAPPED_KEY_SUPPORT	6
 
 #define TEE_NUM_PARAMS				4
+
+/* This represents the back-end OPTEE device */
+static struct device *__teedev;
 
 struct qcom_ice_tee_private {
 	struct device *dev;
@@ -281,6 +285,18 @@ static int qcom_ice_tee_import_key(struct device *dev,
 					     lt_key, lt_key_size);
 }
 
+bool qcom_ice_tee_is_available(void)
+{
+	/*
+	 * Paired with smp_load_acquire() in qcom_ice_plat_probe().
+	 *
+	 * This marks the availability of the OPTEE interface informing the
+	 * polling ICE driver that the platform supports a TEE.
+	 */
+	return !!smp_load_acquire(&__teedev);
+}
+EXPORT_SYMBOL_GPL(qcom_ice_tee_is_available);
+
 static bool qcom_ice_tee_has_wrapped_key_support(struct device *dev)
 {
 	struct qcom_ice_tee_private *data = dev_get_drvdata(dev);
@@ -397,6 +413,31 @@ static struct tee_client_driver qcom_ice_tee_driver = {
 };
 
 module_tee_client_driver(qcom_ice_tee_driver);
+
+static int qcom_ice_plat_probe(struct platform_device *pdev)
+{
+	/* Paired with smp_load_acquire() in qcom_ice_tee_is_available() */
+	smp_store_release(&__teedev, &pdev->dev);
+	return 0;
+}
+
+static const struct platform_device_id qcom_ice_plat_id_table[] = {
+	{
+		.name = "optee",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, qcom_ice_plat_id_table);
+
+static struct platform_driver qcom_ice_plat_driver = {
+	.probe = qcom_ice_plat_probe,
+	.id_table = qcom_ice_plat_id_table,
+	.driver = {
+		.name = "qcom-ice-plat",
+	},
+};
+
+module_platform_driver(qcom_ice_plat_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Qualcomm ICE TEE driver");

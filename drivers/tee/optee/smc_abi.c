@@ -1911,6 +1911,14 @@ static int optee_probe(struct platform_device *pdev)
 	if (rc)
 		goto err_disable_shm_cache;
 
+	/*
+	 * Device should only be visible on the platform bus once the
+	 * child devices have already been enumerated on the TEE bus.
+	 */
+	rc = tee_platform_device_register(optee->teedev, "optee");
+	if (rc)
+		goto err_disable_shm_cache;
+
 	INIT_WORK(&optee->rpmb_scan_bus_work, optee_bus_scan_rpmb);
 	optee->rpmb_intf.notifier_call = optee_rpmb_intf_rdev;
 	blocking_notifier_chain_register(&optee_rpmb_intf_added,

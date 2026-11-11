@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/overflow.h>
 #include <linux/slab.h>
 #include <linux/tee_core.h>
@@ -1184,6 +1185,26 @@ int tee_device_register(struct tee_device *teedev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tee_device_register);
+
+static void plat_tee_free(void *data)
+{
+	struct platform_device *plat_dev = data;
+
+	platform_device_unregister(plat_dev);
+}
+
+int tee_platform_device_register(struct tee_device *teedev, const char *teename)
+{
+	struct platform_device *plat_dev;
+
+	plat_dev = platform_device_register_data(&teedev->dev, teename,
+						 PLATFORM_DEVID_NONE, NULL, 0);
+	if (IS_ERR(plat_dev))
+		return PTR_ERR(plat_dev);
+
+	devm_add_action_or_reset(&teedev->dev, plat_tee_free, plat_dev);
+	return 0;
+}
 
 void tee_device_put(struct tee_device *teedev)
 {

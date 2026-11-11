@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/xarray.h>
 
+#include <linux/firmware/qcom/qcom_ice_tee.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <soc/qcom/ice.h>
 
@@ -136,7 +137,13 @@ static bool qcom_ice_tz_ops_registered(void)
 
 static bool qcom_ice_tz_is_available(void)
 {
-	return qcom_scm_is_available();
+	/*
+	 * Both back-ends should be available before we check for
+	 * qcom_ice_tz_ops_registered(), otherwise we could pre-maturely
+	 * assume that TZ does not provide any ICE secure interface.
+	 */
+	return (qcom_scm_is_available() && qcom_ice_tee_is_available());
+
 }
 
 static int qcom_ice_tz_invalidate_key(u32 index)

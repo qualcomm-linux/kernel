@@ -197,6 +197,15 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 int tee_device_register(struct tee_device *teedev);
 
 /**
+ * tee_platform_device_register() - Registers a TEE platform device
+ * @teedev:	Device to register
+ * @teename:	Name of the TEE the device represents
+ *
+ * @returns: < 0 on failure
+ */
+int tee_platform_device_register(struct tee_device *teedev, const char *teename);
+
+/**
  * tee_device_unregister() - Removes a TEE device
  * @teedev:	Device to unregister
  *
