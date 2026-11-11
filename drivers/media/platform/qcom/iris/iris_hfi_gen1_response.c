@@ -750,29 +750,60 @@ static void iris_hfi_gen1_handle_response(struct iris_core *core, void *response
 	}
 }
 
-static void iris_hfi_gen1_flush_debug_queue(struct iris_core *core, u8 *packet)
+static int iris_hfi_gen1_flush_debug_queue(struct iris_core *core, u8 *packet)
 {
-	struct hfi_msg_sys_coverage_pkt *pkt;
+	struct hfi_msg_sys_debug_pkt *pkt;
+	struct hfi_pkt_hdr *hdr;
+	int num_pkts = 0;
+	u32 log_size;
+	u8 *log;
 
 	while (!iris_hfi_queue_dbg_read(core, packet)) {
-		pkt = (struct hfi_msg_sys_coverage_pkt *)packet;
+		hdr = (struct hfi_pkt_hdr *)packet;
+		num_pkts++;
 
-		if (pkt->hdr.pkt_type != HFI_MSG_SYS_COV) {
-			struct hfi_msg_sys_debug_pkt *pkt =
-				(struct hfi_msg_sys_debug_pkt *)packet;
+		if (hdr->size <= sizeof(*hdr))
+			continue;
 
-			dev_dbg(core->dev, "%s", pkt->msg_data);
+		if (hdr->size > IFACEQ_CORE_PKT_SIZE)
+			continue;
+
+		if (hdr->pkt_type != HFI_MSG_SYS_COV) {
+			pkt = (struct hfi_msg_sys_debug_pkt *)packet;
+
+			if (hdr->size <= sizeof(*pkt))
+				continue;
+
+			log = pkt->msg_data;
+			log_size = hdr->size - sizeof(*pkt);
+			if (pkt->msg_size < log_size)
+				log_size = pkt->msg_size;
+
+			if (pkt->msg_type & (IRIS_FW_DEBUG_ERROR | IRIS_FW_DEBUG_FATAL))
+				dev_err_ratelimited(core->dev, "%.*s", (int)log_size, log);
+			else
+				dev_dbg(core->dev, "%.*s", (int)log_size, log);
 		}
 	}
+
+	return num_pkts;
 }
 
 void iris_hfi_gen1_response_handler(struct iris_core *core)
 {
-	memset(core->response_packet, 0, sizeof(struct hfi_pkt_hdr));
-	while (!iris_hfi_queue_msg_read(core, core->response_packet)) {
-		iris_hfi_gen1_handle_response(core, core->response_packet);
-		memset(core->response_packet, 0, sizeof(struct hfi_pkt_hdr));
-	}
+	int num_debug_pkts;
+	int num_msg_pkts;
 
-	iris_hfi_gen1_flush_debug_queue(core, core->response_packet);
+	do {
+		num_msg_pkts = 0;
+		memset(core->response_packet, 0, sizeof(struct hfi_pkt_hdr));
+		while (!iris_hfi_queue_msg_read(core, core->response_packet)) {
+			iris_hfi_gen1_handle_response(core, core->response_packet);
+			num_msg_pkts++;
+			memset(core->response_packet, 0, sizeof(struct hfi_pkt_hdr));
+		}
+
+		num_debug_pkts =
+			iris_hfi_gen1_flush_debug_queue(core, core->response_packet);
+	} while (num_msg_pkts || num_debug_pkts);
 }
