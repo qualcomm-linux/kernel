@@ -718,6 +718,22 @@ config DRM_PANEL_NOVATEK_NT37801
 	  NT37810) AMOLED DSI Video Mode LCD panel module with 1440x3200
 	  resolution.
 
+config DRM_PANEL_NOVATEK_NT37802
+	tristate "Novatek NT37802 AMOLED DSI command-mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_DISPLAY_DSC_HELPER
+	select DRM_DISPLAY_HELPER
+	select DRM_KMS_HELPER
+	help
+	  Say Y here to enable support for the Novatek NT37802 AMOLED
+	  DSI command-mode panel used with the CSOT module on the
+	  Maili/Pebble platform. The panel has a 1440x3200 resolution
+	  and uses DSC 1.2 compression, with DCS brightness control.
+	  To compile this driver as a module, choose M here.
+
 config DRM_PANEL_NOVATEK_NT39016
 	tristate "Novatek NT39016 RGB/SPI panel"
 	depends on OF && SPI
