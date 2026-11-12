@@ -1,0 +1,87 @@
+What:		/sys/kernel/debug/ras/arm64/<node_name>/
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		Directory representing a RAS node device, <name> means device
+		type, like:
+
+		- processor
+		- memory
+		- smmu
+		- ...
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/err_*
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RW) Read/Write err_* register.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/err_count
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RO) Outputs error statistics for all error records of this node.
+
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/err_count
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RO) Outputs error statistics for this record.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/ce_threshold
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(WO) Write the CE threshold to all records of this node.
+		Returns error if input exceeded the maximum threshold.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/ce_threshold
+Date:		Dec 2025
+KernelVersion:	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RW) Read and write the CE threshold to this record.
+		Returns error if input exceeded the maximum threshold.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/inject/err_*
+Date:		Dec 2025
+KernelVersion	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(RW) These registers are used to simulate soft injection errors
+		by holding error register values. You can write any values
+		to them. To trigger the injection, you need to write soft_inject
+		at last. The validity of the injected error depends on the
+		value written to err_status.
+
+		Accepts values -  any.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/inject/soft_inject
+Date:		Dec 2025
+KernelVersion	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(WO) Write any value to this file to trigger the error
+		injection. Make sure you have specified all necessary error
+		parameters, i.e. this write should be the last step when
+		injecting errors.
+
+		Accepts values -  any.
+
+What:		/sys/kernel/debug/ras/arm64/<node_name>/record<index>/inject/hard_inject
+Date:		Dec 2025
+KernelVersion	6.19
+Contact:	Ruidong Tian <tianruidong@linux.alibaba.com>
+Description:
+		(WO) If the AEST table provides error injection registers,
+		you can write to them via this interface. For instance,
+		values can be written to the ERXPFGCTL register. The post-injection
+		behavior is then determined by the hardware specification.
+
+		Accepts values - any.
