@@ -18,6 +18,7 @@
 #include <linux/reset.h>
 #include <linux/iopoll.h>
 #include <linux/usb/hcd.h>
+#include <linux/pm_domain.h>
 #include <linux/usb.h>
 #include "core.h"
 #include "glue.h"
@@ -362,6 +363,8 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
 		for (i = 0; i < qcom->num_ports; i++)
 			qcom->ports[i].usb2_speed = dwc3_qcom_read_usb2_speed(qcom, i);
 		dwc3_qcom_enable_interrupts(qcom);
+	} else {
+		dev_pm_genpd_synced_poweroff(qcom->dev);
 	}
 
 	qcom->is_suspended = true;
