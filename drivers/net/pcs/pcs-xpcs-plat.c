@@ -20,12 +20,21 @@
 #include <linux/sizes.h>
 
 #include "pcs-xpcs.h"
+#include "pcs-xpcs-qcom.h"
 
 /* Page select register for the indirect MMIO CSRs access */
 #define DW_VR_CSR_VIEWPORT		0xff
 
+struct dw_xpcs_plat_ops {
+	int (*reg_read)(struct platform_device *pdev, void __iomem *reg_base,
+			int dev, int reg);
+	int (*reg_write)(struct platform_device *pdev, void __iomem *reg_base,
+			 int dev, int reg, u16 val);
+};
+
 struct dw_xpcs_plat {
 	struct platform_device *pdev;
+	const struct dw_xpcs_plat_ops *ops;
 	struct mii_bus *bus;
 	bool reg_indir;
 	int reg_width;
@@ -169,6 +178,10 @@ static int xpcs_mmio_read_c22(struct mii_bus *bus, int addr, int reg)
 	if (addr != 0)
 		return -ENODEV;
 
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_read(pxpcs->pdev, pxpcs->reg_base,
+					    MDIO_MMD_VEND2, reg);
+
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_read_reg_indirect(pxpcs, MDIO_MMD_VEND2, reg);
 	else
@@ -182,6 +195,10 @@ static int xpcs_mmio_write_c22(struct mii_bus *bus, int addr, int reg, u16 val)
 	if (addr != 0)
 		return -ENODEV;
 
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_write(pxpcs->pdev, pxpcs->reg_base,
+					     MDIO_MMD_VEND2, reg, val);
+
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_write_reg_indirect(pxpcs, MDIO_MMD_VEND2, reg, val);
 	else
@@ -194,6 +211,10 @@ static int xpcs_mmio_read_c45(struct mii_bus *bus, int addr, int dev, int reg)
 
 	if (addr != 0)
 		return -ENODEV;
+
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_read(pxpcs->pdev, pxpcs->reg_base,
+					    dev, reg);
 
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_read_reg_indirect(pxpcs, dev, reg);
@@ -209,14 +230,24 @@ static int xpcs_mmio_write_c45(struct mii_bus *bus, int addr, int dev,
 	if (addr != 0)
 		return -ENODEV;
 
+	if (pxpcs->ops)
+		return pxpcs->ops->reg_write(pxpcs->pdev, pxpcs->reg_base,
+					     dev, reg, val);
+
 	if (pxpcs->reg_indir)
 		return xpcs_mmio_write_reg_indirect(pxpcs, dev, reg, val);
 	else
 		return xpcs_mmio_write_reg_direct(pxpcs, dev, reg, val);
 }
 
+static const struct dw_xpcs_plat_ops xpcs_qcom_ops = {
+	.reg_read = xpcs_qcom_reg_read,
+	.reg_write = xpcs_qcom_reg_write,
+};
+
 static struct dw_xpcs_plat *xpcs_plat_create_data(struct platform_device *pdev)
 {
+	const struct dw_xpcs_info *info;
 	struct dw_xpcs_plat *pxpcs;
 
 	pxpcs = devm_kzalloc(&pdev->dev, sizeof(*pxpcs), GFP_KERNEL);
@@ -224,6 +255,12 @@ static struct dw_xpcs_plat *xpcs_plat_create_data(struct platform_device *pdev)
 		return ERR_PTR(-ENOMEM);
 
 	pxpcs->pdev = pdev;
+	info = device_get_match_data(&pdev->dev);
+	if (!info)
+		return ERR_PTR(-EINVAL);
+
+	if (info->pcs == QCOM_NORD_XPCS_ID)
+		pxpcs->ops = &xpcs_qcom_ops;
 
 	dev_set_drvdata(&pdev->dev, pxpcs);
 
@@ -261,7 +298,7 @@ static int xpcs_plat_init_res(struct dw_xpcs_plat *pxpcs)
 	else
 		spc_size = pxpcs->reg_width * SZ_2M;
 
-	if (resource_size(res) < spc_size) {
+	if (!pxpcs->ops && resource_size(res) < spc_size) {
 		dev_err(dev, "Invalid reg-space size\n");
 		return -EINVAL;
 	}
@@ -285,7 +322,11 @@ static int xpcs_plat_init_clk(struct dw_xpcs_plat *pxpcs)
 		return dev_err_probe(dev, PTR_ERR(pxpcs->cclk),
 				     "Failed to get CSR clock\n");
 
-	pm_runtime_set_active(dev);
+	ret = pm_runtime_set_suspended(dev);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to set runtime-PM suspended state\n");
+
 	ret = devm_pm_runtime_enable(dev);
 	if (ret) {
 		dev_err(dev, "Failed to enable runtime-PM\n");
@@ -428,8 +469,10 @@ DW_XPCS_INFO_DECLARE(xpcs_pma_gen4_3g, DW_XPCS_ID_NATIVE, DW_XPCS_PMA_GEN4_3G_ID
 DW_XPCS_INFO_DECLARE(xpcs_pma_gen4_6g, DW_XPCS_ID_NATIVE, DW_XPCS_PMA_GEN4_6G_ID);
 DW_XPCS_INFO_DECLARE(xpcs_pma_gen5_10g, DW_XPCS_ID_NATIVE, DW_XPCS_PMA_GEN5_10G_ID);
 DW_XPCS_INFO_DECLARE(xpcs_pma_gen5_12g, DW_XPCS_ID_NATIVE, DW_XPCS_PMA_GEN5_12G_ID);
+DW_XPCS_INFO_DECLARE(xpcs_qcom_nord, QCOM_NORD_XPCS_ID, DW_XPCS_PMA_ID_NATIVE);
 
 static const struct of_device_id xpcs_of_ids[] = {
+	{ .compatible = "qcom,nord-dw-xpcs", .data = &xpcs_qcom_nord },
 	{ .compatible = "snps,dw-xpcs", .data = &xpcs_generic },
 	{ .compatible = "snps,dw-xpcs-gen1-3g", .data = &xpcs_pma_gen1_3g },
 	{ .compatible = "snps,dw-xpcs-gen2-3g", .data = &xpcs_pma_gen2_3g },

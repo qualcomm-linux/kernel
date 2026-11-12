@@ -351,8 +351,9 @@ static int stmmac_ethtool_get_regs_len(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
-		return XGMAC_REGSIZE * 4;
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC ||
+	    priv->plat->core_type == DWMAC_CORE_25GMAC)
+		return XGMAC_REGSIZE(priv->plat->dwxgmac_addrs) * 4;
 	else if (priv->plat->core_type == DWMAC_CORE_GMAC4)
 		return GMAC4_REG_SPACE_SIZE;
 	return REG_SPACE_SIZE;
