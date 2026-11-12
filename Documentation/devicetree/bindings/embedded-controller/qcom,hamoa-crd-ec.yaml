@@ -21,6 +21,7 @@ properties:
       - items:
           - enum:
               - qcom,glymur-crd-ec
+              - qcom,glymur-qcb-ec
               - qcom,hamoa-iot-evk-ec
               - qcom,purwa-iot-evk-ec
           - const: qcom,hamoa-crd-ec
