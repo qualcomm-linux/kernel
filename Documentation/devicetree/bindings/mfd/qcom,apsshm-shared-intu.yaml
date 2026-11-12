@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/qcom,apsshm-shared-intu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm APSS Shared Memory Interrupt Notification Unit registers
+
+maintainers:
+  - Ram Sargar <rsargar@qti.qualcomm.com>
+
+description:
+  A block of SoC-level APSS HM CSR registers used to trigger doorbells that
+  notify special event notifications to one or more subsystems within SOC.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,sa8775p-apsshm-shared-intu
+          - qcom,qcs8300-apsshm-shared-intu
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    apsshm_shared_intu: syscon@17c00000 {
+        compatible = "qcom,sa8775p-apsshm-shared-intu", "syscon";
+        reg = <0x0 0x17c00000 0x0 0x38>;
+    };
