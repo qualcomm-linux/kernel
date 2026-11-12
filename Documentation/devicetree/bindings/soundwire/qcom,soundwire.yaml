@@ -10,8 +10,14 @@ maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
   - Srinivasa Rao Mandadapu <quic_srivasam@quicinc.com>
 
-description:
-  The Qualcomm SoundWire controller along with its board specific bus parameters.
+description: |
+  The Qualcomm SoundWire controller along with its board specific bus
+  parameters.
+
+  On v3.1.0 and later, two instances may pair as a lane-provider/consumer
+  pair sharing one SWR_CLK, to expose a bus with more than two DATA lanes.
+  The consumer references the provider via qcom,secondary-lanes; the provider
+  is marked by #qcom,swrm-lane-cells.
 
 properties:
   compatible:
@@ -215,6 +221,47 @@ properties:
           maximum: 4
         - const: 0xff
 
+  qcom,ports-ch-mask:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description:
+      Per-port intrinsic SoundWire channel mask.  Used when programming
+      the master DPn PORT_CTRL channel-enable field so a port's slot
+      layout (e.g. stereo PDM) is transmitted independently of the PCM
+      stream's channel count.  0xff means the option is not applicable
+      for that port.
+    minItems: 3
+    maxItems: 17
+
+  '#qcom,swrm-lane-cells':
+    description:
+      Marks this node as a lane provider.  The single cell in a referring
+      phandle is the provider-local DATA lane index.
+    const: 1
+
+  qcom,secondary-lanes:
+    description:
+      Extra DATA lanes borrowed from other Qualcomm SoundWire instances
+      (lane providers).  Each entry is a <provider, lane> pair.  The N-th
+      entry becomes bus lane (num-lanes + N); slave port mappings must
+      follow this order.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      items:
+        - description: phandle of a Qualcomm SoundWire lane provider
+        - description: provider-local DATA lane index
+    minItems: 1
+    maxItems: 6
+
+  num-lanes:
+    description:
+      Number of DATA lanes this instance exposes locally.  Optional,
+      defaults to 2.  On a bus master, bus lanes 0..num-lanes-1 come
+      from this instance; higher-numbered lanes come from
+      qcom,secondary-lanes entries in order.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 8
+
   label:
     maxItems: 1
 
@@ -224,20 +271,48 @@ required:
   - interrupts
   - clocks
   - clock-names
-  - '#sound-dai-cells'
-  - '#address-cells'
-  - '#size-cells'
-  - qcom,ports-offset1
-  - qcom,ports-offset2
-
-oneOf:
-  - required:
-      - qcom,ports-sinterval-low
-  - required:
-      - qcom,ports-sinterval
 
 allOf:
   - $ref: soundwire-controller.yaml#
+  - if:
+      required:
+        - '#qcom,swrm-lane-cells'
+    then:
+      properties:
+        qcom,secondary-lanes: false
+        '#sound-dai-cells': false
+        qcom,ports-word-length: false
+        qcom,ports-sinterval-low: false
+        qcom,ports-sinterval: false
+        qcom,ports-offset1: false
+        qcom,ports-offset2: false
+        qcom,ports-lane-control: false
+        qcom,ports-block-pack-mode: false
+        qcom,ports-hstart: false
+        qcom,ports-hstop: false
+        qcom,ports-block-group-count: false
+        qcom,ports-ch-mask: false
+    else:
+      required:
+        - '#sound-dai-cells'
+        - qcom,ports-offset1
+        - qcom,ports-offset2
+      oneOf:
+        - required:
+            - qcom,ports-sinterval-low
+        - required:
+            - qcom,ports-sinterval
+  - if:
+      anyOf:
+        - required:
+            - '#qcom,swrm-lane-cells'
+        - required:
+            - qcom,secondary-lanes
+    then:
+      properties:
+        compatible:
+          contains:
+            const: qcom,soundwire-v3.1.0
 
 unevaluatedProperties: false
 
@@ -280,5 +355,51 @@ examples:
             compatible = "sdw20217010d00";
             reg = <0 4>;
             qcom,rx-port-mapping = <1 2 3 4 5>;
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    /* Provider IP: contributes two DATA lanes to another master's bus */
+    swr_lane_provider: soundwire@6ad0000 {
+        compatible = "qcom,soundwire-v3.1.0";
+        reg = <0x06ad0000 0x10000>;
+        interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&lpass_provider_clk>;
+        clock-names = "iface";
+        resets = <&lpass_audiocc 4>;
+        reset-names = "swr_audio_cgcr";
+        #qcom,swrm-lane-cells = <1>;
+        #address-cells = <2>;
+        #size-cells = <0>;
+    };
+
+    /* Bus master consuming both lanes of the provider above */
+    soundwire@6ac0000 {
+        compatible = "qcom,soundwire-v3.1.0";
+        reg = <0x06ac0000 0x10000>;
+        interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&lpass_master_clk>;
+        clock-names = "iface";
+        resets = <&lpass_audiocc 3>;
+        reset-names = "swr_audio_cgcr";
+        qcom,secondary-lanes = <&swr_lane_provider 0>,
+                               <&swr_lane_provider 1>;
+
+        qcom,ports-word-length =        /bits/ 8 <0x01 0x07 0x04>;
+        qcom,ports-sinterval-low =      /bits/ 8 <0x03 0x3f 0x1f>;
+        qcom,ports-offset1 =            /bits/ 8 <0x00 0x00 0x0b>;
+        qcom,ports-offset2 =            /bits/ 8 <0x00 0x00 0x0b>;
+        qcom,ports-lane-control =       /bits/ 8 <0x00 0x02 0x03>;
+
+        #sound-dai-cells = <1>;
+        #address-cells = <2>;
+        #size-cells = <0>;
+
+        codec@0,4 {
+            compatible = "sdw20217010d00";
+            reg = <0 4>;
+            qcom,rx-port-mapping = <1 2 3>;
         };
     };

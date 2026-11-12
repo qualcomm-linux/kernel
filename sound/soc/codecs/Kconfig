@@ -2524,6 +2524,17 @@ config SND_SOC_WCD939X_SDW
 	  The WCD9390/9395 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8650.
 
+config SND_SOC_WCD9378_SDCA
+	tristate "Qualcomm Tambora (WCD9378) SDCA codec"
+	depends on SOUNDWIRE
+	depends on SND_SOC_SDCA_CLASS
+	help
+	  This enables support for the Qualcomm Tambora (WCD9378) headset
+	  codec when driven via the SDCA class driver on ARM platforms
+	  without ACPI/DisCo tables. It provides the static SDCA topology
+	  and SoundWire data port properties transcribed from the factory
+	  ACPI tables.
+
 config SND_SOC_WM0010
 	tristate
 	depends on SPI_MASTER
@@ -2923,28 +2934,24 @@ config SND_SOC_LPASS_MACRO_COMMON
 
 config SND_SOC_LPASS_WSA_MACRO
 	depends on COMMON_CLK
-	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm WSA Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_VA_MACRO
 	depends on COMMON_CLK
-	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm VA Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_RX_MACRO
 	depends on COMMON_CLK
-	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm RX Macro in LPASS(Low Power Audio SubSystem)"
 
 config SND_SOC_LPASS_TX_MACRO
 	depends on COMMON_CLK
-	depends on PM_CLK
 	select REGMAP_MMIO
 	select SND_SOC_LPASS_MACRO_COMMON
 	tristate "Qualcomm TX Macro in LPASS(Low Power Audio SubSystem)"

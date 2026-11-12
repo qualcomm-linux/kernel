@@ -10,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -45,6 +46,24 @@
 #define SWRM_V3_COMP_PARAMS_RD_FIFO_DEPTH			GENMASK(23, 18)
 
 #define SWRM_COMP_MASTER_ID					0x104
+
+/*
+ * Multi-master sync, v3.1.0 and later. Two controller instances can be tied
+ * together so that a single SWR_CLK drives both frame generators, which lets
+ * the pair expose the sum of their DATA lanes on one logical bus.
+ */
+#define SWRM_V3_MM_SYNC_CONFIG					0x108
+#define SWRM_V3_MM_SYNC_CONNECTED_MASTER			GENMASK(15, 0)
+#define SWRM_V3_MM_SYNC_IS_DEPENDENT_MASTER			BIT(16)
+#define SWRM_V3_MM_SYNC_MASK_CONTROL_BITS			BIT(17)
+
+#define SWRM_V3_COMP_FEATURE_CFG				0x010
+/* Reset value of the feature bits which must be preserved */
+#define SWRM_V3_COMP_FEATURE_CFG_DEFAULT			GENMASK(3, 1)
+#define SWRM_V3_COMP_FEATURE_CFG_FORCE_MODE_EN			BIT(9)
+#define SWRM_V3_COMP_FEATURE_CFG_CLK_PIN_AVAIL			BIT(10)
+#define SWRM_V3_COMP_FEATURE_CFG_CLK_STOP_EXEC_ON_CMD_IGNORE	BIT(12)
+
 #define SWRM_V1_3_INTERRUPT_STATUS				0x200
 #define SWRM_V2_0_INTERRUPT_STATUS				0x5000
 #define SWRM_INTERRUPT_STATUS_RMSK				GENMASK(16, 0)
@@ -93,6 +112,16 @@
 #define SWRM_MCP_FRAME_CTRL_BANK_ADDR(m)		(0x101C + 0x40 * (m))
 #define SWRM_MCP_FRAME_CTRL_BANK_COL_CTRL_BMSK			GENMASK(2, 0)
 #define SWRM_MCP_FRAME_CTRL_BANK_ROW_CTRL_BMSK			GENMASK(7, 3)
+#define SWRM_MCP_FRAME_CTRL_BANK_CLK_DIV_BMSK			GENMASK(10, 8)
+#define SWRM_MCP_FRAME_CTRL_BANK_SSP_PERIOD_BMSK		GENMASK(23, 16)
+/*
+ * The Sample Sync Pulse is emitted at a fixed 4kHz and its period is
+ * programmed in frames - 1.  The frame rate is the bit rate (SoundWire
+ * clocks two bits per cycle) divided by the frame shape.
+ */
+#define SWRM_SSP_RATE						4000
+#define SWRM_SSP_PERIOD(freq, rows, cols)	\
+			(2 * (freq) / ((rows) * (cols) * SWRM_SSP_RATE) - 1)
 #define SWRM_MCP_BUS_CTRL					0x1044
 #define SWRM_MCP_BUS_CLK_START					BIT(1)
 #define SWRM_MCP_CFG_ADDR					0x1048
@@ -111,6 +140,9 @@
 #define SWRM_DPn_PORT_HCTRL_BANK(offset,  n, m)	(offset + 0x100 * (n - 1) + 0x40 * m)
 #define SWRM_DPn_BLOCK_CTRL3_BANK(offset, n, m)	(offset + 0x100 * (n - 1) + 0x40 * m)
 #define SWRM_DPn_SAMPLECTRL2_BANK(offset, n, m)	(offset + 0x100 * (n - 1) + 0x40 * m)
+#define SWRM_DP_PCM_PORT_CTRL(n)		(0x1154 + 0x100 * ((n) - 1))
+#define SWRM_DP_PCM_PORT_CTRL_EN				0x03
+#define SWRM_DPn_SLOT_STRIDE			0x100
 
 #define SWR_V1_3_MSTR_MAX_REG_ADDR				0x1740
 #define SWR_V2_0_MSTR_MAX_REG_ADDR				0x50ac
@@ -159,6 +191,7 @@ struct qcom_swrm_port_config {
 	u8 word_length;
 	u8 blk_group_count;
 	u8 lane_control;
+	u8 ch_mask;
 };
 
 /*
@@ -184,6 +217,9 @@ enum {
 	SWRM_OFFSET_DP_SAMPLECTRL2_BANK,
 };
 
+/* Number of DATA lanes exposed by every Qualcomm SWR master IP so far */
+#define SWRM_MAX_DATA_LANES	2
+
 struct qcom_swrm_ctrl {
 	struct sdw_bus bus;
 	struct device *dev;
@@ -192,6 +228,40 @@ struct qcom_swrm_ctrl {
 	const unsigned int *reg_layout;
 	void __iomem *mmio;
 	struct reset_control *audio_cgcr;
+	/*
+	 * Multi-lane support, v3.1.0 and later.  A controller described in DT
+	 * with "#qcom,swrm-lane-cells" is a lane provider: it does not run a
+	 * bus of its own, it only lends its DATA lanes (and the matching DPn
+	 * slots) to a second controller which references them through
+	 * "qcom,secondary-lanes".  MM_SYNC ties the two frame generators to a
+	 * single SWR_CLK, so peripherals see one logical bus whose lane count
+	 * is the sum of both IPs.
+	 *
+	 * is_lane_provider is the role flag; lane_provider_ready tells a
+	 * consumer probing concurrently that the provider is set up far
+	 * enough to be used, rather than something to defer on.
+	 */
+	bool is_lane_provider;
+	bool lane_provider_ready;
+	/*
+	 * Consumer state.  lane_provider is the single provider IP whose DATA
+	 * lanes this bus borrows, NULL when the bus stands alone.  Bus lanes
+	 * [provider_lane_base, provider_lane_base + num_provider_lanes) map to
+	 * the provider's local lanes [0, num_provider_lanes); the DT parsing in
+	 * qcom_swrm_setup_lane_provider() enforces that shape.  lane_consumer
+	 * is the reverse link, set on the provider.
+	 */
+	struct qcom_swrm_ctrl *lane_provider;
+	struct qcom_swrm_ctrl *lane_consumer;
+	u8 provider_lane_base;
+	u8 num_provider_lanes;
+	/*
+	 * DPn address delta applied to per-port register accesses routed to
+	 * the provider.  Computed once at setup from the lowest numbered port
+	 * assigned to a provider lane: that port maps to the provider's DP1,
+	 * the next one to DP2 and so on.
+	 */
+	u32 provider_dpn_offset;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
@@ -876,17 +946,80 @@ static bool swrm_wait_for_frame_gen_enabled(struct qcom_swrm_ctrl *ctrl)
 	return false;
 }
 
+/*
+ * Tie the frame generators of a lane provider and its consumer to a single
+ * SWR_CLK.  Both sides point MM_SYNC at the other's master ID; the provider
+ * additionally marks itself dependent so that bus control, reset and clock
+ * stop come from the consumer instead of being driven locally.
+ */
+static int qcom_swrm_program_mm_sync(struct qcom_swrm_ctrl *ctrl)
+{
+	struct qcom_swrm_ctrl *peer;
+	u32 feature_cfg;
+	u32 conn_mask;
+	int ret;
+
+	peer = ctrl->is_lane_provider ? ctrl->lane_consumer : ctrl->lane_provider;
+	if (!peer)
+		return 0;
+
+	/*
+	 * CONNECTED_MASTER is a bitmap of peer master IDs.  Those are one
+	 * based, and are only reported by the IPs which implement MM_SYNC, so
+	 * bail out rather than shifting by a negative amount.
+	 */
+	if (peer->bus.controller_id < 1) {
+		dev_err(ctrl->dev, "invalid peer master ID %d for MM sync\n",
+			peer->bus.controller_id);
+		return -EINVAL;
+	}
+
+	conn_mask = FIELD_PREP(SWRM_V3_MM_SYNC_CONNECTED_MASTER,
+			       BIT(peer->bus.controller_id - 1));
+
+	feature_cfg = SWRM_V3_COMP_FEATURE_CFG_DEFAULT |
+		      SWRM_V3_COMP_FEATURE_CFG_FORCE_MODE_EN |
+		      SWRM_V3_COMP_FEATURE_CFG_CLK_STOP_EXEC_ON_CMD_IGNORE;
+
+	if (ctrl->is_lane_provider)
+		conn_mask |= SWRM_V3_MM_SYNC_IS_DEPENDENT_MASTER |
+			     SWRM_V3_MM_SYNC_MASK_CONTROL_BITS;
+	else
+		/* Only the consumer drives the shared SWR_CLK pin */
+		feature_cfg |= SWRM_V3_COMP_FEATURE_CFG_CLK_PIN_AVAIL;
+
+	ret = ctrl->reg_write(ctrl, SWRM_V3_MM_SYNC_CONFIG, conn_mask);
+	if (ret)
+		return ret;
+
+	return ctrl->reg_write(ctrl, SWRM_V3_COMP_FEATURE_CFG, feature_cfg);
+}
+
 static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 {
 	u32 val;
+	int ret;
 
 	/* Clear Rows and Cols */
 	val = FIELD_PREP(SWRM_MCP_FRAME_CTRL_BANK_ROW_CTRL_BMSK, ctrl->rows_index);
 	val |= FIELD_PREP(SWRM_MCP_FRAME_CTRL_BANK_COL_CTRL_BMSK, ctrl->cols_index);
+	/*
+	 * A synced pair needs an explicit SSP period so that both frame
+	 * generators agree on where the sample sync pulse falls, and needs
+	 * both banks primed because bank switches are mirrored to the
+	 * provider.
+	 */
+	if (ctrl->lane_provider)
+		val |= FIELD_PREP(SWRM_MCP_FRAME_CTRL_BANK_SSP_PERIOD_BMSK,
+				  SWRM_SSP_PERIOD(ctrl->bus.params.curr_dr_freq,
+						  ctrl->bus.params.row,
+						  ctrl->bus.params.col));
 
 	reset_control_reset(ctrl->audio_cgcr);
 
 	ctrl->reg_write(ctrl, SWRM_MCP_FRAME_CTRL_BANK_ADDR(0), val);
+	if (ctrl->lane_provider)
+		ctrl->reg_write(ctrl, SWRM_MCP_FRAME_CTRL_BANK_ADDR(1), val);
 
 	/* Enable Auto enumeration */
 	ctrl->reg_write(ctrl, SWRM_ENUMERATOR_CFG_ADDR, 1);
@@ -901,6 +1034,10 @@ static int qcom_swrm_init(struct qcom_swrm_ctrl *ctrl)
 	ctrl->reg_read(ctrl, SWRM_MCP_CFG_ADDR, &val);
 	u32p_replace_bits(&val, SWRM_DEF_CMD_NO_PINGS, SWRM_MCP_CFG_MAX_NUM_OF_CMD_NO_PINGS_BMSK);
 	ctrl->reg_write(ctrl, SWRM_MCP_CFG_ADDR, val);
+
+	ret = qcom_swrm_program_mm_sync(ctrl);
+	if (ret)
+		return ret;
 
 	if (ctrl->version == SWRM_VERSION_1_7_0) {
 		ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, SWRM_EE_CPU);
@@ -969,21 +1106,19 @@ static int qcom_swrm_read_prop(struct sdw_bus *bus)
 	return 0;
 }
 
-static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
-						    struct sdw_msg *msg)
+static enum sdw_command_response qcom_swrm_xfer_msg_one(struct qcom_swrm_ctrl *ctrl,
+							struct sdw_msg *msg,
+							u8 dev_num)
 {
-	struct qcom_swrm_ctrl *ctrl = to_qcom_sdw(bus);
 	int ret, i, len;
 
 	if (msg->page) {
-		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page1,
-						msg->dev_num,
+		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page1, dev_num,
 						SDW_SCP_ADDRPAGE1);
 		if (ret)
 			return ret;
 
-		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page2,
-						msg->dev_num,
+		ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->addr_page2, dev_num,
 						SDW_SCP_ADDRPAGE2);
 		if (ret)
 			return ret;
@@ -993,7 +1128,7 @@ static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
 		for (i = 0; i < msg->len;) {
 			len = min(msg->len - i, QCOM_SWRM_MAX_RD_LEN);
 
-			ret = qcom_swrm_cmd_fifo_rd_cmd(ctrl, msg->dev_num,
+			ret = qcom_swrm_cmd_fifo_rd_cmd(ctrl, dev_num,
 							msg->addr + i, len,
 						       &msg->buf[i]);
 			if (ret)
@@ -1004,7 +1139,7 @@ static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
 	} else if (msg->flags == SDW_MSG_FLAG_WRITE) {
 		for (i = 0; i < msg->len; i++) {
 			ret = qcom_swrm_cmd_fifo_wr_cmd(ctrl, msg->buf[i],
-							msg->dev_num,
+							dev_num,
 						       msg->addr + i);
 			if (ret)
 				return SDW_CMD_IGNORED;
@@ -1014,18 +1149,111 @@ static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
 	return SDW_CMD_OK;
 }
 
+static enum sdw_command_response qcom_swrm_xfer_msg(struct sdw_bus *bus,
+						    struct sdw_msg *msg)
+{
+	struct qcom_swrm_ctrl *ctrl = to_qcom_sdw(bus);
+	enum sdw_command_response resp;
+	struct sdw_slave *slave;
+
+	/*
+	 * A broadcast written by a synced master pair is emitted onto the
+	 * shared frame, but the hardware never raises SPECIAL_CMD_ID_FINISHED
+	 * and peripherals do not act on it, so an SCP_FrameCtrl update sent
+	 * that way is lost.  Fan such a broadcast out into one unicast per
+	 * enumerated peripheral, which is equivalent from their point of view.
+	 */
+	if (ctrl->lane_provider && msg->dev_num == SDW_BROADCAST_DEV_NUM &&
+	    (msg->addr == SDW_SCP_FRAMECTRL_B0 ||
+	     msg->addr == SDW_SCP_FRAMECTRL_B1)) {
+		list_for_each_entry(slave, &bus->slaves, node) {
+			if (slave->dev_num == SDW_ENUM_DEV_NUM ||
+			    slave->dev_num >= SDW_BROADCAST_DEV_NUM)
+				continue;
+
+			resp = qcom_swrm_xfer_msg_one(ctrl, msg, slave->dev_num);
+			if (resp != SDW_CMD_OK)
+				return resp;
+		}
+
+		return SDW_CMD_OK;
+	}
+
+	return qcom_swrm_xfer_msg_one(ctrl, msg, msg->dev_num);
+}
+
 static int qcom_swrm_pre_bank_switch(struct sdw_bus *bus)
 {
 	u32 reg = SWRM_MCP_FRAME_CTRL_BANK_ADDR(bus->params.next_bank);
 	struct qcom_swrm_ctrl *ctrl = to_qcom_sdw(bus);
 	u32 val;
+	int ret;
 
 	ctrl->reg_read(ctrl, reg, &val);
 
 	u32p_replace_bits(&val, ctrl->cols_index, SWRM_MCP_FRAME_CTRL_BANK_COL_CTRL_BMSK);
 	u32p_replace_bits(&val, ctrl->rows_index, SWRM_MCP_FRAME_CTRL_BANK_ROW_CTRL_BMSK);
 
+	if (ctrl->lane_provider) {
+		struct qcom_swrm_ctrl *provider = ctrl->lane_provider;
+
+		/*
+		 * The provider has to follow the frame shape but must not
+		 * program a clock divider or an SSP period of its own, so
+		 * mirror the bank before adding those.
+		 */
+		ret = provider->reg_write(provider, reg, val);
+		if (ret)
+			return ret;
+
+		u32p_replace_bits(&val, 0,
+				  SWRM_MCP_FRAME_CTRL_BANK_CLK_DIV_BMSK);
+		u32p_replace_bits(&val,
+				  SWRM_SSP_PERIOD(bus->params.curr_dr_freq,
+						  bus->params.row,
+						  bus->params.col),
+				  SWRM_MCP_FRAME_CTRL_BANK_SSP_PERIOD_BMSK);
+	}
+
 	return ctrl->reg_write(ctrl, reg, val);
+}
+
+/*
+ * Per-port DPn register dispatch.  A port whose lane_control names a bus lane
+ * lent by the provider is serviced by the provider's DPn block, so rebase the
+ * address onto the provider's slot numbering and use its own accessors.
+ * Everything else lands on this controller, which keeps AHB parented (SLIMbus)
+ * platforms on their existing regmap path.
+ */
+static struct qcom_swrm_ctrl *qcom_swrm_port_target(struct qcom_swrm_ctrl *ctrl,
+						    u8 port_num, u32 *reg)
+{
+	u8 lane = ctrl->pconfig[port_num].lane_control;
+
+	if (!ctrl->lane_provider || lane == SWR_INVALID_PARAM ||
+	    lane < ctrl->provider_lane_base ||
+	    lane >= ctrl->provider_lane_base + ctrl->num_provider_lanes)
+		return ctrl;
+
+	*reg -= ctrl->provider_dpn_offset;
+
+	return ctrl->lane_provider;
+}
+
+static int qcom_swrm_port_reg_write(struct qcom_swrm_ctrl *ctrl, u8 port_num,
+				    u32 reg, u32 val)
+{
+	struct qcom_swrm_ctrl *tgt = qcom_swrm_port_target(ctrl, port_num, &reg);
+
+	return tgt->reg_write(tgt, reg, val);
+}
+
+static int qcom_swrm_port_reg_read(struct qcom_swrm_ctrl *ctrl, u8 port_num,
+				   u32 reg, u32 *val)
+{
+	struct qcom_swrm_ctrl *tgt = qcom_swrm_port_target(ctrl, port_num, &reg);
+
+	return tgt->reg_read(tgt, reg, val);
 }
 
 static int qcom_swrm_port_params(struct sdw_bus *bus,
@@ -1035,8 +1263,9 @@ static int qcom_swrm_port_params(struct sdw_bus *bus,
 	struct qcom_swrm_ctrl *ctrl = to_qcom_sdw(bus);
 	u32 offset = ctrl->reg_layout[SWRM_OFFSET_DP_BLOCK_CTRL_1];
 
-	return ctrl->reg_write(ctrl, SWRM_DPn_BLOCK_CTRL_1(offset, p_params->num),
-				p_params->bps - 1);
+	return qcom_swrm_port_reg_write(ctrl, p_params->num,
+					SWRM_DPn_BLOCK_CTRL_1(offset, p_params->num),
+					p_params->bps - 1);
 }
 
 static int qcom_swrm_transport_params(struct sdw_bus *bus,
@@ -1057,7 +1286,7 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 	value |= pcfg->off2 << SWRM_DP_PORT_CTRL_OFFSET2_SHFT;
 	value |= pcfg->si & 0xff;
 
-	ret = ctrl->reg_write(ctrl, reg, value);
+	ret = qcom_swrm_port_reg_write(ctrl, params->port_num, reg, value);
 	if (ret)
 		goto err;
 
@@ -1066,7 +1295,7 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 		value = (pcfg->si >> 8) & 0xff;
 		reg = SWRM_DPn_SAMPLECTRL2_BANK(offset, params->port_num, bank);
 
-		ret = ctrl->reg_write(ctrl, reg, value);
+		ret = qcom_swrm_port_reg_write(ctrl, params->port_num, reg, value);
 		if (ret)
 			goto err;
 	}
@@ -1075,8 +1304,18 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 		offset = ctrl->reg_layout[SWRM_OFFSET_DP_PORT_CTRL_2_BANK];
 		reg = SWRM_DPn_PORT_CTRL_2_BANK(offset, params->port_num, bank);
 
+		/*
+		 * DPn PORT_CTRL_2 selects the DATA pin in the local numbering
+		 * of whichever IP owns the port, so a lane borrowed from the
+		 * provider has to be translated back to the provider's own
+		 * lane number.
+		 */
 		value = pcfg->lane_control;
-		ret = ctrl->reg_write(ctrl, reg, value);
+		if (ctrl->lane_provider && value >= ctrl->provider_lane_base &&
+		    value < ctrl->provider_lane_base + ctrl->num_provider_lanes)
+			value -= ctrl->provider_lane_base;
+
+		ret = qcom_swrm_port_reg_write(ctrl, params->port_num, reg, value);
 		if (ret)
 			goto err;
 	}
@@ -1087,7 +1326,7 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 		reg = SWRM_DPn_BLOCK_CTRL2_BANK(offset, params->port_num, bank);
 
 		value = pcfg->blk_group_count;
-		ret = ctrl->reg_write(ctrl, reg, value);
+		ret = qcom_swrm_port_reg_write(ctrl, params->port_num, reg, value);
 		if (ret)
 			goto err;
 	}
@@ -1097,10 +1336,10 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 
 	if (pcfg->hstart != SWR_INVALID_PARAM && pcfg->hstop != SWR_INVALID_PARAM) {
 		value = (pcfg->hstop << 4) | pcfg->hstart;
-		ret = ctrl->reg_write(ctrl, reg, value);
+		ret = qcom_swrm_port_reg_write(ctrl, params->port_num, reg, value);
 	} else {
 		value = (SWR_HSTOP_MAX_VAL << 4) | SWR_HSTART_MIN_VAL;
-		ret = ctrl->reg_write(ctrl, reg, value);
+		ret = qcom_swrm_port_reg_write(ctrl, params->port_num, reg, value);
 	}
 
 	if (ret)
@@ -1109,11 +1348,27 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 	if (pcfg->bp_mode != SWR_INVALID_PARAM) {
 		offset = ctrl->reg_layout[SWRM_OFFSET_DP_BLOCK_CTRL3_BANK];
 		reg = SWRM_DPn_BLOCK_CTRL3_BANK(offset, params->port_num, bank);
-		ret = ctrl->reg_write(ctrl, reg, pcfg->bp_mode);
+		ret = qcom_swrm_port_reg_write(ctrl, params->port_num, reg,
+					       pcfg->bp_mode);
 	}
 
 err:
 	return ret;
+}
+
+static bool qcom_swrm_port_is_pcm(struct sdw_bus *bus, unsigned int port_num)
+{
+	struct sdw_master_runtime *m_rt;
+	struct sdw_port_runtime *p_rt;
+
+	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+			if (p_rt->num == port_num)
+				return m_rt->stream->type == SDW_STREAM_PCM;
+		}
+	}
+
+	return false;
 }
 
 static int qcom_swrm_port_enable(struct sdw_bus *bus,
@@ -1123,18 +1378,49 @@ static int qcom_swrm_port_enable(struct sdw_bus *bus,
 	u32 reg;
 	struct qcom_swrm_ctrl *ctrl = to_qcom_sdw(bus);
 	u32 val;
+	int ret;
 	u32 offset = ctrl->reg_layout[SWRM_OFFSET_DP_PORT_CTRL_BANK];
 
 	reg = SWRM_DPn_PORT_CTRL_BANK(offset, enable_ch->port_num, bank);
 
-	ctrl->reg_read(ctrl, reg, &val);
+	qcom_swrm_port_reg_read(ctrl, enable_ch->port_num, reg, &val);
 
-	if (enable_ch->enable)
-		val |= (enable_ch->ch_mask << SWRM_DP_PORT_CTRL_EN_CHAN_SHFT);
-	else
+	if (enable_ch->enable) {
+		u8 ch_mask = ctrl->pconfig[enable_ch->port_num].ch_mask;
+
+		/*
+		 * Prefer the per-port ch_mask from DT (qcom,ports-ch-mask) when
+		 * present.  The SDCA stream setup path arrives here with
+		 * enable_ch->ch_mask reflecting stream-level ch_count, which
+		 * for a mono PCM opening a stereo port only enables channel 0
+		 * on the wire.  The DT value describes the port's intrinsic
+		 * channel layout (e.g. 0x3 for a 2-channel stereo port) so both
+		 * slots are transmitted regardless of PCM channel count.
+		 */
+		if (ch_mask == SWR_INVALID_PARAM)
+			ch_mask = enable_ch->ch_mask;
+		val |= (ch_mask << SWRM_DP_PORT_CTRL_EN_CHAN_SHFT);
+	} else {
 		val &= ~(0xff << SWRM_DP_PORT_CTRL_EN_CHAN_SHFT);
+	}
 
-	return ctrl->reg_write(ctrl, reg, val);
+	/*
+	 * On v3.1.0 and later a PCM port needs its data path gated through
+	 * PCM_PORT_CTRL on top of the per-port enable.  Earlier IPs have no
+	 * such register, and the stream type is not a reliable discriminator
+	 * there either: the Qualcomm ASoC glue allocates every stream as
+	 * SDW_STREAM_PCM, so restrict this to the versions which need it.
+	 */
+	if (ctrl->version >= SWRM_VERSION_3_1_0 &&
+	    qcom_swrm_port_is_pcm(bus, enable_ch->port_num)) {
+		ret = qcom_swrm_port_reg_write(ctrl, enable_ch->port_num,
+					       SWRM_DP_PCM_PORT_CTRL(enable_ch->port_num),
+					       enable_ch->enable ? SWRM_DP_PCM_PORT_CTRL_EN : 0);
+		if (ret)
+			return ret;
+	}
+
+	return qcom_swrm_port_reg_write(ctrl, enable_ch->port_num, reg, val);
 }
 
 static const struct sdw_master_port_ops qcom_swrm_port_ops = {
@@ -1503,6 +1789,7 @@ static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 		pcfg->word_length = SWR_INVALID_PARAM;
 		pcfg->blk_group_count = SWR_INVALID_PARAM;
 		pcfg->lane_control = SWR_INVALID_PARAM;
+		pcfg->ch_mask = SWR_INVALID_PARAM;
 
 		of_property_read_u8_index(np, "qcom,ports-hstart", i, &pcfg->hstart);
 
@@ -1514,6 +1801,8 @@ static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 					i, &pcfg->blk_group_count);
 
 		of_property_read_u8_index(np, "qcom,ports-lane-control", i, &pcfg->lane_control);
+
+		of_property_read_u8_index(np, "qcom,ports-ch-mask", i, &pcfg->ch_mask);
 	}
 
 	return 0;
@@ -1547,6 +1836,126 @@ static int swrm_reg_show(struct seq_file *s_file, void *data)
 DEFINE_SHOW_ATTRIBUTE(swrm_reg);
 #endif
 
+/*
+ * Resolve "qcom,secondary-lanes" into the single lane provider whose DATA lanes
+ * this controller borrows.  Every entry has to name the same provider and its
+ * local lanes in order starting at 0, which is what lets the DPn dispatcher
+ * translate addresses with one constant delta.  Returns -EPROBE_DEFER for as
+ * long as the provider has not finished probing.
+ */
+static int qcom_swrm_setup_lane_provider(struct qcom_swrm_ctrl *ctrl)
+{
+	unsigned int first_port = 0, last_port = 0;
+	struct device_node *np = ctrl->dev->of_node;
+	struct qcom_swrm_ctrl *provider;
+	struct of_phandle_args args;
+	struct platform_device *pdev;
+	int i, ret;
+
+	if (!of_property_present(np, "qcom,secondary-lanes"))
+		return 0;
+
+	/*
+	 * All entries have to name the same provider, so resolve it from the
+	 * first one and let the loop below only validate the lane indices.
+	 */
+	ret = of_parse_phandle_with_args(np, "qcom,secondary-lanes",
+					 "#qcom,swrm-lane-cells", 0, &args);
+	if (ret)
+		return ret;
+
+	pdev = of_find_device_by_node(args.np);
+	of_node_put(args.np);
+	if (!pdev)
+		return -EPROBE_DEFER;
+
+	provider = platform_get_drvdata(pdev);
+	if (!provider || !provider->lane_provider_ready) {
+		put_device(&pdev->dev);
+		return -EPROBE_DEFER;
+	}
+
+	/*
+	 * Hold a link to the provider: this controller dereferences it on every
+	 * bank switch and on every DPn access for a borrowed lane, so it must
+	 * not be unbound first.
+	 */
+	ret = device_link_add(ctrl->dev, &pdev->dev,
+			      DL_FLAG_AUTOREMOVE_CONSUMER) ? 0 : -EINVAL;
+	put_device(&pdev->dev);
+	if (ret)
+		return dev_err_probe(ctrl->dev, ret,
+				     "failed to link to lane provider\n");
+
+	ctrl->lane_provider = provider;
+	provider->lane_consumer = ctrl;
+	ctrl->provider_lane_base = SWRM_MAX_DATA_LANES;
+
+	for (i = 0; i < SWRM_MAX_DATA_LANES; i++) {
+		bool same_provider;
+
+		ret = of_parse_phandle_with_args(np, "qcom,secondary-lanes",
+						 "#qcom,swrm-lane-cells", i,
+						 &args);
+		if (ret == -ENOENT)
+			break;
+		if (ret)
+			return ret;
+
+		same_provider = args.np == provider->dev->of_node;
+		of_node_put(args.np);
+
+		if (!same_provider)
+			return dev_err_probe(ctrl->dev, -EINVAL,
+					     "qcom,secondary-lanes: multiple providers not supported\n");
+
+		if (args.args_count != 1 || args.args[0] != i)
+			return dev_err_probe(ctrl->dev, -EINVAL,
+					     "qcom,secondary-lanes entry %d: expected provider lane %d\n",
+					     i, i);
+
+		ctrl->num_provider_lanes++;
+	}
+
+	if (ctrl->provider_lane_base + ctrl->num_provider_lanes > SDW_MAX_LANES)
+		return dev_err_probe(ctrl->dev, -EINVAL,
+				     "too many lanes: %u local + %u borrowed\n",
+				     ctrl->provider_lane_base,
+				     ctrl->num_provider_lanes);
+
+	/*
+	 * Ports driven from a borrowed lane are serviced by the provider's own
+	 * DPn blocks, in order: the lowest such port maps to the provider's
+	 * DP1, the next one to DP2 and so on.  A single address delta only
+	 * describes that if the ports form one contiguous run, so require it.
+	 */
+	for (i = 1; i <= ctrl->nports; i++) {
+		u8 lane = ctrl->pconfig[i].lane_control;
+
+		if (lane == SWR_INVALID_PARAM ||
+		    lane < ctrl->provider_lane_base ||
+		    lane >= ctrl->provider_lane_base + ctrl->num_provider_lanes)
+			continue;
+
+		if (first_port && i != last_port + 1)
+			return dev_err_probe(ctrl->dev, -EINVAL,
+					     "ports on borrowed lanes must be contiguous, %d follows %u\n",
+					     i, last_port);
+
+		if (!first_port)
+			first_port = i;
+		last_port = i;
+	}
+
+	if (!first_port)
+		return dev_err_probe(ctrl->dev, -EINVAL,
+				     "qcom,secondary-lanes set but no port uses a borrowed lane\n");
+
+	ctrl->provider_dpn_offset = (first_port - 1) * SWRM_DPn_SLOT_STRIDE;
+
+	return 0;
+}
+
 static int qcom_swrm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1562,6 +1971,8 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data = of_device_get_match_data(dev);
+	ctrl->is_lane_provider = of_property_present(dev->of_node,
+						     "#qcom,swrm-lane-cells");
 	ctrl->max_reg = data->max_reg;
 	ctrl->reg_layout = data->reg_layout;
 	ctrl->rows_index = sdw_find_row_index(data->default_rows);
@@ -1613,12 +2024,64 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 	init_completion(&ctrl->broadcast);
 	init_completion(&ctrl->enumeration);
 
+	ctrl->reg_read(ctrl, SWRM_COMP_HW_VERSION, &ctrl->version);
+
+	ctrl->bus.controller_id = -1;
+
+	if (ctrl->version > SWRM_VERSION_1_3_0) {
+		ctrl->reg_read(ctrl, SWRM_COMP_MASTER_ID, &val);
+		ctrl->bus.controller_id = val;
+	}
+
+	if (ctrl->is_lane_provider) {
+		/*
+		 * A lane provider has no control lane and therefore no bus of
+		 * its own: no peripherals to enumerate, no ports to configure
+		 * from DT and no DAIs.  Stop here, before anything that would
+		 * touch the uninitialised sdw_bus.  The consumer starts the
+		 * frame generator once MM_SYNC ties the two together.
+		 */
+		ctrl->lane_provider_ready = true;
+
+		dev_dbg(dev, "Qualcomm SoundWire lane provider v%x.%x.%x registered\n",
+			(ctrl->version >> 24) & 0xff, (ctrl->version >> 16) & 0xff,
+			ctrl->version & 0xffff);
+
+		return 0;
+	}
+
+	ret = devm_request_threaded_irq(dev, ctrl->irq, NULL,
+					qcom_swrm_irq_handler,
+					IRQF_TRIGGER_RISING |
+					IRQF_ONESHOT,
+					"soundwire", ctrl);
+	if (ret) {
+		dev_err(dev, "Failed to request soundwire irq\n");
+		goto err_clk;
+	}
+
+	ctrl->wake_irq = of_irq_get(dev->of_node, 1);
+	if (ctrl->wake_irq > 0) {
+		ret = devm_request_threaded_irq(dev, ctrl->wake_irq, NULL,
+						qcom_swrm_wake_irq_handler,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+						"swr_wake_irq", ctrl);
+		if (ret) {
+			dev_err(dev, "Failed to request soundwire wake irq\n");
+			goto err_clk;
+		}
+	}
+
 	ctrl->bus.ops = &qcom_swrm_ops;
 	ctrl->bus.port_ops = &qcom_swrm_port_ops;
 	ctrl->bus.compute_params = &qcom_swrm_compute_params;
 	ctrl->bus.clk_stop_timeout = 300;
 
 	ret = qcom_swrm_get_port_config(ctrl);
+	if (ret)
+		goto err_clk;
+
+	ret = qcom_swrm_setup_lane_provider(ctrl);
 	if (ret)
 		goto err_clk;
 
@@ -1640,37 +2103,6 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 	prop->default_col = data->default_cols;
 	prop->default_row = data->default_rows;
 
-	ctrl->reg_read(ctrl, SWRM_COMP_HW_VERSION, &ctrl->version);
-
-	ret = devm_request_threaded_irq(dev, ctrl->irq, NULL,
-					qcom_swrm_irq_handler,
-					IRQF_TRIGGER_RISING |
-					IRQF_ONESHOT,
-					"soundwire", ctrl);
-	if (ret) {
-		dev_err(dev, "Failed to request soundwire irq\n");
-		goto err_clk;
-	}
-
-	ctrl->wake_irq = of_irq_get(dev->of_node, 1);
-	if (ctrl->wake_irq > 0) {
-		ret = devm_request_threaded_irq(dev, ctrl->wake_irq, NULL,
-						qcom_swrm_wake_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"swr_wake_irq", ctrl);
-		if (ret) {
-			dev_err(dev, "Failed to request soundwire wake irq\n");
-			goto err_init;
-		}
-	}
-
-	ctrl->bus.controller_id = -1;
-
-	if (ctrl->version > SWRM_VERSION_1_3_0) {
-		ctrl->reg_read(ctrl, SWRM_COMP_MASTER_ID, &val);
-		ctrl->bus.controller_id = val;
-	}
-
 	ret = sdw_bus_master_add(&ctrl->bus, dev, dev->fwnode);
 	if (ret) {
 		dev_err(dev, "Failed to register Soundwire controller (%d)\n",
@@ -1678,7 +2110,18 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	qcom_swrm_init(ctrl);
+	if (ctrl->lane_provider) {
+		ret = qcom_swrm_init(ctrl->lane_provider);
+		if (ret) {
+			dev_err(dev, "failed to init lane provider: %d\n", ret);
+			goto err_master_add;
+		}
+	}
+
+	ret = qcom_swrm_init(ctrl);
+	if (ret)
+		goto err_master_add;
+
 	wait_for_completion_timeout(&ctrl->enumeration,
 				    msecs_to_jiffies(TIMEOUT_MS));
 	ret = qcom_swrm_register_dais(ctrl);
@@ -1715,7 +2158,8 @@ static void qcom_swrm_remove(struct platform_device *pdev)
 {
 	struct qcom_swrm_ctrl *ctrl = dev_get_drvdata(&pdev->dev);
 
-	sdw_bus_master_delete(&ctrl->bus);
+	if (!ctrl->is_lane_provider)
+		sdw_bus_master_delete(&ctrl->bus);
 	clk_disable_unprepare(ctrl->hclk);
 }
 
@@ -1749,6 +2193,8 @@ static int __maybe_unused swrm_runtime_resume(struct device *dev)
 		sdw_handle_slave_status(&ctrl->bus, ctrl->status);
 	} else {
 		reset_control_reset(ctrl->audio_cgcr);
+
+		qcom_swrm_program_mm_sync(ctrl);
 
 		if (ctrl->version == SWRM_VERSION_1_7_0) {
 			ctrl->reg_write(ctrl, SWRM_LINK_MANAGER_EE, SWRM_EE_CPU);
