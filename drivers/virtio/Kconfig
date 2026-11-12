@@ -160,6 +160,17 @@ config VIRTIO_MMIO
 
  	 If unsure, say N.
 
+config VIRTIO_QCOM_DCP
+	tristate "Qualcomm DCP VirtIO transport"
+	depends on VIRTIO_MMIO
+	depends on QCOM_IPCC
+	depends on OF
+	help
+	  This driver provides the Qualcomm DCP-specific platform transport for
+	  QPSFI VirtIO devices. It reuses the standard VirtIO-MMIO configuration
+	  and virtqueue support, and handles the IPCC power-notification channel
+	  used to wake DCP and forward response notifications.
+
 config VIRTIO_MMIO_CMDLINE_DEVICES
 	bool "Memory mapped virtio devices parameter parsing"
 	depends on VIRTIO_MMIO
