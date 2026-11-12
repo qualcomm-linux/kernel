@@ -186,6 +186,17 @@
 				reg = <0x48 0x1>;
 				bits = <1 7>;
 			};
+
+			nvmem-layout {
+				compatible = "pscrr-nvmem";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				reboot_reason_persist: reboot-reason-persist@49 {
+					reg = <0x49 0x1>;
+					bits = <0 6>;
+				};
+			};
 		};
 	};
 
