@@ -1,0 +1,9 @@
+What:		/config/stp-policy/<device>:p_ost.<policy>/<node>/entity
+Date:		May 2026
+KernelVersion:	7.1
+Description:
+		Set the entity ID which identifies the trace source in the
+		OST packet header. Entity ID values (0~239) are defined by
+		the TS owner. Currently supported values are ftrace, console
+		and diag. RW.
+
