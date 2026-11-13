@@ -2529,7 +2529,6 @@ static void quirk_disable_aspm_l1ss(struct pci_dev *dev)
 {
 	pci_disable_link_state(dev, PCIE_LINK_STATE_L1_1 | PCIE_LINK_STATE_L1_2);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QCOM, 0x1103, quirk_disable_aspm_l1ss);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QCOM, 0x1107, quirk_disable_aspm_l1ss);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QCOM, 0x1112, quirk_disable_aspm_l1ss);
 
