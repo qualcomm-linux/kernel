@@ -157,6 +157,7 @@ How to configure your hardware within your Linux system.
    nvme-multipath
    parport
    pnp
+   qcom_minidump
    rapidio
    rtc
    serial-console
