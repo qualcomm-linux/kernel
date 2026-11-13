@@ -63,12 +63,14 @@ amd_convert_umc_mca_addr_to_sys_addr(struct atl_err *err) { return -EINVAL; }
 #define GET_LOGICAL_INDEX(mpidr) -EINVAL
 #endif /* CONFIG_ARM || CONFIG_ARM64 */
 
-#if IS_ENABLED(CONFIG_AEST)
-void aest_register_decode_chain(struct notifier_block *nb);
-void aest_unregister_decode_chain(struct notifier_block *nb);
+#if IS_ENABLED(CONFIG_ARM64_RAS_DRIVER)
+void ras_register_decode_chain(struct notifier_block *nb);
+void ras_unregister_decode_chain(struct notifier_block *nb);
 #else
-static inline void aest_register_decode_chain(struct notifier_block *nb) {}
-static inline void aest_unregister_decode_chain(struct notifier_block *nb) {}
-#endif /* CONFIG_AEST */
+static inline void ras_register_decode_chain(struct notifier_block *nb) {}
+static inline void ras_unregister_decode_chain(struct notifier_block *nb) {}
+#endif /* CONFIG_ARM64_RAS_DRIVER */
+
+extern struct dentry *ras_debugfs_dir;
 
 #endif /* __RAS_H__ */
