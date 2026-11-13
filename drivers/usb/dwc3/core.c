@@ -46,6 +46,13 @@
 
 #define DWC3_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 
+#undef dev_dbg
+#define dev_dbg dev_err
+#undef dev_info
+#define dev_info dev_err
+#undef pr_debug
+#define pr_debug pr_err
+
 /**
  * dwc3_get_dr_mode - Validates and sets dr_mode
  * @dwc: pointer to our context structure
@@ -2343,6 +2350,10 @@ int dwc3_core_probe(const struct dwc3_probe_data *data)
 
 	pm_runtime_put(dev);
 
+	dev_info(dev, "dwc3-pmdbg: probe done: usage_count=%d runtime_auto=%d runtime_status=%d\n",
+		 atomic_read(&dev->power.usage_count), dev->power.runtime_auto,
+		 dev->power.runtime_status);
+
 	dma_set_max_seg_size(dev, UINT_MAX);
 
 	return 0;
@@ -2629,12 +2640,22 @@ int dwc3_runtime_suspend(struct dwc3 *dwc)
 {
 	int		ret;
 
-	if (dwc3_runtime_checks(dwc))
+	dev_info(dwc->dev, "dwc3-pmdbg: runtime_suspend enter: connected=%d dr_role=%d usage_count=%d\n",
+		 dwc->connected, dwc->current_dr_role,
+		 atomic_read(&dwc->dev->power.usage_count));
+
+	if (dwc3_runtime_checks(dwc)) {
+		dev_info(dwc->dev, "dwc3-pmdbg: runtime_suspend: checks failed, -EBUSY\n");
 		return -EBUSY;
+	}
 
 	ret = dwc3_suspend_common(dwc, PMSG_AUTO_SUSPEND);
-	if (ret)
+	if (ret) {
+		dev_info(dwc->dev, "dwc3-pmdbg: runtime_suspend: suspend_common failed ret=%d\n", ret);
 		return ret;
+	}
+
+	dev_info(dwc->dev, "dwc3-pmdbg: runtime_suspend exit: ok\n");
 
 	return 0;
 }
@@ -2644,6 +2665,9 @@ int dwc3_runtime_resume(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
 	int		ret;
+
+	dev_info(dev, "dwc3-pmdbg: runtime_resume enter: pending_events=%d dr_role=%d\n",
+		 dwc->pending_events, dwc->current_dr_role);
 
 	ret = dwc3_resume_common(dwc, PMSG_AUTO_RESUME);
 	if (ret)
@@ -2665,6 +2689,9 @@ int dwc3_runtime_resume(struct dwc3 *dwc)
 
 	pm_runtime_mark_last_busy(dev);
 
+	dev_info(dev, "dwc3-pmdbg: runtime_resume exit: usage_count=%d\n",
+		 atomic_read(&dev->power.usage_count));
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dwc3_runtime_resume);
@@ -2673,10 +2700,16 @@ int dwc3_runtime_idle(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
 
+	dev_info(dev, "dwc3-pmdbg: runtime_idle enter: connected=%d dr_role=%d usage_count=%d\n",
+		 dwc->connected, dwc->current_dr_role,
+		 atomic_read(&dev->power.usage_count));
+
 	switch (dwc->current_dr_role) {
 	case DWC3_GCTL_PRTCAP_DEVICE:
-		if (dwc3_runtime_checks(dwc))
+		if (dwc3_runtime_checks(dwc)) {
+			dev_info(dev, "dwc3-pmdbg: runtime_idle: checks failed, -EBUSY\n");
 			return -EBUSY;
+		}
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
 	default:
@@ -2686,6 +2719,8 @@ int dwc3_runtime_idle(struct dwc3 *dwc)
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_autosuspend(dev);
+
+	dev_info(dev, "dwc3-pmdbg: runtime_idle exit: autosuspend requested\n");
 
 	return 0;
 }

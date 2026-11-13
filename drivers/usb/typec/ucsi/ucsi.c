@@ -38,6 +38,7 @@
 
 void ucsi_notify_common(struct ucsi *ucsi, u32 cci)
 {
+	pr_err("%s start  cci:%x\n", __func__, cci);
 	/* Ignore bogus data in CCI if busy indicator is set. */
 	if (cci & UCSI_CCI_BUSY)
 		return;
@@ -1254,6 +1255,7 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 	enum usb_role u_role = USB_ROLE_NONE;
 	int ret;
 
+	pr_err("%s\n",__func__);
 	switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 	case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
@@ -1269,6 +1271,7 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 	default:
 		break;
 	}
+	pr_err("%s role:%d\n",__func__, u_role);
 
 	if (UCSI_CONSTAT(con, CONNECTED)) {
 		switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
@@ -1288,6 +1291,8 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 	if (!(UCSI_CONSTAT(con, PARTNER_FLAG_USB)))
 		u_role = USB_ROLE_NONE;
 
+	pr_err("%s u_role:%d\n",__func__, u_role);
+	dump_stack();
 	ret = usb_role_switch_set_role(con->usb_role_sw, u_role);
 	if (ret)
 		dev_err(con->ucsi->dev, "con:%d: failed to set usb role:%d\n",
@@ -1368,6 +1373,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	int ret;
 	u32 val;
 
+	pr_err("%s\n",__func__);
 	mutex_lock(&con->lock);
 
 	if (!test_and_set_bit(EVENT_PENDING, &ucsi->flags))
@@ -1392,6 +1398,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	change = UCSI_CONSTAT(con, CHANGE);
 	role = UCSI_CONSTAT(con, PWR_DIR);
 
+	pr_err("%s\n",__func__);
 	if ((change & UCSI_CONSTAT_POWER_DIR_CHANGE) && role != prev_role) {
 		typec_set_pwr_role(con->port, role);
 
@@ -1407,6 +1414,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	}
 
 	if (change & UCSI_CONSTAT_CONNECT_CHANGE) {
+		pr_err("%s role:%d\n",__func__, role);
 		typec_set_pwr_role(con->port, role);
 		ucsi_port_psy_changed(con);
 		ucsi_partner_change(con);
@@ -1487,6 +1495,7 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num)
 
 	con = &ucsi->connector[num - 1];
 
+	pr_err("%s schedule_work\n", __func__ );
 	if (!test_and_set_bit(EVENT_PENDING, &ucsi->flags))
 		schedule_work(&con->work);
 }

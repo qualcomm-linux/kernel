@@ -204,6 +204,7 @@ static void pmic_glink_ucsi_update_connector(struct ucsi_connector *con)
 {
 	struct pmic_glink_ucsi *ucsi = ucsi_get_drvdata(con->ucsi);
 
+	dump_stack();
 	if (con->num > PMIC_GLINK_MAX_PORTS ||
 	    !ucsi->port_orientation[con->num - 1])
 		return;
@@ -216,6 +217,8 @@ static void pmic_glink_ucsi_connector_status(struct ucsi_connector *con)
 	struct pmic_glink_ucsi *ucsi = ucsi_get_drvdata(con->ucsi);
 	int orientation;
 
+	dump_stack();
+	pr_err("%s orientation:%d\n",__func__, orientation);
 	if (!UCSI_CONSTAT(con, CONNECTED)) {
 		typec_set_orientation(con->port, TYPEC_ORIENTATION_NONE);
 		return;
@@ -226,6 +229,7 @@ static void pmic_glink_ucsi_connector_status(struct ucsi_connector *con)
 		return;
 
 	orientation = gpiod_get_value(ucsi->port_orientation[con->num - 1]);
+	pr_err("%s orientation:%d\n",__func__, orientation);
 	if (orientation >= 0) {
 		typec_set_orientation(con->port,
 				      orientation ?
