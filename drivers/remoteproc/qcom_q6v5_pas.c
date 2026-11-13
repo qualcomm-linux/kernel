@@ -84,6 +84,12 @@ struct qcom_pas_data {
 	int region_assign_vmid;
 	bool early_boot;
 	bool needs_tzmem;
+	/*
+	 * flag to map the carveout as privileged-only. Required for
+	 * subsystems such as SOCCP whose instruction fetches go through
+	 * the SMMU in privilege mode.
+	 */
+	bool iommu_priv;
 };
 
 struct qcom_pas {
@@ -112,6 +118,7 @@ struct qcom_pas {
 	int crash_reason_smem;
 	unsigned int smem_host_id;
 	bool decrypt_shutdown;
+	bool iommu_priv;
 	const char *info_name;
 
 	const struct firmware *firmware;
@@ -309,11 +316,16 @@ static void qcom_pas_unmap_carveout(struct rproc *rproc, phys_addr_t mem_phys, s
 
 static int qcom_pas_map_carveout(struct rproc *rproc, phys_addr_t mem_phys, size_t size)
 {
+	struct qcom_pas *pas = rproc->priv;
+	int prot = IOMMU_READ | IOMMU_WRITE;
 	int ret = 0;
+
+	if (pas->iommu_priv)
+		prot |= IOMMU_PRIV;
 
 	if (rproc->has_iommu)
 		ret = iommu_map(rproc->domain, mem_phys, mem_phys, size,
-				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+				prot, GFP_KERNEL);
 	return ret;
 }
 
@@ -979,6 +991,7 @@ static int qcom_pas_probe(struct platform_device *pdev)
 	pas->info_name = desc->sysmon_name;
 	pas->smem_host_id = desc->smem_host_id;
 	pas->decrypt_shutdown = desc->decrypt_shutdown;
+	pas->iommu_priv = desc->iommu_priv;
 	pas->proxy_pd_performance_states = desc->proxy_pd_performance_states;
 	pas->region_assign_idx = desc->region_assign_idx;
 	pas->region_assign_count = min_t(int, MAX_ASSIGN_COUNT, desc->region_assign_count);
@@ -1710,6 +1723,7 @@ static const struct qcom_pas_data nord_soccp_resource = {
 	.ssr_name = "soccp",
 	.sysmon_name = "soccp",
 	.auto_boot = true,
+	.iommu_priv = true,
 };
 
 static const struct qcom_pas_data sm8450_mpss_resource = {
