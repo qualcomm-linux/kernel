@@ -2647,20 +2647,17 @@ static int ucsi_ccg_probe(struct i2c_client *client)
 			status = ccg_fw_update(uc, flash_mode);
 			if (status < 0) {
 				dev_err(uc->dev, "ccg_fw_update failed - %d\n", status);
-				return status;
 			}
 
 			/* do_flash() resets the device, reinitialize ucsi control */
 			status = ucsi_ccg_init(uc);
 			if (status < 0) {
 				dev_err(uc->dev, "ucsi_ccg_init failed after fw update - %d\n", status);
-				return status;
 			}
 
 			status = get_fw_info(uc);
 			if (status < 0) {
 				dev_err(uc->dev, "get_fw_info failed after fw update - %d\n", status);
-				return status;
 			}
 		}
 	}
