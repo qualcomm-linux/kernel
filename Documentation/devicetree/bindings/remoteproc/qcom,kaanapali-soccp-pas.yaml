@@ -55,6 +55,10 @@ properties:
       - description: Firmware name of the SoC Control Processor
       - description: Firmware name of the SoCCP Devicetree
 
+  iommus:
+    minItems: 1
+    maxItems: 2
+
   memory-region:
     minItems: 1
     items:
@@ -87,15 +91,27 @@ properties:
     minItems: 2
     description: The names of the state bits used for SMP2P output
 
+  glink-edge:
+    $ref: /schemas/remoteproc/qcom,glink-edge.yaml#
+    description:
+      Qualcomm G-Link subnode which represents communication edge, channels
+      and devices related to the SoCCP.
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg
   - memory-region
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+  - qcom,smem-states
+  - qcom,smem-state-names
   - power-domains
   - power-domain-names
 
 allOf:
-  - $ref: /schemas/remoteproc/qcom,pas-common.yaml#
   - if:
       properties:
         compatible:
@@ -111,6 +127,9 @@ allOf:
       properties:
         firmware-name:
           minItems: 2
+        # Only Nord SoCCP needs a second stream (see top-level iommus)
+        iommus:
+          maxItems: 1
         memory-region:
           minItems: 2
 
