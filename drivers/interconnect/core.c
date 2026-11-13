@@ -12,9 +12,11 @@
 #include <linux/init.h>
 #include <linux/interconnect.h>
 #include <linux/interconnect-provider.h>
+#include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/of.h>
 #include <linux/overflow.h>
 
@@ -32,6 +34,7 @@ static bool synced_state;
 static DEFINE_MUTEX(icc_lock);
 static DEFINE_MUTEX(icc_bw_lock);
 static struct dentry *icc_debugfs_dir;
+static struct kobject *icc_kobj;
 
 static void icc_summary_show_one(struct seq_file *s, struct icc_node *n)
 {
@@ -284,6 +287,13 @@ static int aggregate_requests(struct icc_node *node)
 		if (r->enabled) {
 			avg_bw = r->avg_bw;
 			peak_bw = r->peak_bw;
+
+			if (r->limit_ab)
+				avg_bw = min(avg_bw, r->limit_ab);
+
+			if (r->limit_ib)
+				peak_bw = min(peak_bw, r->limit_ib);
+
 		} else {
 			avg_bw = 0;
 			peak_bw = 0;
@@ -443,6 +453,165 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 }
 EXPORT_SYMBOL_GPL(devm_of_icc_get);
 
+static int icc_limit_apply(struct icc_path *path,
+				  u32 limit_ab, u32 limit_ib)
+{
+	struct icc_node *node;
+	int i, ret;
+
+	if (!path)
+		return -EINVAL;
+
+	for (i = 0; i < path->num_nodes; i++) {
+		node = path->reqs[i].node;
+		path->reqs[i].limit_ab = limit_ab;
+		path->reqs[i].limit_ib = limit_ib;
+		aggregate_requests(node);
+	}
+
+	ret = apply_constraints(path);
+
+	return ret;
+}
+
+static ssize_t limit_ab_show(struct kobject *kobj,
+			  struct kobj_attribute *attr, char *buf)
+{
+	struct icc_path *path = container_of(kobj, struct icc_path, kobj);
+	u32 val;
+
+	mutex_lock(&icc_bw_lock);
+	val = path->limit_ab;
+	mutex_unlock(&icc_bw_lock);
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+
+static ssize_t limit_ab_store(struct kobject *kobj,
+			  struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct icc_path *path = container_of(kobj, struct icc_path, kobj);
+	u32 val;
+
+	if (kstrtou32(buf, 0, &val))
+		return -EINVAL;
+
+	mutex_lock(&icc_bw_lock);
+	path->limit_ab = val;
+	mutex_unlock(&icc_bw_lock);
+
+	return count;
+}
+
+static ssize_t limit_ib_show(struct kobject *kobj,
+			  struct kobj_attribute *attr, char *buf)
+{
+	struct icc_path *path = container_of(kobj, struct icc_path, kobj);
+	u32 val;
+
+	mutex_lock(&icc_bw_lock);
+	val = path->limit_ib;
+	mutex_unlock(&icc_bw_lock);
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+
+static ssize_t limit_ib_store(struct kobject *kobj,
+			  struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct icc_path *path = container_of(kobj, struct icc_path, kobj);
+	u32 val;
+
+	if (kstrtou32(buf, 0, &val))
+		return -EINVAL;
+
+	mutex_lock(&icc_bw_lock);
+	path->limit_ib = val;
+	mutex_unlock(&icc_bw_lock);
+
+	return count;
+}
+
+static ssize_t limit_commit_show(struct kobject *kobj,
+			  struct kobj_attribute *attr, char *buf)
+{
+	struct icc_path *path = container_of(kobj, struct icc_path, kobj);
+	bool val;
+
+	mutex_lock(&icc_bw_lock);
+	val = path->limit_commit;
+	mutex_unlock(&icc_bw_lock);
+
+	return sysfs_emit(buf, "%d\n", val);
+}
+
+static ssize_t limit_commit_store(struct kobject *kobj,
+			  struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int ret = 0;
+	bool val;
+
+	struct icc_path *path = container_of(kobj, struct icc_path, kobj);
+
+	if (kstrtobool(buf, &val))
+		return -EINVAL;
+
+	if (!path)
+		return -EINVAL;
+
+	mutex_lock(&icc_bw_lock);
+
+	if (path->limit_commit != val) {
+		if (val)
+			ret = icc_limit_apply(path, path->limit_ab, path->limit_ib);
+		else
+			ret = icc_limit_apply(path, 0, 0);
+	}
+	path->limit_commit = val;
+
+	mutex_unlock(&icc_bw_lock);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct kobj_type icc_limit_ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
+};
+
+static struct kobj_attribute attr_limit_ab = __ATTR_RW(limit_ab);
+static struct kobj_attribute attr_limit_ib = __ATTR_RW(limit_ib);
+static struct kobj_attribute attr_limit_commit = __ATTR_RW(limit_commit);
+
+static struct attribute *bw_limiter_attr[] = {
+	&attr_limit_ab.attr,
+	&attr_limit_ib.attr,
+	&attr_limit_commit.attr,
+	NULL,
+};
+
+static struct attribute_group icc_bw_limit_attrs = {
+	.attrs = bw_limiter_attr,
+};
+
+static void icc_sysfs_create_path_entry(struct icc_path *path, struct device *dev)
+{
+	int ret;
+
+	ret = kobject_init_and_add(&path->kobj, &icc_limit_ktype, icc_kobj,
+				    "%s_%s", dev_name(dev), path->name);
+	if (ret) {
+		kobject_put(&path->kobj);
+		return;
+	}
+
+	ret = sysfs_create_group(&path->kobj, &icc_bw_limit_attrs);
+	if (ret)
+		kobject_put(&path->kobj);
+}
+
 /**
  * of_icc_get_by_index() - get a path handle from a DT node based on index
  * @dev: device pointer for the consumer device
@@ -530,7 +699,11 @@ struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 	if (!path->name) {
 		icc_put(path);
 		path = ERR_PTR(-ENOMEM);
+		goto free_icc_data;
 	}
+
+	if (IS_ENABLED(CONFIG_INTERCONNECT_BW_LIMIT))
+		icc_sysfs_create_path_entry(path, dev);
 
 free_icc_data:
 	kfree(src_data);
@@ -807,6 +980,9 @@ void icc_put(struct icc_path *path)
 		if (!WARN_ON(!node->provider->users))
 			node->provider->users--;
 	}
+
+	if (IS_ENABLED(CONFIG_INTERCONNECT_BW_LIMIT))
+		kobject_put(&path->kobj);
 
 	mutex_unlock(&icc_bw_lock);
 	mutex_unlock(&icc_lock);
@@ -1246,6 +1422,10 @@ static int __init icc_init(void)
 			    icc_debugfs_dir, NULL, &icc_graph_fops);
 
 	icc_debugfs_client_init(icc_debugfs_dir);
+
+	icc_kobj = kobject_create_and_add("interconnect", kernel_kobj);
+	if (!icc_kobj)
+		return -ENOMEM;
 
 	return 0;
 }
