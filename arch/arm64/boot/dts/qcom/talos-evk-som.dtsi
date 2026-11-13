@@ -451,6 +451,9 @@
 &pcie_port0 {
 	reset-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 	wake-gpios = <&tlmm 100 GPIO_ACTIVE_LOW>;
+	/* CLKREQ# is not properly routed on this board, L1SS is not supported */
+	aspm-no-l1ss;
+
 };
 
 &pcie_phy {
