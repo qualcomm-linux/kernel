@@ -449,6 +449,7 @@ shikra-iqs-evk-camx-dtbs       := shikra-iqs-evk.dtb shikra-iqs-evk-camx.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)        += shikra-iqs-evk-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)        += shikra-iqs-evk-camx.dtbo
+dtb-$(CONFIG_ARCH_QCOM) 	+= shikra-iqs-evk-dpdk.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= sm4250-oneplus-billie2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm4450-qrd.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm6115-fxtec-pro1x.dtb
