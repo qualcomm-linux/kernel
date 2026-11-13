@@ -128,11 +128,101 @@ KernelVersion:	5.7
 Contact:	Mike Leach or Mathieu Poirier
 Description:	(Read) read current status of input trigger signals
 
+What:		/sys/bus/coresight/devices/<cti-name>/regs/triginstatus[1-3]
+Date:		June 2026
+KernelVersion:	7.3
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>
+Description:	(Read) read current status of QCOM extended input trigger signals.
+
 What:		/sys/bus/coresight/devices/<cti-name>/regs/trigoutstatus
 Date:		March 2020
 KernelVersion:	5.7
 Contact:	Mike Leach or Mathieu Poirier
 Description:	(Read) read current status of output trigger signals.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/trigoutstatus[1-3]
+Date:		June 2026
+KernelVersion:	7.3
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>
+Description:	(Read) read current status of QCOM extended output trigger signals.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/itctrl
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(RW) Control integration mode.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/itchin
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(Read) Read the values of the CTCHIN inputs.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/itchinack
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(Write) Write the value of the CTCHINACK input.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittrigin
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(Read) Read the values of the CTTRIGIN inputs.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittrigin[1-3]
+Date:		June 2026
+KernelVersion:	7.3
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>
+Description:	(Read) Read the values of the QCOM extended CTTRIGIN inputs.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittriginack
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(Write) Write the value of the CTTRIGINACK input.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittriginack[1-3]
+Date:		June 2026
+KernelVersion:	7.3
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>
+Description:	(Write) Write the value of the QCOM extended CTTRIGINACK input.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/itchout
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(RW) Read or write the value of the CTCHOUT outputs.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/itchoutack
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(Read) Read the value of the CTCHOUTACK input.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittrigout
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(RW) Read or write the value of the CTTRIGOUT outputs.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittrigout[1-3]
+Date:		June 2026
+KernelVersion:	7.3
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>
+Description:	(RW) Read or write the value of the QCOM extended CTTRIGOUT outputs.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittrigoutack
+Date:		March 2020
+KernelVersion:	5.7
+Contact:	coresight@lists.linaro.org
+Description:	(Read) Read the value of the CTTRIGOUTACK input.
+
+What:		/sys/bus/coresight/devices/<cti-name>/regs/ittrigoutack[1-3]
+Date:		June 2026
+KernelVersion:	7.3
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>
+Description:	(Read) Read the value of the QCOM extended CTTRIGOUTACK input.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/trigin_attach
 Date:		March 2020

@@ -58,6 +58,7 @@ struct cs_pair_attribute {
 struct cs_off_attribute {
 	struct device_attribute attr;
 	u32 off;
+	u32 index;
 };
 
 ssize_t coresight_simple_show32(struct device *_dev, struct device_attribute *attr, char *buf);
@@ -67,7 +68,8 @@ ssize_t coresight_simple_show_pair(struct device *_dev, struct device_attribute 
 	(&((struct cs_off_attribute[]) {				\
 	   {								\
 		__ATTR(name, 0444, coresight_simple_show32, NULL),	\
-		offset							\
+		offset,							\
+		0							\
 	   }								\
 	})[0].attr.attr)
 

@@ -7,8 +7,10 @@
  * https://www.mipi.org/mipi-sdca-v1-0-download
  */
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -23,8 +25,17 @@
 #include <sound/sdca_class.h>
 
 #define CLASS_SDW_ATTACH_TIMEOUT_MS	5000
+#define CLASS_SDW_PROBED_TIMEOUT_MS	500
 
-static int class_read_prop(struct sdw_slave *sdw)
+/**
+ * sdca_class_read_prop - fill SDCA-common SoundWire slave properties
+ * @sdw: SoundWire slave
+ *
+ * Exported so codec-specific SoundWire drivers can invoke the SDCA
+ * common property setup from their own sdw_slave_ops.read_prop, and
+ * then apply codec-specific overrides inline.
+ */
+int sdca_class_read_prop(struct sdw_slave *sdw)
 {
 	struct sdw_slave_prop *prop = &sdw->prop;
 	int ret;
@@ -39,9 +50,10 @@ static int class_read_prop(struct sdw_slave *sdw)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(sdca_class_read_prop, "SND_SOC_SDCA_CLASS");
 
 static const struct sdw_slave_ops class_sdw_ops = {
-	.read_prop	= class_read_prop,
+	.read_prop	= sdca_class_read_prop,
 };
 
 static void class_regmap_lock(void *data)
@@ -106,11 +118,20 @@ static void class_boot_work(struct work_struct *work)
 	struct sdca_class_drv *drv = container_of(work,
 						  struct sdca_class_drv,
 						  boot_work);
+	unsigned long deadline;
 	int ret;
 
 	ret = sdw_slave_wait_for_init(drv->sdw, CLASS_SDW_ATTACH_TIMEOUT_MS);
 	if (ret)
 		goto err;
+
+	deadline = jiffies + msecs_to_jiffies(CLASS_SDW_PROBED_TIMEOUT_MS);
+	while (!drv->sdw->probed && time_before(jiffies, deadline))
+		usleep_range(1000, 2000);
+
+	if (!drv->sdw->probed)
+		dev_warn(drv->dev,
+			 "timed out waiting for slave probe to complete\n");
 
 	regcache_cache_only(drv->dev_regmap, false);
 
@@ -139,6 +160,20 @@ err:
 	pm_runtime_put_sync(drv->dev);
 }
 
+static void sdca_class_cancel_boot_work(void *data)
+{
+	struct sdca_class_drv *drv = data;
+
+	/*
+	 * If boot_work never got to run, class_boot_work() also never
+	 * released the pm_runtime reference that sdca_class_probe() took
+	 * with pm_runtime_get_noresume().  Drop it here so the device
+	 * isn't stuck non-idle after devres unwinds.
+	 */
+	if (cancel_work_sync(&drv->boot_work))
+		pm_runtime_put_noidle(drv->dev);
+}
+
 /**
  * sdca_class_probe - SDCA class SoundWire slave probe helper
  * @sdw: SoundWire slave
@@ -147,8 +182,8 @@ err:
  *       allocation and sets its own dev_set_drvdata() -- the framework
  *       does not touch drvdata.  Typically embedded in the codec's own
  *       priv struct so codec drivers can keep per-slave state.
- * @ops: optional codec-provided class callbacks (may be NULL for
- *       pure-generic SDCA parts that need no quirks)
+ * @hw_ops: optional device-specific hw_ops (may be NULL for pure-generic
+ *          SDCA parts that need no quirks)
  *
  * Codec-specific SoundWire drivers call this from their .probe after
  * allocating a struct sdca_class_drv (usually embedded in their own
@@ -158,7 +193,7 @@ err:
  */
 int sdca_class_probe(struct sdw_slave *sdw,
 		     struct sdca_class_drv *drv,
-		     const struct sdca_class_ops *ops)
+		     const struct sdca_class_hw_ops *hw_ops)
 {
 	struct device *dev = &sdw->dev;
 	struct regmap_config *dev_config;
@@ -176,9 +211,15 @@ int sdca_class_probe(struct sdw_slave *sdw,
 
 	drv->dev = dev;
 	drv->sdw = sdw;
-	drv->ops = ops;
+	drv->hw_ops = hw_ops;
 	mutex_init(&drv->regmap_lock);
 	mutex_init(&drv->init_lock);
+
+	if (hw_ops && hw_ops->hw_init) {
+		ret = hw_ops->hw_init(sdw);
+		if (ret)
+			return dev_err_probe(dev, ret, "hw_init failed\n");
+	}
 
 	INIT_WORK(&drv->boot_work, class_boot_work);
 
@@ -201,6 +242,10 @@ int sdca_class_probe(struct sdw_slave *sdw,
 		pm_runtime_put_sync(dev);
 		return ret;
 	}
+
+	ret = devm_add_action_or_reset(dev, sdca_class_cancel_boot_work, drv);
+	if (ret)
+		return ret;
 
 	queue_work(system_long_wq, &drv->boot_work);
 
@@ -230,14 +275,13 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
  * sdca_class_remove - SDCA class SoundWire slave remove helper
  * @drv: caller-owned sdca_class_drv (the one handed to sdca_class_probe()).
  *
- * Cancels the deferred boot work so devres can safely free @drv and the
- * embedding codec priv without racing class_boot_work.  Codec-specific
- * SoundWire drivers that call sdca_class_probe() must call this from
- * their .remove with the same drv pointer they passed to probe.
+ * Boot-work cancellation is now handled by a devm action installed in
+ * sdca_class_probe(); this remains as a no-op remove hook for symmetry
+ * with sdca_class_probe(), and to give codec drivers a stable API to
+ * call from their .remove.
  */
 void sdca_class_remove(struct sdca_class_drv *drv)
 {
-	cancel_work_sync(&drv->boot_work);
 }
 EXPORT_SYMBOL_NS_GPL(sdca_class_remove, "SND_SOC_SDCA_CLASS");
 
@@ -366,10 +410,11 @@ static int class_pm_runtime_resume(struct device *dev)
 	return sdca_class_runtime_resume(dev_get_drvdata(dev));
 }
 
-static const struct dev_pm_ops sdca_class_pm_ops = {
+const struct dev_pm_ops sdca_class_pm_ops = {
 	SYSTEM_SLEEP_PM_OPS(class_pm_system_suspend, class_pm_system_resume)
 	RUNTIME_PM_OPS(class_pm_runtime_suspend, class_pm_runtime_resume, NULL)
 };
+EXPORT_SYMBOL_NS_GPL(sdca_class_pm_ops, "SND_SOC_SDCA_CLASS");
 
 static const struct sdw_device_id class_sdw_id[] = {
 	SDW_SLAVE_ENTRY(0x01FA, 0x4245, 0),

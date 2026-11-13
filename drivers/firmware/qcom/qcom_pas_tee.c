@@ -230,11 +230,14 @@ static void *qcom_pas_tee_get_rsc_table(struct device *dev,
 		},
 		[1] = {
 			.attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT,
-			.u.memref.size = input_rt_size,
 		}
 	};
 	void *rt_buf = NULL;
 	int ret;
+
+	if (!input_rt)
+		input_rt_size = 0;
+	param[1].u.memref.size = input_rt_size;
 
 	ret = tee_client_invoke_func(data->ctx, &inv_arg, param);
 	if (ret < 0 || inv_arg.ret != 0) {
@@ -396,7 +399,7 @@ static void qcom_pas_tee_metadata_release(struct device *dev,
 }
 
 static struct qcom_pas_ops qcom_pas_ops_tee = {
-	.drv_name		= "qcom-pas-tee",
+	.drv_name		= QCOM_PAS_BACKEND_TEE,
 	.supported		= qcom_pas_tee_supported,
 	.init_image		= qcom_pas_tee_init_image,
 	.mem_setup		= qcom_pas_tee_mem_setup,

@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/of.h>
 #include <linux/clk.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <sound/pcm.h>
@@ -321,7 +322,87 @@ static const struct regmap_config pcm1681_regmap = {
 	.cache_type		= REGCACHE_MAPLE,
 };
 
+/*
+ * sck may come from a DSP-hosted clock controller that is torn down and
+ * re-registered when the DSP restarts, which also rebinds the card. A clk
+ * handle kept across that would point at the dead provider, so only hold
+ * sck while the component is bound to a card.
+ */
+static int pcm1681_component_probe(struct snd_soc_component *component)
+{
+	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
+	struct device *dev = component->dev;
+	int ret;
+
+	priv->sck = clk_get_optional(dev, "sck");
+	if (IS_ERR(priv->sck)) {
+		ret = PTR_ERR(priv->sck);
+		priv->sck = NULL;
+		return dev_err_probe(dev, ret, "Failed to get sck\n");
+	}
+
+	/*
+	 * A re-registered provider comes back at its default rate, and the
+	 * driver core applied assigned-clock-rates only once, at i2c probe.
+	 */
+	ret = of_clk_set_defaults(dev->of_node, false);
+	if (ret) {
+		dev_err(dev, "Failed to set assigned clock rates: %d\n", ret);
+		goto err_put;
+	}
+
+	ret = clk_prepare_enable(priv->sck);
+	if (ret) {
+		dev_err(dev, "Failed to enable sck: %d\n", ret);
+		goto err_put;
+	}
+
+	pcm1681_sck_settle(priv);
+
+	/* The DAC lost its state if sck went away while unbound */
+	regcache_cache_only(priv->regmap, false);
+	regcache_mark_dirty(priv->regmap);
+	ret = regcache_sync(priv->regmap);
+	if (ret) {
+		dev_err(dev, "Failed to sync regcache: %d\n", ret);
+		goto err_disable;
+	}
+
+	/* The clock is on, so hand the now-active device over to runtime PM */
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
+
+	return 0;
+
+err_disable:
+	clk_disable_unprepare(priv->sck);
+err_put:
+	clk_put(priv->sck);
+	priv->sck = NULL;
+	return ret;
+}
+
+static void pcm1681_component_remove(struct snd_soc_component *component)
+{
+	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
+	struct device *dev = component->dev;
+
+	pm_runtime_disable(dev);
+	/* Runtime PM may already have gated the clock */
+	if (!pm_runtime_status_suspended(dev)) {
+		regcache_cache_only(priv->regmap, true);
+		clk_disable_unprepare(priv->sck);
+	}
+	pm_runtime_set_suspended(dev);
+
+	clk_put(priv->sck);
+	priv->sck = NULL;
+}
+
 static const struct snd_soc_component_driver soc_component_dev_pcm1681 = {
+	.probe			= pcm1681_component_probe,
+	.remove			= pcm1681_component_remove,
 	.controls		= pcm1681_controls,
 	.num_controls		= ARRAY_SIZE(pcm1681_controls),
 	.dapm_widgets		= pcm1681_dapm_widgets,
@@ -359,11 +440,6 @@ static int pcm1681_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret,
 				     "Failed to enable supplies\n");
 
-	priv->sck = devm_clk_get_optional(dev, "sck");
-	if (IS_ERR(priv->sck))
-		return dev_err_probe(dev, PTR_ERR(priv->sck),
-				     "Failed to get sck\n");
-
 	priv->regmap = devm_regmap_init_i2c(client, &pcm1681_regmap);
 	if (IS_ERR(priv->regmap)) {
 		ret = PTR_ERR(priv->regmap);
@@ -371,53 +447,31 @@ static int pcm1681_i2c_probe(struct i2c_client *client)
 		return ret;
 	}
 
+	/* No sck until the component is bound, serve access from the cache */
+	regcache_cache_only(priv->regmap, true);
+
 	/* Must be set before runtime PM is enabled, the callbacks use it */
 	i2c_set_clientdata(client, priv);
 
-	ret = clk_prepare_enable(priv->sck);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable sck\n");
-
-	pcm1681_sck_settle(priv);
-
-	/* The clock is on, so hand the now-active device over to runtime PM */
+	/* Runtime PM is enabled from component probe, once sck is running */
 	pm_runtime_set_autosuspend_delay(dev, 100);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
 
 	ret = devm_snd_soc_register_component(dev,
 					      &soc_component_dev_pcm1681,
 					      &pcm1681_dai, 1);
 	if (ret) {
 		dev_err(dev, "Failed to register component: %d\n", ret);
-		goto err_pm;
+		pm_runtime_dont_use_autosuspend(dev);
+		return ret;
 	}
 
 	return 0;
-
-err_pm:
-	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_disable(dev);
-	if (!pm_runtime_status_suspended(dev))
-		clk_disable_unprepare(priv->sck);
-	pm_runtime_set_suspended(dev);
-
-	return ret;
 }
 
 static void pcm1681_i2c_remove(struct i2c_client *client)
 {
-	struct pcm1681_private *priv = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-
-	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_disable(dev);
-	/* Runtime PM may already have gated the clock */
-	if (!pm_runtime_status_suspended(dev))
-		clk_disable_unprepare(priv->sck);
-	pm_runtime_set_suspended(dev);
+	pm_runtime_dont_use_autosuspend(&client->dev);
 }
 
 static int pcm1681_runtime_suspend(struct device *dev)

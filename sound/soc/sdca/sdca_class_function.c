@@ -143,6 +143,14 @@ static int class_function_sdw_add_peripheral(struct snd_pcm_substream *substream
 	snd_sdw_params_to_config(substream, params, &sconfig, &pconfig);
 
 	/*
+	 * Defer BPS selection to the per-port values programmed by
+	 * qcom_swrm_compute_params() so a single stream can carry ports
+	 * with different wire widths (e.g. WCD9378 HPH DP6 2-bit PDM +
+	 * DP7 8-bit PCM envelope).
+	 */
+	sconfig.bps = 0;
+
+	/*
 	 * FIXME: As also noted in sdca_asoc_get_port(), currently only
 	 * a single unshared port is supported for each DAI.
 	 */
@@ -212,6 +220,14 @@ static int class_function_set_jack(struct snd_soc_component *component,
 {
 	struct class_function_drv *drv = snd_soc_component_get_drvdata(component);
 	struct sdca_class_drv *core = drv->core;
+	int ret;
+
+	if (core->hw_ops && core->hw_ops->set_jack) {
+		ret = core->hw_ops->set_jack(core->sdw, core->dev_regmap);
+		if (ret)
+			dev_warn(component->dev,
+				 "failed to enable hardware jack detection: %d\n", ret);
+	}
 
 	return sdca_jack_set_jack(core->irq_info, jack);
 }
@@ -363,10 +379,10 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	drv->core = core;
 	drv->function = &sdev->function;
 
-	if (core->ops && core->ops->populate_function) {
-		ret = core->ops->populate_function(dev, drv->function);
-	} else if (drv->function->desc->node) {
+	if (drv->function->desc->node) {
 		ret = sdca_parse_function(dev, drv->function);
+	} else if (core->hw_ops && core->hw_ops->populate_function) {
+		ret = core->hw_ops->populate_function(dev, drv->function);
 	} else {
 		dev_err(dev, "no firmware node and no populate_function hook\n");
 		return -ENOENT;
