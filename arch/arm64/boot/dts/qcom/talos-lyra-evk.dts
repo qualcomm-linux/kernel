@@ -273,6 +273,8 @@
 		ranges;
 		bus-range = <0x2 0xff>;
 
+		aspm-no-l1;
+
 		vddc-supply = <&vreg_0p9>;
 		vdd18-supply = <&vreg_1p8>;
 		vdd09-supply = <&vreg_0p9>;
@@ -296,6 +298,8 @@
 			ranges;
 			bus-range = <0x3 0xff>;
 
+			aspm-no-l1;
+
 			ep-pwr-en-gpio = <&tc9563 2 GPIO_ACTIVE_HIGH>;
 			ep-reset-gpio = <&tc9563 5 GPIO_ACTIVE_HIGH>;
 
@@ -312,6 +316,8 @@
 			ranges;
 			bus-range = <0x4 0xff>;
 
+			aspm-no-l1;
+
 			ep-pwr-en-gpio = <&tc9563 4 GPIO_ACTIVE_HIGH>;
 			ep-reset-gpio = <&tc9563 3 GPIO_ACTIVE_HIGH>;
 		};
@@ -323,6 +329,8 @@
 			device_type = "pci";
 			ranges;
 			bus-range = <0x5 0xff>;
+
+			aspm-no-l1;
 
 			pci@0,0 {
 				reg = <0x50000 0x0 0x0 0x0 0x0>;
