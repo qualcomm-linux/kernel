@@ -26,6 +26,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,eliza-cci
               - qcom,glymur-cci
               - qcom,hawi-cci
               - qcom,kaanapali-cci
@@ -137,6 +138,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,eliza-cci
               - qcom,glymur-cci
               - qcom,hawi-cci
               - qcom,kaanapali-cci
