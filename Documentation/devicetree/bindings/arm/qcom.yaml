@@ -1306,6 +1306,7 @@ properties:
 
       - items:
           - enum:
+              - asus,vivobook-16-x1607qa
               - asus,vivobook-s15-x1p4
               - hp,omnibook-x14-fe1
               - lenovo,thinkbook-16
