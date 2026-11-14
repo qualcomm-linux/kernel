@@ -6414,8 +6414,10 @@ static const struct camss_resources sm8750_resources = {
 	.csid_res = csid_res_sm8750,
 	.vfe_res = vfe_res_sm8750,
 	.icc_res = icc_res_sm8750,
+	.tpg_res = tpg_res_8775p,
 	.icc_path_num = ARRAY_SIZE(icc_res_sm8750),
 	.csiphy_num = 6,
+	.tpg_num = ARRAY_SIZE(tpg_res_8775p),
 	.csid_num = ARRAY_SIZE(csid_res_sm8750),
 	.vfe_num = ARRAY_SIZE(vfe_res_sm8750),
 };
