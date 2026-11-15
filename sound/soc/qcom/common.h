@@ -5,6 +5,7 @@
 #define __QCOM_SND_COMMON_H__
 
 #include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 #include <sound/soc.h>
 
 #define LPASS_MAX_PORT			(AIF_TDM_TX_12 + 1)
