@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/clock/qcom,shikra-gcc.h>
+#include <dt-bindings/power/qcom-rpmpd.h>
+#include <dt-bindings/interconnect/qcom,icc.h>
+#include <dt-bindings/interconnect/qcom,shikra.h>
+
+#include "shikra-camera.dtsi"
+#include "shikra-camera-sensor.dtsi"
+
+&actuator_cam0 {
+	cam_vaf-supply = <&pm8150_s4>;
+};
+
+&actuator_cam1 {
+	cam_vaf-supply = <&pm8150_s4>;
+};
+
+&actuator_cam2 {
+	cam_vaf-supply = <&pm8150_s4>;
+};
+
+&actuator_cam5 {
+	cam_vaf-supply = <&pm8150_s4>;
+};
+
+&camss {
+	status = "disabled";
+};
+
+&cci {
+	status = "disabled";
+};
+
+&cci_i2c1 {
+	status = "disabled";
+};
+
+&eeprom_cam0 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 34 0>,
+		<&tlmm 32 0>,
+		<&tlmm 56 0>;
+};
+
+&eeprom_cam1 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 35 0>,
+		<&tlmm 33 0>,
+		<&tlmm 64 0>;
+};
+
+&eeprom_cam2 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 35 0>,
+		<&tlmm 33 0>,
+		<&tlmm 64 0>;
+};
+
+&eeprom_cam5 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 34 0>,
+		<&tlmm 32 0>,
+		<&tlmm 56 0>;
+};
+
+&sensor_cam0 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 34 0>,
+		<&tlmm 32 0>,
+		<&tlmm 56 0>;
+};
+
+&sensor_cam1 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 35 0>,
+		<&tlmm 33 0>,
+		<&tlmm 64 0>;
+};
+
+&sensor_cam2 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 35 0>,
+		<&tlmm 33 0>,
+		<&tlmm 64 0>;
+};
+
+&sensor_cam3 {
+	cam_vio-supply = <&pm8150_s4>;
+};
+
+&sensor_cam4 {
+	cam_vio-supply = <&pm8150_s4>;
+};
+
+&sensor_cam5 {
+	cam_vio-supply = <&pm8150_s4>;
+	gpios = <&tlmm 34 0>,
+		<&tlmm 32 0>,
+		<&tlmm 56 0>;
+};
