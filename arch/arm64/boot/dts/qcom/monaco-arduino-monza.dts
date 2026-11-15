@@ -32,6 +32,14 @@
 		pinctrl-0 = <&gpio_keys_default>;
 		pinctrl-names = "default";
 
+		button-sleep {
+			label = "Sleep Key";
+			linux,code = <KEY_SLEEP>;
+			gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+			debounce-interval = <60>;
+			wakeup-source;
+		};
+
 		button-home {
 			label = "Home Key";
 			linux,code = <KEY_HOMEPAGE>;
@@ -547,9 +555,17 @@
 	};
 
 	gpio_keys_default: gpio-keys-default-state {
-		pins = "gpio79";
-		function = "gpio";
-		bias-disable;
+		horizontal-button-pins {
+			pins = "gpio69";
+			function = "gpio";
+			bias-pull-down;
+		};
+
+		vertical-button-pins {
+			pins = "gpio79";
+			function = "gpio";
+			bias-disable;
+		};
 	};
 
 	adv7535_default: adv7535-default-state {
