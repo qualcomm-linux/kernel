@@ -747,3 +747,32 @@ int gdsc_gx_disable(struct generic_pm_domain *domain)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gdsc_gx_disable);
+
+/*
+ * USB and PCIE GDSCs require GDSC to be kept ON even during system system
+ * for USB host mode and PCIE non-D3 cold usecases. The below callback can
+ * be used for such GDSCs where the consumer drivers can set GenPD's
+ * synced_poweroff flag using dev_pm_genpd_synced_poweroff() before suspend
+ * to disable the GDSC and can avoid setting the flag to keep the GDSC ON
+ * during suspend.
+ */
+int gdsc_synced_poweroff_disable(struct generic_pm_domain *domain)
+{
+	struct gdsc *sc = domain_to_gdsc(domain);
+
+	/*
+	 * For GDSCs with VOTABLE flag(e.g. PCIE), status must not be polled
+	 * during disable. However, gdsc_disable() polls for status when
+	 * synced_poweroff is set. Use gdsc_toggle_logic() with wait = false
+	 * to skip status polling for VOTABLE GDSCs during power-off.
+	 */
+	if (domain->synced_poweroff)
+		return gdsc_toggle_logic(sc, GDSC_OFF, false);
+
+	/* Remove parent-supply placed in enable */
+	if (sc->rsupply)
+		return regulator_disable(sc->rsupply);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gdsc_synced_poweroff_disable);
