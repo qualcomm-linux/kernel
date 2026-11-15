@@ -140,6 +140,9 @@ void iris_hfi_gen2_packet_sys_init(struct iris_core *core, struct iris_hfi_heade
 				    &payload,
 				    sizeof(u32));
 
+	if (!ubwc->ubwc_enc_version)
+		return;
+
 	payload = qcom_ubwc_macrotile_mode(ubwc) ? 8 : 4;
 	iris_hfi_gen2_create_packet(hdr,
 				    HFI_PROP_UBWC_MAX_CHANNELS,
@@ -224,6 +227,35 @@ void iris_hfi_gen2_packet_image_version(struct iris_core *core, struct iris_hfi_
 				    HFI_PORT_NONE,
 				    core->packet_id++,
 				    NULL, 0);
+}
+
+void iris_hfi_gen2_packet_set_debug(struct iris_core *core, struct iris_hfi_header *hdr)
+{
+	u32 fw_debug;
+	u32 payload;
+
+	iris_hfi_gen2_create_header(hdr, 0, core->header_id++);
+
+	payload = HFI_DEBUG_CONFIG_DEFAULT;
+	iris_hfi_gen2_create_packet(hdr,
+				    HFI_PROP_DEBUG_CONFIG,
+				    HFI_HOST_FLAGS_NONE,
+				    HFI_PAYLOAD_U32_ENUM,
+				    HFI_PORT_NONE,
+				    core->packet_id++,
+				    &payload,
+				    sizeof(u32));
+
+	fw_debug = READ_ONCE(core->fw_debug) & IRIS_FW_DEBUG_LOGMASK;
+	payload = fw_debug;
+	iris_hfi_gen2_create_packet(hdr,
+				    HFI_PROP_DEBUG_LOG_LEVEL,
+				    HFI_HOST_FLAGS_NONE,
+				    HFI_PAYLOAD_U32_ENUM,
+				    HFI_PORT_NONE,
+				    core->packet_id++,
+				    &payload,
+				    sizeof(u32));
 }
 
 void iris_hfi_gen2_packet_session_command(struct iris_inst *inst, u32 pkt_type,
