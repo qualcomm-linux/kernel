@@ -42,13 +42,18 @@
 #define DWXGMAC_CORE_2_20	0x22
 #define DWXLGMAC_CORE_2_00	0x20
 
+#define DW25GMAC_CORE_3_20	0x32
+#define DW25GMAC_CORE_4_00	0x40
+
 /* Device ID */
 #define DWXGMAC_ID		0x76
+#define DW25GMAC_ID		0x55
 #define DWXLGMAC_ID		0x27
 
 static inline bool dwmac_is_xmac(enum dwmac_core_type core_type)
 {
-	return core_type == DWMAC_CORE_GMAC4 || core_type == DWMAC_CORE_XGMAC;
+	return core_type == DWMAC_CORE_GMAC4 || core_type == DWMAC_CORE_XGMAC ||
+	       core_type == DWMAC_CORE_25GMAC;
 }
 
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
@@ -325,6 +330,9 @@ struct stmmac_safety_stats {
 #define PHY_INTF_GMII		0
 #define PHY_INTF_RGMII		1
 
+/* DW25GMAC uses different encoding - defaults to XGMII */
+#define PHY_INTF_DW25GMAC_XGMII	0
+
 /* MSI defines */
 #define STMMAC_MSI_VEC_MAX	32
 
@@ -593,6 +601,7 @@ struct mac_link {
 		u32 speed2500;
 		u32 speed5000;
 		u32 speed10000;
+		u32 speed25000;
 	} xgmii;
 	struct {
 		u32 speed25000;
@@ -620,6 +629,7 @@ struct mac_device_info {
 	const struct stmmac_mmc_ops *mmc;
 	const struct stmmac_est_ops *est;
 	const struct stmmac_vlan_ops *vlan;
+	const struct dwxgmac_addrs *dwxgmac_addrs;
 	struct dw_xpcs *xpcs;
 	struct phylink_pcs *phylink_pcs;
 	struct mii_regs mii;	/* MII register Addresses */
@@ -651,6 +661,7 @@ int dwmac100_setup(struct stmmac_priv *priv);
 int dwmac1000_setup(struct stmmac_priv *priv);
 int dwmac4_setup(struct stmmac_priv *priv);
 int dwxgmac2_setup(struct stmmac_priv *priv);
+int dw25gmac_setup(struct stmmac_priv *priv);
 int dwxlgmac2_setup(struct stmmac_priv *priv);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, const u8 addr[6],
