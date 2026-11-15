@@ -94,6 +94,11 @@ static const uint64_t supported_format_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
+static const uint64_t supported_format_modifiers_no_ubwc[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 #define to_dpu_plane(x) container_of(x, struct dpu_plane, base)
 
 static struct dpu_kms *_dpu_plane_get_kms(struct drm_plane *plane)
@@ -1836,7 +1841,10 @@ static struct drm_plane *dpu_plane_init_common(struct drm_device *dev,
 	pdpu = drmm_universal_plane_alloc(dev, struct dpu_plane, base,
 				0xff, &dpu_plane_funcs,
 				format_list, num_formats,
-				supported_format_modifiers, type, NULL);
+				(kms->mdss->ubwc_enc_version == 0) ?
+					supported_format_modifiers_no_ubwc :
+					supported_format_modifiers,
+				type, NULL);
 	if (IS_ERR(pdpu))
 		return ERR_CAST(pdpu);
 
