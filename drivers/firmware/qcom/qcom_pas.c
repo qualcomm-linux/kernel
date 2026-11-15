@@ -253,6 +253,14 @@ bool qcom_pas_supported(u32 pas_id)
 }
 EXPORT_SYMBOL_GPL(qcom_pas_supported);
 
+const char *qcom_pas_get_backend(void)
+{
+	struct qcom_pas_ops *ops = ops_ptr;
+
+	return ops ? ops->drv_name : NULL;
+}
+EXPORT_SYMBOL_GPL(qcom_pas_get_backend);
+
 /**
  * qcom_pas_is_available() - Check if the peripheral authentication service is
  *			     available. Note that it is mandatory for any PAS

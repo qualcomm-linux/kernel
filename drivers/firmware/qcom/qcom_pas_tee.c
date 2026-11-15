@@ -396,7 +396,7 @@ static void qcom_pas_tee_metadata_release(struct device *dev,
 }
 
 static struct qcom_pas_ops qcom_pas_ops_tee = {
-	.drv_name		= "qcom-pas-tee",
+	.drv_name		= QCOM_PAS_BACKEND_TEE,
 	.supported		= qcom_pas_tee_supported,
 	.init_image		= qcom_pas_tee_init_image,
 	.mem_setup		= qcom_pas_tee_mem_setup,

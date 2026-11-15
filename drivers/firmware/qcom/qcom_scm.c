@@ -1061,7 +1061,7 @@ bool qcom_scm_pas_supported(u32 pas_id)
 EXPORT_SYMBOL_GPL(qcom_scm_pas_supported);
 
 static struct qcom_pas_ops qcom_pas_ops_scm = {
-	.drv_name		= "qcom_scm",
+	.drv_name		= QCOM_PAS_BACKEND_SCM,
 	.supported		= __qcom_scm_pas_supported,
 	.init_image		= __qcom_scm_pas_init_image2,
 	.mem_setup		= __qcom_scm_pas_mem_setup,
