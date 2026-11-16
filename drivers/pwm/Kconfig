@@ -554,6 +554,19 @@ config PWM_PXA
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-pxa.
 
+config PWM_QCOM
+	tristate "Qualcomm PWM support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on COMMON_CLK && HAS_IOMEM && OF
+	select REGMAP_MMIO
+	help
+	  PWM framework driver for the PWM block found on Qualcomm SoCs,
+	  which supports multiple PWM frames. Each frame can be
+	  configured independently of the others.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called pwm-qcom.
+
 config PWM_RASPBERRYPI_POE
 	tristate "Raspberry Pi Firmware PoE Hat PWM support"
 	# Make sure not 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
