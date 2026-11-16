@@ -647,6 +647,22 @@
 				sound-dai = <&q6apm>;
 			};
 		};
+
+		dp2-dai-link {
+			link-name = "DP2 Playback";
+
+			codec {
+				sound-dai = <&mdss_dp2>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai DISPLAY_PORT_RX_2>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
 	};
 
 	wifi-bt-connector {
@@ -1190,6 +1206,13 @@
 	status = "okay";
 };
 
+&psci {
+	reboot-mode {
+		mode-bootloader = <0x80010001 0x2>;
+		mode-edl = <0x80000000 0x1>;
+	};
+};
+
 &sdhc_2 {
 	cd-gpios = <&tlmm 71 GPIO_ACTIVE_LOW>;
 
@@ -1349,6 +1372,22 @@
 };
 
 &tlmm {
+	cam1_default: cam1-default-state {
+		mclk-pins {
+			pins = "gpio97";
+			function = "cam_mclk";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		reset-n-pins {
+			pins = "gpio110";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
 	ec_int_n_default: ec-int-n-state {
 		pins = "gpio66";
 		function = "gpio";
@@ -1649,4 +1688,20 @@
 			};
 		};
 	};
+};
+
+&nsp0_alert0 {
+	temperature = <105000>;
+};
+
+&nsp1_alert0 {
+	temperature = <105000>;
+};
+
+&nsp2_alert0 {
+	temperature = <105000>;
+};
+
+&nsp3_alert0 {
+	temperature = <105000>;
 };

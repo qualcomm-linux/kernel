@@ -67,6 +67,7 @@ struct iris_inst;
 #define VP9_UDC_HEADER_BUF_SIZE	(3 * 128)
 
 #define SIZE_SEI_USERDATA			4096
+#define SIZE_SEI_USERDATA_UNREGISTERED		256
 #define SIZE_DOLBY_RPU_METADATA (41 * 1024)
 #define H264_CABAC_HDR_RATIO_HD_TOT	1
 #define H264_CABAC_RES_RATIO_HD_TOT	3
@@ -127,11 +128,12 @@ struct iris_inst;
 #define SIZE_AV1D_TILE_OFFSET     65536
 #define SIZE_AV1D_QM              3328
 #define SIZE_AV1D_PROB_TABLE      22784
+#define SIZE_AV1D_ARP             9728
 
 #define SIZE_SLICE_CMD_BUFFER (ALIGN(20480, 256))
 #define SIZE_SPS_PPS_SLICE_HDR (2048 + 4096)
 #define SIZE_BSE_SLICE_CMD_BUF ((((8192 << 2) + 7) & (~7)) * 3)
-#define SIZE_LAMBDA_LUT (256 * 11)
+#define SIZE_LAMBDA_LUT (256 * 13)
 
 #define HFI_COL_FMT_NV12C_Y_TILE_HEIGHT (8)
 #define HFI_COL_FMT_NV12C_Y_TILE_WIDTH (32)
@@ -160,6 +162,22 @@ struct iris_inst;
 #define AV1D_MAX_TILE_COLS             64
 #define BITS_PER_CTRL_PACK             128
 #define NUM_CTRL_PACK_LCU              10
+
+#define LCU_SIZE_16 16
+#define LCU_SIZE_32 32
+#define LCU_SIZE_64 64
+
+#define H265_MIN_SE_CTRL_BLOCK_SIZE		8
+#define FE_LFT_CTRL_BYTES_PER_PACKETS		1
+#define FE_LFT_DB_LUMA_CHROMA_BYTES_PER_PACKETS	2
+#define FE_LFT_SAO_LUMA_BYTES_PER_PACKETS	1
+#define FE_LFT_SAO_CHROMA_BYTES_PER_PACKETS	2
+#define FE_LFT_LR_LUMA_CHROMA_BYTES_PER_PACKETS	8
+
+#define FE_TOP_CTRL_BYTES_PER_PACKETS	    1
+#define FE_TOP_LUMA_BYTES_PER_PACKETS	    2
+#define FE_TOP_CHROMA_BYTES_PER_PACKETS	    2
+#define PE_TOP_RECON_DATA_BYTES_PER_PACKETS 6
 
 static inline u32 size_h264d_lb_fe_top_data(u32 frame_width)
 {
@@ -324,6 +342,7 @@ static inline u32 size_av1d_qp(u32 frame_width, u32 frame_height)
 u32 iris_vpu_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 u32 iris_vpu33_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 u32 iris_vpu4x_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
+u32 iris_vpu5x_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 u32 iris_vpu_ar50lt_gen1_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 u32 iris_vpu_ar50lt_gen2_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 int iris_vpu_buf_count(struct iris_inst *inst, enum iris_buffer_type buffer_type);

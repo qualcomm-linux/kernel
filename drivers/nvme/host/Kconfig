@@ -134,3 +134,13 @@ config NVME_APPLE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvme-apple.
+
+config NVME_SPEED_SWITCH
+	bool "NVMe adaptive PCIe link rate switching"
+	depends on BLK_DEV_NVME
+	help
+	  This provides support for dynamic PCIe link rate switching for NVMe
+	  devices. When enabled, the NVMe driver can dynamically adjust the
+	  PCIe link speed and width based on workload requirement.
+
+	  If unsure, say N.

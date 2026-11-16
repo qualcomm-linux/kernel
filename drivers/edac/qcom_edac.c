@@ -3,6 +3,7 @@
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/bitfield.h>
 #include <linux/edac.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -44,7 +45,15 @@
 #define SB_DB_TRP_INTERRUPT_ENABLE      0x3
 #define TRP0_INTERRUPT_ENABLE           0x1
 #define DRP0_INTERRUPT_ENABLE           BIT(6)
+#define SRP_INTERRUPT_ENABLE            BIT(7)
 #define SB_DB_DRP_INTERRUPT_ENABLE      0x3
+
+/* LCP/SRP DDR DRAM ECC */
+#define LCP_SB_ECC_ERROR                BIT(0)
+#define LCP_DB_ECC_ERROR                BIT(1)
+#define LCP_SRP_SB_DB_INTERRUPT_ENABLE  0x3
+#define LCP_DB_ERR_COUNT_MASK           GENMASK(4, 0)
+#define LCP_SB_ERR_COUNT_MASK           GENMASK(23, 16)
 
 #define ECC_POLL_MSEC			5000
 
@@ -122,6 +131,29 @@ static int qcom_llcc_core_setup(struct llcc_drv_data *drv, struct regmap *llcc_b
 	ret = regmap_write(llcc_bcast_regmap, drv->edac_reg_offset->drp_interrupt_enable,
 			   SB_DB_DRP_INTERRUPT_ENABLE);
 	return ret;
+}
+
+/*
+ * Enable LCP/SRP DDR DRAM ECC interrupt generation and route events to
+ * ddrss_apps_interrupt[1] via cmn_interrupt_1_enable.  Only called when
+ * !ecc_irq_configured; on platforms like Shikra where firmware pre-configures
+ * both TRP/DRP and LCP/SRP routing, the driver skips this and only requests
+ * the IRQ handler.
+ */
+static int qcom_llcc_lcp_setup(struct llcc_drv_data *drv,
+			       struct regmap *llcc_bcast_regmap)
+{
+	int ret;
+
+	ret = regmap_set_bits(llcc_bcast_regmap,
+			      drv->edac_reg_offset->cmn_interrupt_1_enable,
+			      SRP_INTERRUPT_ENABLE);
+	if (ret)
+		return ret;
+
+	return regmap_set_bits(llcc_bcast_regmap,
+			       drv->edac_reg_offset->lcp_srp_interrupt_enable,
+			       LCP_SRP_SB_DB_INTERRUPT_ENABLE);
 }
 
 /* Clear the error interrupt and counter registers */
@@ -334,6 +366,92 @@ static void llcc_ecc_check(struct edac_device_ctl_info *edev_ctl)
 	llcc_ecc_irq_handler(0, edev_ctl);
 }
 
+/*
+ * Handler for the optional LCP/SRP DDR DRAM ECC interrupt
+ * (ddrss_apps_interrupt[1]).  The LCP/SRP registers live in each LLCC
+ * instance's address space, so iterate over all banks and read status
+ * per-instance.  Broadcast-write the clear after the full loop, mirroring
+ * the TRP/DRP handler pattern.
+ */
+static irqreturn_t llcc_lcp_ecc_irq_handler(int irq, void *edev_ctl)
+{
+	struct edac_device_ctl_info *edac_dev_ctl = edev_ctl;
+	struct llcc_drv_data *drv = edac_dev_ctl->dev->platform_data;
+	const struct llcc_edac_reg_offset *reg = drv->edac_reg_offset;
+	irqreturn_t irq_rc = IRQ_NONE;
+	u32 intr_status, err_status, clr_reg;
+	int i, ret;
+
+	/* Iterate over banks: LCP/SRP status registers are per-LLCC instance */
+	for (i = 0; i < drv->num_banks; i++) {
+		ret = regmap_read(drv->regmaps[i], reg->lcp_srp_interrupt_status,
+				  &intr_status);
+		if (ret)
+			continue;
+
+		intr_status &= LCP_SB_ECC_ERROR | LCP_DB_ECC_ERROR;
+		if (!intr_status)
+			continue;
+
+		irq_rc = IRQ_HANDLED;
+
+		ret = regmap_read(drv->regmaps[i], reg->lcp_srp_ecc_error_status1,
+				  &err_status);
+		if (ret) {
+			edac_printk(KERN_ERR, EDAC_LLCC,
+				    "LCP/SRP error status read failed for bank%u: %d\n",
+				    i, ret);
+			continue;
+		}
+
+		if (intr_status & LCP_DB_ECC_ERROR) {
+			u32 db_cnt = FIELD_GET(LCP_DB_ERR_COUNT_MASK, err_status);
+
+			edac_printk(KERN_CRIT, EDAC_LLCC,
+				    "LCP/SRP DDR DRAM Double-bit ECC error in bank%u: count=%u status=0x%08x\n",
+				    i, db_cnt, err_status);
+			edac_device_handle_ue(edac_dev_ctl, 0, i,
+					      "LCP/SRP DDR DRAM uncorrectable error");
+		}
+
+		if (intr_status & LCP_SB_ECC_ERROR) {
+			u32 sb_cnt = FIELD_GET(LCP_SB_ERR_COUNT_MASK, err_status);
+
+			edac_printk(KERN_WARNING, EDAC_LLCC,
+				    "LCP/SRP DDR DRAM Single-bit ECC error in bank%u: count=%u status=0x%08x\n",
+				    i, sb_cnt, err_status);
+			edac_device_handle_ce(edac_dev_ctl, 0, i,
+					      "LCP/SRP DDR DRAM correctable error");
+		}
+	}
+
+	if (irq_rc != IRQ_HANDLED)
+		return irq_rc;
+
+	clr_reg = reg->lcp_srp_interrupt_clear ?
+			reg->lcp_srp_interrupt_clear :
+			reg->lcp_srp_interrupt_status;
+
+	if (clr_reg) {
+		ret = regmap_write(drv->bcast_regmap, clr_reg,
+				   LCP_SB_ECC_ERROR | LCP_DB_ECC_ERROR);
+		if (ret)
+			edac_printk(KERN_ERR, EDAC_LLCC,
+				    "LCP/SRP interrupt clear failed: %d\n", ret);
+	}
+
+	if (reg->lcp_srp_ecc_error_cntr_clear) {
+		ret = regmap_write(drv->bcast_regmap,
+				   reg->lcp_srp_ecc_error_cntr_clear,
+				   DRP_TRP_CNT_CLEAR);
+		if (ret)
+			edac_printk(KERN_ERR, EDAC_LLCC,
+				    "LCP/SRP counter clear failed: %d\n", ret);
+	}
+
+	return irq_rc;
+}
+
 static int qcom_llcc_edac_probe(struct platform_device *pdev)
 {
 	struct llcc_drv_data *llcc_driv_data = pdev->dev.platform_data;
@@ -372,6 +490,8 @@ static int qcom_llcc_edac_probe(struct platform_device *pdev)
 			edac_op_state = EDAC_OPSTATE_INT;
 			goto irq_done;
 		}
+		dev_warn(dev, "failed to request LLCC ECC irq %d: %d, falling back to polling\n",
+			 ecc_irq, rc);
 	}
 
 	/* Fall back to polling mode otherwise */
@@ -386,6 +506,33 @@ irq_done:
 		return rc;
 	}
 
+	/*
+	 * Set up LCP/SRP DDR DRAM ECC after the EDAC device is published.
+	 * Skip hardware routing setup if firmware already configured IRQ
+	 * propagation (irq_configured); only request the IRQ handler.
+	 * Guard on a non-zero lcp_srp_interrupt_enable offset to confirm
+	 * this LLCC variant actually has an LCP/SRP block.
+	 */
+	if (llcc_driv_data->lcp_irq > 0 &&
+	    llcc_driv_data->edac_reg_offset->lcp_srp_interrupt_enable) {
+		if (!llcc_driv_data->ecc_irq_configured) {
+			rc = qcom_llcc_lcp_setup(llcc_driv_data,
+						 llcc_driv_data->bcast_regmap);
+			if (rc) {
+				dev_warn(dev, "LCP/SRP interrupt setup failed: %d\n", rc);
+				goto lcp_done;
+			}
+		}
+		rc = devm_request_irq(dev, llcc_driv_data->lcp_irq,
+				      llcc_lcp_ecc_irq_handler,
+				      0, "llcc_lcp_ecc", edev_ctl);
+		if (rc)
+			dev_warn(dev,
+				 "failed to request LCP ECC irq %d: %d, DDR DRAM ECC reporting disabled\n",
+				 llcc_driv_data->lcp_irq, rc);
+	}
+lcp_done:
+	rc = 0;
 	platform_set_drvdata(pdev, edev_ctl);
 
 	return rc;

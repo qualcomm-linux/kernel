@@ -139,6 +139,7 @@ struct llcc_edac_reg_offset {
 	/* LLCC Common registers */
 	u32 cmn_status0;
 	u32 cmn_interrupt_0_enable;
+	u32 cmn_interrupt_1_enable;
 	u32 cmn_interrupt_2_enable;
 
 	/* LLCC DRP registers */
@@ -151,6 +152,16 @@ struct llcc_edac_reg_offset {
 	u32 drp_ecc_error_status1;
 	u32 drp_ecc_sb_err_syn0;
 	u32 drp_ecc_db_err_syn0;
+
+	/*
+	 * LCP/SRP DDR DRAM ECC registers (LLCC broadcast space).
+	 * Zero on platforms that do not support LCP/SRP ECC reporting.
+	 */
+	u32 lcp_srp_ecc_error_cntr_clear;
+	u32 lcp_srp_ecc_error_status1;
+	u32 lcp_srp_interrupt_status;
+	u32 lcp_srp_interrupt_clear;
+	u32 lcp_srp_interrupt_enable;
 };
 
 /**
@@ -165,6 +176,7 @@ struct llcc_edac_reg_offset {
  * @cfg_size: size of the config data table
  * @num_banks: Number of LLCC banks
  * @ecc_irq: interrupt for LLCC cache error detection and reporting
+ * @lcp_irq: interrupt for LCP/SRP DDR DRAM ECC error reporting or negative errno on failure
  * @ecc_irq_configured: 'True' if firmware has already configured the irq propagation
  * @version: Indicates the LLCC version
  * @desc: Array pointer of pre-allocated LLCC slice descriptors
@@ -180,6 +192,7 @@ struct llcc_drv_data {
 	u32 cfg_size;
 	u32 num_banks;
 	int ecc_irq;
+	int lcp_irq;
 	bool ecc_irq_configured;
 	u32 version;
 	struct llcc_slice_desc *desc;

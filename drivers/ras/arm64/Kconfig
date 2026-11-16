@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# ARM RAS driver
+#
+# Copyright (c) 2025, Alibaba Group.
+#
+
+config ARM64_RAS_DT
+	bool "ARM64 RAS Device Tree support"
+	depends on ARM64_RAS_EXTN && OF
+	help
+	  Enable Device Tree support for the ARM64 RAS driver.
+
+	  When selected, RAS error sources described in the Device Tree
+	  (arm,ras-processor, arm,ras-smmu, arm,ras-gic etc) are registered
+	  as platform devices at boot, allowing the driver to be used on
+	  platforms without ACPI firmware.
+
+config ARM64_RAS_DRIVER
+	tristate "ARM64 RAS Driver"
+	depends on ARM64 && (ACPI_AEST || ARM64_RAS_DT) && RAS
+	help
+	  This is the RAS driver for the arm64 architecture. It uses the
+	  ARMv8 RAS extension register interface to discover, configure,
+	  and handle hardware errors from processor caches, SMMUs, and GICs.
+
+	  On ACPI systems the error source topology is provided by the AEST
+	  ACPI table (requires ACPI_AEST).  On Device Tree systems it is
+	  provided by "arm,ras-*" nodes in the DT root (requires ARM64_RAS_DT).
+
+	  If set, the kernel will report and process hardware errors.

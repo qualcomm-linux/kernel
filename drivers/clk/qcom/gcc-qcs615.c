@@ -419,6 +419,8 @@ static struct clk_rcg2 gcc_emac_rgmii_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_gp1_clk_src[] = {
+	F(10000, P_BI_TCXO, 16, 1, 120),
+	F(100000, P_BI_TCXO, 16, 1, 12),
 	F(25000000, P_GPLL0_OUT_AUX2_DIV, 12, 0, 0),
 	F(50000000, P_GPLL0_OUT_AUX2_DIV, 6, 0, 0),
 	F(100000000, P_GPLL0_OUT_MAIN, 6, 0, 0),
@@ -2674,6 +2676,7 @@ static struct gdsc usb20_sec_gdsc = {
 	.clk_dis_wait_val = 0x2,
 	.pd = {
 		.name = "usb20_sec_gdsc",
+		.power_off = gdsc_synced_poweroff_disable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 };
@@ -2685,6 +2688,7 @@ static struct gdsc usb30_prim_gdsc = {
 	.clk_dis_wait_val = 0x2,
 	.pd = {
 		.name = "usb30_prim_gdsc",
+		.power_off = gdsc_synced_poweroff_disable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 };

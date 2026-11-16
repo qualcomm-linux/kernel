@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __ACPI_AEST_H__
+#define __ACPI_AEST_H__
+
+#include <linux/acpi.h>
+
+/* AEST resource name */
+#define AEST_NODE_NAME "AEST:NODE"
+#define AEST_FHI_NAME "AEST:FHI"
+#define AEST_ERI_NAME "AEST:ERI"
+
+/* AEST component */
+#define ACPI_AEST_PROC_FLAG_GLOBAL	BIT(0)
+#define ACPI_AEST_PROC_FLAG_SHARED	BIT(1)
+
+#define AEST_ADDRESS_SPA	0
+#define AEST_ADDRESS_LA		1
+
+/* AEST interrupt */
+#define AEST_INTERRUPT_MODE BIT(0)
+
+#define AEST_MAX_INTERRUPT_PER_NODE 2
+
+/* AEST interface */
+#define AEST_XFACE_FLAG_SHARED		BIT(0)
+#define AEST_XFACE_FLAG_CLEAR_MISC	BIT(1)
+#define AEST_XFACE_FLAG_ERROR_DEVICE	BIT(2)
+#define AEST_XFACE_FLAG_AFFINITY	BIT(3)
+#define AEST_XFACE_FLAG_ERROR_GROUP	BIT(4)
+#define AEST_XFACE_FLAG_FAULT_INJECT	BIT(5)
+#define AEST_XFACE_FLAG_INT_CONFIG	BIT(6)
+
+#define ACPI_AEST_PROC_FLAG_GLOBAL	BIT(0)
+#define ACPI_AEST_PROC_FLAG_SHARED	BIT(1)
+
+#endif /* __ACPI_AEST_H__ */
