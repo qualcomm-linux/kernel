@@ -23,14 +23,15 @@
 		rgltr-min-voltage = <1800000 2800000>;
 		rgltr-max-voltage = <1800000 2800000>;
 		rgltr-load-current = <204000 55000>;
+		pinctrl-0 = <&cam_sensor_active_rst4>;
+		pinctrl-1 = <&cam_sensor_suspend_rst4>;
+		pinctrl-names = "cam_default", "cam_suspend";
 		gpio-no-mux = <0>;
-		gpios = <&tlmm 100 0>,
-			<&tlmm 239 0>;
+		gpios = <&tlmm 100 0>, <&tlmm 239 0>;
 		gpio-reset = <1>;
 		gpio-req-tbl-num = <0 1>;
 		gpio-req-tbl-flags = <1 0>;
-		gpio-req-tbl-label = "CAM_MCLK4",
-				     "CAMIF_RESET4";
+		gpio-req-tbl-label = "CAM_MCLK4", "CAMIF_RESET4";
 		cci-master = <1>;
 		clocks = <&camcc CAM_CC_MCLK4_CLK>;
 		clock-names = "cam_clk";
@@ -58,8 +59,7 @@
 		rgltr-max-voltage = <1960000 3312000>;
 		rgltr-load-current = <36000 35000>;
 		gpio-no-mux = <0>;
-		gpios = <&tlmm 100 0>,
-			<&tlmm 109 0>;
+		gpios = <&tlmm 100 0>, <&tlmm 109 0>;
 		gpio-reset = <1>;
 		gpio-req-tbl-num = <0 1>;
 		gpio-req-tbl-flags = <1 0>;
