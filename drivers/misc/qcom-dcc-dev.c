@@ -12,6 +12,7 @@
 #include "qcom-dcc-kodiak-config.h"
 #include "qcom-dcc-pakala-config.h"
 #include "qcom-dcc-shikra-config.h"
+#include "qcom-dcc-nord-config.h"
 
 #define DEV_NAME "qcom-dcc"
 
@@ -35,6 +36,15 @@ static const struct dcc_pdata hamoa_pdata = {
 	.map_ver	= 0x3,
 };
 
+static const struct dcc_pdata glymur_pdata = {
+	.base		= 0x100ff000,
+	.size		= 0x1000,
+	.ram_base	= 0x10080000,
+	.ram_size	= 0x8000,
+	.dcc_offset	= 0x0,
+	.map_ver	= 0x3,
+};
+
 static int __init dcc_dev_init(void)
 {
 	int ret;
@@ -53,6 +63,8 @@ static int __init dcc_dev_init(void)
 	case 497:
 	case 498:
 	case 515:
+	case 575:
+	case 576:
 		ret = platform_device_add_data(dcc_pdev, &kodiak_pdata, sizeof(kodiak_pdata));
 		if (ret)
 			goto fail;
@@ -113,10 +125,30 @@ static int __init dcc_dev_init(void)
 			goto fail;
 
 		break;
+	case 662:
+	case 698:
+	case 699:
+	case 718:
+	case 719:
+		ret = platform_device_add_data(dcc_pdev, &glymur_pdata, sizeof(glymur_pdata));
+		if (ret)
+			goto fail;
+
+		break;
 	case 756:
 	case 758:
 	case 759:
 		ret = platform_device_add_data(dcc_pdev, &shikra_pdata, sizeof(shikra_pdata));
+		if (ret)
+			goto fail;
+		break;
+	case 648:
+	case 690:
+	case 691:
+	case 692:
+	case 798:
+	case 803:
+		ret = platform_device_add_data(dcc_pdev, &nord_pdata, sizeof(nord_pdata));
 		if (ret)
 			goto fail;
 		break;
