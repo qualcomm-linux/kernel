@@ -18,7 +18,7 @@ struct msm_dp {
 	struct drm_bridge *next_bridge;
 	struct drm_bridge *bridge;
 	bool audio_enabled;
-	u32 active_stream_cnt;
+	bool power_on;
 	bool mst_active;
 	unsigned int connector_type;
 	bool is_edp;
