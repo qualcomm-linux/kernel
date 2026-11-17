@@ -41,7 +41,6 @@ static int dcp_virtio_probe(struct virtio_device *vdev)
 		[DCP_VQ_RESP] = { .name = "resp", .callback = dcp_hfi_resp_callback },
 	};
 	struct dcp_dpu_kms *dcp_kms;
-	struct msm_drm_private *priv;
 	int ret;
 
 	dev_dbg(&vdev->dev, "DCP VirtIO probe started\n");
@@ -135,15 +134,6 @@ static int dcp_virtio_probe(struct virtio_device *vdev)
 		goto err_hfi_deinit;
 	}
 
-	priv = devm_kzalloc(&drv->dcp_subsystem_dev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_hfi_deinit;
-	}
-
-	priv->kms      = &dcp_kms->base;
-	priv->kms_init = dcp_kms_init;
-	dev_set_drvdata(&drv->dcp_subsystem_dev->dev, priv);
 	dcp_kms->rpm_enabled = true;
 
 	/* Component binding now sees initialized HFI, capabilities, and IOMMU state. */

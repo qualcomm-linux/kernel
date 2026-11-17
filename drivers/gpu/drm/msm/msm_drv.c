@@ -1014,10 +1014,16 @@ static const struct drm_driver msm_gpu_driver = {
  * itself.
  */
 static int add_mdp_components(struct device *master_dev,
+			      struct msm_kms *kms,
 			      struct component_match **matchptr)
 {
 	struct device_node *np = master_dev->of_node;
 	struct device_node *ep_node;
+
+#ifdef CONFIG_DRM_MSM_KMS
+	if (kms && kms->funcs && kms->funcs->add_components)
+		return kms->funcs->add_components(kms, matchptr);
+#endif
 
 	for_each_endpoint_of_node(np, ep_node) {
 		struct device_node *intf;
@@ -1137,12 +1143,6 @@ static int add_gpu_components(struct device *dev,
 	return 0;
 }
 
-int msm_add_gpu_components(struct device *dev,
-			   struct component_match **matchptr)
-{
-	return add_gpu_components(dev, NULL, matchptr);
-}
-
 static int msm_drm_bind(struct device *dev)
 {
 	struct msm_drm_private *priv = msm_drm_get_priv(dev);
@@ -1188,7 +1188,7 @@ int msm_drv_probe(struct device *master_dev,
 
 	/* Add mdp components if we have KMS. */
 	if (kms_init) {
-		ret = add_mdp_components(master_dev, &match);
+		ret = add_mdp_components(master_dev, kms, &match);
 		if (ret)
 			return ret;
 	}

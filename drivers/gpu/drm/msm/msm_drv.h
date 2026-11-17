@@ -578,8 +578,6 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 /* Driver helpers */
 
 extern const struct component_master_ops msm_drm_ops;
-int msm_add_gpu_components(struct device *dev,
-			   struct component_match **matchptr);
 
 struct msm_drm_private *msm_drm_get_priv(struct device *dev);
 
