@@ -527,8 +527,8 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l18b_e0_1p2: ldo18 {
-			regulator-name = "vreg_l18b_e0_1p2";
+		vreg_l18b0: ldo18 {
+			regulator-name = "vreg_l18b0";
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
@@ -560,8 +560,8 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l4c_e1_0p72: ldo4 {
-			regulator-name = "vreg_l4c_e1_0p72";
+		vreg_l4c1: ldo4 {
+			regulator-name = "vreg_l4c1";
 			regulator-min-microvolt = <720000>;
 			regulator-max-microvolt = <720000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
@@ -1278,7 +1278,7 @@
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "WooferLeft";
 		vdd-1p8-supply = <&vreg_l15b_e0_1p8>;
-		vdd-io-supply = <&vreg_l18b_e0_1p2>;
+		vdd-io-supply = <&vreg_l18b0>;
 		qcom,port-mapping = <1 2 3 7 12 14>;
 	};
 
@@ -1290,7 +1290,7 @@
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "TweeterLeft";
 		vdd-1p8-supply = <&vreg_l15b_e0_1p8>;
-		vdd-io-supply = <&vreg_l18b_e0_1p2>;
+		vdd-io-supply = <&vreg_l18b0>;
 		qcom,port-mapping = <4 5 6 7 13 15>;
 	};
 };
@@ -1376,7 +1376,7 @@
 
 		vdd-buck-supply = <&vreg_l15b_e0_1p8>;
 		vdd-rxtx-supply = <&vreg_l15b_e0_1p8>;
-		vdd-io-supply = <&vreg_l18b_e0_1p2>;
+		vdd-io-supply = <&vreg_l18b0>;
 		vdd-mic-bias-supply = <&vreg_bob1_e0>;
 
 		#sound-dai-cells = <1>;
@@ -1394,7 +1394,7 @@
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "WooferRight";
 		vdd-1p8-supply = <&vreg_l15b_e0_1p8>;
-		vdd-io-supply = <&vreg_l18b_e0_1p2>;
+		vdd-io-supply = <&vreg_l18b0>;
 		qcom,port-mapping = <1 2 3 7 12 14>;
 	};
 
@@ -1406,7 +1406,7 @@
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "TweeterRight";
 		vdd-1p8-supply = <&vreg_l15b_e0_1p8>;
-		vdd-io-supply = <&vreg_l18b_e0_1p2>;
+		vdd-io-supply = <&vreg_l18b0>;
 		qcom,port-mapping = <4 5 6 7 13 15>;
 	};
 };
@@ -1740,6 +1740,12 @@
 
 &usb_1_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss_in1>;
+};
+
+&usb_2_qmpphy {
+	vdda-phy-supply = <&vreg_l4c1>;
+	vdda-pll-supply = <&vreg_l4f_e1_1p08>;
+	refgen-supply = <&vreg_l4f_e1_1p08>;
 };
 
 &usb_mp {
