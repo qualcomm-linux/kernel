@@ -578,8 +578,6 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 /* Driver helpers */
 
 extern const struct component_master_ops msm_drm_ops;
-int msm_add_gpu_components(struct device *dev,
-			   struct component_match **matchptr);
 
 int msm_kms_pm_prepare(struct device *dev);
 void msm_kms_pm_complete(struct device *dev);
@@ -589,6 +587,7 @@ int msm_gpu_probe(struct platform_device *pdev,
 void msm_gpu_remove(struct platform_device *pdev,
 		    const struct component_ops *ops);
 int msm_drv_probe(struct device *dev,
+	struct device_node *gpu_np,
 	int (*kms_init)(struct drm_device *dev),
 	struct msm_kms *kms);
 void msm_kms_shutdown(struct platform_device *pdev);

@@ -339,7 +339,14 @@ static void dcp_dpu_kms_snapshot(struct msm_disp_state *disp_state,
 		       dcp_kms->caps->max_height);
 }
 
+static int dcp_dpu_kms_add_components(struct msm_kms *kms,
+				      struct component_match **matchptr)
+{
+	return dcp_dpu_kms_init_dsi_bridges(to_dcp_dpu_kms(kms), matchptr);
+}
+
 const struct msm_kms_funcs dcp_dpu_kms_funcs = {
+	.add_components     = dcp_dpu_kms_add_components,
 	.hw_init            = dcp_dpu_kms_hw_init,
 	.irq_preinstall     = dcp_dpu_kms_irq_preinstall,
 	.irq_uninstall      = dcp_dpu_kms_irq_uninstall,

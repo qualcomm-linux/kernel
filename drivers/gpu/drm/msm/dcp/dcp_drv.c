@@ -126,28 +126,13 @@ void dcp_pm_complete(struct device *vdev_dev)
 int dcp_component_register(struct dcp_drv *drv)
 {
 	struct device *dev = &drv->dcp_subsystem_dev->dev;
-	struct component_match *match = NULL;
 	int ret;
 
-	ret = dcp_dpu_kms_init_dsi_bridges(drv->kms, &match);
-	if (ret) {
-		dev_err(dev, "DSI host initialization failed: %d\n", ret);
+	ret = msm_drv_probe(dev, NULL, dcp_kms_init, &drv->kms->base);
+	if (ret)
 		dcp_dpu_kms_cleanup_bridges(drv->kms);
-		return ret;
-	}
 
-	/* A GPU is optional for the DCP display-only DRM device. */
-	msm_add_gpu_components(dev, &match);
-
-	ret = component_master_add_with_match(dev, &msm_drm_ops, match);
-	if (ret) {
-		dev_err(dev, "component_master_add_with_match failed: %d\n",
-			ret);
-		dcp_dpu_kms_cleanup_bridges(drv->kms);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 void dcp_component_unregister(struct dcp_drv *drv)
