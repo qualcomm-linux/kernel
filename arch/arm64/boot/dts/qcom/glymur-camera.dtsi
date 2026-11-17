@@ -1526,8 +1526,8 @@
 		interrupt-names = "CSIPHY0";
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
 		regulator-names = "csi-vdd-1p2", "csi-vdd-0p9";
-		csi-vdd-1p2-supply = <&vreg_l4f_e1_1p08>;
-		csi-vdd-0p9-supply = <&vreg_l1f_e1_0p82>;
+		csi-vdd-1p2-supply = <&vreg_l4f1>;
+		csi-vdd-0p9-supply = <&vreg_l1f1>;
 		rgltr-cntrl-support;
 		rgltr-enable-sync = <1>;
 		rgltr-min-voltage = <1200000 832000>;
@@ -1580,8 +1580,8 @@
 		interrupt-names = "CSIPHY1";
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
 		regulator-names = "csi-vdd-1p2", "csi-vdd-0p9";
-		csi-vdd-1p2-supply = <&vreg_l4f_e1_1p08>;
-		csi-vdd-0p9-supply = <&vreg_l1f_e1_0p82>;
+		csi-vdd-1p2-supply = <&vreg_l4f1>;
+		csi-vdd-0p9-supply = <&vreg_l1f1>;
 		rgltr-cntrl-support;
 		rgltr-enable-sync = <1>;
 		rgltr-min-voltage = <1200000 832000>;
@@ -1634,8 +1634,8 @@
 		interrupt-names = "CSIPHY4";
 		power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
 		regulator-names = "csi-vdd-1p2", "csi-vdd-0p9";
-		csi-vdd-1p2-supply = <&vreg_l4f_e1_1p08>;
-		csi-vdd-0p9-supply = <&vreg_l1f_e1_0p82>;
+		csi-vdd-1p2-supply = <&vreg_l4f1>;
+		csi-vdd-0p9-supply = <&vreg_l1f1>;
 		rgltr-cntrl-support;
 		rgltr-enable-sync = <1>;
 		rgltr-min-voltage = <1200000 832000>;
