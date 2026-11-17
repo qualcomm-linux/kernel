@@ -32,6 +32,12 @@
 #define ALTMODE_PAN_EN		0x10
 #define ALTMODE_PAN_ACK		0x11
 
+/* These fields are ignored on older FWs */
+#define PAN_EN_OS_TYPE		GENMASK(6, 3)
+ #define PAN_EN_OS_DEFAULT	1
+ #define PAN_EN_OS_INSTALLER	2
+#define PAN_EN_VERSION		GENMASK(2, 0)
+
 struct usbc_write_req {
 	struct pmic_glink_hdr   hdr;
 	__le32 cmd;
@@ -588,7 +594,10 @@ static void pmic_glink_altmode_enable_worker(struct work_struct *work)
 	struct pmic_glink_altmode *altmode = work_to_altmode(work);
 	int ret;
 
-	ret = pmic_glink_altmode_request(altmode, ALTMODE_PAN_EN, 0);
+	/* Set OS to installer for now to restrict USB4/TBT negotiation */
+	ret = pmic_glink_altmode_request(altmode, ALTMODE_PAN_EN,
+					 FIELD_PREP(PAN_EN_VERSION, 1) |
+					 FIELD_PREP(PAN_EN_OS_TYPE, PAN_EN_OS_INSTALLER));
 	if (ret)
 		dev_err(altmode->dev, "failed to request altmode notifications: %d\n", ret);
 }
