@@ -939,11 +939,14 @@ static void dpu_kms_destroy(struct msm_kms *kms)
 	}
 
 	dpu_kms = to_dpu_kms(kms);
-	priv = dpu_kms->dev->dev_private;
 
-	for (i = 0; i < ARRAY_SIZE(priv->kms->dp); i++)
-		if (priv->kms->dp[i])
-			msm_dp_mst_unregister(priv->kms->dp[i]);
+	if (dpu_kms->dev) {
+		priv = dpu_kms->dev->dev_private;
+
+		for (i = 0; i < ARRAY_SIZE(priv->kms->dp); i++)
+			if (priv->kms->dp[i])
+				msm_dp_mst_unregister(priv->kms->dp[i]);
+	}
 
 	_dpu_kms_hw_destroy(dpu_kms);
 

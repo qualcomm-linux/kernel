@@ -167,13 +167,10 @@ static void drm_bridge_connector_handle_hpd(struct drm_bridge_connector *drm_bri
 
 	level_hpd = event == DRM_CONNECTOR_NO_EXTRA_STATUS;
 
-	mutex_lock(&dev->mode_config.mutex);
-	old_status = connector->status;
-	mutex_unlock(&dev->mode_config.mutex);
-
 	drm_bridge_connector_hpd_notify(connector, status, event);
 
 	mutex_lock(&dev->mode_config.mutex);
+	old_status = connector->status;
 	new_status = detect ? detect->funcs->detect(detect, connector) : status;
 	connector->status = new_status;
 	changed = new_status != old_status;
@@ -240,12 +237,6 @@ drm_bridge_connector_detect(struct drm_connector *connector, bool force)
 		if (hdmi)
 			drm_atomic_helper_connector_hdmi_hotplug(connector, status);
 
-		/*
-		 * A DP SST connector can report disconnected while MST is active.
-		 * Use the HPD event path to notify its bridges, rather than turning
-		 * that detect result into an unplug event. Preserve detect-based
-		 * notifications for other connector types and DP without HPD.
-		 */
 		if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort ||
 		    !bridge_connector->bridge_hpd)
 			drm_bridge_connector_hpd_notify(connector, status,
