@@ -624,6 +624,18 @@
 	};
 };
 
+&gmu_0 {
+	status = "okay";
+};
+
+&gpu_0 {
+	status = "okay";
+};
+
+&gpu_0_zap_shader {
+	firmware-name = "qcom/nord/gen71300_zap.mbn";
+};
+
 &i2c7 {
 	clock-frequency = <400000>;
 
