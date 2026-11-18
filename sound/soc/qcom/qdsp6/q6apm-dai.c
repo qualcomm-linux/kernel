@@ -1212,15 +1212,10 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 		pdata->sid = args.args[0] & SID_MASK_DEFAULT;
 
 	if (apm && apm->gdev &&
-	    apm->gdev->domain_id == GPR_DOMAIN_ID_MODEM) {
+	    apm->gdev->domain_id == GPR_DOMAIN_ID_MODEM &&
+	    pdata->sid < 0) {
 		if (!qcom_scm_is_available())
 			return -EPROBE_DEFER;
-
-		if (pdata->sid >= 0) {
-			dev_err(dev,
-				"iommus and mDSP SCM path are mutually exclusive\n");
-			return -EINVAL;
-		}
 
 		pdata->use_scm_assign = true;
 
