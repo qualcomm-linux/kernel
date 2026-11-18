@@ -13,6 +13,10 @@
 #include <linux/io.h>
 #include <linux/types.h>
 
+/* Names reported by qcom_pas_get_backend() for the active PAS backend. */
+#define QCOM_PAS_BACKEND_SCM	"qcom_scm"
+#define QCOM_PAS_BACKEND_TEE	"qcom-pas-tee"
+
 struct qcom_pas_context {
 	struct device *dev;
 	u32 pas_id;
@@ -35,6 +39,7 @@ static inline void __iomem *qcom_pas_ctx_map(struct qcom_pas_context *ctx)
 	return ptr;
 }
 
+const char *qcom_pas_get_backend(void);
 bool qcom_pas_is_available(void);
 struct qcom_pas_context *devm_qcom_pas_context_alloc(struct device *dev,
 						     u32 pas_id,
