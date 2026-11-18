@@ -1192,6 +1192,14 @@ static const struct adreno_reglist a702_hwcg[] = {
 	{}
 };
 
+/* GPU aperture: GC to CB0, other apertures disabled */
+static const struct adreno_reglist a702_aperture_reglist_regs[] = {
+	{ 0x00, 0x000a8000 }, /* GC: CB0 */
+	{ 0x08, 0x00000000 }, /* CTRL: GC only */
+};
+
+DECLARE_ADRENO_REGPAIR_LIST(a702_aperture_reglist);
+
 static const struct adreno_reglist a730_hwcg[] = {
 	{ REG_A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222 },
 	{ REG_A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02022222 },
@@ -1452,6 +1460,15 @@ static const struct adreno_reglist_pipe a7xx_dyn_pwrup_reglist_regs[] = {
 
 DECLARE_ADRENO_REGLIST_PIPE_LIST(a7xx_dyn_pwrup_reglist);
 
+/* GPU aperture: GC to CB0, LPAC to CB1, other apertures disabled */
+static const struct adreno_reglist a753_aperture_reglist_regs[] = {
+	{ 0x00, 0x000c0000 }, /* GC: CB0 */
+	{ 0x04, 0x000c1000 }, /* LPAC: CB1 */
+	{ 0x08, 0x00000002 }, /* CTRL: GC and LPAC */
+};
+
+DECLARE_ADRENO_REGPAIR_LIST(a753_aperture_reglist);
+
 static const struct adreno_info a7xx_gpus[] = {
 	{
 		.chip_ids = ADRENO_CHIP_IDS(0x07000200, 0x07000400),
@@ -1464,6 +1481,7 @@ static const struct adreno_info a7xx_gpus[] = {
 		.quirks = ADRENO_QUIRK_HAS_HW_APRIV,
 		.funcs = &a6xx_gmuwrapper_funcs,
 		.zapfw = "a702_zap.mbn",
+		.aperture_reglist = &a702_aperture_reglist,
 		.a6xx = &(const struct a6xx_info) {
 			.hwcg = a702_hwcg,
 			.protect = &a650_protect,
@@ -1662,6 +1680,7 @@ static const struct adreno_info a7xx_gpus[] = {
 			  ADRENO_QUIRK_PREEMPTION |
 			  ADRENO_QUIRK_IFPC,
 		.funcs = &a7xx_gpu_funcs,
+		.aperture_reglist = &a753_aperture_reglist,
 		.a6xx = &(const struct a6xx_info) {
 			.protect = &a730_protect,
 			.pwrup_reglist = &a7xx_pwrup_reglist,
