@@ -655,6 +655,13 @@ int adreno_hw_init(struct msm_gpu *gpu)
 		ret = qcom_scm_set_gpu_smmu_aperture(0);
 		if (ret)
 			DRM_DEV_ERROR(gpu->dev->dev, "unable to set SMMU aperture: %d\n", ret);
+	} else if (adreno_gpu->aperture) {
+		const struct adreno_regpair_list *list =
+			adreno_gpu->info->aperture_reglist;
+
+		for (int i = 0; i < list->count; i++)
+			writel(list->regs[i].value,
+			       adreno_gpu->aperture + list->regs[i].offset);
 	}
 
 	for (int i = 0; i < gpu->nr_rings; i++) {
@@ -1174,6 +1181,32 @@ int adreno_read_speedbin(struct device *dev, u32 *speedbin)
 	return nvmem_cell_read_variable_le_u32(dev, "speed_bin", speedbin);
 }
 
+/*
+ * Map the GPU aperture, so that adreno_hw_init() can program it when
+ * the secure world does not.
+ */
+static int adreno_gpu_aperture_init(struct platform_device *pdev,
+				    struct adreno_gpu *adreno_gpu)
+{
+	struct resource *res;
+	void __iomem *base;
+
+	if (!adreno_gpu->info->aperture_reglist)
+		return 0;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "aperture");
+	if (!res)
+		return 0;
+
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	adreno_gpu->aperture = base;
+
+	return 0;
+}
+
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *adreno_gpu,
 		const struct adreno_gpu_funcs *funcs, int nr_rings)
@@ -1222,6 +1255,10 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return -ENOMEM;
 
 	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
+
+	ret = adreno_gpu_aperture_init(pdev, adreno_gpu);
+	if (ret)
+		return ret;
 
 	adreno_gpu_config.nr_rings = nr_rings;
 
