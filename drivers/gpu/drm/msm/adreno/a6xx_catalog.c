@@ -1431,6 +1431,14 @@ static const u32 a750_ifpc_reglist_regs[] = {
 
 DECLARE_ADRENO_REGLIST_LIST(a750_ifpc_reglist);
 
+/* GPU aperture: GC to CB0, other apertures disabled */
+static const struct adreno_reglist a702_aperture_reglist_regs[] = {
+	{ 0x00, 0x000a8000 }, /* GC: CB0 */
+	{ 0x08, 0x00000000 }, /* CTRL: GC only */
+};
+
+DECLARE_ADRENO_REGPAIR_LIST(a702_aperture_reglist);
+
 static const struct adreno_info a7xx_gpus[] = {
 	{
 		.chip_ids = ADRENO_CHIP_IDS(0x07000200, 0x07000400),
@@ -1443,6 +1451,7 @@ static const struct adreno_info a7xx_gpus[] = {
 		.quirks = ADRENO_QUIRK_HAS_HW_APRIV,
 		.init = a6xx_gpu_init,
 		.zapfw = "a702_zap.mbn",
+		.aperture_reglist = &a702_aperture_reglist,
 		.a6xx = &(const struct a6xx_info) {
 			.hwcg = a702_hwcg,
 			.protect = &a650_protect,
