@@ -9716,6 +9716,7 @@ static void ath12k_wmi_event_mlo_link_set_active(struct ath12k_base *ab,
 						 struct sk_buff *skb)
 {
 	const struct wmi_mlo_link_set_active_resp_event *ev;
+	struct ath12k_mlo_link_set_active_req *req;
 	u32 status, use_ieee;
 	const void **tb;
 	int ret;
@@ -9740,7 +9741,13 @@ static void ath12k_wmi_event_mlo_link_set_active(struct ath12k_base *ab,
 		   "mlo link set active resp status %u use_ieee 0x%x\n",
 		   status, use_ieee);
 
-	/* Response delivery to waiters will be wired up in a subsequent patch */
+	rcu_read_lock();
+	req = rcu_dereference(ab->mlo_link_set_active_req);
+	if (req) {
+		req->status = status;
+		complete(&req->done);
+	}
+	rcu_read_unlock();
 }
 
 static void ath12k_wmi_event_mlo_setup_complete(struct ath12k_base *ab,

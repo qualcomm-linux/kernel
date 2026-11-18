@@ -386,6 +386,12 @@ struct ath12k_vif {
 	struct ath12k_link_vif deflink;
 	struct ath12k_link_vif __rcu *link[ATH12K_NUM_MAX_LINKS];
 	struct ath12k_vif_cache *cache[IEEE80211_MLD_MAX_NUM_LINKS];
+	/*
+	 * Last active/inactive link state programmed to firmware via
+	 * WMI_MLO_LINK_SET_ACTIVE. Zero means unknown: forces a resend.
+	 */
+	u16 fw_active_links;
+	u16 fw_inactive_links;
 	/* indicates bitmap of link vif created in FW */
 	u32 links_map;
 	/* Must be last - ends in a flexible-array member.
@@ -779,6 +785,12 @@ struct ath12k {
 	} incumbent_signal_interference;
 };
 
+struct ath12k_mlo_link_set_active_req {
+	struct completion done;
+	int status;
+	struct rcu_head rcu_head;
+};
+
 struct ath12k_hw {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -1135,6 +1147,14 @@ struct ath12k_base {
 #endif /* CONFIG_ACPI */
 
 	struct ath12k_hw_group *ag;
+
+	/*
+	 * Set-active request in flight to this device, NULL when idle. Freed
+	 * via kfree_rcu(). The links of an MLO STA can be on several devices,
+	 * and each device is programmed separately, so at most one request is
+	 * outstanding per device.
+	 */
+	struct ath12k_mlo_link_set_active_req __rcu *mlo_link_set_active_req;
 	struct ath12k_wsi_info wsi_info;
 	enum ath12k_qmi_firmware_mode fw_mode;
 	struct ath12k_ftm_event_obj ftm_event_obj;
