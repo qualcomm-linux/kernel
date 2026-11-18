@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+#include <dt-bindings/camera/msm-camera.h>
+
+&cam_cci {
+	/*cam0-imx577*/
+	tl_slot0: qcom,cam-sensor0 {
+		compatible = "qcom,cam-sensor";
+		csiphy-sd-index = <0>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		eeprom-src = <&eeprom_cam0>;
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-0 = <&cam_sensor_mclk3_active
+			     &cam_sensor_active_rst0>;
+		pinctrl-1 = <&cam_sensor_mclk3_suspend
+			     &cam_sensor_suspend_rst0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		gpios = <&tlmm 28 0>,
+			<&tlmm 75 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAM_MCLK0", "CAMIF_RESET0";
+		cci-master = <0>;
+		clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		cell-index = <0>;
+		status = "okay";
+	};
+
+	/*cam1-imx577*/
+	t1_slot1: qcom,cam-sensor1 {
+		compatible = "qcom,cam-sensor";
+		csiphy-sd-index = <1>;
+		sensor-position-roll = <0>;
+		sensor-position-pitch = <0>;
+		sensor-position-yaw = <180>;
+		eeprom-src = <&eeprom_cam1>;
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-0 = <&cam_sensor_mclk2_active
+			     &cam_sensor_active_rst1>;
+		pinctrl-1 = <&cam_sensor_mclk2_suspend
+			     &cam_sensor_suspend_rst1>;
+		gpios = <&tlmm 30 0>,
+			<&tlmm 29 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAM_MCLK1", "CAMIF_RESET1";
+		cci-master = <1>;
+		clocks = <&camcc CAM_CC_MCLK1_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		cell-index = <1>;
+		status = "okay";
+	};
+
+	/*cam0-imx577-eeprom*/
+	eeprom_cam0: qcom,eeprom0 {
+		compatible = "qcom,eeprom";
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-0 = <&cam_sensor_mclk3_active
+			     &cam_sensor_active_rst0>;
+		pinctrl-1 = <&cam_sensor_mclk3_suspend
+		             &cam_sensor_suspend_rst0>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		gpios = <&tlmm 28 0>,
+			<&tlmm 75 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAM_MCLK0", "CAMIF_RESET0";
+		cci-master = <0>;
+		clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		cell-index = <0>;
+		status = "okay";
+	};
+
+	/*cam1-imx577-eeprom*/
+	eeprom_cam1: qcom,eeprom1 {
+		compatible = "qcom,eeprom";
+		cam_vio-supply = <&vreg_s4a>;
+		regulator-names = "cam_vio";
+		power-domains = <&camcc TITAN_TOP_GDSC>;
+		rgltr-cntrl-support;
+		pwm-switch;
+		rgltr-min-voltage = <1800000>;
+		rgltr-max-voltage = <1800000>;
+		rgltr-load-current = <120000>;
+		gpio-no-mux = <0>;
+		pinctrl-0 = <&cam_sensor_mclk2_active
+			     &cam_sensor_active_rst1>;
+		pinctrl-1 = <&cam_sensor_mclk2_suspend
+			     &cam_sensor_suspend_rst1>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		gpios = <&tlmm 30 0>,
+			<&tlmm 29 0>;
+		gpio-reset = <1>;
+		gpio-req-tbl-num = <0 1>;
+		gpio-req-tbl-flags = <1 0>;
+		gpio-req-tbl-label = "CAM_MCLK1", "CAMIF_RESET1";
+		cci-master = <1>;
+		clocks = <&camcc CAM_CC_MCLK1_CLK>;
+		clock-names = "cam_clk";
+		clock-cntl-level = "nominal";
+		clock-rates = <24000000>;
+		cell-index = <1>;
+		status = "okay";
+	};
+};
+
+&soc {
+	qcom,cam-res-mgr {
+		compatible = "qcom,cam-res-mgr";
+		status = "ok";
+	};
+};
