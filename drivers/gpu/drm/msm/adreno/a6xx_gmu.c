@@ -1249,18 +1249,28 @@ static int a6xx_gmu_secure_init(struct a6xx_gpu *a6xx_gpu)
 			goto done;
 		}
 
-		ret = qcom_scm_gpu_init_regs(QCOM_SCM_GPU_ALWAYS_EN_REQ |
-					     QCOM_SCM_GPU_TSENSE_EN_REQ);
-		if (ret) {
-			dev_warn_once(gpu->dev->dev,
-				"SCM call failed\n");
-			return ret;
+		/*
+		 * Some secure world implementations do not provide this call.
+		 * Skip it then. An earlier boot stage may still have
+		 * programmed the fuse register, so read it back either way.
+		 */
+		if (qcom_scm_gpu_init_regs_is_available()) {
+			u32 gpu_req = QCOM_SCM_GPU_ALWAYS_EN_REQ |
+				      QCOM_SCM_GPU_TSENSE_EN_REQ;
+
+			ret = qcom_scm_gpu_init_regs(gpu_req);
+			if (ret) {
+				dev_warn_once(gpu->dev->dev, "SCM call failed\n");
+				return ret;
+			}
+		} else {
+			dev_info_once(gpu->dev->dev, "GPU init regs SCM call not available, skipping\n");
 		}
 
 		/*
 		 * On A7XX_GEN3 and newer, raytracing may be disabled by the
 		 * firmware, find out whether that's the case. The scm call
-		 * above sets the fuse register.
+		 * above, or an earlier boot stage, sets the fuse register.
 		 */
 		fuse_val = a6xx_cx_misc_read(a6xx_gpu,
 					 REG_A7XX_CX_MISC_SW_FUSE_VALUE);
