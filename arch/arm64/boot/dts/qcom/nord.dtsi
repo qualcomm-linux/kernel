@@ -5073,7 +5073,7 @@
 			};
 		};
 
-		tpda@118c8000 {
+		nsp2_tpda: tpda@118c8000 {
 			compatible = "qcom,coresight-tpda", "arm,primecell";
 			reg = <0x0 0x118c8000 0x0 0x1000>;
 
@@ -5110,7 +5110,7 @@
 			};
 		};
 
-		funnel@118c9000 {
+		nsp2_funnel: funnel@118c9000 {
 			compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 			reg = <0x0 0x118c9000 0x0 0x1000>;
 
@@ -5134,7 +5134,7 @@
 			};
 		};
 
-		tpda@118e8000 {
+		nsp3_tpda: tpda@118e8000 {
 			compatible = "qcom,coresight-tpda", "arm,primecell";
 			reg = <0x0 0x118e8000 0x0 0x1000>;
 
@@ -5171,7 +5171,7 @@
 			};
 		};
 
-		funnel@118e9000 {
+		nsp3_funnel: funnel@118e9000 {
 			compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 			reg = <0x0 0x118e9000 0x0 0x1000>;
 
