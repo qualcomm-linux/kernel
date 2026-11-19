@@ -33,3 +33,8 @@
 		iommus = <&apps_smmu 0x01a2 0x0001>;
 	};
 };
+
+&q6apmdai {
+	/delete-property/ memory-region;
+	iommus = <&apps_smmu 0x01cc 0x3>;
+};
