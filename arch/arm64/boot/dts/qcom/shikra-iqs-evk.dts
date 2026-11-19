@@ -228,8 +228,9 @@
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-id";
 
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&ethernet0_default>;
+	pinctrl-1 = <&ethernet0_sleep>;
 
 	mdio {
 		compatible = "snps,dwmac-mdio";
@@ -252,8 +253,9 @@
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-id";
 
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&ethernet1_default>;
+	pinctrl-1 = <&ethernet1_sleep>;
 
 	mdio {
 		compatible = "snps,dwmac-mdio";
