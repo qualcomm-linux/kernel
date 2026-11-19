@@ -1651,6 +1651,8 @@
 	power-domains = <&rpmhpd SA8775P_CX>;
 	resets = <&gcc GCC_SDCC1_BCR>;
 
+	qcom,ice = <&sdhc_ice>;
+
 	sdhc_opp_table: opp-table {
 		compatible = "operating-points-v2";
 
@@ -1847,6 +1849,33 @@
 		reg = <0x0 0x03c40000 0x0 0x17200>;
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
+	};
+
+	sdhc_ice: crypto@87c8000 {
+		compatible = "qcom,sa8775p-inline-crypto-engine",
+			     "qcom,inline-crypto-engine";
+		reg = <0x0 0x087c8000 0x0 0x18000>;
+		clocks = <&gcc GCC_SDCC1_ICE_CORE_CLK>,
+			 <&gcc GCC_SDCC1_AHB_CLK>;
+		clock-names = "core",
+			      "iface";
+		power-domains = <&rpmhpd SA8775P_CX>;
+
+		operating-points-v2 = <&ice_mmc_opp_table>;
+
+		ice_mmc_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-150000000 {
+				opp-hz = /bits/ 64 <150000000>;
+				required-opps = <&rpmhpd_opp_svs_l1>;
+			};
+
+			opp-300000000 {
+				opp-hz = /bits/ 64 <300000000>;
+				required-opps = <&rpmhpd_opp_nom>;
+			};
+		};
 	};
 
 	gp_mn: clock-controller@88d3000 {
