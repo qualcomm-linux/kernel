@@ -314,6 +314,12 @@ struct fastrpc_channel_ctx {
 	bool valid_attributes;
 	/* Flag if audio PD init mem was allocated */
 	bool audio_init_mem;
+	/*
+	 * Nord-only: whether fastrpc_get_info_from_dsp() should let the DSP
+	 * fill dsp_attributes[] starting at index 0, rather than reserving
+	 * index 0 for userspace. See fastrpc_get_info_from_dsp() for why.
+	 */
+	bool query_dsp_attr_from_zero;
 	/* Audio PD reserved remote heap region */
 	phys_addr_t remote_heap_addr;
 	u64 remote_heap_size;
@@ -1876,19 +1882,23 @@ static int fastrpc_get_info_from_dsp(struct fastrpc_user *fl, uint32_t *dsp_attr
 				     uint32_t dsp_attr_buf_len)
 {
 	struct fastrpc_invoke_args args[2] = { 0 };
+	uint32_t *dsp_out_buf = dsp_attr_buf;
 
-	/*
-	 * Capability filled in userspace. This carries the information
-	 * about the remoteproc support which is fetched from the remoteproc
-	 * sysfs node by userspace.
-	 */
-	dsp_attr_buf[0] = 0;
-	dsp_attr_buf_len -= 1;
+	if (!fl->cctx->query_dsp_attr_from_zero) {
+		/*
+		 * Capability filled in userspace. This carries the information
+		 * about the remoteproc support which is fetched from the remoteproc
+		 * sysfs node by userspace.
+		 */
+		dsp_attr_buf[0] = 0;
+		dsp_attr_buf_len -= 1;
+		dsp_out_buf = &dsp_attr_buf[1];
+	}
 
 	args[0].ptr = (u64)(uintptr_t)&dsp_attr_buf_len;
 	args[0].length = sizeof(dsp_attr_buf_len);
 	args[0].fd = -1;
-	args[1].ptr = (u64)(uintptr_t)&dsp_attr_buf[1];
+	args[1].ptr = (u64)(uintptr_t)dsp_out_buf;
 	args[1].length = dsp_attr_buf_len * sizeof(u32);
 	args[1].fd = -1;
 
@@ -2580,6 +2590,13 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
+
+	/*
+	 * Only let the DSP fill dsp_attributes[] starting at index 0 on
+	 * qcom,nord boards; every other board keeps reserving index 0 for
+	 * userspace, exactly as before.
+	 */
+	data->query_dsp_attr_from_zero = of_machine_is_compatible("qcom,nord");
 
 	if (vmcount) {
 		data->vmcount = vmcount;
