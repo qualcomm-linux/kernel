@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	eth0_phy_vreg: regulator-eth0-phy {
+		compatible = "regulator-fixed";
+		regulator-name = "eth0_phy_pwr";
+
+		gpio = <&eth_exp 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+	};
+
+	eth1_phy_vreg: regulator-eth1-phy {
+		compatible = "regulator-fixed";
+		regulator-name = "eth1_phy_pwr";
+
+		gpio = <&eth_exp 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+	};
+};
+
+&i2c3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	eth_exp: gpio@38 {
+		compatible = "nxp,pca9534";
+		reg = <0x38>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		vcc-supply = <&vreg_1p8>;
+
+		gpio-line-names = "EXP_ETH1_PWR_EN", "EXP_ETH1_INT_N",
+				  "EXP_ETH1_RST_N", "EXP_ETH0_INT_N",
+				  "EXP_NVME_PLA_N", "EXP_NVME_PLN_N",
+				  "EXP_ETH0_PWR_EN", "EXP_ETH0_RST_N";
+	};
+};
+
+&pcie_port0 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	pcie@0,0 {
+		reg = <0x10000 0x0 0x0 0x0 0x0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges;
+		bus-range = <0x2 0xff>;
+		aspm-no-l1;
+		aspm-no-l0s;
+
+		pcie@3,0 {
+			reg = <0x21800 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x5 0xff>;
+			aspm-no-l1;
+			aspm-no-l0s;
+
+			pci@0,0 {
+				reg = <0x50000 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+				aspm-no-l1;
+				aspm-no-l0s;
+
+				phy-mode = "sgmii";
+				phy-supply = <&eth0_phy_vreg>;
+				phy-reset-gpios = <&eth_exp 7 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <221000>;
+				qcom,phy-polling;
+			};
+
+			pci@0,1 {
+				reg = <0x50100 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+				aspm-no-l1;
+				aspm-no-l0s;
+
+				phy-mode = "sgmii";
+				phy-supply = <&eth1_phy_vreg>;
+				phy-reset-gpios = <&eth_exp 2 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <20000>;
+				qcom,phy-polling;
+			};
+		};
+	};
+};
