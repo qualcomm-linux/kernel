@@ -4942,6 +4942,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			label = "cti_riscv";
+			status = "fail";
 		};
 
 		tpdm@9860000 {
