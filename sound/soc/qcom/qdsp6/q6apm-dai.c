@@ -608,14 +608,10 @@ static int q6apm_dai_memory_map(struct snd_soc_component *component,
 static int q6apm_dai_pcm_new(struct snd_soc_component *component, struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
-	struct q6apm_dai_data *pdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm *pcm = rtd->pcm;
 	int size = BUFFER_BYTES_MAX;
 	int graph_id, ret;
 	struct snd_pcm_substream *substream;
-
-	if (!pdata)
-		return -EINVAL;
 
 	graph_id = cpu_dai->driver->id;
 
@@ -629,13 +625,6 @@ static int q6apm_dai_pcm_new(struct snd_soc_component *component, struct snd_soc
 		ret = q6apm_dai_memory_map(component, substream, graph_id);
 		if (ret)
 			return ret;
-		if (pdata->use_scm_assign) {
-			ret = q6apm_dai_assign_memory(substream, pdata);
-			if (ret) {
-				q6apm_dai_memory_unmap(component, substream);
-				return ret;
-			}
-		}
 	}
 
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
@@ -643,13 +632,6 @@ static int q6apm_dai_pcm_new(struct snd_soc_component *component, struct snd_soc
 		ret = q6apm_dai_memory_map(component, substream, graph_id);
 		if (ret)
 			return ret;
-		if (pdata->use_scm_assign) {
-			ret = q6apm_dai_assign_memory(substream, pdata);
-			if (ret) {
-				q6apm_dai_memory_unmap(component, substream);
-				return ret;
-			}
-		}
 	}
 
 	return 0;
