@@ -65,6 +65,8 @@ struct qcom_scmi_msg {
  */
 static const u64 qcom_scmi_algo_str[] = {
 	0x4d454d4c4154ULL, /* "MEMLAT" */
+	0x73616665ULL, /* "SAFTEY_PROFILE" */
+	0x5545544dULL, /* "UETM" */
 };
 
 static bool qcom_scmi_algo_str_valid(u64 algo_str)
