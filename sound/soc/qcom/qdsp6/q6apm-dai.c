@@ -152,7 +152,7 @@ static int q6apm_dai_assign_memory(struct snd_pcm_substream *substream,
 	}
 
 	scm_region->dma_addr = substream->dma_buffer.addr;
-	scm_region->size = ALIGN(pdata->reserved_buf_size, PAGE_SIZE);
+	scm_region->size = ALIGN(BUFFER_BYTES_MAX, PAGE_SIZE);
 	scm_region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
 
 	ret = qcom_scm_assign_mem(scm_region->dma_addr, scm_region->size,
@@ -590,9 +590,7 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-						   BUFFER_BYTES_MIN,
-						   pdata->has_reserved_mem ?
-						   pdata->reserved_buf_size : BUFFER_BYTES_MAX);
+						   BUFFER_BYTES_MIN, BUFFER_BYTES_MAX);
 		if (ret < 0) {
 			dev_err(dev, "constraint for buffer bytes min max ret = %d\n", ret);
 			goto err;
@@ -613,8 +611,7 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 	}
 
 	runtime->private_data = prtd;
-	runtime->dma_bytes = pdata->has_reserved_mem ?
-			pdata->reserved_buf_size : BUFFER_BYTES_MAX;
+	runtime->dma_bytes = BUFFER_BYTES_MAX;
 	if (pdata->sid < 0)
 		prtd->phys = substream->dma_buffer.addr;
 	else
@@ -709,7 +706,7 @@ static int q6apm_dai_memory_map(struct snd_soc_component *component,
 	else
 		phys = substream->dma_buffer.addr | (pdata->sid << 32);
 
-	ret = q6apm_map_memory_fixed_region(dev, graph_id, phys, pdata->reserved_buf_size);
+	ret = q6apm_map_memory_fixed_region(dev, graph_id, phys, BUFFER_BYTES_MAX);
 	if (ret < 0)
 		dev_err(dev, "Audio Start: Buffer Allocation failed rc = %d\n", ret);
 
@@ -736,9 +733,10 @@ static int q6apm_dai_pcm_new(struct snd_soc_component *component, struct snd_soc
 	 * Fall back to the standard fixed system-RAM buffer on other platforms.
 	 */
 	if (pdata->has_reserved_mem)
-		ret = snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
-						   component->dev,
-						   pdata->reserved_buf_size);
+		ret = snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+						     component->dev,
+						     pdata->reserved_buf_size,
+						     pdata->reserved_buf_size);
 	else
 		ret = snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 						   component->dev, size);
@@ -1296,7 +1294,7 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 						      dev);
 			if (rc)
 				return rc;
-			pdata->reserved_buf_size = min_t(size_t, rmem->size / 4,
+			pdata->reserved_buf_size = min_t(size_t, rmem->size,
 							 BUFFER_BYTES_MAX);
 			pdata->has_reserved_mem = true;
 		} else {
@@ -1313,20 +1311,6 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 						    idx++))) {
 			struct reserved_mem *rmem;
 			struct q6apm_scm_region *r;
-
-			/*
-			 * Only index 0 (control-path carveout) is
-			 * SCM-assigned via carveout_regions[]. Index 1+
-			 * are data-path DMA pools handled per-substream
-			 * by q6apm_dai_assign_memory() in pcm_new().
-			 * Including them here causes a double-assignment
-			 * of the same physical region which TZ rejects
-			 * with -EINVAL.
-			 */
-			if (idx > 1) {
-				of_node_put(mem_node);
-				break;
-			}
 
 			if (pdata->num_carveouts >= Q6APM_MAX_CARVEOUTS) {
 				dev_warn(dev,
