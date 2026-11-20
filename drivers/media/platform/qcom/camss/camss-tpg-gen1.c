@@ -22,6 +22,7 @@
 
 #define TPG_HW_VER_2_0_0                TPG_HW_VER(2, 0, 0)
 #define TPG_HW_VER_2_1_0                TPG_HW_VER(2, 1, 0)
+#define TPG_HW_VER_2_5_0                TPG_HW_VER(2, 5, 0)
 
 #define TPG_HW_STATUS		0x4
 
@@ -33,7 +34,14 @@
 # define TPG_CTRL_OVERLAP_SHDR_EN	BIT(10)
 # define TPG_CTRL_NUM_ACTIVE_VC		GENMASK(31, 30)
 
-#define TPG_CLEAR		0x1F4
+/*
+ * Command register at 0x1F4. Earlier TPG revisions only expose HW_RESET[0]
+ * here; v2.5.0 adds TEST_EN[4], moving the generator enable out of TPG_CTRL.
+ * HW_RESET[0] is unchanged, so the reset path is revision-independent.
+ */
+#define TPG_CTRL_CMD		0x1F4
+# define TPG_CTRL_CMD_HW_RESET		BIT(0)
+# define TPG_CTRL_CMD_TEST_EN		BIT(4)
 
 /* TPG VC-based registers */
 #define TPG_VC_n_GAIN_CFG(n)		(0x60 + (n) * 0x60)
@@ -87,7 +95,9 @@
 #define TPG_USER_SPECIFIED_PAYLOAD_DEFAULT	0xBE
 #define TPG_LFSR_SEED_DEFAULT			0x12345678
 #define TPG_COLOR_BARS_CFG_STANDARD \
-	FIELD_PREP(TPG_VC_n_COLOR_BARS_CFG_ROTATE_PERIOD, 0xA)
+	(FIELD_PREP(TPG_VC_n_COLOR_BARS_CFG_ROTATE_PERIOD, 0xA) | \
+	 FIELD_PREP(TPG_VC_n_COLOR_BARS_CFG_SIZE_X, 3) | \
+	 FIELD_PREP(TPG_VC_n_COLOR_BARS_CFG_SIZE_Y, 3))
 
 static const char * const testgen_payload_modes[] = {
 	[TPG_PAYLOAD_MODE_DISABLED]		= "Disabled",
@@ -164,10 +174,15 @@ static int tpg_stream_on(struct tpg_device *tpg)
 	}
 
 	/* Global TPG control */
-	val = FIELD_PREP(TPG_CTRL_TEST_EN, 1) |
-	      FIELD_PREP(TPG_CTRL_NUM_ACTIVE_LANES, lane_cnt - 1) |
+	val = FIELD_PREP(TPG_CTRL_NUM_ACTIVE_LANES, lane_cnt - 1) |
 	      FIELD_PREP(TPG_CTRL_NUM_ACTIVE_VC, last_vc);
+	if (tpg->hw_version < TPG_HW_VER_2_5_0)
+		val |= FIELD_PREP(TPG_CTRL_TEST_EN, 1);
 	writel(val, tpg->base + TPG_CTRL);
+
+	/* v2.5.0 enables the generator through the command register */
+	if (tpg->hw_version >= TPG_HW_VER_2_5_0)
+		writel(TPG_CTRL_CMD_TEST_EN, tpg->base + TPG_CTRL_CMD);
 
 	return 0;
 }
@@ -175,7 +190,7 @@ static int tpg_stream_on(struct tpg_device *tpg)
 static int tpg_reset(struct tpg_device *tpg)
 {
 	writel(0, tpg->base + TPG_CTRL);
-	writel(1, tpg->base + TPG_CLEAR);
+	writel(TPG_CTRL_CMD_HW_RESET, tpg->base + TPG_CTRL_CMD);
 
 	return 0;
 }
