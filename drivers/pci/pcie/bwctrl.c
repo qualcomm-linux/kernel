@@ -117,16 +117,15 @@ static int pcie_set_opp(struct pci_dev *pdev, struct pci_host_bridge *host,
 	if (freq_mbps < 0)
 		return -EINVAL;
 
-	freq_kbps = freq_mbps * KILO;
+	freq_kbps = freq_mbps * KILO * width;
 	key.freq = freq_kbps;
 	key.level = pci_bus_speed2lnkctl2(speed);
-	key.bw = 0;
 	opp = dev_pm_opp_find_key_exact(dev, &key, true);
 	if (!IS_ERR(opp)) {
 		ret = dev_pm_opp_set_opp(dev, opp);
 		if (ret)
 			dev_err(dev, "Failed to set OPP for freq (%lu): %d\n",
-				freq_kbps * width, ret);
+				freq_kbps, ret);
 		dev_pm_opp_put(opp);
 	}
 	return 0;
@@ -155,7 +154,7 @@ int pcie_set_target_speed(struct pci_dev *port, enum pci_bus_speed speed_req,
 	struct pci_host_bridge *host = pci_find_host_bridge(port->bus);
 	bool is_rootbus = pci_is_root_bus(port->bus);
 	struct pci_bus *bus = port->subordinate;
-	struct pci_dev *child = NULL;
+	struct pci_dev *child = NULL, *dev;
 	int aspm_state = 0, ret;
 	u16 target_speed;
 
@@ -168,18 +167,21 @@ int pcie_set_target_speed(struct pci_dev *port, enum pci_bus_speed speed_req,
 	target_speed = pcie_bwctrl_select_speed(port, speed_req);
 
 	/*
-	 * The host bridge driver may need to be scaled for targeted speed
+	 * Host Bridge resources may need to be scaled for targeted speed
 	 * otherwise link might not come up at requested speed.
 	 */
-	if (is_rootbus && host && bus) {
+	if (bus && is_rootbus && host) {
 		/* Get function 0 of downstream device */
-		list_for_each_entry(child, &bus->devices, bus_list)
-			if (PCI_FUNC(child->devfn) == 0)
+		list_for_each_entry(dev, &bus->devices, bus_list) {
+			if (PCI_FUNC(dev->devfn) == 0) {
+				child = dev;
 				break;
+			}
+		}
 
 		if (child && host->disable_aspm_for_retrain) {
 			aspm_state = pcie_aspm_enabled(child);
-			pci_disable_link_state_locked(child, PCIE_LINK_STATE_ALL);
+			pci_disable_link_state(child, PCIE_LINK_STATE_ALL);
 		}
 		if (speed_req > bus->cur_bus_speed)
 			pcie_set_opp(port, host, speed_req);
