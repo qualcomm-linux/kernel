@@ -494,6 +494,7 @@ static int qcom_battmgr_bat_sc8280xp_update(struct qcom_battmgr *battmgr,
 					    enum power_supply_property psp)
 {
 	int ret;
+	unsigned int prop;
 
 	mutex_lock(&battmgr->lock);
 
@@ -522,6 +523,12 @@ static int qcom_battmgr_bat_sc8280xp_update(struct qcom_battmgr *battmgr,
 			ret = -ENODATA;
 			goto out_unlock;
 		}
+	}
+
+	if (battmgr->variant == QCOM_BATTMGR_X1E80100 &&
+	    psp == POWER_SUPPLY_PROP_PRESENT) {
+		prop = sm8350_bat_prop_map[POWER_SUPPLY_PROP_PRESENT];
+		ret = qcom_battmgr_request_property(battmgr, BATTMGR_BAT_PROPERTY_GET, prop, 0);
 	}
 
 out_unlock:
@@ -1564,7 +1571,8 @@ static void qcom_battmgr_sc8280xp_callback(struct qcom_battmgr *battmgr,
 
 		battmgr->unit = le32_to_cpu(resp->info.power_unit);
 
-		battmgr->info.present = true;
+		if (battmgr->variant != QCOM_BATTMGR_X1E80100)
+			battmgr->info.present = true;
 		battmgr->info.design_capacity = le32_to_cpu(resp->info.design_capacity) * 1000;
 		battmgr->info.last_full_capacity = le32_to_cpu(resp->info.last_full_capacity) * 1000;
 		battmgr->info.voltage_max_design = le32_to_cpu(resp->info.design_voltage) * 1000;
@@ -1955,6 +1963,9 @@ static void qcom_battmgr_sm8350_callback(struct qcom_battmgr *battmgr,
 	case BATTMGR_REQUEST_NOTIFICATION:
 	case BATTMGR_CHG_CTRL_LIMIT_EN:
 		battmgr->error = 0;
+		break;
+	case BATTMGR_BAT_PROPERTY_GET:
+		battmgr->info.present = le32_to_cpu(resp->intval.value);
 		break;
 	default:
 		dev_warn(battmgr->dev, "unknown message %#x\n", opcode);
