@@ -3185,10 +3185,12 @@
 			compatible = "qcom,adreno-07000400", "qcom,adreno";
 			reg = <0x0 0x05900000 0x0 0x40000>,
 			      <0x0 0x0599e000 0x0 0x1000>,
-			      <0x0 0x05961000 0x0 0x800>;
+			      <0x0 0x05961000 0x0 0x800>,
+			      <0x0 0x05960000 0x0 0x1000>;
 			reg-names = "kgsl_3d0_reg_memory",
 				    "cx_mem",
-				    "cx_dbgc";
+				    "cx_dbgc",
+				    "aperture";
 
 			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH 0>;
 
