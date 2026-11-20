@@ -276,9 +276,10 @@ static int iris_probe(struct platform_device *pdev)
 	if (IS_ERR(core->ubwc_cfg))
 		return PTR_ERR(core->ubwc_cfg);
 
-	ret = devm_request_threaded_irq(core->dev, core->irq, iris_hfi_isr,
+	ret = devm_request_threaded_irq(core->dev, core->irq, NULL,
 					iris_hfi_isr_handler,
-					IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN,
+					IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN |
+					IRQF_ONESHOT,
 					"iris", core);
 	if (ret)
 		return ret;
