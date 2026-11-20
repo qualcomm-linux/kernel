@@ -21,6 +21,7 @@ properties:
               - qcom,qcs8300-dwmac-sgmii-phy
           - const: qcom,sa8775p-dwmac-sgmii-phy
       - const: qcom,sa8775p-dwmac-sgmii-phy
+      - const: qcom,nord-dwmac-sgmii-phy
 
   reg:
     items:

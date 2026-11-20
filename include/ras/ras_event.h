@@ -381,6 +381,85 @@ TRACE_EVENT(aer_event,
 			"Not available")
 );
 #endif /* CONFIG_PCIEAER */
+
+/*
+ * ARM RAS Extension Events Report
+ *
+ * This event is generated when an error reported by the ARM RAS extension
+ * hardware is detected.
+ */
+
+#ifdef CONFIG_ARM64_RAS_EXTN
+#include <asm/ras.h>
+TRACE_EVENT(arm_ras_ext_event,
+
+	TP_PROTO(const u8 type,
+		 const u32 index,
+		 struct ras_ext_regs *regs,
+		 const u8 *specific_data,
+		 const u32 specific_data_size,
+		 const u8 *vendor_data,
+		 const u32 vendor_data_size),
+
+	TP_ARGS(type, index, regs, specific_data, specific_data_size,
+		vendor_data, vendor_data_size),
+
+	TP_STRUCT__entry(
+		__field(u8,  type)
+		__field(u32, index)
+		__field(u64, err_fr)
+		__field(u64, err_ctlr)
+		__field(u64, err_status)
+		__field(u64, err_addr)
+		__field(u64, err_misc0)
+		__field(u64, err_misc1)
+		__field(u64, err_misc2)
+		__field(u64, err_misc3)
+		__field(u32, specific_data_size)
+		__dynamic_array(u8, specific_data, specific_data_size)
+		__field(u32, vendor_data_size)
+		__dynamic_array(u8, vendor_data, vendor_data_size)
+	),
+
+	TP_fast_assign(
+		__entry->type = type;
+		__entry->index = index;
+		__entry->err_fr = regs->err_fr;
+		__entry->err_ctlr = regs->err_ctlr;
+		__entry->err_status = regs->err_status;
+		__entry->err_addr = regs->err_addr;
+		__entry->err_misc0 = regs->err_misc[0];
+		__entry->err_misc1 = regs->err_misc[1];
+		__entry->err_misc2 = regs->err_misc[2];
+		__entry->err_misc3 = regs->err_misc[3];
+		__entry->specific_data_size = specific_data_size;
+		memcpy(__get_dynamic_array(specific_data), specific_data, specific_data_size);
+		__entry->vendor_data_size = vendor_data_size;
+		memcpy(__get_dynamic_array(vendor_data), vendor_data, vendor_data_size);
+	),
+
+	TP_printk("type: %d; index: %d; "
+		  "ERR_FR: %llx; ERR_CTLR: %llx; ERR_STATUS: %llx; "
+		  "ERR_ADDR: %llx; ERR_MISC0: %llx; ERR_MISC1: %llx; "
+		  "ERR_MISC2: %llx; ERR_MISC3: %llx; "
+		  "specific data len:%d; specific data:%s; "
+		  "vendor data len:%d; vendor data:%s",
+		  __entry->type,
+		  __entry->index,
+		  __entry->err_fr,
+		  __entry->err_ctlr,
+		  __entry->err_status,
+		  __entry->err_addr,
+		  __entry->err_misc0,
+		  __entry->err_misc1,
+		  __entry->err_misc2,
+		  __entry->err_misc3,
+		  __entry->specific_data_size,
+		  __print_hex(__get_dynamic_array(specific_data), __entry->specific_data_size),
+		  __entry->vendor_data_size,
+		  __print_hex(__get_dynamic_array(vendor_data), __entry->vendor_data_size))
+);
+#endif /* CONFIG_ARM64_RAS_EXTN */
 #endif /* _TRACE_HW_EVENT_MC_H */
 
 /* This part must be outside protection */
