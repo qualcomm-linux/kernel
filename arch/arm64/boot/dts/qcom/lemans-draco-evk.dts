@@ -4,6 +4,7 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pwm/pwm.h>
 #include "lemans-draco-evk-som.dtsi"
 
@@ -344,6 +345,89 @@
 	};
 };
 
+&i2c11 {
+	status = "okay";
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9546";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			typec@40 {
+				compatible = "cypress,cypd6229", "cypress,cypd6129";
+				reg = <0x40>;
+				interrupts-extended = <&pmm8654au_2_gpios 5 IRQ_TYPE_LEVEL_LOW>;
+				pinctrl-0 = <&usb0_intr_state>;
+				pinctrl-names = "default";
+				wakeup-source;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				connector@0 {
+					compatible = "usb-c-connector";
+					reg = <0>;
+					label = "USB0-Type-C";
+					data-role = "dual";
+					power-role = "dual";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+							ucsi_ccg_port0_hs: endpoint {
+								remote-endpoint = <&usb_0_dwc3_hs>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+							ucsi_ccg_port0_ss: endpoint {
+								remote-endpoint = <&usb_0_dwc3_ss>;
+							};
+						};
+					};
+				};
+
+				connector@1 {
+					compatible = "usb-c-connector";
+					reg = <1>;
+					label = "USB1-Type-C";
+					data-role = "dual";
+					power-role = "dual";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+							ucsi_ccg_port1_hs: endpoint {
+								remote-endpoint = <&usb_1_dwc3_hs>;
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+							ucsi_ccg_port1_ss: endpoint {
+								remote-endpoint = <&usb_1_dwc3_ss>;
+							};
+						};
+					};
+				};
+			};
+		};
+	};
+};
+
 &i2c18 {
 	status = "okay";
 
@@ -467,6 +551,16 @@
 	status = "okay";
 };
 
+&pmm8654au_2_gpios {
+	usb0_intr_state: usb0-intr-state {
+		pins = "gpio5";
+		function = "normal";
+		input-enable;
+		bias-pull-up;
+		power-source = <0>;
+	};
+};
+
 &qup_i2c4_default {
 	drive-strength = <6>;
 	bias-pull-up;
@@ -540,4 +634,20 @@
 		};
 	};
 
+};
+
+&usb_0_dwc3_hs {
+	remote-endpoint = <&ucsi_ccg_port0_hs>;
+};
+
+&usb_0_dwc3_ss {
+	remote-endpoint = <&ucsi_ccg_port0_ss>;
+};
+
+&usb_1_dwc3_hs {
+	remote-endpoint = <&ucsi_ccg_port1_hs>;
+};
+
+&usb_1_dwc3_ss {
+	remote-endpoint = <&ucsi_ccg_port1_ss>;
 };
