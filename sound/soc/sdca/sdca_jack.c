@@ -19,6 +19,7 @@
 #include <sound/control.h>
 #include <sound/jack.h>
 #include <sound/sdca.h>
+#include <sound/sdca_class.h>
 #include <sound/sdca_function.h>
 #include <sound/sdca_interrupts.h>
 #include <sound/sdca_jack.h>
@@ -36,6 +37,7 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 {
 	struct device *dev = interrupt->dev;
 	struct snd_soc_component *component = interrupt->component;
+	struct sdca_class_drv *core = dev_get_drvdata(component->dev->parent);
 	struct snd_soc_card *card = component->card;
 	struct rw_semaphore *rwsem = &card->snd_card->controls_rwsem;
 	struct jack_state *state = interrupt->priv;
@@ -81,6 +83,12 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 	}
 
 	dev_dbg(dev, "%s: %#x\n", interrupt->name, val);
+
+	if (core && core->hw_ops && core->hw_ops->ge_mode_detected) {
+		ret = core->hw_ops->ge_mode_detected(core->sdw, core->dev_regmap);
+		if (ret)
+			dev_warn(dev, "failed to re-arm ge mode detection: %d\n", ret);
+	}
 
 	ucontrol = kzalloc_obj(*ucontrol);
 	if (!ucontrol)
@@ -266,6 +274,9 @@ int sdca_jack_report(struct sdca_interrupt *interrupt)
 
 	type = sdca_range_search(range, SDCA_SELECTED_MODE_INDEX,
 				 val, SDCA_SELECTED_MODE_TERM_TYPE);
+
+	if (val == SDCA_DETECTED_MODE_JACK_UNPLUGGED)
+		type = 0;
 
 	snd_soc_jack_report(jack_state->jack, type_get_mask(type), jack_state->mask);
 
