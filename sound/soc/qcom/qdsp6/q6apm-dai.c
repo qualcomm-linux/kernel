@@ -14,7 +14,6 @@
 #include <asm/div64.h>
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
-#include <linux/firmware/qcom/qcom_scm.h>
 #include <sound/pcm_params.h>
 #include "q6apm.h"
 
@@ -34,8 +33,6 @@
 #define COMPR_PLAYBACK_MAX_NUM_FRAGMENTS (16 * 4)
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
 #define COMPR_PLAYBACK_MIN_NUM_FRAGMENTS (4)
-#define Q6APM_MAX_VMIDS 8
-#define Q6APM_SCM_MAX_VMID 31
 #define SID_MASK_DEFAULT	0xF
 
 static const struct snd_compr_codec_caps q6apm_compr_caps = {
@@ -81,105 +78,9 @@ struct q6apm_dai_rtd {
 	bool notify_on_drain;
 };
 
-struct q6apm_scm_region {
-	phys_addr_t dma_addr;
-	unsigned int size;
-	u64 src_perms;
-	bool assigned;
-};
-
 struct q6apm_dai_data {
 	long long sid;
-	int num_vmids;
-	u32 vmids[Q6APM_MAX_VMIDS];
-	bool use_scm_assign;
-	struct q6apm_scm_region scm_regions[SNDRV_PCM_STREAM_LAST + 1];
 };
-
-static int q6apm_dai_assign_memory(struct snd_pcm_substream *substream,
-				   struct q6apm_dai_data *pdata)
-{
-	struct q6apm_scm_region *scm_region = &pdata->scm_regions[substream->stream];
-	struct qcom_scm_vmperm *dst_vmids;
-	int dst_count = 0;
-	int ret;
-	int i;
-
-	if (!pdata->use_scm_assign || pdata->num_vmids <= 0 || scm_region->assigned)
-		return 0;
-
-	if (!substream->dma_buffer.addr)
-		return -ENOMEM;
-
-	dst_vmids = kcalloc(pdata->num_vmids + 1, sizeof(*dst_vmids), GFP_KERNEL);
-	if (!dst_vmids)
-		return -ENOMEM;
-
-	/* Always keep HLOS RW so CPU can continue buffer access. */
-	dst_vmids[dst_count].vmid = QCOM_SCM_VMID_HLOS;
-	dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
-	dst_count++;
-
-	for (i = 0; i < pdata->num_vmids; i++) {
-		/*
-		 * Probe-time validation rejects HLOS in qcom,vmid, so this is
-		 * only a defensive check for future non-DT vmids[] population.
-		 */
-		if (WARN_ON_ONCE(pdata->vmids[i] == QCOM_SCM_VMID_HLOS))
-			continue;
-
-		dst_vmids[dst_count].vmid = pdata->vmids[i];
-		dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
-		dst_count++;
-	}
-
-	/* Nothing to assign beyond HLOS access. */
-	if (dst_count == 1) {
-		kfree(dst_vmids);
-		return 0;
-	}
-
-	scm_region->dma_addr = substream->dma_buffer.addr;
-	scm_region->size = ALIGN(BUFFER_BYTES_MAX, PAGE_SIZE);
-	scm_region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
-
-	ret = qcom_scm_assign_mem(scm_region->dma_addr, scm_region->size,
-				  &scm_region->src_perms, dst_vmids, dst_count);
-	kfree(dst_vmids);
-	if (ret)
-		return ret;
-
-	scm_region->assigned = true;
-	return 0;
-}
-
-static int q6apm_dai_unassign_memory(struct snd_soc_component *component,
-				     struct snd_pcm_substream *substream,
-				     struct q6apm_dai_data *pdata)
-{
-	struct q6apm_scm_region *scm_region = &pdata->scm_regions[substream->stream];
-	struct qcom_scm_vmperm hlos = {
-		.vmid = QCOM_SCM_VMID_HLOS,
-		.perm = QCOM_SCM_PERM_RW,
-	};
-	struct device *dev = component->dev;
-	int ret;
-
-	if (!pdata->use_scm_assign || !scm_region->assigned)
-		return 0;
-
-	ret = qcom_scm_assign_mem(scm_region->dma_addr, scm_region->size,
-				  &scm_region->src_perms, &hlos, 1);
-	if (!ret) {
-		scm_region->assigned = false;
-		scm_region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
-	} else {
-		dev_err(dev, "Failed to unassign DMA buffer %pa from VMIDs: %d\n",
-			&scm_region->dma_addr, ret);
-	}
-
-	return ret;
-}
 
 static const struct snd_pcm_hardware q6apm_dai_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -576,9 +477,6 @@ static int q6apm_dai_hw_params(struct snd_soc_component *component,
 	return 0;
 }
 
-static void q6apm_dai_memory_unmap(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream);
-
 static int q6apm_dai_memory_map(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream, int graph_id)
 {
@@ -658,25 +556,15 @@ static void q6apm_dai_memory_unmap(struct snd_soc_component *component,
 
 static void q6apm_dai_pcm_free(struct snd_soc_component *component, struct snd_pcm *pcm)
 {
-	struct q6apm_dai_data *pdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_substream *substream;
 
-	if (!pdata)
-		return;
-
 	substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
-	if (substream) {
-		if (pdata->use_scm_assign)
-			q6apm_dai_unassign_memory(component, substream, pdata);
+	if (substream)
 		q6apm_dai_memory_unmap(component, substream);
-	}
 
 	substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-	if (substream) {
-		if (pdata->use_scm_assign)
-			q6apm_dai_unassign_memory(component, substream, pdata);
+	if (substream)
 		q6apm_dai_memory_unmap(component, substream);
-	}
 }
 
 static int q6apm_dai_compr_open(struct snd_soc_component *component,
@@ -1062,7 +950,6 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct q6apm_dai_data *pdata;
 	struct of_phandle_args args;
-	int vmids;
 	int rc;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -1074,47 +961,6 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 		pdata->sid = -1;
 	else
 		pdata->sid = args.args[0] & SID_MASK_DEFAULT;
-
-	vmids = of_property_count_u32_elems(node, "qcom,vmid");
-	if (vmids == -EINVAL) {
-		pdata->num_vmids = 0;
-		pdata->use_scm_assign = false;
-	} else if (vmids < 0) {
-		return vmids;
-	} else if (vmids == 0) {
-		dev_err(dev, "qcom,vmid must contain at least one VMID\n");
-		return -EINVAL;
-	} else if (vmids > Q6APM_MAX_VMIDS) {
-		dev_err(dev, "qcom,vmid: %d VMIDs exceeds maximum of %d\n",
-			vmids, Q6APM_MAX_VMIDS);
-		return -EINVAL;
-	}
-
-	if (vmids > 0) {
-		int i;
-
-		rc = of_property_read_u32_array(node, "qcom,vmid",
-						pdata->vmids, vmids);
-		if (rc)
-			return rc;
-		for (i = 0; i < vmids; i++) {
-			if (pdata->vmids[i] == QCOM_SCM_VMID_HLOS) {
-				dev_err(dev, "qcom,vmid must not include HLOS VMID (%u)\n",
-					QCOM_SCM_VMID_HLOS);
-				return -EINVAL;
-			}
-			if (pdata->vmids[i] > Q6APM_SCM_MAX_VMID) {
-				dev_err(dev, "qcom,vmid[%d]=%u exceeds SCM max VMID %u\n",
-					i, pdata->vmids[i], Q6APM_SCM_MAX_VMID);
-				return -EINVAL;
-			}
-		}
-		pdata->num_vmids = vmids;
-		pdata->use_scm_assign = true;
-	}
-
-	if (pdata->use_scm_assign && !qcom_scm_is_available())
-		return -EPROBE_DEFER;
 
 	dev_set_drvdata(dev, pdata);
 
