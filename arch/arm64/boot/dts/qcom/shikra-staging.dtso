@@ -8,6 +8,16 @@
 /dts-v1/;
 /plugin/;
 
+&ethernet0 {
+	pinctrl-1 = <&ethernet0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&ethernet1 {
+	pinctrl-1 = <&ethernet1_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
 &soc {
 	tgu@9840000 {
 		compatible = "qcom,tgu", "arm,primecell";
@@ -15,5 +25,63 @@
 
 		clocks = <&aoss_qmp>;
 		clock-names = "apb_pclk";
+	};
+};
+
+&tlmm {
+	ethernet0_sleep: ethernet0-sleep-state {
+		rgmii-rx-pins {
+			pins = "gpio121", "gpio122", "gpio123",
+			       "gpio124", "gpio125", "gpio126";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+			output-disable;
+		};
+
+		rgmii-tx-pins {
+			pins = "gpio127", "gpio128", "gpio129",
+			       "gpio130", "gpio131", "gpio132";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+
+		rgmii-mdio-pins {
+			pins = "gpio133", "gpio134";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+			output-disable;
+		};
+	};
+
+	ethernet1_sleep: ethernet1-sleep-state {
+		rgmii-rx-pins {
+			pins = "gpio137", "gpio138", "gpio139",
+			       "gpio140", "gpio141", "gpio142";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+			output-disable;
+		};
+
+		rgmii-tx-pins {
+			pins = "gpio143", "gpio144", "gpio145",
+			       "gpio146", "gpio147", "gpio148";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+
+		rgmii-mdio-pins {
+			pins = "gpio149", "gpio150";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+			output-disable;
+		};
 	};
 };
