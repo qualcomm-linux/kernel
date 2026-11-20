@@ -49,13 +49,14 @@ patternProperties:
 
       clock-names:
         minItems: 1
-        maxItems: 3
         items:
-          enum: [mclk, bclk, eclk]
+          - const: mclk
+          - const: bclk
+          - const: eclk
 
     dependencies:
-      clocks: [clock-names]
-      clock-names: [clocks]
+      clocks: [ clock-names ]
+      clock-names: [ clocks ]
 
     required:
       - reg
