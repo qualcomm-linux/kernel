@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	eth0_phy_vreg: regulator-eth0-phy {
+		compatible = "regulator-fixed";
+		regulator-name = "eth0_phy_pwr";
+
+		gpio = <&expander2 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+	};
+
+	eth1_phy_vreg: regulator-eth1-phy {
+		compatible = "regulator-fixed";
+		regulator-name = "eth1_phy_pwr";
+
+		gpio = <&expander2 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+	};
+};
+
+&expander2 {
+	vcc-supply = <&vreg_1p8>;
+
+	gpio-line-names = "EXP_ETH1_PWR_EN", "EXP_ETH1_INT_N",
+			  "EXP_ETH1_RST_N", "EXP_ETH0_INT_N",
+			  "EXP_NVME_PLA_N", "EXP_NVME_PLN_N",
+			  "EXP_ETH0_PWR_EN", "EXP_ETH0_RST_N";
+};
+
+&tc9563 {
+	aspm-no-l1;
+	aspm-no-l0s;
+
+	pcie@3,0 {
+		aspm-no-l1;
+		aspm-no-l0s;
+
+		pci@0,0 {
+			aspm-no-l1;
+			aspm-no-l0s;
+			phy-mode = "sgmii";
+			phy-supply = <&eth0_phy_vreg>;
+			phy-reset-gpios = <&expander2 7 GPIO_ACTIVE_LOW>;
+			reset-deassert-us = <221000>;
+		};
+
+		pci@0,1 {
+			aspm-no-l1;
+			aspm-no-l0s;
+			phy-mode = "sgmii";
+			phy-supply = <&eth1_phy_vreg>;
+			phy-reset-gpios = <&expander2 2 GPIO_ACTIVE_LOW>;
+			reset-deassert-us = <20000>;
+		};
+	};
+};
