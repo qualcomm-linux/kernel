@@ -2345,10 +2345,6 @@ static irqreturn_t qcom_pcie_global_irq_thread(int irq, void *data)
 	if (test_and_clear_bit(INT_ALL_LINK_DOWN, &status)) {
 		dev_dbg(dev, "Received Link down event\n");
 
-		mutex_lock(&pcie->reset_lock);
-		qcom_pcie_enable_outbound_blocker(pcie);
-		mutex_unlock(&pcie->reset_lock);
-
 		qcom_pcie_dump_regs(pcie);
 		for_each_pci_bridge(port, pp->bridge->bus) {
 			if (pci_pcie_type(port) == PCI_EXP_TYPE_ROOT_PORT)
