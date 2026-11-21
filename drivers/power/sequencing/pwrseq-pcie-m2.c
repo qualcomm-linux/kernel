@@ -194,11 +194,6 @@ static const struct pwrseq_target_data pwrseq_pcie_m2_b_pcie_target_data = {
 	.unit = &pwrseq_pcie_m2_b_pcie_unit_data,
 };
 
-static const struct pwrseq_target_data pwrseq_pcie_m2_b_pcie_target_data = {
-	.name = "pcie",
-	.unit = &pwrseq_pcie_m2_b_pcie_unit_data,
-};
-
 static const struct pwrseq_target_data pwrseq_pcie_m2_m_pcie_target_data = {
 	.name = "pcie",
 	.unit = &pwrseq_pcie_m2_m_pcie_unit_data,
