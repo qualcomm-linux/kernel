@@ -1,0 +1,226 @@
+baseline:
+  repo: "https://github.com/qualcomm-linux-stg/kernel.git"
+  tag: v7.4-rc3
+  sha: aebb7274476403040d582c61478df8f4a7bf9cd3
+
+topics:
+  - name: tech/bsp/clk
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bsp/clk
+    sha: 443bd58712afe0094e67d3e5b4ea04689f32f296
+    tag: tech/bsp/clk-7.4-rc1-20261105
+  - name: tech/bsp/devfreq
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bsp/devfreq
+    sha: 7acfd264490b6f6c62b367a81f1ef793f3dad92b
+    tag: tech/bsp/devfreq-7.4-rc1-20261105
+  - name: tech/bsp/ec
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bsp/ec
+    sha: c46f06d11b1192572b2841acb93e111c84692f8a
+    tag: tech/bsp/ec-7.4-rc1-20261105
+  - name: tech/bsp/interconnect
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bsp/interconnect
+    sha: 81fc6e2c356d01f1606ae1323b1b1ef3b6db0ad2
+    tag: tech/bsp/interconnect-7.3-rc2-20261024
+  - name: tech/bsp/sched
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bsp/sched
+    sha: 40b3c1f97688b9bef9e26072c625af3a2c97dde4
+    tag: tech/bsp/sched-7.4-rc1-20261105
+  - name: tech/security/firmware-smc
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/security/firmware-smc
+    sha: 503110b01c9ad2db7a0640aa5381a330e1dcda44
+    tag: tech/security/firmware-smc-7.4-rc1-20261105
+  - name: tech/bsp/soc-infra
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bsp/soc-infra
+    sha: 76d80866bef933a3eff65f38ccb17f1055be8f6d
+    tag: tech/bsp/soc-infra-7.4-rc1-20261105
+  - name: tech/bus/pci/all
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bus/pci/all
+    sha: 264479f33f4fbd988d553164e56885f159d1a4d5
+    tag: tech/bus/pci/all-7.4-rc3-20261121
+  - name: tech/bus/usb/all
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/bus/usb/all
+    sha: ba747a89245f69b3f032aa3a837a915190ae51aa
+    tag: tech/bus/usb/all-7.2-rc1-20261121
+  - name: tech/debug/hwtracing
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/debug/hwtracing
+    sha: f7bba91bd0777bc4b9851b7d4e334bbac070c636
+    tag: tech/debug/hwtracing-7.4-rc1-20261105
+  - name: tech/pmic/all
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/pmic/all
+    sha: d517c3e1ca6db876b9d2c1946971c27fcae3649f
+    tag: tech/pmic/all-7.4-rc1-20261105
+  - name: tech/mem/all
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/mem/all
+    sha: 5d786d3550041b15048ab624b4b9d46493685aad
+    tag: tech/mem/all-7.4-rc1-20261105
+  - name: tech/mm/audio/all
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/mm/audio/all
+    sha: 4f954f50490cb0af3c6a9607f6e0de4ef4b3a3ad
+    tag: tech/mm/audio/all-7.4-rc1-20261121
+  - name: tech/mm/camss
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/mm/camss
+    sha: 3b72597116cbe69b960abd0fb88c512c95306350
+    tag: tech/mm/camss-7.4-rc1-20261121
+  - name: tech/mm/drm
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/mm/drm
+    sha: d36669228bd59ad2e797d064f66fb24537244327
+    tag: tech/mm/drm-7.4-rc1-20261121
+  - name: tech/mm/fastrpc
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/mm/fastrpc
+    sha: da8279e9c800a431030ce600b6c9b15d4fac28b2
+    tag: tech/mm/fastrpc-7.4-rc1-20261121
+  - name: tech/mm/video
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/mm/video
+    sha: 061ef496dd0434314939d2bd174c861a1de262fd
+    tag: tech/mm/video-7.4-rc1-20261121
+  - name: tech/mm/gpu
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/mm/gpu
+    sha: 6f7abdffa94fae99ce742273ac140a08c5228c9f
+    tag: tech/mm/gpu-7.4-rc3-20261121
+  - name: tech/net/ath
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/net/ath
+    sha: 56c68e5c739aebbd01c413193e4689992cec3335
+    tag: tech/net/ath-7.4-rc3-20261121
+  - name: tech/net/eth
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/net/eth
+    sha: 4d556571888481060b98d3f7202311ab0cbedc54
+    tag: tech/net/eth-7.4-rc1-20261105
+  - name: tech/net/bluetooth
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/net/bluetooth
+    sha: a76a919be85b9a4768f2a0091f71ac2d987de70f
+    tag: tech/net/bluetooth-7.4-rc3-20261121
+  - name: tech/pm/power
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/pm/power
+    sha: 29c839eed9785e2eeb471105dc5fa4398abfe8cf
+    tag: tech/pm/power-7.4-rc1-20261105
+  - name: tech/pm/thermal
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/pm/thermal
+    sha: 000ea55a2de3fd3f37da06c7f080a2de60eedcb3
+    tag: tech/pm/thermal-7.4-rc1-20261105
+  - name: tech/security/crypto
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/security/crypto
+    sha: 973a3815c26105147c2957fe2ad61d589392d261
+    tag: tech/security/crypto-7.4-rc1-20261105
+  - name: tech/security/optee-next
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/security/optee-next
+    sha: 6c0433249d6f06d5a3ff3b2e1936d35b145b548f
+    tag: tech/security/optee-next-7.4-rc1-20261105
+  - name: tech/storage/all
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/storage/all
+    sha: 5929ee035ff8ad299f49b841ae9ee8cdf89428ad
+    tag: tech/storage/all-7.4-rc1-20261105
+  - name: tech/all/dt/qcs6490
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/qcs6490
+    sha: 334274b2af1909368d1994b33a2c7b08b653d0ae
+    tag: tech/all/dt/qcs6490-7.4-rc1-20261121.1
+  - name: tech/all/dt/qcs9100
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/qcs9100
+    sha: 492f8ebae233d674fc22fb8b0341df3de5160a0c
+    tag: tech/all/dt/qcs9100-7.4-rc1-20261121
+  - name: tech/all/dt/qcs8300
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/qcs8300
+    sha: 04e89fef07e984710ac7adf256f306b3bdfb117a
+    tag: tech/all/dt/qcs8300-7.4-rc1-20261121
+  - name: tech/all/dt/qcs615
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/qcs615
+    sha: ad252a3e187c63a92abc59761ffdcc649799ee68
+    tag: tech/all/dt/qcs615-7.4-rc1-20261121
+  - name: tech/all/dt/eliza
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/eliza
+    sha: 8b9d593cb3c576e8efa746a599f0510715dc214c
+    tag: tech/all/dt/eliza-7.4-rc1-20261105
+  - name: tech/all/dt/hamoa
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/hamoa
+    sha: 41f3035af5e3ed5df14f57fe9ddae12013a0c084
+    tag: tech/all/dt/hamoa-7.4-rc1-20261105
+  - name: tech/all/dt/glymur
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/glymur
+    sha: 3d4e90f38b63e733c3cc42e12812f3b42112ee6b
+    tag: tech/all/dt/glymur-7.4-rc3-20261121
+  - name: tech/all/dt/kaanapali
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/kaanapali
+    sha: 35c500773ecb69ff7a1f528a642a8effefeb81c5
+    tag: tech/all/dt/kaanapali-7.4-rc1-20261121
+  - name: tech/all/dt/pakala
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/dt/pakala
+    sha: 94fc066991028f905f902d770a4131d77afe7f0c
+    tag: tech/all/dt/pakala-7.4-rc1-20261121
+  - name: tech/all/hawi
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/hawi
+    sha: 8791d52e31e9ade920ab8f1ef393d8687f471fd8
+    tag: tech/all/hawi-7.4-rc1-20261121
+  - name: tech/all/maili
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/maili
+    sha: 752dd598afef12c4fb2efe224abf343b16065393
+    tag: tech/all/maili-7.4-rc1-20261121
+  - name: tech/all/shikra
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/shikra
+    sha: 438e3e854e16914654779852c53386c5348784a2
+    tag: tech/all/shikra-7.4-rc3-20261121
+  - name: tech/all/config
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/config
+    sha: 5d707d020e4ab97f1cc12bcd525132b83d6b8937
+    tag: tech/all/config-7.4-rc1-20261105
+  - name: tech/overlay/dt
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/overlay/dt
+    sha: 0eecc056170fdfb4a45ca2ccc1e74017329be2e6
+    tag: tech/overlay/dt-7.4-rc3-20261121
+  - name: tech/all/workaround
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/all/workaround
+    sha: c707eca9b08daec25f61a4440cf3cc808a45ad50
+    tag: tech/all/workaround-7.4-rc1-20261121
+  - name: tech/noup/debug/all
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/noup/debug/all
+    sha: 239447a5a9d6fbc74e745b7498dbd613d6f47c3a
+    tag: tech/noup/debug/all-7.3-rc2-20261121
+  - name: tech/hwe/unoq
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: tech/hwe/unoq
+    sha: 9b67cf2828263b6104082b7c1fe796cc15d47f00
+    tag: tech/hwe/unoq-7.4-rc1-20261105
+  - name: early/hwe/nord
+    repo: "https://github.com/qualcomm-linux-stg/kernel-topics.git"
+    branch: early/hwe/nord
+    sha: 16335580177cde28b329685a2404bb148e7962a2
+    tag: early/hwe/nord-7.4-rc1-20261121
