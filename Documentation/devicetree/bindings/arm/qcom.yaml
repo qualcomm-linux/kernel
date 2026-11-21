@@ -875,6 +875,11 @@ properties:
           - const: qcom,qcs8300
 
       - items:
+          - const: qcom,monaco-draco-evk
+          - const: qcom,monaco-draco-ac-som
+          - const: qcom,qcs8300
+
+      - items:
           - enum:
               - qcom,qcs615-ride
               - qcom,talos-evk
