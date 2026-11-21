@@ -982,7 +982,7 @@ static bool qcom_scm_pas_supported(struct device *dev, u32 pas_id)
 }
 
 static struct qcom_pas_ops qcom_pas_ops_scm = {
-	.drv_name		= "qcom_scm",
+	.drv_name		= QCOM_PAS_BACKEND_SCM,
 	.supported		= qcom_scm_pas_supported,
 	.init_image		= qcom_scm_pas_init_image,
 	.mem_setup		= qcom_scm_pas_mem_setup,
