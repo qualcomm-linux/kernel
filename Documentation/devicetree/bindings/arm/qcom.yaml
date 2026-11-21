@@ -472,6 +472,11 @@ properties:
               - qcom,qcs8300-ride
           - const: qcom,qcs8300
 
+      - items:
+          - const: qcom,monaco-draco-evk
+          - const: qcom,monaco-draco-ac-som
+          - const: qcom,qcs8300
+
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
         items:
           - enum:
