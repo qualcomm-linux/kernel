@@ -345,6 +345,26 @@ static struct mhi_event_config modem_qcom_v1_mhi_events[] = {
 	MHI_EVENT_CONFIG_HW_DATA(5, 2048, 101)
 };
 
+/* SDX75 uses deeper HW rings than the shared v1/v2 layout */
+static const struct mhi_channel_config modem_qcom_sdx75_mhi_channels[] = {
+	MHI_CHANNEL_CONFIG_UL(4, "DIAG", 16, 1),
+	MHI_CHANNEL_CONFIG_DL(5, "DIAG", 16, 1),
+	MHI_CHANNEL_CONFIG_UL(12, "MBIM", 4, 0),
+	MHI_CHANNEL_CONFIG_DL(13, "MBIM", 4, 0),
+	MHI_CHANNEL_CONFIG_UL(14, "QMI", 4, 0),
+	MHI_CHANNEL_CONFIG_DL(15, "QMI", 4, 0),
+	MHI_CHANNEL_CONFIG_UL(20, "IPCR", 8, 0),
+	MHI_CHANNEL_CONFIG_DL(21, "IPCR", 8, 0),
+	MHI_CHANNEL_CONFIG_UL(32, "DUN", 32, 0),
+	MHI_CHANNEL_CONFIG_DL(33, "DUN", 32, 0),
+	MHI_CHANNEL_CONFIG_UL_FP(34, "FIREHOSE", 32, 0),
+	MHI_CHANNEL_CONFIG_DL_FP(35, "FIREHOSE", 32, 0),
+	MHI_CHANNEL_CONFIG_UL(46, "IP_SW0", 64, 2),
+	MHI_CHANNEL_CONFIG_DL(47, "IP_SW0", 64, 3),
+	MHI_CHANNEL_CONFIG_HW_UL(100, "IP_HW0", 512, 4),
+	MHI_CHANNEL_CONFIG_HW_DL(101, "IP_HW0", 512, 5),
+};
+
 static const struct mhi_controller_config mhi_qcom_sa8775p_config = {
 	.max_channels = 128,
 	.timeout_ms = 8000,
@@ -360,6 +380,16 @@ static const struct mhi_controller_config modem_qcom_v2_mhiv_config = {
 	.ready_timeout_ms = 50000,
 	.num_channels = ARRAY_SIZE(modem_qcom_v1_mhi_channels),
 	.ch_cfg = modem_qcom_v1_mhi_channels,
+	.num_events = ARRAY_SIZE(modem_qcom_v1_mhi_events),
+	.event_cfg = modem_qcom_v1_mhi_events,
+};
+
+static const struct mhi_controller_config modem_qcom_sdx75_mhiv_config = {
+	.max_channels = 128,
+	.timeout_ms = 8000,
+	.ready_timeout_ms = 50000,
+	.num_channels = ARRAY_SIZE(modem_qcom_sdx75_mhi_channels),
+	.ch_cfg = modem_qcom_sdx75_mhi_channels,
 	.num_events = ARRAY_SIZE(modem_qcom_v1_mhi_events),
 	.event_cfg = modem_qcom_v1_mhi_events,
 };
@@ -388,7 +418,7 @@ static const struct mhi_pci_dev_info mhi_qcom_sdx75_info = {
 	.fw = "qcom/sdx75m/xbl.elf",
 	.edl = "qcom/sdx75m/edl.mbn",
 	.edl_trigger = true,
-	.config = &modem_qcom_v2_mhiv_config,
+	.config = &modem_qcom_sdx75_mhiv_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
 	.dma_data_width = 32,
 	.sideband_wake = false,
