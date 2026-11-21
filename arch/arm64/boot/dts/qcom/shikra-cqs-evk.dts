@@ -272,7 +272,8 @@
 	phy-mode = "rgmii-id";
 
 	pinctrl-0 = <&ethernet0_default>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&ethernet0_sleep>;
+	pinctrl-names = "default", "sleep";
 
 	status = "okay";
 

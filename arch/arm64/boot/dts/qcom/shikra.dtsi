@@ -733,6 +733,34 @@
 				};
 			};
 
+			ethernet0_sleep: ethernet0-sleep-state {
+				rgmii-rx-pins {
+					pins = "gpio121", "gpio122", "gpio123",
+					       "gpio124", "gpio125", "gpio126";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+					output-disable;
+				};
+
+				rgmii-tx-pins {
+					pins = "gpio127", "gpio128", "gpio129",
+					       "gpio130", "gpio131", "gpio132";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+					output-low;
+				};
+
+				rgmii-mdio-pins {
+					pins = "gpio133", "gpio134";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+					output-disable;
+				};
+			};
+
 			ethernet1_default: ethernet1-default-state {
 				rgmii-rx-pins {
 					pins = "gpio137", "gpio138", "gpio139",
@@ -755,6 +783,34 @@
 					function = "rgmii";
 					drive-strength = <16>;
 					bias-pull-up;
+				};
+			};
+
+			ethernet1_sleep: ethernet1-sleep-state {
+				rgmii-rx-pins {
+					pins = "gpio137", "gpio138", "gpio139",
+					       "gpio140", "gpio141", "gpio142";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+					output-disable;
+				};
+
+				rgmii-tx-pins {
+					pins = "gpio143", "gpio144", "gpio145",
+					       "gpio146", "gpio147", "gpio148";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+					output-low;
+				};
+
+				rgmii-mdio-pins {
+					pins = "gpio149", "gpio150";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+					output-disable;
 				};
 			};
 

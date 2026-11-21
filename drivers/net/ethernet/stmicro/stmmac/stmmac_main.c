@@ -7815,6 +7815,8 @@ void stmmac_dvr_remove(struct device *dev)
 
 	unregister_netdev(ndev);
 
+	pinctrl_pm_select_sleep_state(dev);
+
 #ifdef CONFIG_DEBUG_FS
 	stmmac_exit_fs(ndev);
 #endif
