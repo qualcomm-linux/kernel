@@ -916,6 +916,13 @@ properties:
 
       - items:
           - enum:
+              - qcom,lemans-draco-evk
+          - const: qcom,lemans-draco-som
+          - const: qcom,qcs9100
+          - const: qcom,sa8775p
+
+      - items:
+          - enum:
               - lenovo,yoga-c630
               - lg,judyln
               - lg,judyp
