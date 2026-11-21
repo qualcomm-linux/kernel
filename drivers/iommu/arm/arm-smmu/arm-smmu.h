@@ -457,7 +457,31 @@ struct arm_smmu_impl {
 	void (*probe_finalize)(struct arm_smmu_device *smmu, struct device *dev);
 	int (*runtime_resume)(struct arm_smmu_device *smmu);
 	int (*runtime_suspend)(struct arm_smmu_device *smmu);
+	/**
+	 * @capable: Per-implementation override for iommu_cap queries.
+	 *
+	 * When set, arm_smmu_capable() calls this hook instead of the
+	 * default COHERENT_WALK / DEV_DMA_COHERENT feature check. The
+	 * hook receives the full arm_smmu_master_cfg so it can inspect
+	 * smmu->features (e.g. ARM_SMMU_FEAT_COHERENT_WALK) to decide
+	 * whether to override or delegate back to arm_smmu_capable().
+	 */
+	bool (*capable)(struct device *dev, enum iommu_cap cap);
+	/**
+	 * @prot_mask: IOMMU_* protection bits to clear in
+	 * arm_smmu_map_pages() before the flags reach io-pgtable.
+	 *
+	 * Applied only when ARM_SMMU_FEAT_COHERENT_WALK is absent on the
+	 * SMMU instance, so coherent platforms that share the same impl
+	 * are not affected. Non-coherent instances set IOMMU_CACHE here
+	 * to prevent arm_lpae_prot_to_pte() from selecting WB+IS
+	 * attributes on an interconnect that cannot honour them.
+	 */
+	int prot_mask;
 };
+
+bool arm_smmu_capable(struct device *dev, enum iommu_cap cap);
+bool arm_smmu_capable_default(struct device *dev, enum iommu_cap cap);
 
 #define INVALID_SMENDX			-1
 #define cfg_smendx(cfg, fw, i) \
