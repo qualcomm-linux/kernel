@@ -8,6 +8,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/workqueue.h>
 
 #include <drm/drm_bridge.h>
 #include <drm/bridge/aux-bridge.h>
@@ -17,6 +18,17 @@ static DEFINE_IDA(drm_aux_hpd_bridge_ida);
 struct drm_aux_hpd_bridge_data {
 	struct drm_bridge bridge;
 	struct device *dev;
+
+	/*
+	 * Last HPD status pushed through drm_aux_hpd_bridge_notify().
+	 * Replayed from .hpd_enable so that consumers registering their
+	 * callback after the initial notification are caught up.
+	 *
+	 * Accessed lockless from the notify path (writer) and hpd_work
+	 * (reader) - use WRITE_ONCE()/READ_ONCE().
+	 */
+	enum drm_connector_status last_status;
+	struct work_struct hpd_work;
 };
 
 static void drm_aux_hpd_bridge_release(struct device *dev)
@@ -153,6 +165,8 @@ void drm_aux_hpd_bridge_notify(struct device *dev, enum drm_connector_status sta
 	if (!data)
 		return;
 
+	WRITE_ONCE(data->last_status, status);
+
 	drm_bridge_hpd_notify(&data->bridge, status);
 }
 EXPORT_SYMBOL_GPL(drm_aux_hpd_bridge_notify);
@@ -164,8 +178,42 @@ static int drm_aux_hpd_bridge_attach(struct drm_bridge *bridge,
 	return flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR ? 0 : -EINVAL;
 }
 
+static void drm_aux_hpd_bridge_hpd_work(struct work_struct *work)
+{
+	struct drm_aux_hpd_bridge_data *data =
+		container_of(work, struct drm_aux_hpd_bridge_data, hpd_work);
+	enum drm_connector_status status = READ_ONCE(data->last_status);
+
+	if (status == connector_status_unknown)
+		return;
+
+	drm_bridge_hpd_notify(&data->bridge, status);
+}
+
+/*
+ * Deferred to a work item so that the replayed HPD notification is
+ * delivered outside drm_bridge_hpd_enable()'s call context.
+ */
+static void drm_aux_hpd_bridge_hpd_enable(struct drm_bridge *bridge)
+{
+	struct drm_aux_hpd_bridge_data *data =
+		container_of(bridge, struct drm_aux_hpd_bridge_data, bridge);
+
+	schedule_work(&data->hpd_work);
+}
+
+static void drm_aux_hpd_bridge_hpd_disable(struct drm_bridge *bridge)
+{
+	struct drm_aux_hpd_bridge_data *data =
+		container_of(bridge, struct drm_aux_hpd_bridge_data, bridge);
+
+	cancel_work_sync(&data->hpd_work);
+}
+
 static const struct drm_bridge_funcs drm_aux_hpd_bridge_funcs = {
-	.attach	= drm_aux_hpd_bridge_attach,
+	.attach      = drm_aux_hpd_bridge_attach,
+	.hpd_enable  = drm_aux_hpd_bridge_hpd_enable,
+	.hpd_disable = drm_aux_hpd_bridge_hpd_disable,
 };
 
 static int drm_aux_hpd_bridge_probe(struct auxiliary_device *auxdev,
@@ -187,6 +235,9 @@ static int drm_aux_hpd_bridge_probe(struct auxiliary_device *auxdev,
 	/* passthrough data, allow everything */
 	data->bridge.interlace_allowed = true;
 	data->bridge.ycbcr_420_allowed = true;
+
+	data->last_status = connector_status_unknown;
+	INIT_WORK(&data->hpd_work, drm_aux_hpd_bridge_hpd_work);
 
 	auxiliary_set_drvdata(auxdev, data);
 
