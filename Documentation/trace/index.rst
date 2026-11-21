@@ -73,6 +73,7 @@ interactions and system performance.
    intel_th
    stm
    sys-t
+   p_ost
    coresight/index
    rv/index
    hisi-ptt
