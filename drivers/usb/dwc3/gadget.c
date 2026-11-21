@@ -30,6 +30,13 @@
 #define DWC3_ALIGN_FRAME(d, n)	(((d)->frame_number + ((d)->interval * (n))) \
 					& ~((d)->interval - 1))
 
+#undef dev_dbg
+#define dev_dbg dev_err
+#undef dev_info
+#define dev_info dev_err
+#undef pr_debug
+#define pr_debug pr_err
+
 /**
  * dwc3_gadget_set_test_mode - enables usb2 test modes
  * @dwc: pointer to our context structure
@@ -4155,12 +4162,20 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 
 	dwc3_ep0_reset_state(dwc);
 
+	dev_info(dwc->dev, "dwc3-pmdbg: disconnect_interrupt: connected=%d usage_count=%d runtime_status=%d\n",
+		 dwc->connected, atomic_read(&dwc->dev->power.usage_count),
+		 dwc->dev->power.runtime_status);
+
 	/*
 	 * Request PM idle to address condition where usage count is
 	 * already decremented to zero, but waiting for the disconnect
 	 * interrupt to set dwc->connected to FALSE.
 	 */
 	pm_request_idle(dwc->dev);
+
+	dev_info(dwc->dev, "dwc3-pmdbg: disconnect_interrupt: after pm_request_idle usage_count=%d runtime_status=%d\n",
+		 atomic_read(&dwc->dev->power.usage_count),
+		 dwc->dev->power.runtime_status);
 }
 
 static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
@@ -4536,6 +4551,10 @@ static void dwc3_gadget_suspend_interrupt(struct dwc3 *dwc,
 	if (!dwc->suspended && next == DWC3_LINK_STATE_U3) {
 		dwc->suspended = true;
 		dwc3_suspend_gadget(dwc);
+
+		dev_info(dwc->dev, "dwc3-pmdbg: suspend_interrupt: suspended=1 usage_count=%d runtime_status=%d\n",
+			 atomic_read(&dwc->dev->power.usage_count),
+			 dwc->dev->power.runtime_status);
 	}
 
 	dwc->link_state = next;

@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/gpio/consumer.h>
 #include <linux/hex.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -17,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/sort.h>
 #include <linux/string.h>
@@ -316,6 +318,9 @@ struct op_region {
 	__le32 message_in[CCGX_MESSAGE_IN_MAX];
 };
 
+/* CCGx can expose at most 2 PD ports per chip */
+#define CCG_MAX_PORTS 2
+
 struct ucsi_ccg {
 	struct device *dev;
 	struct ucsi *ucsi;
@@ -353,6 +358,15 @@ struct ucsi_ccg {
 	bool    force_once;
         bool    updating;
 	u64 last_cmd_sent;
+
+	/*
+	 * Optional per-connector CC-orientation GPIO ("orientation-gpios"
+	 * on the connector@N node). Not part of the UCSI spec's connector
+	 * status - the CCGx chip has no HPI register exposing CC polarity,
+	 * so orientation must come from a board-level sense line if one
+	 * exists. Left NULL (orientation_aware stays false) when absent.
+	 */
+	struct gpio_desc *orientation_gpio[CCG_MAX_PORTS];
 };
 
 /* Parsed row container for cyacd/cyacd2 text */
@@ -1842,6 +1856,8 @@ static int ucsi_ccg_read_cci(struct ucsi *ucsi, u32 *cci)
 {
         struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
 
+	dump_stack();
+	pr_err("%s\n",__func__);
         spin_lock(&uc->op_lock);
         *cci = uc->op_data.cci;
         spin_unlock(&uc->op_lock);
@@ -1937,6 +1953,42 @@ err_put:
 
 
 
+static void ucsi_ccg_update_connector(struct ucsi_connector *con)
+{
+	struct ucsi_ccg *uc = ucsi_get_drvdata(con->ucsi);
+
+	pr_err("%s start\n",__func__);
+	if (con->num > CCG_MAX_PORTS || !uc->orientation_gpio[con->num - 1])
+		return;
+
+	dump_stack();
+	pr_err("%s done\n",__func__);
+	con->typec_cap.orientation_aware = true;
+}
+
+static void ucsi_ccg_connector_status(struct ucsi_connector *con)
+{
+	struct ucsi_ccg *uc = ucsi_get_drvdata(con->ucsi);
+	int orientation;
+
+	pr_err("%s start\n",__func__);
+	dump_stack();
+	if (!UCSI_CONSTAT(con, CONNECTED)) {
+		typec_set_orientation(con->port, TYPEC_ORIENTATION_NONE);
+		return;
+	}
+
+	if (con->num > CCG_MAX_PORTS || !uc->orientation_gpio[con->num - 1])
+		return;
+
+	orientation = gpiod_get_value_cansleep(uc->orientation_gpio[con->num - 1]);
+	if (orientation >= 0)
+		typec_set_orientation(con->port,
+				       orientation ? TYPEC_ORIENTATION_REVERSE :
+						     TYPEC_ORIENTATION_NORMAL);
+	pr_err("%s orientation:%d done\n",__func__);
+}
+
 static const struct ucsi_operations ucsi_ccg_ops = {
         .read_version = ucsi_ccg_read_version,
         .read_cci = ucsi_ccg_read_cci,
@@ -1945,6 +1997,8 @@ static const struct ucsi_operations ucsi_ccg_ops = {
         .sync_control = ucsi_ccg_sync_control,
         .async_control = ucsi_ccg_async_control,
         .update_altmodes = ucsi_ccg_update_altmodes,
+        .update_connector = ucsi_ccg_update_connector,
+        .connector_status = ucsi_ccg_connector_status,
 };
 
 static irqreturn_t ccg_irq_handler(int irq, void *data)
@@ -1955,6 +2009,7 @@ static irqreturn_t ccg_irq_handler(int irq, void *data)
         u32 cci = 0;
         int ret = 0;
 
+	pr_err("%s\n", __func__);
         ret = ccg_read(uc, CCGX_RAB_INTR_REG, &intr_reg, sizeof(intr_reg));
         if (ret)
                 return ret;
@@ -1964,6 +2019,7 @@ static irqreturn_t ccg_irq_handler(int irq, void *data)
         else if (!(intr_reg & UCSI_READ_INT))
                 goto err_clear_irq;
 
+	pr_err("%s cci:%x\n", __func__, cci);
         ret = ccg_read(uc, reg, (void *)&cci, sizeof(cci));
         if (ret)
                 goto err_clear_irq;
@@ -1981,6 +2037,7 @@ err_clear_irq:
         if (!ret)
                 ucsi_notify_common(uc->ucsi, cci);
 
+	pr_err("%s cci:%x done\n", __func__, cci);
         return IRQ_HANDLED;
 }
 
@@ -2669,6 +2726,34 @@ static int ucsi_ccg_probe(struct i2c_client *client)
 
 	if (uc->info.mode & CCG_DEVINFO_PDPORTS_MASK)
 		uc->port_num++;
+
+	device_for_each_child_node_scoped(dev, fwnode) {
+		struct gpio_desc *desc;
+		u32 port;
+
+		status = fwnode_property_read_u32(fwnode, "reg", &port);
+		if (status < 0) {
+			dev_err(dev, "missing reg property of %pOFn\n", fwnode);
+			return status;
+		}
+
+		if (port >= CCG_MAX_PORTS) {
+			dev_warn(dev, "invalid connector number, ignoring\n");
+			continue;
+		}
+
+		desc = devm_gpiod_get_index_optional(dev, "orientation", port, GPIOD_IN);
+
+		/* If GPIO isn't found, continue */
+		if (!desc)
+			continue;
+
+		if (IS_ERR(desc))
+			return dev_err_probe(dev, PTR_ERR(desc),
+					      "unable to acquire orientation gpio\n");
+
+		uc->orientation_gpio[port] = desc;
+	}
 
 	uc->ucsi = ucsi_create(dev, &ucsi_ccg_ops);
 	if (IS_ERR(uc->ucsi))

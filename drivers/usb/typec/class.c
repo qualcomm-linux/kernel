@@ -2286,6 +2286,8 @@ int typec_set_orientation(struct typec_port *port,
 {
 	int ret;
 
+	dump_stack();	
+	pr_err("%s orientation:%d\n",__func__, orientation);
 	ret = typec_switch_set(port->sw, orientation);
 	if (ret)
 		return ret;
