@@ -641,11 +641,6 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	    cb->type == QRTR_TYPE_RESUME_TX)
 		qrtr_node_rewrite_ctrl(node, cb->type, skb);
 
-	if (cb->type == QRTR_TYPE_HELLO) {
-		/* Pairs with smp_load_acquire() in qrtr_hello_work() */
-		smp_store_release(&node->hello_rcvd, true);
-	}
-
 	if (cb->type == QRTR_TYPE_RESUME_TX) {
 		qrtr_tx_resume(node, skb);
 	} else {
