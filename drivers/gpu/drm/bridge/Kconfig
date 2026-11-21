@@ -177,6 +177,23 @@ config DRM_LONTIUM_LT9611
 	  HDMI signals
 	  Please say Y if you have such hardware.
 
+config DRM_LONTIUM_LT9611C
+	tristate "Lontium LT9611C DSI/HDMI bridge"
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	depends on OF && I2C
+	select CRC8
+	select FW_LOADER
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_HDMI_STATE_HELPER
+	select REGMAP_I2C
+	help
+	  Driver for the Lontium LT9611C(EX/UXD) DSI to HDMI bridge chip.
+	  It converts single or dual MIPI DSI and I2S signals to HDMI
+	  output. Supports HDMI 1.4 (LT9611C/EX) and HDMI 2.0 (LT9611UXD).
+	  Say Y if you have hardware using this chip.
+
 config DRM_LONTIUM_LT9611UXC
 	tristate "Lontium LT9611UXC DSI/HDMI bridge"
 	select SND_SOC_HDMI_CODEC if SND_SOC
@@ -272,6 +289,16 @@ config DRM_OF_DISPLAY_MODE_BRIDGE
 
 	  It exists for compatibility with legacy display mode parsing, in order
 	  to conform to the panel-bridge framework.
+
+config DRM_PARADE_PS195
+	tristate "Parade PS195 DisplayPort to HDMI converter"
+	depends on OF && REGULATOR
+	select DRM_KMS_HELPER
+	help
+	  Enable support for the Parade PS195 DisplayPort to HDMI converter.
+	  Its firmware handles the display protocol; this driver controls
+	  the power supplies and reset input.
+	  When built as a module, the module is called parade-ps195.
 
 config DRM_PARADE_PS8622
 	tristate "Parade eDP/LVDS bridge"
