@@ -14,7 +14,7 @@
 		regulator-name = "VREG_3P3_KEYE";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&qps_gpio_expander 6 GPIO_ACTIVE_HIGH>;
+		gpio = <&expander1 6 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -56,18 +56,6 @@
 
 &wcn3988_pmu {
 	status = "disabled";
-};
-
-&i2c3 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	qps_gpio_expander: gpio@3c {
-		compatible = "nxp,pca9534";
-		reg = <0x3c>;
-		gpio-controller;
-		#gpio-cells = <2>;
-	};
 };
 
 &pcie {
