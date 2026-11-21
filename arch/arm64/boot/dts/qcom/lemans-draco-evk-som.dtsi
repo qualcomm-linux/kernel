@@ -267,6 +267,11 @@
 	status = "okay";
 };
 
+&qup_i2c4_default {
+	drive-strength = <6>;
+	bias-pull-up;
+};
+
 &qupv3_id_0 {
 	firmware-name = "qcom/sa8775p/qupv3fw.elf";
 
