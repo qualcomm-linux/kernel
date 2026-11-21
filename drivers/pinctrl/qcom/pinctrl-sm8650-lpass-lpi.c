@@ -220,6 +220,7 @@ static const struct of_device_id lpi_pinctrl_of_match[] = {
 MODULE_DEVICE_TABLE(of, lpi_pinctrl_of_match);
 
 static const struct dev_pm_ops lpi_pinctrl_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	RUNTIME_PM_OPS(pm_clk_suspend, pm_clk_resume, NULL)
 };
 
