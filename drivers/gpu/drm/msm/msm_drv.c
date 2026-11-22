@@ -5,7 +5,6 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
-#include <linux/cleanup.h>
 #include <linux/dma-mapping.h>
 #include <linux/fault-inject.h>
 #include <linux/debugfs.h>
@@ -173,15 +172,10 @@ static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_op
 	if (priv->kms)
 		msm_drm_kms_uninit(dev);
 
-	if (priv->gpu_pdev) {
-		struct device *gpu_dev = &priv->gpu_pdev->dev;
-
-		if (pm_runtime_enabled(gpu_dev))
-			WARN_ON_ONCE(adreno_system_suspend(gpu_dev));
-		msm_devfreq_cleanup(dev_to_gpu(gpu_dev));
-	}
-
-	component_unbind_all(dev, ddev);
+	if (gpu_ops)
+		gpu_ops->unbind(dev, dev, NULL);
+	else
+		component_unbind_all(dev, ddev);
 
 	ddev->dev_private = NULL;
 	drm_dev_put(ddev);
@@ -242,10 +236,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
 		ret = component_bind_all(dev, ddev);
 	if (ret)
 		goto err_put_dev;
-
-	/* Devfreq callbacks require the GPU and GMU to be initialized. */
-	if (priv->gpu_pdev)
-		msm_devfreq_init(dev_to_gpu(&priv->gpu_pdev->dev));
 
 	ret = msm_gem_shrinker_init(ddev);
 	if (ret)
@@ -1123,20 +1113,18 @@ static const struct of_device_id msm_gpu_match[] = {
 };
 
 static int add_gpu_components(struct device *dev,
-			      struct device_node *gpu_np,
 			      struct component_match **matchptr)
 {
-	struct device_node *np __free(device_node) = gpu_np ?
-		of_node_get(gpu_np) : of_find_matching_node(NULL, msm_gpu_match);
+	struct device_node *np;
 
-	if (!np || !of_device_is_available(np) || !adreno_has_gpu(np))
+	np = of_find_matching_node(NULL, msm_gpu_match);
+	if (!np)
 		return 0;
 
-	drm_of_component_match_add(dev, matchptr, component_compare_of, np);
+	if (of_device_is_available(np) && adreno_has_gpu(np))
+		drm_of_component_match_add(dev, matchptr, component_compare_of, np);
 
-	struct device_node *gmu_np __free(device_node) = of_parse_phandle(np, "qcom,gmu", 0);
-	if (of_device_is_available(gmu_np))
-		drm_of_component_match_add(dev, matchptr, component_compare_of, gmu_np);
+	of_node_put(np);
 
 	return 0;
 }
@@ -1191,7 +1179,7 @@ int msm_drv_probe(struct device *master_dev,
 	}
 
 	if (!msm_gpu_no_components()) {
-		ret = add_gpu_components(master_dev, NULL, &match);
+		ret = add_gpu_components(master_dev, &match);
 		if (ret)
 			return ret;
 	}

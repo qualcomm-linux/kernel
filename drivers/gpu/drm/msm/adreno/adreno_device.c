@@ -250,6 +250,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 }
 
+static int adreno_system_suspend(struct device *dev);
 static void adreno_unbind(struct device *dev, struct device *master,
 		void *data)
 {
@@ -372,7 +373,7 @@ static void resume_scheduler(struct msm_gpu *gpu)
 	}
 }
 
-int adreno_system_suspend(struct device *dev)
+static int adreno_system_suspend(struct device *dev)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
 	int remaining, ret;
@@ -432,7 +433,6 @@ void __init adreno_register(void)
 		return;
 
 	platform_driver_register(&adreno_driver);
-	adreno_gmu_register();
 }
 
 void __exit adreno_unregister(void)
@@ -440,6 +440,5 @@ void __exit adreno_unregister(void)
 	if (skip_gpu)
 		return;
 
-	adreno_gmu_unregister();
 	platform_driver_unregister(&adreno_driver);
 }
