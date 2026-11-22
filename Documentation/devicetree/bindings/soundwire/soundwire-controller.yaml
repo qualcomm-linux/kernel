@@ -30,9 +30,10 @@ patternProperties:
 
     properties:
       compatible:
-        pattern: "^sdw[0-9a-f]{1}[0-9a-f]{4}[0-9a-f]{4}[0-9a-f]{2}$"
-        description: Is the textual representation of SoundWire Enumeration
-          address. compatible string should contain SoundWire Version ID,
+        contains:
+          pattern: "^sdw[0-9a-f]{1}[0-9a-f]{4}[0-9a-f]{4}[0-9a-f]{2}$"
+        description: The SoundWire enumeration address must appear as one
+          of the compatible strings.  It encodes the SoundWire Version ID,
           Manufacturer ID, Part ID and Class ID in order and shall be in
           lower-case hexadecimal with leading zeroes.
           Valid sizes of these fields are
@@ -43,6 +44,11 @@ patternProperties:
           CID is 2 nibbles
           More Information on detail of encoding of these fields can be
           found in MIPI Alliance DisCo & SoundWire 1.0 Specifications.
+
+          Vendor-variant compatibles ("vendor,part") may precede the
+          class-ID compatible per standard DT convention, so that codec
+          drivers can disambiguate mode/variant via
+          device_is_compatible().
 
       reg:
         maxItems: 1
