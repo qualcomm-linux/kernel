@@ -662,6 +662,20 @@ static int qcom_adreno_smmu_runtime_suspend(struct arm_smmu_device *smmu)
 	return ret;
 }
 
+static bool qcom_smmu_500_capable(struct device *dev, enum iommu_cap cap)
+{
+	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
+
+	switch (cap) {
+	case IOMMU_CAP_CACHE_COHERENCY:
+		if (!(cfg->smmu->features & ARM_SMMU_FEAT_COHERENT_WALK))
+			return true;
+		fallthrough;
+	default:
+		return arm_smmu_capable_default(dev, cap);
+	}
+}
+
 static const struct arm_smmu_impl qcom_smmu_v2_impl = {
 	.init_context = qcom_smmu_init_context,
 	.cfg_probe = qcom_smmu_cfg_probe,
@@ -677,6 +691,8 @@ static const struct arm_smmu_impl qcom_smmu_500_impl = {
 	.reset = arm_mmu500_reset,
 	.write_s2cr = qcom_smmu_write_s2cr,
 	.tlb_sync = qcom_smmu_tlb_sync,
+	.capable = qcom_smmu_500_capable,
+	.prot_mask = IOMMU_CACHE,
 #ifdef CONFIG_ARM_SMMU_QCOM_DEBUG
 	.context_fault = qcom_smmu_context_fault,
 	.context_fault_needs_threaded_irq = true,
