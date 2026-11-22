@@ -73,6 +73,7 @@
 		enable-gpios = <&tlmm 76 GPIO_ACTIVE_HIGH>;
 		interrupts-extended = <&tlmm 85 IRQ_TYPE_EDGE_FALLING>;
 		vcc-supply = <&vreg_bridge_1p8>;
+		ti,ref-clk-src = <1>;
 
 		pinctrl-0 = <&bridge_irq_pin &bridge_rst_pin>;
 		pinctrl-names = "default";
@@ -95,6 +96,8 @@
 
 				sn65dsi84_out_a: endpoint {
 					remote-endpoint = <&lvds_panel_out_a>;
+					ti,lvds-vod-swing-data-microvolt = <150000 261000>;
+					ti,lvds-vod-swing-clock-microvolt = <117000 204000>;
 				};
 			};
 
@@ -103,6 +106,8 @@
 
 				sn65dsi84_out_b: endpoint {
 					remote-endpoint = <&lvds_panel_out_b>;
+					ti,lvds-vod-swing-data-microvolt = <150000 261000>;
+					ti,lvds-vod-swing-clock-microvolt = <117000 204000>;
 				};
 			};
 		};
