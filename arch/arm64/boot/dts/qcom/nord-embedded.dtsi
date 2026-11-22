@@ -3219,38 +3219,6 @@
 		bias-disable;
 	};
 
-	ethernet0_default: ethernet0-default-state {
-		mdc-pins {
-			pins = "gpio47";
-			function = "emac0_mdc";
-			drive-strength = <16>;
-			bias-pull-up;
-		};
-
-		mdio-pins {
-			pins = "gpio48";
-			function = "emac0_mdio";
-			drive-strength = <16>;
-			bias-pull-up;
-		};
-	};
-
-	ethernet1_default: ethernet1-default-state {
-		mdc-pins {
-			pins = "gpio49";
-			function = "emac1_mdc";
-			drive-strength = <16>;
-			bias-pull-up;
-		};
-
-		mdio-pins {
-			pins = "gpio50";
-			function = "emac1_mdio";
-			drive-strength = <16>;
-			bias-pull-up;
-		};
-	};
-
 	pcie0_default: pcie0-default-state {
 		wake-pins {
 			pins = "gpio0";
