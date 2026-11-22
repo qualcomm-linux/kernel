@@ -9,10 +9,12 @@
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/if_arp.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/soc/qcom/smem_state.h>
@@ -62,6 +64,7 @@ struct bam_dmux_skb_dma {
 	struct bam_dmux *dmux;
 	struct sk_buff *skb;
 	dma_addr_t addr;
+	void *rx_virt; /* non-NULL: slot in the coherent RX block */
 };
 
 struct bam_dmux {
@@ -75,6 +78,10 @@ struct bam_dmux {
 	struct completion pc_ack_completion;
 
 	struct dma_chan *rx, *tx;
+	/* Single coherent block backing all RX buffers, NULL if unused */
+	void *rx_buf;
+	dma_addr_t rx_buf_dma;
+	u64 rx_buf_perms; /* SCM source-VMID bitmask of rx_buf */
 	struct bam_dmux_skb_dma rx_skbs[BAM_DMUX_NUM_SKB];
 	struct bam_dmux_skb_dma tx_skbs[BAM_DMUX_NUM_SKB];
 	spinlock_t tx_lock; /* Protect tx_skbs, tx_next_skb */
@@ -90,6 +97,10 @@ struct bam_dmux {
 struct bam_dmux_netdev {
 	struct bam_dmux *dmux;
 	u8 ch;
+};
+
+struct bam_dmux_data {
+	u32 vmid;
 };
 
 static void bam_dmux_pc_vote(struct bam_dmux *dmux, bool enable)
@@ -111,6 +122,9 @@ static bool bam_dmux_skb_dma_map(struct bam_dmux_skb_dma *skb_dma,
 {
 	struct device *dev = skb_dma->dmux->dev;
 
+	if (skb_dma->rx_virt) /* coherent RX slot: addr pre-assigned */
+		return true;
+
 	skb_dma->addr = dma_map_single(dev, skb_dma->skb->data, skb_dma->skb->len, dir);
 	if (dma_mapping_error(dev, skb_dma->addr)) {
 		dev_err(dev, "Failed to DMA map buffer\n");
@@ -124,6 +138,9 @@ static bool bam_dmux_skb_dma_map(struct bam_dmux_skb_dma *skb_dma,
 static void bam_dmux_skb_dma_unmap(struct bam_dmux_skb_dma *skb_dma,
 				   enum dma_data_direction dir)
 {
+	if (skb_dma->rx_virt) /* coherent RX slot: nothing to unmap */
+		return;
+
 	dma_unmap_single(skb_dma->dmux->dev, skb_dma->addr, skb_dma->skb->len, dir);
 	skb_dma->addr = 0;
 }
@@ -468,9 +485,10 @@ static bool bam_dmux_skb_dma_submit_rx(struct bam_dmux_skb_dma *skb_dma)
 {
 	struct bam_dmux *dmux = skb_dma->dmux;
 	struct dma_async_tx_descriptor *desc;
+	size_t len = skb_dma->rx_virt ? BAM_DMUX_BUFFER_SIZE : skb_dma->skb->len;
 
 	desc = dmaengine_prep_slave_single(dmux->rx, skb_dma->addr,
-					   skb_dma->skb->len, DMA_DEV_TO_MEM,
+					   len, DMA_DEV_TO_MEM,
 					   DMA_PREP_INTERRUPT);
 	if (!desc) {
 		dev_err(dmux->dev, "Failed to prepare RX DMA buffer\n");
@@ -485,6 +503,10 @@ static bool bam_dmux_skb_dma_submit_rx(struct bam_dmux_skb_dma *skb_dma)
 
 static bool bam_dmux_skb_dma_queue_rx(struct bam_dmux_skb_dma *skb_dma, gfp_t gfp)
 {
+	/* Coherent RX slots have rx_virt and addr pre-assigned at probe. */
+	if (skb_dma->rx_virt)
+		return bam_dmux_skb_dma_submit_rx(skb_dma);
+
 	if (!skb_dma->skb) {
 		skb_dma->skb = __netdev_alloc_skb(NULL, BAM_DMUX_BUFFER_SIZE, gfp);
 		if (!skb_dma->skb)
@@ -499,9 +521,10 @@ static bool bam_dmux_skb_dma_queue_rx(struct bam_dmux_skb_dma *skb_dma, gfp_t gf
 static void bam_dmux_cmd_data(struct bam_dmux_skb_dma *skb_dma)
 {
 	struct bam_dmux *dmux = skb_dma->dmux;
-	struct sk_buff *skb = skb_dma->skb;
-	struct bam_dmux_hdr *hdr = (struct bam_dmux_hdr *)skb->data;
+	struct bam_dmux_hdr *hdr = skb_dma->rx_virt ? skb_dma->rx_virt :
+				   (struct bam_dmux_hdr *)skb_dma->skb->data;
 	struct net_device *netdev = dmux->netdevs[hdr->ch];
+	struct sk_buff *skb;
 
 	if (!netdev || !netif_running(netdev)) {
 		dev_warn(dmux->dev, "Data for inactive channel %u\n", hdr->ch);
@@ -514,10 +537,18 @@ static void bam_dmux_cmd_data(struct bam_dmux_skb_dma *skb_dma)
 		return;
 	}
 
-	skb_dma->skb = NULL; /* Hand over to network stack */
-
-	skb_pull(skb, sizeof(*hdr));
-	skb_trim(skb, hdr->len);
+	if (skb_dma->rx_virt) {
+		/* Coherent block is not page-backed: copy out to a real skb */
+		skb = netdev_alloc_skb(netdev, hdr->len);
+		if (!skb)
+			return;
+		skb_put_data(skb, (u8 *)skb_dma->rx_virt + sizeof(*hdr), hdr->len);
+	} else {
+		skb = skb_dma->skb;
+		skb_dma->skb = NULL; /* Hand over to network stack */
+		skb_pull(skb, sizeof(*hdr));
+		skb_trim(skb, hdr->len);
+	}
 	skb->dev = netdev;
 
 	/* Only Raw-IP/QMAP is supported by this driver */
@@ -574,10 +605,14 @@ static void bam_dmux_rx_callback(void *data)
 {
 	struct bam_dmux_skb_dma *skb_dma = data;
 	struct bam_dmux *dmux = skb_dma->dmux;
-	struct sk_buff *skb = skb_dma->skb;
-	struct bam_dmux_hdr *hdr = (struct bam_dmux_hdr *)skb->data;
+	struct bam_dmux_hdr *hdr;
 
-	bam_dmux_skb_dma_unmap(skb_dma, DMA_FROM_DEVICE);
+	if (skb_dma->rx_virt) {
+		hdr = skb_dma->rx_virt; /* coherent RX: no skb to unmap */
+	} else {
+		bam_dmux_skb_dma_unmap(skb_dma, DMA_FROM_DEVICE);
+		hdr = (struct bam_dmux_hdr *)skb_dma->skb->data;
+	}
 
 	if (hdr->magic != BAM_DMUX_HDR_MAGIC) {
 		dev_err(dmux->dev, "Invalid magic in header: %#x\n", hdr->magic);
@@ -643,6 +678,9 @@ static void bam_dmux_free_skbs(struct bam_dmux_skb_dma skbs[],
 
 	for (i = 0; i < BAM_DMUX_NUM_SKB; i++) {
 		struct bam_dmux_skb_dma *skb_dma = &skbs[i];
+
+		if (skb_dma->rx_virt) /* coherent block freed at remove */
+			continue;
 
 		if (skb_dma->addr)
 			bam_dmux_skb_dma_unmap(skb_dma, dir);
@@ -762,6 +800,71 @@ static int __maybe_unused bam_dmux_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int bam_dmux_alloc_coherent_rx(struct bam_dmux *dmux)
+{
+	struct device *dev = dmux->dev;
+	const struct bam_dmux_data *data = of_device_get_match_data(dev);
+	size_t size = BAM_DMUX_NUM_SKB * BAM_DMUX_BUFFER_SIZE;
+	u64 src = BIT_ULL(QCOM_SCM_VMID_HLOS);
+	struct qcom_scm_vmperm dst[2];
+	int i, ret;
+
+	if (!data)
+		return 0;
+
+	if (!qcom_scm_is_available())
+		return -EPROBE_DEFER;
+
+	dst[0].vmid = QCOM_SCM_VMID_HLOS;
+	dst[0].perm = QCOM_SCM_PERM_RW;
+	dst[1].vmid = data->vmid;
+	dst[1].perm = QCOM_SCM_PERM_RW;
+
+	dmux->rx_buf = dma_alloc_coherent(dev, size, &dmux->rx_buf_dma, GFP_KERNEL);
+	if (!dmux->rx_buf)
+		return -ENOMEM;
+
+	for (i = 0; i < BAM_DMUX_NUM_SKB; i++) {
+		dmux->rx_skbs[i].rx_virt = dmux->rx_buf + i * BAM_DMUX_BUFFER_SIZE;
+		dmux->rx_skbs[i].addr = dmux->rx_buf_dma + i * BAM_DMUX_BUFFER_SIZE;
+	}
+
+	ret = qcom_scm_assign_mem(dmux->rx_buf_dma, size, &src, dst, ARRAY_SIZE(dst));
+	if (ret) {
+		dev_err(dev, "SCM assign RX block failed: %d\n", ret);
+		dma_free_coherent(dev, size, dmux->rx_buf, dmux->rx_buf_dma);
+		dmux->rx_buf = NULL;
+		return ret;
+	}
+	dmux->rx_buf_perms = src;
+
+	return 0;
+}
+
+static void bam_dmux_free_coherent_rx(struct bam_dmux *dmux)
+{
+	struct qcom_scm_vmperm hlos = {
+		.vmid = QCOM_SCM_VMID_HLOS,
+		.perm = QCOM_SCM_PERM_RW,
+	};
+	size_t size = BAM_DMUX_NUM_SKB * BAM_DMUX_BUFFER_SIZE;
+
+	if (!dmux->rx_buf)
+		return;
+
+	if (dmux->rx_buf_perms) {
+		if (qcom_scm_assign_mem(dmux->rx_buf_dma, size, &dmux->rx_buf_perms,
+					&hlos, 1)) {
+			dev_err(dmux->dev, "SCM reclaim RX block failed; leaking\n");
+			return;
+		}
+		dmux->rx_buf_perms = 0;
+	}
+
+	dma_free_coherent(dmux->dev, size, dmux->rx_buf, dmux->rx_buf_dma);
+	dmux->rx_buf = NULL;
+}
+
 static int bam_dmux_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -809,6 +912,10 @@ static int bam_dmux_probe(struct platform_device *pdev)
 		dmux->tx_skbs[i].dmux = dmux;
 	}
 
+	ret = bam_dmux_alloc_coherent_rx(dmux);
+	if (ret)
+		return ret;
+
 	/* Runtime PM manages our own power vote.
 	 * Note that the RX path may be active even if we are runtime suspended,
 	 * since it is controlled by the remote side.
@@ -845,6 +952,7 @@ static int bam_dmux_probe(struct platform_device *pdev)
 err_disable_pm:
 	pm_runtime_disable(dev);
 	pm_runtime_dont_use_autosuspend(dev);
+	bam_dmux_free_coherent_rx(dmux);
 	return ret;
 }
 
@@ -879,13 +987,19 @@ static void bam_dmux_remove(struct platform_device *pdev)
 	disable_irq(dmux->pc_irq);
 	bam_dmux_power_off(dmux);
 	bam_dmux_free_skbs(dmux->tx_skbs, DMA_TO_DEVICE);
+	bam_dmux_free_coherent_rx(dmux);
 }
 
 static const struct dev_pm_ops bam_dmux_pm_ops = {
 	SET_RUNTIME_PM_OPS(bam_dmux_runtime_suspend, bam_dmux_runtime_resume, NULL)
 };
 
+static const struct bam_dmux_data shikra_data = {
+	.vmid = QCOM_SCM_VMID_NAV,
+};
+
 static const struct of_device_id bam_dmux_of_match[] = {
+	{ .compatible = "qcom,shikra-bam-dmux", .data = &shikra_data },
 	{ .compatible = "qcom,bam-dmux" },
 	{ /* sentinel */ }
 };
