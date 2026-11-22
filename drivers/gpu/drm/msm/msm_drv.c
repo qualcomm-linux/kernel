@@ -1198,25 +1198,10 @@ int msm_drv_probe(struct device *master_dev,
 	return 0;
 }
 
-static int msm_gpu_drm_bind(struct device *dev)
-{
-	return msm_drm_init(dev, &msm_gpu_driver);
-}
-
-static void msm_gpu_drm_unbind(struct device *dev)
-{
-	msm_drm_uninit(dev);
-}
-
-static const struct component_master_ops msm_gpu_drm_ops = {
-	.bind = msm_gpu_drm_bind,
-	.unbind = msm_gpu_drm_unbind,
-};
-
-int msm_gpu_probe(struct platform_device *pdev)
+int msm_gpu_probe(struct platform_device *pdev,
+		  const struct component_ops *ops)
 {
 	struct msm_drm_private *priv;
-	struct component_match *match = NULL;
 	int ret;
 
 	priv = devres_alloc(msm_drm_priv_release, sizeof(*priv), GFP_KERNEL);
@@ -1232,17 +1217,13 @@ int msm_gpu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = add_gpu_components(&pdev->dev, pdev->dev.of_node, &match);
-	if (ret)
-		return ret;
-
-	return component_master_add_with_match(&pdev->dev, &msm_gpu_drm_ops,
-					       match);
+	return msm_drm_init(&pdev->dev, &msm_gpu_driver, ops);
 }
 
-void msm_gpu_remove(struct platform_device *pdev)
+void msm_gpu_remove(struct platform_device *pdev,
+		    const struct component_ops *ops)
 {
-	component_master_del(&pdev->dev, &msm_gpu_drm_ops);
+	msm_drm_uninit(&pdev->dev, ops);
 }
 
 static int __init msm_drm_register(void)
