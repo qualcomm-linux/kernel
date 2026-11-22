@@ -148,7 +148,7 @@ struct msm_drm_private *msm_drm_get_priv(struct device *dev)
 	return devres_find(dev, msm_drm_priv_release, NULL, NULL);
 }
 
-static int msm_drm_uninit(struct device *dev)
+static int msm_drm_uninit(struct device *dev, const struct component_ops *gpu_ops)
 {
 	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct drm_device *ddev = priv->dev;
@@ -189,7 +189,8 @@ static int msm_drm_uninit(struct device *dev)
 	return 0;
 }
 
-static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
+static int msm_drm_init(struct device *dev, const struct drm_driver *drv,
+			const struct component_ops *gpu_ops)
 {
 	struct msm_drm_private *priv = msm_drm_get_priv(dev);
 	struct drm_device *ddev;
@@ -235,7 +236,10 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	dma_set_max_seg_size(dev, UINT_MAX);
 
 	/* Bind all our sub-components: */
-	ret = component_bind_all(dev, ddev);
+	if (gpu_ops)
+		ret = gpu_ops->bind(dev, dev, NULL);
+	else
+		ret = component_bind_all(dev, ddev);
 	if (ret)
 		goto err_put_dev;
 
@@ -269,7 +273,7 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	return 0;
 
 err_msm_uninit:
-	msm_drm_uninit(dev);
+	msm_drm_uninit(dev, gpu_ops);
 
 	return ret;
 
@@ -1148,12 +1152,13 @@ static int msm_drm_bind(struct device *dev)
 	return msm_drm_init(dev,
 			    msm_gpu_no_components() ?
 				    &msm_kms_driver :
-				    &msm_driver);
+				    &msm_driver,
+			    NULL);
 }
 
 static void msm_drm_unbind(struct device *dev)
 {
-	msm_drm_uninit(dev);
+	msm_drm_uninit(dev, NULL);
 }
 
 const struct component_master_ops msm_drm_ops = {
