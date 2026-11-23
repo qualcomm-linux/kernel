@@ -3055,14 +3055,30 @@
 
 		ptp@1c80000 {
 			compatible = "qcom,sa8775p-tscss";
-			reg = <0x0 0x01c80000 0x0 0x2000>;
-			reg-names = "tsc";
+			reg = <0x0 0x01c80000 0x0 0x2000>,
+			      <0x0 0x01c90000 0x0 0x10000>;
+			reg-names = "tsc", "etu";
+
 			clocks = <&gcc GCC_TSCSS_AHB_CLK>,
 				 <&gcc GCC_TSCSS_GLOBAL_CNTR_CLK>,
 				 <&gcc GCC_TSCSS_ETU_CLK>;
 			clock-names = "ahb", "cntr", "etu";
-			assigned-clocks = <&gcc GCC_TSCSS_GLOBAL_CNTR_CLK>;
-			assigned-clock-rates = <15625000>;
+
+			assigned-clocks = <&gcc GCC_TSCSS_GLOBAL_CNTR_CLK>,
+					  <&gcc GCC_TSCSS_ETU_CLK>;
+			assigned-clock-rates = <15625000>, <15625000>;
+
+			interrupts = <GIC_SPI 766 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "etu_summary";
+
+			qcom,etu-slice = <12 13>;
+			qcom,etu-event-sel = <12 13>;
+
+			pinctrl-names = "slice12", "slice13";
+			pinctrl-0 = <&cci_async0_default>;
+			pinctrl-1 = <&cci_async1_default>;
+
+			status = "disabled";
 		};
 
 		ufs_mem_hc: ufshc@1d84000 {
@@ -6265,6 +6281,20 @@
 				function = "cci_i2c";
 				drive-strength = <2>;
 				bias-pull-down;
+			};
+
+			cci_async0_default: cci-async0-state {
+				pins = "gpio70";
+				function = "cci_async";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			cci_async1_default: cci-async1-state {
+				pins = "gpio71";
+				function = "cci_async";
+				drive-strength = <2>;
+				bias-disable;
 			};
 
 			cci3_1_default: cci3-1-default-state {
