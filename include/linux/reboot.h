@@ -254,6 +254,21 @@ extern void orderly_reboot(void);
  *	task) detected by the kernel's softlockup watchdog, before it
  *	escalated to panic.
  *
+ * @PSCR_BOOTLOADER: Userspace-requested reboot into the bootloader
+ *	(e.g. "reboot bootloader" / fastboot).
+ *
+ * @PSCR_RECOVERY: Userspace-requested reboot into the recovery image
+ *	(e.g. "reboot recovery").
+ *
+ * @PSCR_OTA: Userspace-requested reboot to apply an OTA update
+ *	(e.g. "reboot ota-update").
+ *
+ * @PSCR_EDL: Userspace-requested reboot into Emergency Download Mode
+ *	(e.g. "reboot edl").
+ *
+ * @PSCR_FACTORY_RESET: Userspace-requested reboot to perform a factory
+ *	reset (e.g. "reboot factory-reset").
+ *
  * @PSCR_REASON_COUNT: Number of defined power state change reasons. This
  *	value is useful for range checking and potential future extensions
  *	while maintaining compatibility.
@@ -281,6 +296,11 @@ enum psc_reason {
 	PSCR_WATCHDOG_PRETIMEOUT,
 	PSCR_KERNEL_WATCHDOG_HARDLOCKUP,
 	PSCR_KERNEL_WATCHDOG_SOFTLOCKUP,
+	PSCR_BOOTLOADER,
+	PSCR_RECOVERY,
+	PSCR_OTA,
+	PSCR_EDL,
+	PSCR_FACTORY_RESET,
 
 	/* Number of reasons */
 	PSCR_REASON_COUNT,
@@ -291,6 +311,7 @@ enum psc_reason {
 const char *psc_reason_to_str(enum psc_reason reason);
 const char *psc_reason_to_token(enum psc_reason reason);
 int psc_reason_from_token(const char *token, enum psc_reason *reason);
+enum psc_reason psc_reason_from_reboot_cmd(const char *cmd);
 
 /**
  * enum hw_protection_action - Hardware protection action

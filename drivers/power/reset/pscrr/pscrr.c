@@ -503,18 +503,19 @@ static void pscrr_record_current(void)
 }
 
 static int pscrr_reboot_notifier(struct notifier_block *nb,
-				 unsigned long action, void *unused)
+				 unsigned long action, void *cmd)
 {
 	guard(mutex)(&pscrr_lock);
 
 	/*
 	 * A reboot, halt or power-off that reaches here with no more specific
-	 * reason is software-initiated by definition. Record it as such rather
-	 * than leaving it unattributed; a real cause set earlier (thermal,
+	 * reason is attributed from the userspace reboot(2) command string
+	 * (e.g. "bootloader", "recovery", "ota-update") when present, or recorded as
+	 * software-initiated otherwise. A real cause set earlier (thermal,
 	 * under-voltage, ...) is already latched and left untouched.
 	 */
 	if (get_psc_reason() == PSCR_UNKNOWN)
-		set_psc_reason(PSCR_SOFTWARE);
+		set_psc_reason(psc_reason_from_reboot_cmd(cmd));
 
 	pscrr_record_current();
 
