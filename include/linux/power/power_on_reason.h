@@ -24,5 +24,10 @@
 #define POWER_ON_REASON_WATCHDOG_PRETIMEOUT "watchdog pretimeout"
 #define POWER_ON_REASON_HARD_LOCKUP "hard lockup"
 #define POWER_ON_REASON_SOFT_LOCKUP "soft lockup"
+#define POWER_ON_REASON_REBOOT_BOOTLOADER "reboot to bootloader"
+#define POWER_ON_REASON_REBOOT_RECOVERY "reboot to recovery"
+#define POWER_ON_REASON_REBOOT_OTA "reboot for OTA update"
+#define POWER_ON_REASON_EDL "reboot to emergency download mode"
+#define POWER_ON_REASON_REBOOT_FACTORY_RESET "reboot to factory reset"
 
 #endif /* POWER_ON_REASON_H */
