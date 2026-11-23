@@ -191,6 +191,7 @@
 #define GCC_VIDEO_AXI0_CLK					181
 #define GCC_VIDEO_AXI1_CLK					182
 #define GCC_VIDEO_XO_CLK					183
+#define GCC_PDM_XO4_DIV_CLK_SRC				184
 
 /* GCC power domains */
 #define GCC_EMAC0_GDSC						0
