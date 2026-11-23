@@ -241,6 +241,8 @@ extern void orderly_reboot(void);
  *
  * @PSCR_XTAL_FAIL: Reset caused by a crystal oscillator failure.
  *
+ * @PSCR_KERNEL_PANIC: Reset that followed a kernel panic.
+ *
  * @PSCR_REASON_COUNT: Number of defined power state change reasons. This
  *	value is useful for range checking and potential future extensions
  *	while maintaining compatibility.
@@ -264,6 +266,7 @@ enum psc_reason {
 	PSCR_RESET_BUTTON,
 	PSCR_CPU_CLK_FAIL,
 	PSCR_XTAL_FAIL,
+	PSCR_KERNEL_PANIC,
 
 	/* Number of reasons */
 	PSCR_REASON_COUNT,
