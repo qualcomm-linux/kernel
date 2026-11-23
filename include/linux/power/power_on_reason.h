@@ -22,5 +22,7 @@
 #define POWER_ON_REASON_EXTERNAL "external reset"
 #define POWER_ON_REASON_KERNEL_PANIC "kernel panic"
 #define POWER_ON_REASON_WATCHDOG_PRETIMEOUT "watchdog pretimeout"
+#define POWER_ON_REASON_HARD_LOCKUP "hard lockup"
+#define POWER_ON_REASON_SOFT_LOCKUP "soft lockup"
 
 #endif /* POWER_ON_REASON_H */
