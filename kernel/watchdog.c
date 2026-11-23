@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/nmi.h>
+#include <linux/reboot.h>
 #include <linux/stop_machine.h>
 #include <linux/sysctl.h>
 #include <linux/tick.h>
@@ -290,8 +291,10 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 	}
 
 	sys_info(hardlockup_si_mask & ~SYS_INFO_ALL_BT);
-	if (hardlockup_panic)
+	if (hardlockup_panic) {
+		set_psc_reason(PSCR_KERNEL_WATCHDOG_HARDLOCKUP);
 		nmi_panic(regs, "Hard LOCKUP");
+	}
 
 	per_cpu(watchdog_hardlockup_warned, cpu) = true;
 }
@@ -909,8 +912,10 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		add_taint(TAINT_SOFTLOCKUP, LOCKDEP_STILL_OK);
 		sys_info(softlockup_si_mask & ~SYS_INFO_ALL_BT);
 
-		if (softlockup_panic && thresh_count >= softlockup_panic)
+		if (softlockup_panic && thresh_count >= softlockup_panic) {
+			set_psc_reason(PSCR_KERNEL_WATCHDOG_SOFTLOCKUP);
 			panic("softlockup: hung tasks");
+		}
 	}
 
 	return HRTIMER_RESTART;

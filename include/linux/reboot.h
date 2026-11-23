@@ -246,6 +246,14 @@ extern void orderly_reboot(void);
  * @PSCR_WATCHDOG_PRETIMEOUT: Recorded when a watchdog pretimeout fires, before
  *  the pretimeout governor brings the system down.
  *
+ * @PSCR_KERNEL_WATCHDOG_HARDLOCKUP: Reset that followed a hard lockup detected
+ *	by the kernel's NMI watchdog (kernel/watchdog.c), before it escalated to
+ *	panic.
+ *
+ * @PSCR_KERNEL_WATCHDOG_SOFTLOCKUP: Reset that followed a soft lockup (hung
+ *	task) detected by the kernel's softlockup watchdog, before it
+ *	escalated to panic.
+ *
  * @PSCR_REASON_COUNT: Number of defined power state change reasons. This
  *	value is useful for range checking and potential future extensions
  *	while maintaining compatibility.
@@ -271,6 +279,8 @@ enum psc_reason {
 	PSCR_XTAL_FAIL,
 	PSCR_KERNEL_PANIC,
 	PSCR_WATCHDOG_PRETIMEOUT,
+	PSCR_KERNEL_WATCHDOG_HARDLOCKUP,
+	PSCR_KERNEL_WATCHDOG_SOFTLOCKUP,
 
 	/* Number of reasons */
 	PSCR_REASON_COUNT,
