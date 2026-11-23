@@ -74,6 +74,7 @@
 /* RGMII_IO_MACRO_CONFIG2 fields */
 #define RGMII_CONFIG2_RSVD_CONFIG15		GENMASK(31, 17)
 #define RGMII_CONFIG2_RGMII_CLK_SEL_CFG		BIT(16)
+#define RGMII_CONFIG2_RGMII_CFG_REV1		BIT(15)
 #define RGMII_CONFIG2_TX_TO_RX_LOOPBACK_EN	BIT(13)
 #define RGMII_CONFIG2_CLK_DIVIDE_SEL		BIT(12)
 #define RGMII_CONFIG2_RX_PROG_SWAP		BIT(7)
@@ -88,6 +89,7 @@
 #define SGMII_PHY_CNTRL1_SGMII_TX_TO_RX_LOOPBACK_EN	BIT(3)
 
 #define SGMII_10M_RX_CLK_DVDR			0x31
+#define RMII_REF_CLK_RATE			50000000
 
 #define ETHQOS_MAX_NOC_CLKS			3
 
@@ -200,6 +202,11 @@ static void
 ethqos_update_link_clk(struct qcom_ethqos *ethqos, int speed)
 {
 	long rate;
+
+	if (ethqos->phy_mode == PHY_INTERFACE_MODE_RMII) {
+		clk_set_rate(ethqos->link_clk, RMII_REF_CLK_RATE);
+		return;
+	}
 
 	if (!phy_interface_mode_is_rgmii(ethqos->phy_mode))
 		return;
@@ -609,6 +616,36 @@ static void ethqos_rgmii_id_macro_init(struct qcom_ethqos *ethqos, int speed)
 		      RGMII_IO_MACRO_CONFIG2);
 }
 
+static void ethqos_rmii_macro_init(struct qcom_ethqos *ethqos)
+{
+	rgmii_clrmask(ethqos, RGMII_CONFIG_POS_NEG_DATA_SEL,
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_INTF_SEL,
+		      FIELD_PREP(RGMII_CONFIG_INTF_SEL, 1),
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_setmask(ethqos, RGMII_CONFIG_BYPASS_TX_ID_EN,
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_setmask(ethqos, RGMII_CONFIG_LOOPBACK_EN,
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_clrmask(ethqos, RGMII_CONFIG_DDR_MODE, RGMII_IO_MACRO_CONFIG);
+
+	rgmii_setmask(ethqos, RGMII_CONFIG2_RGMII_CFG_REV1,
+		      RGMII_IO_MACRO_CONFIG2);
+	rgmii_clrmask(ethqos, RGMII_CONFIG2_TX_TO_RX_LOOPBACK_EN,
+		      RGMII_IO_MACRO_CONFIG2);
+	rgmii_setmask(ethqos, RGMII_CONFIG2_CLK_DIVIDE_SEL,
+		      RGMII_IO_MACRO_CONFIG2);
+	rgmii_clrmask(ethqos, RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+		      RGMII_IO_MACRO_CONFIG2);
+}
+
+static int ethqos_configure_rmii(struct qcom_ethqos *ethqos, int speed)
+{
+	ethqos_rmii_macro_init(ethqos);
+
+	return 0;
+}
+
 static int ethqos_configure_rgmii(struct qcom_ethqos *ethqos, int speed)
 {
 	struct device *dev = &ethqos->pdev->dev;
@@ -846,6 +883,13 @@ static int ethqos_clks_config(void *priv, bool enabled)
 		 * ethqos_fix_mac_speed() is invoked.
 		 */
 		ethqos_set_func_clk_en(ethqos);
+
+		/* The RMII PHY has no clock until the I/O macro drives the
+		 * 50 MHz reference, so it needs to be programmed during probe
+		 * itself.
+		 */
+		if (ethqos->phy_mode == PHY_INTERFACE_MODE_RMII)
+			ethqos_rmii_macro_init(ethqos);
 	} else {
 		if (ethqos->num_noc_clks)
 			clk_bulk_disable_unprepare(ethqos->num_noc_clks,
@@ -937,6 +981,9 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	ethqos->phy_mode = plat_dat->phy_interface;
 	switch (ethqos->phy_mode) {
+	case PHY_INTERFACE_MODE_RMII:
+		ethqos->configure_func = ethqos_configure_rmii;
+		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
