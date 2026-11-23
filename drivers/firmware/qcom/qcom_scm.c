@@ -1995,6 +1995,13 @@ int qcom_scm_lmh_dcvsh(u32 payload_fn, u32 payload_reg, u32 payload_val,
 }
 EXPORT_SYMBOL_GPL(qcom_scm_lmh_dcvsh);
 
+bool qcom_scm_gpu_init_regs_is_available(void)
+{
+	return __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_GPU,
+					    QCOM_SCM_SVC_GPU_INIT_REGS);
+}
+EXPORT_SYMBOL_GPL(qcom_scm_gpu_init_regs_is_available);
+
 int qcom_scm_gpu_init_regs(u32 gpu_req)
 {
 	struct qcom_scm_desc desc = {
