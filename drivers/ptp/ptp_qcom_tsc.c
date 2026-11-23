@@ -6,11 +6,13 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/platform_device.h>
 
@@ -37,6 +39,17 @@
 #define DYNAMIC_DRIFT_POLL_US			10
 #define DYNAMIC_DRIFT_DISABLE_TIMEOUT_US	1000
 
+#define ETU_CFG_EVENT_SEL_MASK			GENMASK(9, 4)
+#define ETU_CFG_GCTR_TS_EN			BIT(16)
+#define ETU_CFG_TSCTR_TS_EN			BIT(17)
+#define ETU_CFG_IRQ_MASK_EN			BIT(31)
+#define ETU_CFG_RISING_EDGE			BIT(0)
+#define ETU_STATUS_EVENT_MASK			GENMASK(5, 0)
+#define ETU_FIFO_CLR_VAL			0x7
+
+/* Per-slice register stride within the shared "etu" reg region */
+#define ETU_SLICE_STRIDE			0x1000
+
 struct qcom_tsc_regs {
 	u32 control_cntcr;
 	u32 control_cntcv_lo;
@@ -53,6 +66,20 @@ struct qcom_tsc_regs {
 	u32 read_cntcv_hi;
 };
 
+/* ETU slice register layout, relative to each slice's own reg base */
+struct qcom_etu_regs {
+	u32 cfg;
+	u32 status;
+	u32 tsc_ts_lo;
+	u32 tsc_ts_hi;
+	u32 ts_event_type;
+	u32 gctr_ts_lo;
+	u32 gctr_ts_hi;
+	u32 fifo_clr;
+	u32 sw_trig_cfg;
+	u32 fusa_status_register;
+};
+
 /**
  * struct qcom_tsc_soc_data - SoC specific TSC hardware capabilities
  *
@@ -63,6 +90,7 @@ struct qcom_tsc_regs {
  * @pulse_width: valid pulse width in cycles for drift correction
  * @cntr_res: TSC counter resolution in nsec
  * @reg_layout: register layout for this SoC/version
+ * @etu_reg_layout: ETU slice register layout for this SoC/version
  */
 struct qcom_tsc_soc_data {
 	bool rollover;
@@ -71,15 +99,34 @@ struct qcom_tsc_soc_data {
 	int pulse_width;
 	int cntr_res;
 	const struct qcom_tsc_regs *reg_layout;
+	const struct qcom_etu_regs *etu_reg_layout;
+};
+
+struct qcom_tsc;
+
+struct qcom_tsc_etu_slice {
+	struct qcom_tsc *tsc;
+	void __iomem *base;
+	struct pinctrl_state *pinctrl_state;
+	u32 event_sel;
+	u32 slice_num;
+	int extts_index;
+	u64 last_timestamp;
 };
 
 struct qcom_tsc {
 	struct device *dev;
 	void __iomem *base;
+	void __iomem *etu_base;
 	const struct qcom_tsc_soc_data *soc;
 	struct clk *ahb_clk;
 	struct clk *cntr_clk;
+	struct clk *etu_clk;
 	bool clocks_enabled;
+	bool etu_clk_enabled;
+	struct pinctrl *pinctrl;
+	struct qcom_tsc_etu_slice *etu_slices;
+	int num_etu_slices;
 	struct ptp_clock *ptp;
 	struct ptp_clock_info ptp_info;
 	/* Mutex to protect operations from being interrupted */
@@ -455,6 +502,220 @@ static int qcom_tsc_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	return ret;
 }
 
+static void qcom_tsc_etu_configure(struct qcom_tsc_etu_slice *slice)
+{
+	const struct qcom_etu_regs *regs = slice->tsc->soc->etu_reg_layout;
+	u32 regval;
+
+	regval = readl_relaxed(slice->base + regs->cfg);
+	regval &= ~ETU_CFG_EVENT_SEL_MASK;
+	regval |= FIELD_PREP(ETU_CFG_EVENT_SEL_MASK, slice->event_sel);
+	regval |= ETU_CFG_GCTR_TS_EN | ETU_CFG_TSCTR_TS_EN;
+	regval |= ETU_CFG_IRQ_MASK_EN;
+	regval |= ETU_CFG_RISING_EDGE;
+	writel_relaxed(regval, slice->base + regs->cfg);
+
+	/* Slice 0 is reserved for the internal SW trigger self-test path */
+	if (slice->event_sel == 0)
+		writel_relaxed(BIT(1), slice->base + regs->sw_trig_cfg);
+}
+
+static void qcom_tsc_etu_handle_event(struct qcom_tsc_etu_slice *slice)
+{
+	struct qcom_tsc *tsc = slice->tsc;
+	const struct qcom_etu_regs *regs = tsc->soc->etu_reg_layout;
+	struct ptp_clock_event event;
+	struct timespec64 ts;
+	u32 hi, lo, regval;
+	u64 timestamp;
+
+	hi = readl_relaxed(slice->base + regs->tsc_ts_hi);
+	lo = readl_relaxed(slice->base + regs->tsc_ts_lo);
+
+	if (tsc->soc->rollover) {
+		ts.tv_sec = hi;
+		ts.tv_nsec = lo;
+		timestamp = timespec64_to_ns(&ts);
+	} else {
+		timestamp = ((u64)hi << NSEC_SHIFT) | lo;
+	}
+
+	if (timestamp != slice->last_timestamp) {
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = slice->extts_index;
+		event.timestamp = timestamp;
+		ptp_clock_event(tsc->ptp, &event);
+	}
+	slice->last_timestamp = timestamp;
+
+	/* Clear the FIFO and re-enable timestamp capture for the next event */
+	regval = readl_relaxed(slice->base + regs->cfg);
+	regval &= ~(ETU_CFG_GCTR_TS_EN | ETU_CFG_TSCTR_TS_EN);
+	writel_relaxed(regval, slice->base + regs->cfg);
+
+	writel_relaxed(ETU_FIFO_CLR_VAL, slice->base + regs->fifo_clr);
+
+	regval |= ETU_CFG_GCTR_TS_EN | ETU_CFG_TSCTR_TS_EN;
+	writel_relaxed(regval, slice->base + regs->cfg);
+}
+
+static irqreturn_t qcom_tsc_etu_irq_handler(int irq, void *data)
+{
+	struct qcom_tsc_etu_slice *slice = data;
+	const struct qcom_etu_regs *regs = slice->tsc->soc->etu_reg_layout;
+	u32 status;
+
+	status = readl_relaxed(slice->base + regs->status);
+	if (status & ETU_STATUS_EVENT_MASK)
+		qcom_tsc_etu_handle_event(slice);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t qcom_tsc_etu_summary_irq_handler(int irq, void *data)
+{
+	struct qcom_tsc *tsc = data;
+	const struct qcom_etu_regs *regs = tsc->soc->etu_reg_layout;
+	int i;
+
+	for (i = 0; i < tsc->num_etu_slices; i++) {
+		struct qcom_tsc_etu_slice *slice = &tsc->etu_slices[i];
+		u32 status = readl_relaxed(slice->base + regs->status);
+
+		if (status & ETU_STATUS_EVENT_MASK)
+			qcom_tsc_etu_handle_event(slice);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int qcom_tsc_etu_probe(struct platform_device *pdev, struct qcom_tsc *tsc)
+{
+	struct device_node *np = pdev->dev.of_node;
+	int summary_irq, count, i;
+	int ret;
+
+	count = of_property_count_u32_elems(np, "qcom,etu-slice");
+	if (count <= 0)
+		return 0;
+
+	if (of_property_count_u32_elems(np, "qcom,etu-event-sel") != count)
+		return dev_err_probe(&pdev->dev, -EINVAL,
+				      "qcom,etu-slice and qcom,etu-event-sel size mismatch\n");
+
+	tsc->etu_base = devm_platform_ioremap_resource_byname(pdev, "etu");
+	if (IS_ERR(tsc->etu_base))
+		return PTR_ERR(tsc->etu_base);
+
+	/* Not every SoC/board routes any ETU slice to an external pin */
+	tsc->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(tsc->pinctrl)) {
+		if (PTR_ERR(tsc->pinctrl) != -ENODEV)
+			return PTR_ERR(tsc->pinctrl);
+		tsc->pinctrl = NULL;
+	}
+
+	tsc->etu_slices = devm_kcalloc(&pdev->dev, count, sizeof(*tsc->etu_slices), GFP_KERNEL);
+	if (!tsc->etu_slices)
+		return -ENOMEM;
+
+	summary_irq = platform_get_irq_byname_optional(pdev, "etu_summary");
+
+	for (i = 0; i < count; i++) {
+		struct qcom_tsc_etu_slice *slice = &tsc->etu_slices[i];
+		char name[16];
+		int irq;
+
+		slice->tsc = tsc;
+
+		of_property_read_u32_index(np, "qcom,etu-slice", i, &slice->slice_num);
+		of_property_read_u32_index(np, "qcom,etu-event-sel", i, &slice->event_sel);
+
+		slice->base = tsc->etu_base + slice->slice_num * ETU_SLICE_STRIDE;
+
+		snprintf(name, sizeof(name), "slice%u", slice->slice_num);
+
+		/* Not every slice is routed to an external pin */
+		slice->pinctrl_state = tsc->pinctrl ?
+			pinctrl_lookup_state(tsc->pinctrl, name) : NULL;
+		if (IS_ERR(slice->pinctrl_state))
+			slice->pinctrl_state = NULL;
+
+		/*
+		 * QDU1000 gives each slice its own interrupt; SA8775P/Nord
+		 * instead share a single summary interrupt across all slices,
+		 * requested once below, outside this loop.
+		 */
+		if (summary_irq < 0) {
+			irq = platform_get_irq_byname(pdev, name);
+			if (irq < 0)
+				return irq;
+
+			ret = devm_request_irq(&pdev->dev, irq, qcom_tsc_etu_irq_handler,
+						IRQF_TRIGGER_RISING, dev_name(&pdev->dev),
+						slice);
+			if (ret)
+				return ret;
+		}
+
+		slice->extts_index = i;
+	}
+
+	tsc->num_etu_slices = count;
+	tsc->ptp_info.n_ext_ts = count;
+
+	if (summary_irq >= 0) {
+		ret = devm_request_irq(&pdev->dev, summary_irq, qcom_tsc_etu_summary_irq_handler,
+					IRQF_TRIGGER_HIGH, dev_name(&pdev->dev), tsc);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int qcom_tsc_enable(struct ptp_clock_info *ptp, struct ptp_clock_request *rq, int on)
+{
+	struct qcom_tsc *tsc = container_of(ptp, struct qcom_tsc, ptp_info);
+	struct qcom_tsc_etu_slice *slice;
+	int ret;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		if (rq->extts.index >= tsc->num_etu_slices)
+			return -EINVAL;
+
+		if (!on)
+			return 0;
+
+		if (!tsc->etu_clk_enabled) {
+			ret = clk_prepare_enable(tsc->etu_clk);
+			if (ret)
+				return ret;
+
+			ret = devm_add_action_or_reset(tsc->dev, qcom_tsc_clk_disable, tsc->etu_clk);
+			if (ret)
+				return ret;
+
+			tsc->etu_clk_enabled = true;
+		}
+
+		slice = &tsc->etu_slices[rq->extts.index];
+
+		if (slice->pinctrl_state) {
+			ret = pinctrl_select_state(tsc->pinctrl, slice->pinctrl_state);
+			if (ret)
+				return ret;
+		}
+
+		qcom_tsc_etu_configure(slice);
+
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static struct ptp_clock_info qcom_ptp_info = {
 	.owner		= THIS_MODULE,
 	.name		= "PTP_QCOM_TSC",
@@ -463,6 +724,7 @@ static struct ptp_clock_info qcom_ptp_info = {
 	.adjtime	= qcom_tsc_adjtime,
 	.gettime64      = qcom_tsc_gettime,
 	.settime64      = qcom_tsc_settime,
+	.enable		= qcom_tsc_enable,
 };
 
 static const struct qcom_tsc_regs qcom_tsc_layout = {
@@ -495,8 +757,22 @@ static const struct qcom_tsc_regs qcom_tsc_layout_v2 = {
 	.read_cntcv_hi            = 0x1004,
 };
 
+static const struct qcom_etu_regs qcom_etu_layout = {
+	.cfg                    = 0x0,
+	.status                 = 0x4,
+	.tsc_ts_lo              = 0x8,
+	.tsc_ts_hi              = 0xc,
+	.ts_event_type          = 0x10,
+	.gctr_ts_lo             = 0x20,
+	.gctr_ts_hi             = 0x24,
+	.fifo_clr               = 0x30,
+	.sw_trig_cfg            = 0x34,
+	.fusa_status_register   = 0xf50,
+};
+
 static const struct qcom_tsc_soc_data qcom_tsc_sa8775p = {
 	.reg_layout		= &qcom_tsc_layout,
+	.etu_reg_layout		= &qcom_etu_layout,
 	.rollover		= false,
 	.offset_correction	= false,
 	.pulse_width		= 2,
@@ -505,6 +781,7 @@ static const struct qcom_tsc_soc_data qcom_tsc_sa8775p = {
 
 static const struct qcom_tsc_soc_data qcom_tsc_qdu1000 = {
 	.reg_layout		= &qcom_tsc_layout,
+	.etu_reg_layout		= &qcom_etu_layout,
 	.rollover		= true,
 	.offset_correction	= true,
 	.pulse_width		= 3,
@@ -513,6 +790,7 @@ static const struct qcom_tsc_soc_data qcom_tsc_qdu1000 = {
 
 static const struct qcom_tsc_soc_data qcom_tsc_nord = {
 	.reg_layout		= &qcom_tsc_layout_v2,
+	.etu_reg_layout		= &qcom_etu_layout,
 	.rollover		= false,
 	.offset_correction	= true,
 	.dynamic_drift_correction = true,
@@ -562,7 +840,16 @@ static int qcom_ptp_tsc_probe(struct platform_device *pdev)
 	if (IS_ERR(tsc->cntr_clk))
 		return PTR_ERR(tsc->cntr_clk);
 
+	/* ETU clock is enabled on first extts request, when a slice is configured */
+	tsc->etu_clk = devm_clk_get(&pdev->dev, "etu");
+	if (IS_ERR(tsc->etu_clk))
+		return PTR_ERR(tsc->etu_clk);
+
 	tsc->ptp_info = qcom_ptp_info;
+
+	ret = qcom_tsc_etu_probe(pdev, tsc);
+	if (ret)
+		return ret;
 
 	tsc->ptp = ptp_clock_register(&tsc->ptp_info, &pdev->dev);
 	if (IS_ERR(tsc->ptp))
