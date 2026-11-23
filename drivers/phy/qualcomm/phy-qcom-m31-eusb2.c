@@ -58,6 +58,8 @@
 
 #define USB_PHY_XCFGI_159_152		(0x1a8)
 #define SE0_TIMEOUT_EN			BIT(7)
+#define USB_PHY_XCFGI_199_192		(0x1bc)
+#define HS_DISCONNECT_EN_TX		BIT(4)
 
 #define M31_EUSB_PHY_INIT_CFG(o, b, v)	\
 {				\
@@ -110,6 +112,15 @@ static const struct m31_phy_tbl_entry m31_eusb_phy_reset_tbl[] = {
 	M31_EUSB_PHY_INIT_CFG(USB_PHY_UTMI_CTRL0, SLEEPM, 1),
 	M31_EUSB_PHY_INIT_CFG(USB_PHY_HS_PHY_CTRL_COMMON0, SIDDQ_SEL, 1),
 	M31_EUSB_PHY_INIT_CFG(USB_PHY_HS_PHY_CTRL_COMMON0, SIDDQ, 0),
+	/*
+	 * Set XCFGI[196] to make M31 ignore the HS disconnect status
+	 * while the host is transmitting. This prevents trace reflections
+	 * and signal-integrity overshoot during TX from being latched as a
+	 * spurious HS disconnect. Disconnect detection stays active while
+	 * the host is not transmitting, which is when a real disconnect
+	 * must be observed.
+	 */
+	M31_EUSB_PHY_INIT_CFG(USB_PHY_XCFGI_199_192, HS_DISCONNECT_EN_TX, 1),
 	M31_EUSB_PHY_INIT_CFG(USB_PHY_UTMI_CTRL5, POR, 0),
 	M31_EUSB_PHY_INIT_CFG(USB_PHY_HS_PHY_CTRL2, USB2_SUSPEND_N_SEL, 0),
 	M31_EUSB_PHY_INIT_CFG(USB_PHY_CFG0, UTMI_PHY_CMN_CTRL_OVERRIDE_EN, 0),
