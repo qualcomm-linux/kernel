@@ -4952,10 +4952,10 @@
 			reg = <0x0 0x088d3000 0x0 0x1000>;
 			clocks = <&gcc GCC_PDM_XO4_CLK>,
 				 <&gcc GCC_PDM_AHB_CLK>;
-			clock-names = "pdm_clk", "ahb_clk";
+			clock-names = "pdm", "ahb";
 			#clock-cells = <0>;
-			pinctrl-names = "default";
 			pinctrl-0 = <&gp_mn_active>;
+			pinctrl-names = "default";
 			assigned-clocks = <&gcc GCC_PDM_XO4_CLK>;
 			assigned-clock-rates = <4800000>;
 			status = "disabled";
