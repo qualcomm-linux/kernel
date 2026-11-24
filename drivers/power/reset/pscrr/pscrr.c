@@ -534,15 +534,12 @@ static struct notifier_block pscrr_reboot_nb = {
 static int pscrr_panic_notifier(struct notifier_block *nb,
 				unsigned long action, void *unused)
 {
+	struct pscrr_provider_dir *dir;
 
-	/*
-	 * Do not overwrite a watchdog pretimeout reason already set by the
-	 * pretimeout path before it triggered this panic.
-	 */
-	if (get_psc_reason() != PSCR_WATCHDOG_PRETIMEOUT)
-		set_psc_reason(PSCR_KERNEL_PANIC);
+	set_psc_reason(PSCR_KERNEL_PANIC);
 
-	pscrr_record_current();
+	list_for_each_entry(dir, &pscrr_dirs, node)
+		pscrr_do_record(dir, get_psc_reason());
 
 	return NOTIFY_DONE;
 }
