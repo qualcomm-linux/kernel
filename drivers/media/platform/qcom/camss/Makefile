@@ -8,7 +8,6 @@ qcom-camss-objs += \
 		camss-csid-4-7.o \
 		camss-csid-340.o \
 		camss-csid-680.o \
-		camss-csid-980.o \
 		camss-csid-gen2.o \
 		camss-csid-gen3.o \
 		camss-csid-gen4.o \
