@@ -5,7 +5,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/reboot.h>
 #include <linux/watchdog.h>
 
 #include "watchdog_pretimeout.h"
@@ -18,7 +17,6 @@
  */
 static void pretimeout_panic(struct watchdog_device *wdd)
 {
-	set_psc_reason(PSCR_WATCHDOG_PRETIMEOUT);
 	panic("watchdog pretimeout event\n");
 }
 
