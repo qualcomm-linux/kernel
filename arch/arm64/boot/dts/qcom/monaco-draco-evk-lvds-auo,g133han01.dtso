@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&{/} {
+	backlight_lvds: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pca9685 2 1000000>;
+		power-supply = <&vreg_disp0_bl_en>;
+	};
+
+	panel-lvds {
+		compatible = "auo,g133han01";
+		power-supply = <&vreg_lvds_3p3>;
+		backlight = <&backlight_lvds>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* LVDS Channel A - odd pixels */
+			port@0 {
+				reg = <0>;
+				dual-lvds-odd-pixels;
+
+				lvds_panel_out_a: endpoint {
+					remote-endpoint = <&sn65dsi84_out_a>;
+				};
+			};
+
+			/* LVDS Channel B - even pixels */
+			port@1 {
+				reg = <1>;
+				dual-lvds-even-pixels;
+
+				lvds_panel_out_b: endpoint {
+					remote-endpoint = <&sn65dsi84_out_b>;
+				};
+			};
+		};
+	};
+
+	vreg_disp0_bl_en: regulator-disp0-bl-en {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_disp0_bl_en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&expander2 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vreg_lvds_3p3: regulator-lvds-3p3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_lvds_3p3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+};
+
+&hdmi_bridge {
+	status = "disabled";
+};
+
+&hdmi_connector {
+	status = "disabled";
+};
+
+&i2c13 {
+	clock-frequency = <100000>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+
+	pca9685: pwm@42 {
+		compatible = "nxp,pca9685-pwm";
+		reg = <0x42>;
+		#pwm-cells = <2>;
+	};
+};
+
+&i2c_mux {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	i2c@1 {
+		reg = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sn65dsi84: bridge@2c {
+			compatible = "ti,sn65dsi84";
+			reg = <0x2c>;
+
+			enable-gpios = <&tlmm 3 GPIO_ACTIVE_HIGH>;
+			interrupts-extended = <&tlmm 76 IRQ_TYPE_EDGE_FALLING>;
+			vcc-supply = <&vreg_bridge_3p3>;
+			pinctrl-0 = <&bridge_rst_pin &bridge_irq_pin>;
+			pinctrl-names = "default";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					sn65dsi84_in: endpoint {
+						data-lanes = <1 2 3 4>;
+						remote-endpoint = <&mdss_dsi0_out>;
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					sn65dsi84_out_a: endpoint {
+						data-lanes = <1 2 3 4>;
+						remote-endpoint = <&lvds_panel_out_a>;
+					};
+				};
+
+				port@3 {
+					reg = <3>;
+
+					sn65dsi84_out_b: endpoint {
+						data-lanes = <1 2 3 4>;
+						remote-endpoint = <&lvds_panel_out_b>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&sn65dsi84_in>;
+};
