@@ -2387,7 +2387,7 @@
 					compatible = "qcom,nord-fastrpc",
 						     "qcom,kaanapali-fastrpc";
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
-					label = "adsp";
+					label = "hpass";
 					memory-region = <&hpass_rpc_remote_heap_mem>;
 					qcom,vmids = <QCOM_SCM_VMID_LPASS
 						      QCOM_SCM_VMID_ADSP_HEAP>;
