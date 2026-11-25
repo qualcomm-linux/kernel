@@ -17,24 +17,19 @@ properties:
     const: qcom,sm8750-camss
 
   reg:
-    maxItems: 19
+    maxItems: 14
 
   reg-names:
     items:
+      - const: top
       - const: csid0
       - const: csid1
       - const: csid2
       - const: csid_lite0
       - const: csid_lite1
-      - const: csiphy0
-      - const: csiphy1
-      - const: csiphy2
-      - const: csiphy3
-      - const: csiphy4
-      - const: csiphy5
-      - const: csitpg0
-      - const: csitpg1
-      - const: csitpg2
+      - const: tpg0
+      - const: tpg1
+      - const: tpg2
       - const: vfe0
       - const: vfe1
       - const: vfe2
@@ -42,11 +37,10 @@ properties:
       - const: vfe_lite1
 
   clocks:
-    maxItems: 35
+    maxItems: 21
 
   clock-names:
     items:
-      - const: camnoc_nrt_axi
       - const: camnoc_rt_axi
       - const: cpas_ahb
       - const: cpas_fast_ahb
@@ -55,21 +49,8 @@ properties:
       - const: cpas_vfe2
       - const: cpas_vfe_lite
       - const: csid
-      - const: csid_csiphy_rx
-      - const: csiphy0
-      - const: csiphy0_timer
-      - const: csiphy1
-      - const: csiphy1_timer
-      - const: csiphy2
-      - const: csiphy2_timer
-      - const: csiphy3
-      - const: csiphy3_timer
-      - const: csiphy4
-      - const: csiphy4_timer
-      - const: csiphy5
-      - const: csiphy5_timer
+      - const: csiphy_rx
       - const: gcc_axi_hf
-      - const: gcc_axi_sf
       - const: vfe0
       - const: vfe0_fast_ahb
       - const: vfe1
@@ -83,7 +64,7 @@ properties:
       - const: qdss_debug_xo
 
   interrupts:
-    maxItems: 16
+    maxItems: 10
 
   interrupt-names:
     items:
@@ -92,12 +73,6 @@ properties:
       - const: csid2
       - const: csid_lite0
       - const: csid_lite1
-      - const: csiphy0
-      - const: csiphy1
-      - const: csiphy2
-      - const: csiphy3
-      - const: csiphy4
-      - const: csiphy5
       - const: vfe0
       - const: vfe1
       - const: vfe2
@@ -105,28 +80,23 @@ properties:
       - const: vfe_lite1
 
   interconnects:
-    maxItems: 4
+    maxItems: 2
 
   interconnect-names:
     items:
       - const: ahb
       - const: hf_mnoc
-      - const: sf_mnoc
-      - const: sf_icp_mnoc
 
   iommus:
-    maxItems: 1
+    items:
+      - description: S1 HLOS IFE and IFE_LITE non-protected stream
 
   power-domains:
     items:
-      - description:
-          IFE0 GDSC - Global Distributed Switch Controller for IFE0.
-      - description:
-          IFE1 GDSC - Global Distributed Switch Controller for IFE1.
-      - description:
-          IFE2 GDSC - Global Distributed Switch Controller for IFE2.
-      - description:
-          Titan GDSC - Global Distributed Switch Controller for the entire camss.
+      - description: IFE0 GDSC - Global Distributed Switch Controller for IFE0.
+      - description: IFE1 GDSC - Global Distributed Switch Controller for IFE1.
+      - description: IFE2 GDSC - Global Distributed Switch Controller for IFE2.
+      - description: Titan GDSC - Global Distributed Switch Controller for the entire camss.
 
   power-domain-names:
     items:
@@ -134,54 +104,6 @@ properties:
       - const: ife1
       - const: ife2
       - const: top
-
-  vdd-csiphy0-0p9-supply:
-    description:
-      Phandle to a 0.9V regulator supply to CSIPHY0 core block.
-
-  vdd-csiphy0-1p2-supply:
-    description:
-      Phandle to a 1.2V regulator supply to CSIPHY0 pll block.
-
-  vdd-csiphy1-0p9-supply:
-    description:
-      Phandle to a 0.9V regulator supply to CSIPHY1 core block.
-
-  vdd-csiphy1-1p2-supply:
-    description:
-      Phandle to a 1.2V regulator supply to CSIPHY1 pll block.
-
-  vdd-csiphy2-0p9-supply:
-    description:
-      Phandle to a 0.9V regulator supply to CSIPHY2 core block.
-
-  vdd-csiphy2-1p2-supply:
-    description:
-      Phandle to a 1.2V regulator supply to CSIPHY2 pll block.
-
-  vdd-csiphy3-0p9-supply:
-    description:
-      Phandle to a 0.9V regulator supply to CSIPHY3 core block.
-
-  vdd-csiphy3-1p2-supply:
-    description:
-      Phandle to a 1.2V regulator supply to CSIPHY3 pll block.
-
-  vdd-csiphy4-0p9-supply:
-    description:
-      Phandle to a 0.9V regulator supply to CSIPHY4 core block.
-
-  vdd-csiphy4-1p2-supply:
-    description:
-      Phandle to a 1.2V regulator supply to CSIPHY4 pll block.
-
-  vdd-csiphy5-0p9-supply:
-    description:
-      Phandle to a 0.9V regulator supply to CSIPHY5 core block.
-
-  vdd-csiphy5-1p2-supply:
-    description:
-      Phandle to a 1.2V regulator supply to CSIPHY5 pll block.
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
@@ -227,6 +149,7 @@ required:
   - iommus
   - power-domains
   - power-domain-names
+  - ports
 
 additionalProperties: false
 
@@ -237,26 +160,21 @@ examples:
     #include <dt-bindings/interconnect/qcom,icc.h>
     #include <dt-bindings/interconnect/qcom,sm8750-rpmh.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/power/qcom,rpmhpd.h>
 
     soc {
         #address-cells = <2>;
         #size-cells = <2>;
 
-        isp@ad27000 {
+        isp@ac04000 {
             compatible = "qcom,sm8750-camss";
 
-            reg = <0x0 0x0ad27000 0x0 0x2b00>,
+            reg = <0x0 0x0ac04000 0x0 0x1000>,
+                  <0x0 0x0ad27000 0x0 0x2b00>,
                   <0x0 0x0ad2a000 0x0 0x2b00>,
                   <0x0 0x0ad2d000 0x0 0x2b00>,
                   <0x0 0x0ad6d000 0x0 0xa00>,
                   <0x0 0x0ad72000 0x0 0xa00>,
-                  <0x0 0x0ada9000 0x0 0x2000>,
-                  <0x0 0x0adab000 0x0 0x2000>,
-                  <0x0 0x0adad000 0x0 0x2000>,
-                  <0x0 0x0adaf000 0x0 0x2000>,
-                  <0x0 0x0adb1000 0x0 0x2000>,
-                  <0x0 0x0adb3000 0x0 0x2000>,
                   <0x0 0x0ad8b000 0x0 0x400>,
                   <0x0 0x0ad8c000 0x0 0x400>,
                   <0x0 0x0ad8d000 0x0 0x400>,
@@ -265,28 +183,22 @@ examples:
                   <0x0 0x0aca6000 0x0 0x10000>,
                   <0x0 0x0ad6e000 0x0 0x3000>,
                   <0x0 0x0ad73000 0x0 0x3000>;
-            reg-names = "csid0",
+            reg-names = "top",
+                        "csid0",
                         "csid1",
                         "csid2",
                         "csid_lite0",
                         "csid_lite1",
-                        "csiphy0",
-                        "csiphy1",
-                        "csiphy2",
-                        "csiphy3",
-                        "csiphy4",
-                        "csiphy5",
-                        "csitpg0",
-                        "csitpg1",
-                        "csitpg2",
+                        "tpg0",
+                        "tpg1",
+                        "tpg2",
                         "vfe0",
                         "vfe1",
                         "vfe2",
                         "vfe_lite0",
                         "vfe_lite1";
 
-            clocks = <&camcc CAM_CC_CAMNOC_NRT_AXI_CLK>,
-                     <&camcc CAM_CC_CAMNOC_RT_AXI_CLK>,
+            clocks = <&camcc CAM_CC_CAMNOC_RT_AXI_CLK>,
                      <&camcc CAM_CC_CAM_TOP_AHB_CLK>,
                      <&camcc CAM_CC_CAM_TOP_FAST_AHB_CLK>,
                      <&camcc CAM_CC_CAMNOC_RT_TFE_0_MAIN_CLK>,
@@ -295,20 +207,7 @@ examples:
                      <&camcc CAM_CC_CAMNOC_RT_IFE_LITE_CLK>,
                      <&camcc CAM_CC_CSID_CLK>,
                      <&camcc CAM_CC_CSID_CSIPHY_RX_CLK>,
-                     <&camcc CAM_CC_CSIPHY0_CLK>,
-                     <&camcc CAM_CC_CSI0PHYTIMER_CLK>,
-                     <&camcc CAM_CC_CSIPHY1_CLK>,
-                     <&camcc CAM_CC_CSI1PHYTIMER_CLK>,
-                     <&camcc CAM_CC_CSIPHY2_CLK>,
-                     <&camcc CAM_CC_CSI2PHYTIMER_CLK>,
-                     <&camcc CAM_CC_CSIPHY3_CLK>,
-                     <&camcc CAM_CC_CSI3PHYTIMER_CLK>,
-                     <&camcc CAM_CC_CSIPHY4_CLK>,
-                     <&camcc CAM_CC_CSI4PHYTIMER_CLK>,
-                     <&camcc CAM_CC_CSIPHY5_CLK>,
-                     <&camcc CAM_CC_CSI5PHYTIMER_CLK>,
                      <&gcc GCC_CAMERA_HF_AXI_CLK>,
-                     <&gcc GCC_CAMERA_SF_AXI_CLK>,
                      <&camcc CAM_CC_TFE_0_MAIN_CLK>,
                      <&camcc CAM_CC_TFE_0_MAIN_FAST_AHB_CLK>,
                      <&camcc CAM_CC_TFE_1_MAIN_CLK>,
@@ -320,8 +219,7 @@ examples:
                      <&camcc CAM_CC_IFE_LITE_CPHY_RX_CLK>,
                      <&camcc CAM_CC_IFE_LITE_CSID_CLK>,
                      <&camcc CAM_CC_QDSS_DEBUG_XO_CLK>;
-            clock-names = "camnoc_nrt_axi",
-                          "camnoc_rt_axi",
+            clock-names = "camnoc_rt_axi",
                           "cpas_ahb",
                           "cpas_fast_ahb",
                           "cpas_vfe0",
@@ -329,21 +227,8 @@ examples:
                           "cpas_vfe2",
                           "cpas_vfe_lite",
                           "csid",
-                          "csid_csiphy_rx",
-                          "csiphy0",
-                          "csiphy0_timer",
-                          "csiphy1",
-                          "csiphy1_timer",
-                          "csiphy2",
-                          "csiphy2_timer",
-                          "csiphy3",
-                          "csiphy3_timer",
-                          "csiphy4",
-                          "csiphy4_timer",
-                          "csiphy5",
-                          "csiphy5_timer",
+                          "csiphy_rx",
                           "gcc_axi_hf",
-                          "gcc_axi_sf",
                           "vfe0",
                           "vfe0_fast_ahb",
                           "vfe1",
@@ -361,12 +246,6 @@ examples:
                          <GIC_SPI 431 IRQ_TYPE_EDGE_RISING>,
                          <GIC_SPI 605 IRQ_TYPE_EDGE_RISING>,
                          <GIC_SPI 376 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 477 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 478 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 479 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 448 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 122 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 89 IRQ_TYPE_EDGE_RISING>,
                          <GIC_SPI 433 IRQ_TYPE_EDGE_RISING>,
                          <GIC_SPI 436 IRQ_TYPE_EDGE_RISING>,
                          <GIC_SPI 457 IRQ_TYPE_EDGE_RISING>,
@@ -377,12 +256,6 @@ examples:
                               "csid2",
                               "csid_lite0",
                               "csid_lite1",
-                              "csiphy0",
-                              "csiphy1",
-                              "csiphy2",
-                              "csiphy3",
-                              "csiphy4",
-                              "csiphy5",
                               "vfe0",
                               "vfe1",
                               "vfe2",
@@ -392,15 +265,9 @@ examples:
             interconnects = <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
                              &config_noc SLAVE_CAMERA_CFG QCOM_ICC_TAG_ACTIVE_ONLY>,
                             <&mmss_noc MASTER_CAMNOC_HF QCOM_ICC_TAG_ALWAYS
-                             &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
-                            <&mmss_noc MASTER_CAMNOC_SF QCOM_ICC_TAG_ALWAYS
-                             &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
-                            <&mmss_noc MASTER_CAMNOC_NRT_ICP_SF QCOM_ICC_TAG_ALWAYS
                              &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
             interconnect-names = "ahb",
-                                 "hf_mnoc",
-                                 "sf_mnoc",
-                                 "sf_icp_mnoc";
+                                 "hf_mnoc";
 
             iommus = <&apps_smmu 0x1c00 0x00>;
 
@@ -413,9 +280,6 @@ examples:
                                  "ife2",
                                  "top";
 
-            vdd-csiphy0-0p9-supply = <&vreg_0p9_supply>;
-            vdd-csiphy0-1p2-supply = <&vreg_1p2_supply>;
-
             ports {
                 #address-cells = <1>;
                 #size-cells = <0>;
@@ -423,9 +287,9 @@ examples:
                 port@0 {
                     reg = <0>;
 
-                    csiphy_ep0: endpoint {
-                        data-lanes = <0 1>;
-                        remote-endpoint = <&sensor_ep>;
+                    camss_csiphy0_ep: endpoint {
+                        data-lanes = <0 1 2 3>;
+                        remote-endpoint = <&csiphy0_out>;
                     };
                 };
             };

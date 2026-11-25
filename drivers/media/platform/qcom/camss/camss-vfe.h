@@ -136,7 +136,6 @@ struct vfe_isr_ops {
 
 struct vfe_subdev_resources {
 	bool is_lite;
-	bool reg_update_after_csid_config;
 	u8 line_num;
 	bool has_pd;
 	char *pd_name;
@@ -252,10 +251,11 @@ extern const struct vfe_hw_ops vfe_ops_170;
 extern const struct vfe_hw_ops vfe_ops_340;
 extern const struct vfe_hw_ops vfe_ops_480;
 extern const struct vfe_hw_ops vfe_ops_680;
+extern const struct vfe_hw_ops vfe_ops_900;
+extern const struct vfe_hw_ops vfe_ops_980;
 extern const struct vfe_hw_ops vfe_ops_1080;
 extern const struct vfe_hw_ops vfe_ops_1190;
 extern const struct vfe_hw_ops vfe_ops_gen3;
-extern const struct vfe_hw_ops vfe_ops_gen4;
 
 int vfe_get(struct vfe_device *vfe);
 void vfe_put(struct vfe_device *vfe);

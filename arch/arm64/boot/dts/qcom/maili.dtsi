@@ -4806,10 +4806,11 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		camss: isp@9253000 {
+		camss: isp@900b000 {
 			compatible = "qcom,maili-camss", "qcom,hawi-camss";
 
-			reg = <0x0 0x09253000 0x0 0x5e80>,
+			reg = <0x0 0x0900b000 0x0 0x1000>,
+			      <0x0 0x09253000 0x0 0x5e80>,
 			      <0x0 0x09263000 0x0 0x5e80>,
 			      <0x0 0x09273000 0x0 0x5e80>,
 			      <0x0 0x092d3000 0x0 0x3880>,
@@ -4822,14 +4823,15 @@
 			      <0x0 0x09191000 0x0 0x20000>,
 			      <0x0 0x092dc000 0x0 0x6800>,
 			      <0x0 0x092f0000 0x0 0x6800>;
-			reg-names = "csid0",
+			reg-names = "top",
+				    "csid0",
 				    "csid1",
 				    "csid2",
 				    "csid_lite0",
 				    "csid_lite1",
-				    "csitpg0",
-				    "csitpg1",
-				    "csitpg2",
+				    "tpg0",
+				    "tpg1",
+				    "tpg2",
 				    "vfe0",
 				    "vfe1",
 				    "vfe2",
@@ -4874,7 +4876,7 @@
 				      "cpas_vfe2",
 				      "cpas_vfe_lite",
 				      "csid",
-				      "csid_csiphy_rx",
+				      "csiphy_rx",
 				      "gcc_axi_hf",
 				      "gcc_axi_sf",
 				      "vfe0",

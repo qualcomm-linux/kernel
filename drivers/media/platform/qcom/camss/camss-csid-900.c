@@ -101,24 +101,24 @@ static void __csid_aup_rup_trigger(struct csid_device *csid)
 
 static void __csid_aup_update(struct csid_device *csid, int port_id)
 {
-	csid->aup_update |= CSID_RUP_AUP_RDI(port_id);
-	writel(csid->aup_update, csid->base + CSID_AUP_CMD);
+	csid->addr_update |= CSID_RUP_AUP_RDI(port_id);
+	writel(csid->addr_update, csid->base + CSID_AUP_CMD);
 
 	__csid_aup_rup_trigger(csid);
 }
 
 static void __csid_rup_update(struct csid_device *csid, int port_id)
 {
-	csid->rup_update |= CSID_RUP_AUP_RDI(port_id);
-	writel(csid->rup_update, csid->base + CSID_RUP_CMD);
+	csid->reg_update |= CSID_RUP_AUP_RDI(port_id);
+	writel(csid->reg_update, csid->base + CSID_RUP_CMD);
 
 	__csid_aup_rup_trigger(csid);
 }
 
 static void __csid_aup_rup_clear(struct csid_device *csid, int port_id)
 {
-	csid->aup_update &= ~CSID_RUP_AUP_RDI(port_id);
-	csid->rup_update &= ~CSID_RUP_AUP_RDI(port_id);
+	csid->addr_update &= ~CSID_RUP_AUP_RDI(port_id);
+	csid->reg_update &= ~CSID_RUP_AUP_RDI(port_id);
 }
 
 static void __csid_configure_rx(struct csid_device *csid,
@@ -258,8 +258,8 @@ static int csid_configure_testgen_pattern(struct csid_device *csid, s32 val)
 	return 0;
 }
 
-static void csid_subdev_reg_update(struct csid_device *csid, int port_id,
-				   bool clear)
+static void csid_subdev_addr_update(struct csid_device *csid, int port_id,
+				    bool clear)
 {
 	if (clear)
 		__csid_aup_rup_clear(csid, port_id);
@@ -288,7 +288,7 @@ static irqreturn_t csid_isr(int irq, void *dev)
 			writel(val, csid->base + CSID_CSI2_RDIN_IRQ_CLEAR(i));
 
 			if (val & INFO_RUP_DONE)
-				csid_subdev_reg_update(csid, i, true);
+				csid_subdev_addr_update(csid, i, true);
 
 			if (buf_done_val & BIT(BUF_DONE_IRQ_STATUS_RDI_OFFSET + i))
 				camss_buf_done(csid->camss, csid->id, i);
@@ -357,5 +357,5 @@ const struct csid_hw_ops csid_ops_900 = {
 	.reset = csid_reset,
 	.src_pad_code = csid_src_pad_code,
 	.subdev_init = csid_subdev_init,
-	.reg_update = csid_subdev_reg_update,
+	.addr_update = csid_subdev_addr_update,
 };

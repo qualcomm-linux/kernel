@@ -6,6 +6,7 @@
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -67,6 +68,9 @@
 #define		CSI2_RX_CFG0_NUM_ACTIVE_LANES		0
 #define		CSI2_RX_CFG0_DL0_INPUT_SEL		4
 #define		CSI2_RX_CFG0_PHY_NUM_SEL		20
+#define		CSI2_RX_CFG0_TPG_MUX_EN			BIT(27)
+#define		CSI2_RX_CFG0_TPG_MUX_SEL		GENMASK(29, 28)
+#define		CSI2_RX_CFG0_PHY_SEL_BASE_IDX		1
 #define CSID_CSI2_RX_CFG1			(csid_is_lite(csid) ? 0x204 : 0x404)
 #define		CSI2_RX_CFG1_ECC_CORRECTION_EN		BIT(0)
 #define		CSI2_RX_CFG1_VC_MODE			BIT(2)
@@ -116,10 +120,16 @@
 
 /* RDI IRQ Status in wrapper */
 #define CSID_CSI2_RDIN_IRQ_STATUS(rdi) \
-	(csid_is_lite(csid) ? 0xEC : 0x114 + 0x10 * (rdi))
+	((csid_is_lite(csid) ? 0xEC : 0x114) + 0x10 * (rdi))
 #define CSID_CSI2_RDIN_IRQ_CLEAR(rdi) \
-	(csid_is_lite(csid) ? 0xF4 : 0x11C + 0x10 * (rdi))
+	((csid_is_lite(csid) ? 0xF4 : 0x11C) + 0x10 * (rdi))
+#define CSID_CSI2_RDIN_IRQ_MASK(rdi) \
+	((csid_is_lite(csid) ? 0xF0 : 0x118) + 0x10 * (rdi))
 #define		INFO_RUP_DONE				BIT(23)
+#define		INFO_INPUT_SOF				BIT(12)
+#define		INFO_INPUT_EOF				BIT(9)
+#define		INFO_CAMIF_SOF				BIT(4)
+#define		INFO_CAMIF_EOF				BIT(3)
 
 static void __csid_full_aup_rup_trigger(struct csid_device *csid)
 {
@@ -127,7 +137,7 @@ static void __csid_full_aup_rup_trigger(struct csid_device *csid)
 	writel(RUP_SET, csid->base + CSID_RUP_AUP_CMD);
 }
 
-static void __csid_aup_update(struct csid_device *csid, int port_id)
+static void __csid_addr_update(struct csid_device *csid, int port_id)
 {
 	if (csid_is_lite(csid)) {
 		/* CSID Lites in v980 follow the legacy way of a combined RUP
@@ -136,8 +146,8 @@ static void __csid_aup_update(struct csid_device *csid, int port_id)
 		csid->reg_update |= CSID_LITE_AUP_RDI(port_id);
 		writel(csid->reg_update, csid->base + CSID_LITE_RUP_AUP_CMD);
 	} else {
-		csid->aup_update |= CSID_RUP_AUP_RDI(port_id);
-		writel(csid->aup_update, csid->base + CSID_AUP_CMD);
+		csid->addr_update |= CSID_RUP_AUP_RDI(port_id);
+		writel(csid->addr_update, csid->base + CSID_AUP_CMD);
 
 		/* CSID Fulls in v980 split AUP and RUP commands, which requires
 		 * additional SET operation to make registers modification take
@@ -147,7 +157,7 @@ static void __csid_aup_update(struct csid_device *csid, int port_id)
 	}
 }
 
-static void __csid_rup_update(struct csid_device *csid, int port_id)
+static void __csid_reg_update(struct csid_device *csid, int port_id)
 {
 	if (csid_is_lite(csid)) {
 		/* CSID Lites in v980 follow the legacy way of a combined RUP
@@ -156,8 +166,8 @@ static void __csid_rup_update(struct csid_device *csid, int port_id)
 		csid->reg_update |= CSID_LITE_RUP_RDI(port_id);
 		writel(csid->reg_update, csid->base + CSID_LITE_RUP_AUP_CMD);
 	} else {
-		csid->rup_update |= CSID_RUP_AUP_RDI(port_id);
-		writel(csid->rup_update, csid->base + CSID_RUP_CMD);
+		csid->reg_update |= CSID_RUP_AUP_RDI(port_id);
+		writel(csid->reg_update, csid->base + CSID_RUP_CMD);
 
 		/* CSID Fulls in v980 split AUP and RUP commands, which requires
 		 * additional SET operation to make registers modification take
@@ -167,27 +177,42 @@ static void __csid_rup_update(struct csid_device *csid, int port_id)
 	}
 }
 
-static void __csid_aup_rup_clear(struct csid_device *csid, int port_id)
+static void __csid_addr_update_clear(struct csid_device *csid, int port_id)
 {
 	/* Hardware clears the registers upon consuming the settings */
-	if (csid_is_lite(csid)) {
-		csid->reg_update &= ~CSID_LITE_RUP_RDI(port_id);
+	if (csid_is_lite(csid))
 		csid->reg_update &= ~CSID_LITE_AUP_RDI(port_id);
-	} else {
-		csid->aup_update &= ~CSID_RUP_AUP_RDI(port_id);
-		csid->rup_update &= ~CSID_RUP_AUP_RDI(port_id);
-	}
+	else
+		csid->addr_update &= ~CSID_RUP_AUP_RDI(port_id);
+}
+
+static void __csid_reg_update_clear(struct csid_device *csid, int port_id)
+{
+	/* Hardware clears the registers upon consuming the settings */
+	if (csid_is_lite(csid))
+		csid->reg_update &= ~CSID_LITE_RUP_RDI(port_id);
+	else
+		csid->reg_update &= ~CSID_RUP_AUP_RDI(port_id);
 }
 
 static void __csid_configure_rx(struct csid_device *csid,
 				struct csid_phy_config *phy)
 {
+	struct camss *camss = csid->camss;
 	int val;
 
 	val = (phy->lane_cnt - 1) << CSI2_RX_CFG0_NUM_ACTIVE_LANES;
 	val |= phy->lane_assign << CSI2_RX_CFG0_DL0_INPUT_SEL;
-	val |= (phy->csiphy_id + CSI2_RX_CFG0_PHY_SEL_BASE_IDX)
-	       << CSI2_RX_CFG0_PHY_NUM_SEL;
+
+	if (camss->tpg && csid->tpg_linked &&
+	    camss->tpg[phy->csiphy_id].testgen.mode != TPG_PAYLOAD_MODE_DISABLED) {
+		val |= FIELD_PREP(CSI2_RX_CFG0_TPG_MUX_SEL, phy->csiphy_id + 1);
+		val |= CSI2_RX_CFG0_TPG_MUX_EN;
+	} else {
+		val |= (phy->csiphy_id + CSI2_RX_CFG0_PHY_SEL_BASE_IDX)
+			<< CSI2_RX_CFG0_PHY_NUM_SEL;
+	}
+
 	writel(val, csid->base + CSID_CSI2_RX_CFG0);
 
 	val = CSI2_RX_CFG1_ECC_CORRECTION_EN;
@@ -207,8 +232,8 @@ static void __csid_configure_rx_vc(struct csid_device *csid, int vc)
 
 static void __csid_ctrl_rdi(struct csid_device *csid, int enable, u8 rdi)
 {
-	int val = 0;
 	u32 rdi_ctrl_offset = CSID_RDI_CTRL(rdi);
+	int val = 0;
 
 	if (enable)
 		val = RDI_CTRL_START_CMD;
@@ -232,8 +257,8 @@ static void __csid_configure_rdi_pix_store(struct csid_device *csid, u8 rdi)
 
 static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 port, u8 vc)
 {
-	u32 val;
 	u8 lane_cnt = csid->phy.lane_cnt;
+	u32 val;
 
 	/* Source pads matching RDI channels on hardware.
 	 * E.g. Pad 1 -> RDI0, Pad 2 -> RDI1, etc.
@@ -304,8 +329,8 @@ static void csid_configure_stream(struct csid_device *csid, u8 enable)
 			__csid_configure_rx_vc(csid, 0);
 
 			for (k = 0; k < CAMSS_INIT_BUF_COUNT; k++) {
-				__csid_aup_update(csid, i);
-				__csid_rup_update(csid, i);
+				__csid_addr_update(csid, i);
+				__csid_reg_update(csid, i);
 			}
 
 			__csid_ctrl_rdi(csid, enable, i);
@@ -322,9 +347,18 @@ static void csid_subdev_reg_update(struct csid_device *csid, int port_id,
 				   bool clear)
 {
 	if (clear)
-		__csid_aup_rup_clear(csid, port_id);
+		__csid_reg_update_clear(csid, port_id);
 	else
-		__csid_aup_update(csid, port_id);
+		__csid_reg_update(csid, port_id);
+}
+
+static void csid_subdev_addr_update(struct csid_device *csid, int port_id,
+				    bool clear)
+{
+	if (clear)
+		__csid_addr_update_clear(csid, port_id);
+	else
+		__csid_addr_update(csid, port_id);
 }
 
 /**
@@ -354,8 +388,10 @@ static irqreturn_t csid_isr(int irq, void *dev)
 			val = readl(csid->base + CSID_CSI2_RDIN_IRQ_STATUS(i));
 			writel(val, csid->base + CSID_CSI2_RDIN_IRQ_CLEAR(i));
 
-			if (val & INFO_RUP_DONE)
-				csid_subdev_reg_update(csid, i, true);
+			if (val & INFO_RUP_DONE) {
+				__csid_addr_update_clear(csid, i);
+				__csid_reg_update_clear(csid, i);
+			}
 
 			if (buf_done_val & BIT(BUF_DONE_IRQ_STATUS_RDI_OFFSET + i))
 				camss_buf_done(csid->camss, csid->id, i);
@@ -438,5 +474,5 @@ const struct csid_hw_ops csid_ops_980 = {
 	.src_pad_code = csid_src_pad_code,
 	.subdev_init = csid_subdev_init,
 	.reg_update = csid_subdev_reg_update,
+	.addr_update = csid_subdev_addr_update,
 };
-
