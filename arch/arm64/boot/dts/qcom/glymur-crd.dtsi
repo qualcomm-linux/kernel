@@ -68,7 +68,7 @@
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			wakeup-source;
-			wakeup-event-action = <EV_ACT_DEASSERTED>;
+			wakeup-event-action = <EV_ACT_ANY>;
 		};
 	};
 
