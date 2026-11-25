@@ -68,7 +68,7 @@
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			wakeup-source;
-			wakeup-event-action = <EV_ACT_DEASSERTED>;
+			wakeup-event-action = <EV_ACT_ANY>;
 		};
 	};
 
@@ -1486,7 +1486,7 @@
 	hall_int_n_default: hall-int-n-state {
 		pins = "gpio92";
 		function = "gpio";
-		bias-pull-up;
+		bias-disable;
 	};
 
 	ec_int_n_default: ec-int-n-state {
