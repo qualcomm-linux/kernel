@@ -1486,7 +1486,7 @@
 	hall_int_n_default: hall-int-n-state {
 		pins = "gpio92";
 		function = "gpio";
-		bias-pull-up;
+		bias-disable;
 	};
 
 	ec_int_n_default: ec-int-n-state {
