@@ -766,22 +766,17 @@ static int audioreach_widget_audio_if_module_load(struct audioreach_module *mod,
 		val = le32_to_cpu(mod_elem->value);
 		switch (le32_to_cpu(mod_elem->token)) {
 		case AR_TKN_U32_MODULE_HW_IF_IDX:
-			if (val > U16_MAX)
-				return -EINVAL;
 			mod->hw_interface_idx = val;
 			break;
 		case AR_TKN_U32_MODULE_FMT_DATA:
 			mod->data_format = val;
 			break;
-		case AR_TKN_U32_MODULE_HW_IF_TYPE:
-			mod->hw_interface_type = val;
-			break;
-		case AR_TKN_U32_MODULE_SYNC_SRC:
+		case AR_TKN_U16_MODULE_SYNC_SRC:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->sync_src = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_CTRL_DATA_OUT_ENABLE:
+		case AR_TKN_U16_MODULE_CTRL_DATA_OUT_ENABLE:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->ctrl_data_out_enable = (u16)val;
@@ -789,37 +784,37 @@ static int audioreach_widget_audio_if_module_load(struct audioreach_module *mod,
 		case AR_TKN_U32_MODULE_SLOT_MASK:
 			mod->slot_mask = val;
 			break;
-		case AR_TKN_U32_MODULE_NSLOTS_PER_FRAME:
+		case AR_TKN_U16_MODULE_NSLOTS_PER_FRAME:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->nslots_per_frame = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_SLOT_WIDTH:
+		case AR_TKN_U16_MODULE_SLOT_WIDTH:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->slot_width = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_INTF_MODE:
+		case AR_TKN_U16_MODULE_INTF_MODE:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->intf_mode = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_SYNC_MODE:
+		case AR_TKN_U16_MODULE_SYNC_MODE:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->sync_mode = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_CTRL_INVERT_SYNC_PULSE:
+		case AR_TKN_U16_MODULE_CTRL_INVERT_SYNC_PULSE:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->ctrl_invert_sync_pulse = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_CTRL_SYNC_DATA_DELAY:
+		case AR_TKN_U16_MODULE_CTRL_SYNC_DATA_DELAY:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->ctrl_sync_data_delay = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_QAIF_TYPE:
+		case AR_TKN_U16_MODULE_QAIF_TYPE:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->qaif_type = (u16)val;
@@ -830,17 +825,17 @@ static int audioreach_widget_audio_if_module_load(struct audioreach_module *mod,
 		case AR_TKN_U32_MODULE_FRAME_SYNC_RATE:
 			mod->frame_sync_rate = val;
 			break;
-		case AR_TKN_U32_MODULE_BIT_CLK_TYPE:
+		case AR_TKN_U16_MODULE_BIT_CLK_TYPE:
 			if (val > U16_MAX)
 				return -EINVAL;
 			mod->bit_clk_type = (u16)val;
 			break;
-		case AR_TKN_U32_MODULE_INV_INT_BIT_CLK:
+		case AR_TKN_U8_MODULE_INV_INT_BIT_CLK:
 			if (val > U8_MAX)
 				return -EINVAL;
 			mod->inv_int_bit_clk = (u8)val;
 			break;
-		case AR_TKN_U32_MODULE_INV_EXT_BIT_CLK:
+		case AR_TKN_U8_MODULE_INV_EXT_BIT_CLK:
 			if (val > U8_MAX)
 				return -EINVAL;
 			mod->inv_ext_bit_clk = (u8)val;

@@ -1116,17 +1116,13 @@ static int audioreach_audio_if_set_media_format(struct q6apm_graph *graph,
 	int ep_sz = APM_HW_EP_CFG_PSIZE;
 	int fd_sz = APM_HW_EP_FRAME_DURATION_PSIZE;
 	int size = ic_sz + ep_sz + fd_sz;
-	/*
-	 * A zero machine override means use the topology default; zero is not
-	 * a valid override for these TDM slot fields.
-	 */
 	u32 slot_mask = cfg->slot_mask ? cfg->slot_mask : module->slot_mask;
 	u16 nslots_per_frame = cfg->nslots_per_frame ?
 				 (u16)cfg->nslots_per_frame : module->nslots_per_frame;
 	u16 slot_width = cfg->slot_width ? (u16)cfg->slot_width : module->slot_width;
+	u16 dest_domain = audioreach_gpr_dest_domain(graph->apm->gdev);
 	void *p;
 
-	u16 dest_domain = audioreach_gpr_dest_domain(graph->apm->gdev);
 	struct gpr_pkt *pkt __free(kfree) =
 		audioreach_alloc_apm_cmd_pkt(size, APM_CMD_SET_CFG, 0,
 					     dest_domain);
@@ -1179,9 +1175,10 @@ static int audioreach_audio_if_set_media_format(struct q6apm_graph *graph,
 	param_data->param_id = PARAM_ID_HW_EP_FRAME_DURATION;
 	param_data->param_size = fd_sz - APM_MODULE_PARAM_DATA_SIZE;
 	fd_cfg->frame_duration.frame_duration_in_us = AUDIO_IF_FRAME_DURATION_US;
-	fd_cfg->frame_duration.allow_frame_duration_normalization = 1;
-	fd_cfg->frame_duration.min_normalized_frame_dur_us = 1;
-	fd_cfg->frame_duration.max_normalized_frame_dur_us = 100000;
+	fd_cfg->frame_duration.allow_frame_duration_normalization =
+		AUDIO_IF_FRAME_DURATION_NORMALIZATION_ENABLE;
+	fd_cfg->frame_duration.min_normalized_frame_dur_us = AUDIO_IF_FRAME_DURATION_MIN_US;
+	fd_cfg->frame_duration.max_normalized_frame_dur_us = AUDIO_IF_FRAME_DURATION_MAX_US;
 
 	return q6apm_send_cmd_sync(graph->apm, pkt, 0);
 }
@@ -1435,9 +1432,6 @@ int audioreach_set_media_format(struct q6apm_graph *graph, struct audioreach_mod
 	case MODULE_ID_I2S_SINK:
 		rc = audioreach_i2s_set_media_format(graph, module, cfg);
 		break;
-	case MODULE_ID_AUDIO_IF_SOURCE:
-	case MODULE_ID_AUDIO_IF_SINK:
-		rc = audioreach_audio_if_set_media_format(graph, module, cfg);
 	case MODULE_ID_WR_SHARED_MEM_EP:
 		rc = audioreach_shmem_set_media_format(graph, module, cfg);
 		break;
@@ -1459,6 +1453,11 @@ int audioreach_set_media_format(struct q6apm_graph *graph, struct audioreach_mod
 	case MODULE_ID_GAPLESS:
 		rc = audioreach_gapless_set_media_format(graph, module, cfg);
 		break;
+	case MODULE_ID_AUDIO_IF_SOURCE:
+	case MODULE_ID_AUDIO_IF_SINK:
+		rc = audioreach_audio_if_set_media_format(graph, module, cfg);
+		break;
+
 	default:
 		rc = 0;
 	}
