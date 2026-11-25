@@ -292,6 +292,7 @@
 		reg = <0x10000 0x0 0x0 0x0 0x0>;
 		#address-cells = <3>;
 		#size-cells = <2>;
+		gpio-controller;
 		#gpio-cells = <2>;
 		device_type = "pci";
 		ranges;
@@ -321,7 +322,7 @@
 			bus-range = <0x3 0xff>;
 
 			ep-pwr-en-gpio = <&tc9563 2 GPIO_ACTIVE_HIGH>;
-			ep-reset-gpio = <&tc9563 5 GPIO_ACTIVE_HIGH>;
+			reset-gpios = <&tc9563 5 GPIO_ACTIVE_LOW>;
 
 			port {
 				tc9563_pcie1_ep: endpoint {};
@@ -338,6 +339,7 @@
 
 			ep-pwr-en-gpio = <&tc9563 4 GPIO_ACTIVE_HIGH>;
 			ep-reset-gpio = <&tc9563 3 GPIO_ACTIVE_HIGH>;
+			reset-gpios = <&tc9563 3 GPIO_ACTIVE_LOW>;
 		};
 
 		pcie@3,0 {
