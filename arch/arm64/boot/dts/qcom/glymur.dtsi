@@ -3849,6 +3849,8 @@
 
 			operating-points-v2 = <&pcie5_opp_table>;
 
+			qcom,pcie-recalibration-thermal-zones = <&thermal_aoss_6 25000>;
+
 			msi-map = <0x0 &gic_its 0xd0000 0x10000>;
 			iommu-map = <0x0 &pcie_smmu 0x50000 0x10000>;
 
@@ -4336,6 +4338,8 @@
 			num-lanes = <4>;
 
 			operating-points-v2 = <&pcie3b_opp_table>;
+
+			qcom,pcie-recalibration-thermal-zones = <&thermal_nsphmx_0 25000>;
 
 			msi-map = <0x0 &gic_its 0xf0000 0x10000>;
 			iommu-map = <0x0 &pcie_smmu 0x70000 0x10000>;

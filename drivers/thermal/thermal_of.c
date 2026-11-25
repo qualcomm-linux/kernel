@@ -530,6 +530,27 @@ void devm_thermal_of_zone_unregister(struct device *dev, struct thermal_zone_dev
 EXPORT_SYMBOL_GPL(devm_thermal_of_zone_unregister);
 
 /**
+ * thermal_zone_get_zone_by_node() - get a registered zone from its OF node
+ * @np: device tree node of the thermal zone
+ *
+ * Thermal zones described in the device tree are registered using the name
+ * of their device tree node, so resolve @np to its registered thermal zone
+ * by that name.
+ *
+ * Return: a valid thermal zone on success, an ERR_PTR otherwise (-EINVAL for
+ * an invalid argument, -ENODEV if no zone matches @np and -EEXIST if the name
+ * is not unique).
+ */
+struct thermal_zone_device *thermal_zone_get_zone_by_node(struct device_node *np)
+{
+	if (!np)
+		return ERR_PTR(-EINVAL);
+
+	return thermal_zone_get_zone_by_name(np->name);
+}
+EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_node);
+
+/**
  * thermal_of_cooling_device_register() - register an OF thermal cooling device
  * @np:		a pointer to a device tree node.
  * @cdev_id:	a cooling device id in the cooling controller
