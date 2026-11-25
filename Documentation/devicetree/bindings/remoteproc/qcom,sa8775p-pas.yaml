@@ -106,6 +106,8 @@ allOf:
           items:
             - const: lcx
             - const: lmx
+        iommus:
+          maxItems: 1
 
   - if:
       properties:
@@ -126,6 +128,8 @@ allOf:
             - const: cx
             - const: mxc
             - const: nsp
+        iommus:
+          maxItems: 1
 
   - if:
       properties:
@@ -144,6 +148,8 @@ allOf:
           items:
             - const: cx
             - const: mxc
+        iommus:
+          maxItems: 1
 
 unevaluatedProperties: false
 
