@@ -22,7 +22,6 @@
 
 #define TPG_HW_VER_2_0_0                TPG_HW_VER(2, 0, 0)
 #define TPG_HW_VER_2_1_0                TPG_HW_VER(2, 1, 0)
-#define TPG_HW_VER_2_4_0                TPG_HW_VER(2, 4, 0)
 #define TPG_HW_VER_2_5_0                TPG_HW_VER(2, 5, 0)
 
 #define TPG_HW_STATUS		0x4
@@ -37,7 +36,7 @@
 
 /*
  * Command register at 0x1F4. Earlier TPG revisions only expose HW_RESET[0]
- * here; v2.4.0 and later use TEST_EN[4], moving generator enable out of TPG_CTRL.
+ * here; v2.5.0 adds TEST_EN[4], moving the generator enable out of TPG_CTRL.
  * HW_RESET[0] is unchanged, so the reset path is revision-independent.
  */
 #define TPG_CTRL_CMD		0x1F4
@@ -177,12 +176,12 @@ static int tpg_stream_on(struct tpg_device *tpg)
 	/* Global TPG control */
 	val = FIELD_PREP(TPG_CTRL_NUM_ACTIVE_LANES, lane_cnt - 1) |
 	      FIELD_PREP(TPG_CTRL_NUM_ACTIVE_VC, last_vc);
-	if (tpg->hw_version < TPG_HW_VER_2_4_0)
+	if (tpg->hw_version < TPG_HW_VER_2_5_0)
 		val |= FIELD_PREP(TPG_CTRL_TEST_EN, 1);
 	writel(val, tpg->base + TPG_CTRL);
 
-	/* v2.4.0 and later enable the generator through the command register */
-	if (tpg->hw_version >= TPG_HW_VER_2_4_0)
+	/* v2.5.0 enables the generator through the command register */
+	if (tpg->hw_version >= TPG_HW_VER_2_5_0)
 		writel(TPG_CTRL_CMD_TEST_EN, tpg->base + TPG_CTRL_CMD);
 
 	return 0;
@@ -190,8 +189,7 @@ static int tpg_stream_on(struct tpg_device *tpg)
 
 static int tpg_reset(struct tpg_device *tpg)
 {
-	if (tpg->hw_version < TPG_HW_VER_2_4_0)
-		writel(0, tpg->base + TPG_CTRL);
+	writel(0, tpg->base + TPG_CTRL);
 	writel(TPG_CTRL_CMD_HW_RESET, tpg->base + TPG_CTRL_CMD);
 
 	return 0;
