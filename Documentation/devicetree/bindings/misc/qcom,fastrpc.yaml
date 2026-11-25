@@ -41,6 +41,7 @@ properties:
       - cdsp3
       - gdsp0
       - gdsp1
+      - hpass
 
   memory-region:
     maxItems: 1
