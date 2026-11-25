@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/idr.h>
 #include <linux/mod_devicetable.h>
@@ -571,6 +572,34 @@ static int tc9563_pwrctrl_add_gpio_adev(struct pci_pwrctrl_tc9563 *tc9563)
 				       tc9563->regmap);
 }
 
+/*
+ * The PCIe host controller driver may request the endpoint reset GPIOs before
+ * the switch is powered. gpiolib cannot read their direction then, and refuses
+ * to drive a line it does not know to be an output. Now that the switch is
+ * accessible and the lines are outputs, make gpiolib read the direction again.
+ */
+static void tc9563_pwrctrl_sync_gpio_direction(struct pci_pwrctrl_tc9563 *tc9563)
+{
+	struct gpio_device *gdev;
+	struct gpio_desc *desc;
+	int i;
+
+	gdev = gpio_device_find_by_fwnode(dev_fwnode(tc9563->pwrctrl.dev));
+	if (!gdev)
+		return;
+
+	for (i = 0; i < TC9563_MAX; i++) {
+		if (tc9563->cfg[i].ep_reset_gpio == TC9563_GPIO_NONE)
+			continue;
+
+		desc = gpio_device_get_desc(gdev, tc9563->cfg[i].ep_reset_gpio);
+		if (!IS_ERR(desc))
+			gpiod_get_direction(desc);
+	}
+
+	gpio_device_put(gdev);
+}
+
 static int tc9563_pwrctrl_power_off(struct pci_pwrctrl *pwrctrl)
 {
 	struct pci_pwrctrl_tc9563 *tc9563 = container_of(pwrctrl,
@@ -681,6 +710,8 @@ static int tc9563_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
 		dev_err(dev, "Setting Ethernet L1 entry delay failed\n");
 		goto power_off;
 	}
+
+	tc9563_pwrctrl_sync_gpio_direction(tc9563);
 
 	return 0;
 
