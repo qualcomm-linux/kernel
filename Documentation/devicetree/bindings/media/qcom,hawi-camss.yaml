@@ -22,19 +22,18 @@ properties:
           - const: qcom,hawi-camss
 
   reg:
-    maxItems: 14
+    maxItems: 13
 
   reg-names:
     items:
-      - const: top
       - const: csid0
       - const: csid1
       - const: csid2
       - const: csid_lite0
       - const: csid_lite1
-      - const: tpg0
-      - const: tpg1
-      - const: tpg2
+      - const: csitpg0
+      - const: csitpg1
+      - const: csitpg2
       - const: vfe0
       - const: vfe1
       - const: vfe2
@@ -58,7 +57,7 @@ properties:
       - const: cpas_vfe2
       - const: cpas_vfe_lite
       - const: csid
-      - const: csiphy_rx
+      - const: csid_csiphy_rx
       - const: gcc_axi_hf
       - const: gcc_axi_sf
       - const: vfe0
@@ -98,8 +97,7 @@ properties:
       - const: hf_mnoc
 
   iommus:
-    items:
-      - description: S1 HLOS IFE and IFE_LITE non-protected stream
+    maxItems: 1
 
   power-domains:
     items:
@@ -143,10 +141,6 @@ properties:
                   - 1 # MEDIA_BUS_TYPE_CSI2_CPHY
                   - 4 # MEDIA_BUS_TYPE_CSI2_DPHY
 
-            required:
-              - data-lanes
-
-
 required:
   - compatible
   - reg
@@ -177,11 +171,10 @@ examples:
         #address-cells = <2>;
         #size-cells = <2>;
 
-        isp@900b000 {
+        isp@9253000 {
             compatible = "qcom,hawi-camss";
 
-            reg = <0x0 0x0900b000 0x0 0x1000>,
-                  <0x0 0x09253000 0x0 0x5e80>,
+            reg = <0x0 0x09253000 0x0 0x5e80>,
                   <0x0 0x09263000 0x0 0x5e80>,
                   <0x0 0x09273000 0x0 0x5e80>,
                   <0x0 0x092d3000 0x0 0x3880>,
@@ -194,15 +187,14 @@ examples:
                   <0x0 0x09191000 0x0 0x20000>,
                   <0x0 0x092dc000 0x0 0x6800>,
                   <0x0 0x092f0000 0x0 0x6800>;
-            reg-names = "top",
-                        "csid0",
+            reg-names = "csid0",
                         "csid1",
                         "csid2",
                         "csid_lite0",
                         "csid_lite1",
-                        "tpg0",
-                        "tpg1",
-                        "tpg2",
+                        "csitpg0",
+                        "csitpg1",
+                        "csitpg2",
                         "vfe0",
                         "vfe1",
                         "vfe2",
@@ -247,7 +239,7 @@ examples:
                           "cpas_vfe2",
                           "cpas_vfe_lite",
                           "csid",
-                          "csiphy_rx",
+                          "csid_csiphy_rx",
                           "gcc_axi_hf",
                           "gcc_axi_sf",
                           "vfe0",
