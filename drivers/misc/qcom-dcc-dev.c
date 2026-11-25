@@ -13,6 +13,7 @@
 #include "qcom-dcc-pakala-config.h"
 #include "qcom-dcc-shikra-config.h"
 #include "qcom-dcc-nord-config.h"
+#include "qcom-dcc-eliza-config.h"
 
 #define DEV_NAME "qcom-dcc"
 
@@ -149,6 +150,16 @@ static int __init dcc_dev_init(void)
 	case 798:
 	case 803:
 		ret = platform_device_add_data(dcc_pdev, &nord_pdata, sizeof(nord_pdata));
+		if (ret)
+			goto fail;
+		break;
+	case 659:
+	case 686:
+	case 720:
+	case 721:
+	case 731:
+	case 732:
+		ret = platform_device_add_data(dcc_pdev, &eliza_pdata, sizeof(eliza_pdata));
 		if (ret)
 			goto fail;
 		break;
