@@ -5,19 +5,18 @@
 /dts-v1/;
 
 #include <dt-bindings/pwm/pwm.h>
-#include "lemans-draco-evk-som.dtsi"
+#include "lemans-draco-som.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. Lemans Draco EVK";
-	compatible = "qcom,lemans-draco-evk", "qcom,qcs9100",
-		     "qcom,sa8775p";
+	compatible = "qcom,lemans-draco-evk", "qcom,lemans-draco-som",
+		     "qcom,qcs9100", "qcom,sa8775p";
 	chassis-type = "embedded";
 
 	aliases {
 		ethernet0 = &ethernet0;
 		ethernet1 = &ethernet1;
-		i2c1 = &i2c1;
-		i2c4 = &i2c4;
+		serial1 = &uart17;
 	};
 
 	dp0-connector {
@@ -76,32 +75,22 @@
 		};
 	};
 
-	hdmi_connector: hdmi-connector {
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi_connector_out: endpoint {
-				remote-endpoint = <&hdmi_bridge_out>;
-			};
-		};
+	vreg_0p9: regulator-0v9 {
+		compatible = "regulator-fixed";
+		regulator-name = "VREG_0P9";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
-	vreg_bridge_1p2: regulator-bridge-1p2 {
+	vreg_1p8: regulator-1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "vreg_bridge_1p2";
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-		vin-supply = <&vreg_bridge_3p3>;
-	};
-
-	vreg_bridge_3p3: regulator-bridge-3p3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vreg_bridge_3p3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&expander2 1 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		regulator-name = "VREG_1P8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	vreg_dp0_pwr: regulator-dp0-pwr {
@@ -142,6 +131,198 @@
 		regulator-max-microvolt = <3300000>;
 
 		gpio = <&expander1 10 GPIO_ACTIVE_HIGH>;
+	};
+
+	vreg_va_micb_en: regulator-va-micb-en {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_va_micb_en";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&expander1 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vreg_va_micb_1p8: regulator-va-micb-1p8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_va_micb_1p8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&expander1 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vreg_va_micb_en>;
+	};
+
+	vreg_keye_3p3: regulator-keye-3p3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_keye_3p3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	wifi-bt-connector {
+		compatible = "pcie-m2-e-connector";
+		vpcie3v3-supply = <&vreg_keye_3p3>;
+		w-disable2-gpios = <&pmm8654au_1_gpios 8 GPIO_ACTIVE_LOW>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				m2_e_pcie_ep: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&tc9563_pcie1_ep>;
+				};
+			};
+
+			port@3 {
+				reg = <3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				m2_e_uart_ep: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&uart17_ep>;
+				};
+			};
+		};
+	};
+
+	sound {
+		compatible = "qcom,qcs9100-draco-sndcard";
+		model = "LEMANS_DRACO_EVK";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mi2s_mclk_a>, <&mi2s2_data0>, <&mi2s2_data1>,
+			    <&mi2s2_sck>, <&mi2s2_ws>;
+
+		mi2s2-capture-dai-link {
+			link-name = "Tertiary MI2S Capture";
+
+			codec {
+				sound-dai = <&max98091>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai TERTIARY_MI2S_TX>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		mi2s2-playback-dai-link {
+			link-name = "Tertiary MI2S Playback";
+
+			codec {
+				sound-dai = <&max98091>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai TERTIARY_MI2S_RX>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		va-dai-link {
+			link-name = "Codec DMA Capture";
+
+			codec {
+				sound-dai = <&lpass_va_macro 0>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+	};
+};
+
+&soc {
+	lpass_tlmm: pinctrl@3440000 {
+		compatible = "qcom,sc8280xp-lpass-lpi-pinctrl";
+		reg = <0x0 0x03440000 0x0 0x20000>,
+			<0x0 0x034d0000 0x0 0x10000>;
+		clocks = <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			<&q6prmcc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "core", "audio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&lpass_tlmm 0 0 19>;
+
+		lpass_dmic01_clk: dmic01-clk-state {
+			pins = "gpio6";
+			function = "dmic1_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		lpass_dmic01_data: dmic01-data-state {
+			pins = "gpio7";
+			function = "dmic1_data";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+
+		lpass_dmic23_clk: dmic23-clk-state {
+			pins = "gpio8";
+			function = "dmic2_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		lpass_dmic23_data: dmic23-data-state {
+			pins = "gpio9";
+			function = "dmic2_data";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+
+		lpass_dmic45_clk: dmic45-clk-state {
+			pins = "gpio12";
+			function = "dmic3_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		lpass_dmic45_data: dmic45-data-state {
+			pins = "gpio13";
+			function = "dmic3_data";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
+
+	lpass_va_macro: codec@33F0000 {
+		compatible = "qcom,sc7280-lpass-va-macro";
+		reg = <0 0x33F0000 0 0x1000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lpass_dmic01_clk>, <&lpass_dmic01_data>,
+			<&lpass_dmic23_clk>, <&lpass_dmic23_data>,
+			<&lpass_dmic45_clk>, <&lpass_dmic45_data>;
+		clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			<&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			<&q6prmcc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "mclk", "macro", "dcodec";
+
+		#clock-cells = <0>;
+		#sound-dai-cells = <1>;
+		status = "okay";
+		qcom,dmic-sample-rate = <4800000>;
+		vdd-micb-supply = <&vreg_va_micb_1p8>;
 	};
 };
 
@@ -321,60 +502,52 @@
 	};
 };
 
-&i2c1 {
+&i2c18 {
 	status = "okay";
 
-	i2c-mux@70 {
-		compatible = "nxp,pca9548";
-		reg = <0x70>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		vdd-supply = <&vreg_s4a>;
+	expander5: gpio@3c {
+		compatible = "nxp,pca9534";
+		reg = <0x3c>;
+		#gpio-cells = <2>;
+		gpio-controller;
+	};
 
-		i2c@0 {
-			reg = <0>;
+	eeprom@50 {
+		compatible = "giantec,gt24c256c", "atmel,24c256";
+		reg = <0x50>;
+		pagesize = <64>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
 			#address-cells = <1>;
-			#size-cells = <0>;
+			#size-cells = <1>;
 
-			hdmi_bridge: hdmi-bridge@41 {
-				compatible = "lontium,lt9611uxd";
-				reg = <0x41>;
+			mac_addr0: mac-addr@0 {
+				reg = <0x0 0x6>;
+			};
 
-				interrupts-extended = <&tlmm 97 IRQ_TYPE_EDGE_FALLING>;
-				reset-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;
-
-				vcc-supply = <&vreg_bridge_3p3>;
-				vdd-supply = <&vreg_bridge_1p2>;
-
-				pinctrl-0 = <&bridge_rst_pin &bridge_irq_pin>;
-				pinctrl-names = "default";
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-						hdmi_bridge_in0: endpoint {
-							remote-endpoint = <&mdss0_dsi0_out>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-						hdmi_bridge_in1: endpoint {
-						};
-					};
-
-					port@2 {
-						reg = <2>;
-						hdmi_bridge_out: endpoint {
-							remote-endpoint = <&hdmi_connector_out>;
-						};
-					};
-				};
+			mac_addr1: mac-addr@6 {
+				reg = <0x6 0x6>;
 			};
 		};
+	};
+};
+
+&i2c7 {
+	status = "okay";
+
+	max98091: max98091@10 {
+		compatible = "maxim,max98091";
+		reg = <0x10>;
+		#sound-dai-cells = <0>;
+		clock-names = "mclk";
+		clocks = <&q6prmcc LPASS_CLK_ID_MCLK_1 LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		assigned-clocks = <&q6prmcc LPASS_CLK_ID_MCLK_1 LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		assigned-clock-rates = <12288000>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <51 IRQ_TYPE_NONE>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&int_codec>;
 	};
 };
 
@@ -431,37 +604,6 @@
 	};
 };
 
-&i2c18 {
-	status = "okay";
-
-	expander5: gpio@3c {
-		compatible = "nxp,pca9534";
-		reg = <0x3c>;
-		#gpio-cells = <2>;
-		gpio-controller;
-	};
-
-	eeprom@50 {
-		compatible = "giantec,gt24c256c", "atmel,24c256";
-		reg = <0x50>;
-		pagesize = <64>;
-
-		nvmem-layout {
-			compatible = "fixed-layout";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			mac_addr0: mac-addr@0 {
-				reg = <0x0 0x6>;
-			};
-
-			mac_addr1: mac-addr@6 {
-				reg = <0x6 0x6>;
-			};
-		};
-	};
-};
-
 &mdss0 {
 	status = "okay";
 };
@@ -481,9 +623,6 @@
 };
 
 &mdss0_dp0_phy {
-	vdda-phy-supply = <&vreg_l1c>;
-	vdda-pll-supply = <&vreg_l4a>;
-
 	status = "okay";
 };
 
@@ -502,26 +641,6 @@
 };
 
 &mdss0_dp1_phy {
-	vdda-phy-supply = <&vreg_l1c>;
-	vdda-pll-supply = <&vreg_l4a>;
-
-	status = "okay";
-};
-
-&mdss0_dsi0 {
-	vdda-supply = <&vreg_l1c>;
-
-	status = "okay";
-};
-
-&mdss0_dsi0_out {
-	data-lanes = <0 1 2 3>;
-	remote-endpoint = <&hdmi_bridge_in0>;
-};
-
-&mdss0_dsi0_phy {
-	vdds-supply = <&vreg_l4a>;
-
 	status = "okay";
 };
 
@@ -544,9 +663,6 @@
 };
 
 &mdss1_dp0_phy {
-	vdda-phy-supply = <&vreg_l1c>;
-	vdda-pll-supply = <&vreg_l4a>;
-
 	status = "okay";
 };
 
@@ -565,10 +681,128 @@
 };
 
 &mdss1_dp1_phy {
-	vdda-phy-supply = <&vreg_l1c>;
-	vdda-pll-supply = <&vreg_l4a>;
+	status = "okay";
+};
+
+&pcie0 {
+	perst-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 0 GPIO_ACTIVE_HIGH>;
+
+	pinctrl-0 = <&pcie0_default_state>;
+	pinctrl-names = "default";
+
+	iommu-map = <0x0 &pcie_smmu 0x0 0x0 0x1>,
+		    <0x100 &pcie_smmu 0x1 0x0 0x1>,
+		    <0x208 &pcie_smmu 0x2 0x0 0x1>,
+		    <0x210 &pcie_smmu 0x3 0x0 0x1>,
+		    <0x218 &pcie_smmu 0x4 0x0 0x1>,
+		    <0x300 &pcie_smmu 0x5 0x0 0x1>,
+		    <0x400 &pcie_smmu 0x6 0x0 0x1>,
+		    <0x500 &pcie_smmu 0x7 0x0 0x1>,
+		    <0x501 &pcie_smmu 0x8 0x0 0x1>;
 
 	status = "okay";
+};
+
+&pcie0_phy {
+	vdda-phy-supply = <&vreg_l5a>;
+	vdda-pll-supply = <&vreg_l1c>;
+	vdda-qref-supply = <&vreg_l4a>;
+	vdda-refgen-supply = <&vreg_l7a>;
+
+	status = "okay";
+};
+
+&pcie1 {
+	perst-gpios = <&tlmm 4 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 5 GPIO_ACTIVE_HIGH>;
+
+	pinctrl-0 = <&pcie1_default_state>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&pcie1_phy {
+	vdda-phy-supply = <&vreg_l5a>;
+	vdda-pll-supply = <&vreg_l1c>;
+	vdda-qref-supply = <&vreg_l4a>;
+	vdda-refgen-supply = <&vreg_l7a>;
+
+	status = "okay";
+};
+
+&pcieport0 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	pcie@0,0 {
+		compatible = "pci1179,0623";
+		reg = <0x10000 0x0 0x0 0x0 0x0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges;
+		bus-range = <0x2 0xff>;
+
+		vddc-supply = <&vreg_0p9>;
+		vdd18-supply = <&vreg_1p8>;
+		vdd09-supply = <&vreg_0p9>;
+		vddio1-supply = <&vreg_1p8>;
+		vddio2-supply = <&vreg_1p8>;
+		vddio18-supply = <&vreg_1p8>;
+		i2c-parent = <&i2c18 0x77>;
+		resx-gpios = <&tlmm 10 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&tc9563_resx_n>;
+		pinctrl-names = "default";
+
+		pcie@1,0 {
+			reg = <0x20800 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x3 0xff>;
+
+			port {
+				tc9563_pcie1_ep: endpoint {};
+			};
+		};
+
+		pcie@2,0 {
+			reg = <0x21000 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x4 0xff>;
+		};
+
+		pcie@3,0 {
+			reg = <0x21800 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x5 0xff>;
+
+			pcie@0,0 {
+				reg = <0x50000 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+			};
+
+			pcie@0,1 {
+				reg = <0x50100 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+			};
+		};
+	};
 };
 
 &qup_i2c4_default {
@@ -598,22 +832,11 @@
 	};
 };
 
+&tc9563_pcie1_ep {
+	remote-endpoint = <&m2_e_pcie_ep>;
+};
+
 &tlmm {
-
-	bridge_rst_pin: bridge-rst-state {
-		pins = "gpio39";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-disable;
-		output-high;
-	};
-
-	bridge_irq_pin: bridge-irq-state {
-		pins = "gpio97";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-	};
 
 	dp2_hot_plug_det: dp2-hot-plug-det-state {
 		pins = "gpio104";
@@ -659,4 +882,109 @@
 		};
 	};
 
+	int_codec: gpio-irq-state {
+		pins = "gpio51";
+		function = "gpio";
+	};
+
+	mi2s_mclk_a: mi2s-mclk-a-state {
+		pins = "gpio105";
+		function = "mi2s_mclk0";
+		drive-strength = <16>;
+		bias-disable;
+		output-high;
+	};
+
+	mi2s2_data0: mi2s2-data0-state {
+		pins = "gpio112";
+		function = "mi2s2_data0";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mi2s2_data1: mi2s2-data1-state {
+		pins = "gpio113";
+		function = "mi2s2_data1";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mi2s2_sck: mi2s2-sck-state {
+		pins = "gpio110";
+		function = "mi2s2_sck";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	mi2s2_ws: mi2s2-ws-state {
+		pins = "gpio111";
+		function = "mi2s2_ws";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	pcie0_default_state: pcie0-default-state {
+		clkreq-pins {
+			pins = "gpio1";
+			function = "pcie0_clkreq";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-pins {
+			pins = "gpio2";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		wake-pins {
+			pins = "gpio0";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	pcie1_default_state: pcie1-default-state {
+		clkreq-pins {
+			pins = "gpio3";
+			function = "pcie1_clkreq";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-pins {
+			pins = "gpio4";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		wake-pins {
+			pins = "gpio5";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	tc9563_resx_n: tc9563-resx-state {
+		pins = "gpio10";
+		function = "gpio";
+		bias-disable;
+		output-high;
+	};
+};
+
+&uart17 {
+	status = "okay";
+
+	port {
+		uart17_ep: endpoint {
+			remote-endpoint = <&m2_e_uart_ep>;
+		};
+	};
 };
