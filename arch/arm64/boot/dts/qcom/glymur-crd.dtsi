@@ -1743,6 +1743,13 @@
 };
 
 &usb_mp {
+	/*
+	 * MP port 2 has no eUSB2 repeater / Type-A connector on CRD; its
+	 * floating DP/DM must not be armed as a wake source during suspend.
+	 * Values are 1-based port numbers, matching the dp_hs_phy_<n> IRQ
+	 * naming. Remove entries here if a port gains a connector.
+	 */
+	qcom,no-wakeup-ports = <2>;
 	status = "okay";
 };
 
