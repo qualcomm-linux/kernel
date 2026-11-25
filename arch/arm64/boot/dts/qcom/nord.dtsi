@@ -5535,15 +5535,6 @@
 			};
 		};
 
-		cti@11a21000 {
-			compatible = "arm,coresight-cti", "arm,primecell";
-			reg = <0x0 0x11a21000 0x0 0x1000>;
-
-			clocks = <&aoss_qmp>;
-			clock-names = "apb_pclk";
-			label = "cti_aoss";
-		};
-
 		itnoc@12000000 {
 			compatible = "qcom,coresight-itnoc";
 			reg = <0x0 0x12000000 0x0 0x2e80>;
