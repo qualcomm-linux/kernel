@@ -161,6 +161,15 @@ properties:
 
   retimer-switch: false
 
+  qcom,no-wakeup-ports:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      1-based list of multiport USB2 port numbers that have no physical
+      connector on the board and therefore must not be armed as wakeup
+      sources during system suspend.
+    minItems: 1
+    maxItems: 4
+
   wakeup-source: true
 
 required:
