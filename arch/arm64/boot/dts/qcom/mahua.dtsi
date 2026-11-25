@@ -187,8 +187,16 @@
 	compatible = "qcom,mahua-oobm-ss-noc", "qcom,glymur-oobm-ss-noc";
 };
 
+&pcie3b {
+	/delete-property/ qcom,pcie-recalibration-thermal-zones;
+};
+
 &pcie3b_port0 {
 	phys = <&pcie3b_phy>;
+};
+
+&pcie5 {
+	/delete-property/ qcom,pcie-recalibration-thermal-zones;
 };
 
 &pcie5_phy {
