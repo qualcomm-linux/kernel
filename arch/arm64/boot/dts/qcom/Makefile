@@ -602,11 +602,13 @@ dtb-$(CONFIG_ARCH_QCOM)	+= hamoa-camx-el2.dtb
 
 lemans-evk-camx-dtbs	:= lemans-evk.dtb lemans-evk-camx.dtbo
 lemans-draco-evk-camx-dtbs	:= lemans-draco-evk.dtb lemans-draco-evk-camx.dtbo
+lemans-draco-evk-el2-dtbs := lemans-draco-evk.dtb lemans-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-camx.dtbo
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-el2.dtb
 
 lemans-camx-el2-dtbs	:= lemans-evk-el2.dtb lemans-evk-camx.dtbo lemans-camx-el2.dtbo
 lemans-draco-evk-camx-el2-dtbs    := lemans-draco-evk-el2.dtb lemans-draco-evk-camx.dtbo lemans-camx-el2.dtbo
