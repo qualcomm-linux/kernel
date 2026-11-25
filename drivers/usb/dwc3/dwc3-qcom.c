@@ -72,6 +72,7 @@ struct dwc3_qcom_port {
 	int			dm_hs_phy_irq;
 	int			ss_phy_irq;
 	enum usb_device_speed	usb2_speed;
+	bool			no_wakeup;
 };
 
 struct dwc3_qcom {
@@ -296,6 +297,14 @@ static void dwc3_qcom_disable_port_interrupts(struct dwc3_qcom *qcom, int port_i
 {
 	struct dwc3_qcom_port *port = &qcom->ports[port_index];
 
+	/*
+	 * Ports with no connector are never armed as wakeup sources, so there
+	 * is nothing to disable. Returning here keeps the enable/disable depth
+	 * balanced for the IRQF_NO_AUTOEN wake IRQs.
+	 */
+	if (port->no_wakeup)
+		return;
+
 	dwc3_qcom_disable_wakeup_irq(port->qusb2_phy_irq);
 
 	if (port->usb2_speed == USB_SPEED_LOW) {
@@ -320,6 +329,16 @@ static void dwc3_qcom_disable_port_interrupts(struct dwc3_qcom *qcom, int port_i
 static void dwc3_qcom_enable_port_interrupts(struct dwc3_qcom *qcom, int port_index)
 {
 	struct dwc3_qcom_port *port = &qcom->ports[port_index];
+
+	/*
+	 * A port with no physical connector has floating single-ended DP/DM
+	 * pads. Arming them as wakeup sources raises a spurious wake the moment
+	 * the system suspends, so skip wakeup-IRQ arming entirely for such
+	 * ports. The wake IRQs are requested with IRQF_NO_AUTOEN, so leaving
+	 * them un-enabled here keeps them fully masked.
+	 */
+	if (port->no_wakeup)
+		return;
 
 	dwc3_qcom_enable_wakeup_irq(port->qusb2_phy_irq, 0);
 
@@ -673,6 +692,43 @@ static int dwc3_qcom_find_num_ports(struct platform_device *pdev)
 	return DWC3_QCOM_MAX_PORTS;
 }
 
+/*
+ * Ports listed in "qcom,no-wakeup-ports" have no physical connector on this
+ * board (e.g. an unrouted multiport eUSB2 port with no repeater). Their
+ * single-ended DP/DM pads float, so they must not be armed as wakeup sources
+ * during suspend. The property is a 1-based list of port numbers, matching the
+ * dp_hs_phy_<n> interrupt naming.
+ *
+ * This is fully data-driven: it imposes no assumption about how many ports
+ * exist or which ones are routed. If every port has a connector the property
+ * is simply absent and no port is flagged.
+ */
+static void dwc3_qcom_parse_no_wakeup_ports(struct dwc3_qcom *qcom)
+{
+	struct device_node *np = qcom->dev->of_node;
+	u32 ports[DWC3_QCOM_MAX_PORTS];
+	int count, i;
+
+	count = of_property_read_variable_u32_array(np, "qcom,no-wakeup-ports",
+						    ports, 1, DWC3_QCOM_MAX_PORTS);
+	if (count < 0)
+		return;		/* absent/empty: every port may wake */
+
+	for (i = 0; i < count; i++) {
+		u32 port = ports[i];	/* 1-based */
+
+		if (port < 1 || port > qcom->num_ports) {
+			dev_warn(qcom->dev,
+				 "qcom,no-wakeup-ports: port %u out of range (1..%u), ignoring\n",
+				 port, qcom->num_ports);
+			continue;
+		}
+
+		qcom->ports[port - 1].no_wakeup = true;
+		dev_dbg(qcom->dev, "port %u marked no-wakeup\n", port);
+	}
+}
+
 static int dwc3_qcom_setup_irq(struct dwc3_qcom *qcom, struct platform_device *pdev)
 {
 	bool is_multiport;
@@ -687,7 +743,7 @@ static int dwc3_qcom_setup_irq(struct dwc3_qcom *qcom, struct platform_device *p
 		if (ret)
 			return ret;
 	}
-
+	dwc3_qcom_parse_no_wakeup_ports(qcom);
 	return 0;
 }
 
