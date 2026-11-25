@@ -6,6 +6,10 @@
 /dts-v1/;
 /plugin/;
 
+&gpu_0_zap_shader {
+	status = "disabled";
+};
+
 &iris {
 	video-firmware {
 		iommus = <&apps_smmu_1 0x0962 0x0000>;
