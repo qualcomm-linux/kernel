@@ -211,6 +211,8 @@
 &pcie0_phy {
 	vdda-phy-supply = <&vreg_l6a>;
 	vdda-pll-supply = <&vreg_l5a>;
+	vdda-qref-supply = <&vreg_l4a>;
+	vdda-refgen-supply = <&vreg_l7a>;
 
 	status = "okay";
 };
@@ -223,6 +225,8 @@
 &pcie1_phy {
 	vdda-phy-supply = <&vreg_l6a>;
 	vdda-pll-supply = <&vreg_l5a>;
+	vdda-qref-supply = <&vreg_l4a>;
+	vdda-refgen-supply = <&vreg_l7a>;
 
 	status = "okay";
 };
@@ -275,6 +279,7 @@
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 
+	supports-cqe;
 	no-sd;
 	no-sdio;
 	non-removable;
