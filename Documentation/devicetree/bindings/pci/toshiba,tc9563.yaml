@@ -79,6 +79,14 @@ $defs:
           Specify the TC9563 GPIO used to reset the endpoint
           connected to the particular TC9563 downstream port.
 
+      reset-gpios:
+        maxItems: 1
+        description:
+          TC9563 GPIO, provided by the embedded GPIO controller, that
+          resets the endpoint connected to the downstream port. The PCIe
+          host controller drives it together with its own PERST# when it
+          keeps the switch powered across system suspend.
+
       ep-pwr-en-gpio:
         description:
           Specify the TC9563 GPIO used for enabling power to
@@ -120,7 +128,7 @@ examples:
         #address-cells = <3>;
         #size-cells = <2>;
 
-      tc9563: pcie@0 {
+      pcie@0 {
             device_type = "pci";
             reg = <0x0 0x0 0x0 0x0 0x0>;
 
@@ -136,6 +144,7 @@ examples:
                 device_type = "pci";
                 #address-cells = <3>;
                 #size-cells = <2>;
+                gpio-controller;
                 #gpio-cells = <2>;
                 ranges;
                 bus-range = <0x02 0xff>;
@@ -150,9 +159,6 @@ examples:
                 vddio18-supply = <&vdd>;
 
                 resx-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
-
-                gpio-controller;
-                #gpio-cells = <2>;
 
                 pcie@1,0 {
                     compatible = "pciclass,0604";
@@ -178,7 +184,6 @@ examples:
                     bus-range = <0x04 0xff>;
 
                     ep-pwr-en-gpio = <&tc9563 2 GPIO_ACTIVE_HIGH>;
-                    ep-reset-gpio = <&tc9563 5 GPIO_ACTIVE_HIGH>;
                 };
 
                 pcie@3,0 {
