@@ -1843,6 +1843,15 @@ void msm_dp_bridge_hpd_notify(struct drm_bridge *bridge,
 	struct msm_dp_display_private *dp = container_of(msm_dp_display, struct msm_dp_display_private, msm_dp_display);
 	u32 hpd_link_status;
 
+	/* Don't runtime-resume just to service an IRQ on an inactive state. */
+	if (status == connector_status_connected &&
+	    event == DRM_CONNECTOR_DP_IRQ_HPD &&
+	    dp->plugged &&
+	    !dp->phy_initialized) {
+		DRM_ERROR("skipping IRQ_HPD in an inactive state\n");
+		return;
+	}
+
 	if (pm_runtime_resume_and_get(&msm_dp_display->pdev->dev)) {
 		DRM_ERROR("failed to pm_runtime_resume\n");
 		return;
