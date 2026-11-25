@@ -34,6 +34,7 @@
 #define SDSP_DOMAIN_ID (2)
 #define CDSP_DOMAIN_ID (3)
 #define GDSP_DOMAIN_ID (4)
+#define HPASS_DOMAIN_ID (5)
 #define FASTRPC_MAX_SESSIONS	14
 #define FASTRPC_MAX_VMIDS	16
 #define FASTRPC_ALIGN		128
@@ -2667,6 +2668,8 @@ static int fastrpc_get_domain_id(const char *domain)
 		return SDSP_DOMAIN_ID;
 	else if (!strncmp(domain, "gdsp", 4))
 		return GDSP_DOMAIN_ID;
+	else if (!strncmp(domain, "hpass", 5))
+		return HPASS_DOMAIN_ID;
 
 	return -EINVAL;
 }
@@ -2820,12 +2823,13 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	if (rproc_node)
 		data->has_iommu = of_property_present(rproc_node, "iommus");
 
-	if (domain_id == SDSP_DOMAIN_ID || domain_id == ADSP_DOMAIN_ID) {
+	if (domain_id == SDSP_DOMAIN_ID || domain_id == ADSP_DOMAIN_ID ||
+	    domain_id == HPASS_DOMAIN_ID) {
 		struct resource res;
 
 		err = of_reserved_mem_region_to_resource(rdev->of_node, 0, &res);
 		if (!err) {
-			if (domain_id == ADSP_DOMAIN_ID) {
+			if (domain_id == ADSP_DOMAIN_ID || domain_id == HPASS_DOMAIN_ID) {
 				data->remote_heap =
 					kzalloc_obj(*data->remote_heap, GFP_KERNEL);
 				if (!data->remote_heap) {
@@ -2875,6 +2879,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	case ADSP_DOMAIN_ID:
 	case MDSP_DOMAIN_ID:
 	case SDSP_DOMAIN_ID:
+	case HPASS_DOMAIN_ID:
 		/* Unsigned PD offloading is only supported on CDSP and GDSP */
 		data->unsigned_support = false;
 		err = fastrpc_device_register(rdev, data, secure_dsp, domain);
