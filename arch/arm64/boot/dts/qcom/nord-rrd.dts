@@ -130,15 +130,17 @@
 		regulator-name = "vreg_wcn_3p3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
+		gpio = <&pmau0102_e_gpios 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
-	vreg_wcn_vddio_1p8: regulator-wcn-vddio-1p8 {
+	vreg_wcn_1p9: regulator-wcn-1p9 {
 		compatible = "regulator-fixed";
-		regulator-name = "vreg_wcn_vddio_1p8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
+		regulator-name = "vreg_wcn_1p9";
+		regulator-min-microvolt = <1900000>;
+		regulator-max-microvolt = <1900000>;
+		gpio = <&pmau0102_e_gpios 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	vreg_wcn_core_vl_0p95: regulator-wcn-core-vl-0p95 {
@@ -175,9 +177,9 @@
 		wlan-enable-gpios = <&pmau0102_e_gpios 10 GPIO_ACTIVE_HIGH>;
 
 		vdd-supply = <&vreg_wcn_3p3>;
-		vddio-supply = <&vreg_wcn_vddio_1p8>;
+		vddio-supply = <&vreg_s3a_1p8>;
 		vddaon-supply = <&vreg_wcn_core_vl_0p95>;
-		vdddig-supply = <&vreg_wcn_core_vl_0p95>;
+		vdddig-supply = <&vreg_wcn_1p9>;
 		vddrfa1p2-supply = <&vreg_wcn_core_vm_1p35>;
 		vddrfa1p8-supply = <&vreg_wcn_core_vh_1p95>;
 
