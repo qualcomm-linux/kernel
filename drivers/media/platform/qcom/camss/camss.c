@@ -169,7 +169,7 @@ static const struct camss_subdev_resources csid_res_kaanapali[] = {
 		.csid = {
 			.is_lite = false,
 			.parent_dev_ops = &vfe_parent_dev_ops,
-			.hw_ops = &csid_ops_1080,
+			.hw_ops = &csid_ops_gen4,
 			.formats = &csid_formats_gen2
 		}
 	},
@@ -183,7 +183,7 @@ static const struct camss_subdev_resources csid_res_kaanapali[] = {
 		.csid = {
 			.is_lite = false,
 			.parent_dev_ops = &vfe_parent_dev_ops,
-			.hw_ops = &csid_ops_1080,
+			.hw_ops = &csid_ops_gen4,
 			.formats = &csid_formats_gen2
 		}
 	},
@@ -197,7 +197,7 @@ static const struct camss_subdev_resources csid_res_kaanapali[] = {
 		.csid = {
 			.is_lite = false,
 			.parent_dev_ops = &vfe_parent_dev_ops,
-			.hw_ops = &csid_ops_1080,
+			.hw_ops = &csid_ops_gen4,
 			.formats = &csid_formats_gen2
 		}
 	},
@@ -211,7 +211,7 @@ static const struct camss_subdev_resources csid_res_kaanapali[] = {
 		.csid = {
 			.is_lite = true,
 			.parent_dev_ops = &vfe_parent_dev_ops,
-			.hw_ops = &csid_ops_1080,
+			.hw_ops = &csid_ops_gen4,
 			.formats = &csid_formats_gen2
 		}
 	},
@@ -225,7 +225,7 @@ static const struct camss_subdev_resources csid_res_kaanapali[] = {
 		.csid = {
 			.is_lite = true,
 			.parent_dev_ops = &vfe_parent_dev_ops,
-			.hw_ops = &csid_ops_1080,
+			.hw_ops = &csid_ops_gen4,
 			.formats = &csid_formats_gen2
 		}
 	}
@@ -366,6 +366,7 @@ static const struct camss_subdev_resources vfe_res_kaanapali[] = {
 		}
 	},
 };
+
 static const struct resources_icc icc_res_kaanapali[] = {
 	{
 		.name = "ahb",
