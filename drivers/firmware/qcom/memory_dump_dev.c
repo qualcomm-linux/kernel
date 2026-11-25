@@ -56,6 +56,10 @@ enum dump_ids {
 	L1_DCACHE10100	= 0x85,
 	L1_DCACHE10200	= 0x86,
 	L1_DCACHE10300	= 0x87,
+	L2_CACHE0	= 0xc0,
+	L2_CACHE100	= 0xc1,
+	L2_CACHE200	= 0xc2,
+	L2_CACHE300	= 0xc3,
 	L2_CACHE10000	= 0xc4,
 	L2_CACHE10100	= 0xc5,
 	L2_CACHE10200	= 0xc6,
@@ -100,6 +104,14 @@ enum dump_ids {
 	OSM_REG		= 0x163,
 	PCU_REG		= 0x164,
 	FSM_DATA	= 0x165,
+	L1_DCDIRTY0	= 0x170,
+	L1_DCDIRTY100	= 0x171,
+	L1_DCMTE0	= 0x180,
+	L1_DCMTE100	= 0x181,
+	L2_DCMTE0	= 0x190,
+	L2_DCMTE100	= 0x191,
+	L0_MOPCA10300	= 0x1a7,
+	L2_VICTIM10300	= 0x1e7,
 	SPR_CPU0	= 0x1f0,
 	SPR_CPU1	= 0x1f1,
 	SPR_CPU2	= 0x1f2,
@@ -112,6 +124,16 @@ enum dump_ids {
 	SPR_CPU9	= 0x1f9,
 	SPR_CPU10	= 0x1fa,
 	SPR_CPU11	= 0x1fb,
+	L2_TLDTCSP200	= 0x202,
+	L2_TLDTCSP300	= 0x203,
+	L2_TLDTCSP10000	= 0x204,
+	L2_TLDTCSP10100	= 0x205,
+	L2_TLDTCSP10200	= 0x206,
+	L2_TLDTCMP200	= 0x212,
+	L2_TLDTCMP300	= 0x213,
+	L2_TLDTCMP10000	= 0x214,
+	L2_TLDTCMP10100	= 0x215,
+	L2_TLDTCMP10200	= 0x216,
 	SCANDUMP_SMMU	= 0x220,
 	SCANDUMP_GPU	= 0x221,
 	CACHE_CPU0	= 0x230,
@@ -712,6 +734,91 @@ static const struct dump_item maili_items[] = {
 	{ CACHE_CLUSTER0, 0x1600000, "cache-cluster0" },
 };
 
+static const struct dump_item eliza_items[] = {
+	{ C0_CONTEXT, 0x800, "c0-context" },
+	{ C100_CONTEXT, 0x800, "c100-context" },
+	{ C200_CONTEXT, 0x800, "c200-context" },
+	{ C300_CONTEXT, 0x800, "c300-context" },
+	{ C400_CONTEXT, 0x800, "c400-context" },
+	{ C500_CONTEXT, 0x800, "c500-context" },
+	{ C600_CONTEXT, 0x800, "c600-context" },
+	{ C700_CONTEXT, 0x800, "c700-context" },
+	{ L1_ICACHE0, 0x22100, "l1-icache0" },
+	{ L1_ICACHE100, 0x22100, "l1-icache100" },
+	{ L1_ICACHE200, 0x22100, "l1-icache200" },
+	{ L1_ICACHE300, 0x22100, "l1-icache300" },
+	{ L1_ICACHE10000, 0x22100, "l1-icache10000" },
+	{ L1_ICACHE10100, 0x22100, "l1-icache10100" },
+	{ L1_ICACHE10200, 0x22100, "l1-icache10200" },
+	{ L1_ICACHE10300, 0x22100, "l1-icache10300" },
+	{ L1_DCACHE0, 0x12100, "l1-dcache0" },
+	{ L1_DCACHE100, 0x12100, "l1-dcache100" },
+	{ L1_DCACHE200, 0x1a100, "l1-dcache200" },
+	{ L1_DCACHE300, 0x1a100, "l1-dcache300" },
+	{ L1_DCACHE10000, 0x1a100, "l1-dcache10000" },
+	{ L1_DCACHE10100, 0x1a100, "l1-dcache10100" },
+	{ L1_DCACHE10200, 0x1a100, "l1-dcache10200" },
+	{ L1_DCACHE10300, 0x1a100, "l1-dcache10300" },
+	{ L1_ITLB10300, 0x600, "l1-itlb10300" },
+	{ L1_DTLB10300, 0xa00, "l1-dtlb10300" },
+	{ L2_CACHE0, 0x90100, "l2-cache0" },
+	{ L2_CACHE100, 0x90100, "l2-cache100" },
+	{ L2_CACHE200, 0xd0100, "l2-cache200" },
+	{ L2_CACHE300, 0xd0100, "l2-cache300" },
+	{ L2_CACHE10000, 0xd0100, "l2-cache10000" },
+	{ L2_CACHE10100, 0xd0100, "l2-cache10100" },
+	{ L2_CACHE10200, 0xd0100, "l2-cache10200" },
+	{ L2_CACHE10300, 0x340100, "l2-cache10300" },
+	{ L2_TLB0, 0xf700, "l2-tlb0" },
+	{ L2_TLB100, 0xf700, "l2-tlb100" },
+	{ L2_TLB10300, 0xa900, "l2-tlb10300" },
+	{ L1_DCDIRTY0, 0x2100, "l1-dcdirty0" },
+	{ L1_DCDIRTY100, 0x2100, "l1-dcdirty100" },
+	{ L1_DCMTE0, 0x2100, "l1-dcmte0" },
+	{ L1_DCMTE100, 0x2100, "l1-dcmte100" },
+	{ L2_DCMTE0, 0x10100, "l2-dcmte0" },
+	{ L2_DCMTE100, 0x10100, "l2-dcmte100" },
+	{ L0_MOPCA10300, 0x4100, "l0-mopca10300" },
+	{ L2_VICTIM10300, 0x2100, "l2-victim10300" },
+	{ L2_TLDTCSP200, 0x7900, "l2-tldtcsp200" },
+	{ L2_TLDTCSP300, 0x7900, "l2-tldtcsp300" },
+	{ L2_TLDTCSP10000, 0x7900, "l2-tldtcsp10000" },
+	{ L2_TLDTCSP10100, 0x7900, "l2-tldtcsp10100" },
+	{ L2_TLDTCSP10200, 0x7900, "l2-tldtcsp10200" },
+	{ L2_TLDTCMP200, 0x1300, "l2-tldtcmp200" },
+	{ L2_TLDTCMP300, 0x1300, "l2-tldtcmp300" },
+	{ L2_TLDTCMP10000, 0x1300, "l2-tldtcmp10000" },
+	{ L2_TLDTCMP10100, 0x1300, "l2-tldtcmp10100" },
+	{ L2_TLDTCMP10200, 0x1300, "l2-tldtcmp10200" },
+	{ RPMH, 0x400000, "rpmh" },
+	{ RPM_SW, 0x28000, "rpm-sw" },
+	{ PMIC, 0x200000, "pmic" },
+	{ FCM, 0x8400, "fcm" },
+	{ MISC_DATA, 0x1000, "misc-data" },
+	{ ETF_SWAO, 0x10000, "etf-swao" },
+	{ ETR_REG, 0x1000, "etr-reg" },
+	{ ETFSWAO_REG, 0x1000, "etfswao-reg" },
+	{ ETR1_REG, 0x1000, "etr1-reg" },
+	{ ETF_SLPI, 0x4000, "etf-slpi" },
+	{ ETFSLPI_REG, 0x1000, "etfslpi-reg" },
+	{ ETF_LPASS, 0x4000, "etf-lpass" },
+	{ ETFLPASS_REG, 0x1000, "etflpass-reg" },
+	{ OSM_REG, 0x400, "osm-reg" },
+	{ PCU_REG, 0x400, "pcu-reg" },
+	{ FSM_DATA, 0x400, "fsm-data" },
+	{ SCANDUMP_SMMU, 0x40000, "scandump-smmu" },
+	{ SCANDUMP_GPU, 0x300000, "scandump-gpu" },
+	{ CPUSS_REG, 0x36000, "cpuss-reg" },
+	{ SPR_CPU0, 0x2000, "spr-cpu0" },
+	{ SPR_CPU1, 0x2000, "spr-cpu1" },
+	{ SPR_CPU2, 0x2000, "spr-cpu2" },
+	{ SPR_CPU3, 0x2000, "spr-cpu3" },
+	{ SPR_CPU4, 0x2000, "spr-cpu4" },
+	{ SPR_CPU5, 0x2000, "spr-cpu5" },
+	{ SPR_CPU6, 0x2000, "spr-cpu6" },
+	{ SPR_CPU7, 0x2000, "spr-cpu7" },
+};
+
 static const struct dump_table lemans_dump_table = {
 	.items		= lemans_items,
 	.num_of_items	= ARRAY_SIZE(lemans_items),
@@ -787,6 +894,13 @@ static const struct dump_table maili_dump_table = {
 	.num_of_items	= ARRAY_SIZE(maili_items),
 	.imem_base	= 0x14680010,
 	.imem_size	= 0x8,
+};
+
+static const struct dump_table eliza_dump_table = {
+	.items		= eliza_items,
+	.num_of_items	= ARRAY_SIZE(eliza_items),
+	.imem_base	= 0x0,
+	.imem_size	= 0x0,
 };
 
 static int __init mem_dump_dev_init(void)
@@ -916,6 +1030,17 @@ static int __init mem_dump_dev_init(void)
 	case 794:
 		ret = platform_device_add_data(mem_dump_pdev,
 				&maili_dump_table, sizeof(maili_dump_table));
+		if (ret)
+			goto fail;
+		break;
+	case 659:
+	case 686:
+	case 720:
+	case 721:
+	case 731:
+	case 732:
+		ret = platform_device_add_data(mem_dump_pdev,
+				&eliza_dump_table, sizeof(eliza_dump_table));
 		if (ret)
 			goto fail;
 		break;
