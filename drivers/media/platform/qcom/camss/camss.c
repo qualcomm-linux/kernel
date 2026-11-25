@@ -237,10 +237,11 @@ static const struct camss_subdev_resources csid_res_kaanapali[] = {
 static const struct camss_subdev_resources vfe_res_kaanapali[] = {
 	/* VFE0 - TFE Full */
 	{
-		.clock = { "vfe0_fast_ahb", "vfe0",
+		.clock = { "gcc_axi_hf", "vfe0_fast_ahb", "vfe0",
 			   "cpas_vfe0", "cpas_vfe1", "cpas_vfe2",
 			   "camnoc_rt_axi", "camnoc_nrt_axi", "qdss_debug_xo" },
 		.clock_rate = { { 0 },
+				{ 0 },
 				{ 360280000, 480000000, 630000000, 716000000,
 				  833000000 },
 				{ 0 },
@@ -254,19 +255,21 @@ static const struct camss_subdev_resources vfe_res_kaanapali[] = {
 		.vfe = {
 			.line_num = 3,
 			.is_lite = false,
+			.reg_update_after_csid_config = true,
 			.has_pd = true,
 			.pd_name = "ife0",
-			.hw_ops = &vfe_ops_1080,
+			.hw_ops = &vfe_ops_gen4,
 			.formats_rdi = &vfe_formats_rdi_845,
 			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE1 - TFE Full */
 	{
-		.clock = { "vfe1_fast_ahb", "vfe1",
+		.clock = { "gcc_axi_hf", "vfe1_fast_ahb", "vfe1",
 			   "cpas_vfe0", "cpas_vfe1", "cpas_vfe2",
 			   "camnoc_rt_axi", "camnoc_nrt_axi", "qdss_debug_xo" },
 		.clock_rate = { { 0 },
+				{ 0 },
 				{ 360280000, 480000000, 630000000, 716000000,
 				  833000000 },
 				{ 0 },
@@ -280,19 +283,21 @@ static const struct camss_subdev_resources vfe_res_kaanapali[] = {
 		.vfe = {
 			.line_num = 3,
 			.is_lite = false,
+			.reg_update_after_csid_config = true,
 			.has_pd = true,
 			.pd_name = "ife1",
-			.hw_ops = &vfe_ops_1080,
+			.hw_ops = &vfe_ops_gen4,
 			.formats_rdi = &vfe_formats_rdi_845,
 			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE2 - TFE Full */
 	{
-		.clock = { "vfe2_fast_ahb", "vfe2",
+		.clock = { "gcc_axi_hf", "vfe2_fast_ahb", "vfe2",
 			   "cpas_vfe0", "cpas_vfe1", "cpas_vfe2",
 			   "camnoc_rt_axi", "camnoc_nrt_axi", "qdss_debug_xo" },
 		.clock_rate = { { 0 },
+				{ 0 },
 				{ 360280000, 480000000, 630000000, 716000000,
 				  833000000 },
 				{ 0 },
@@ -306,18 +311,21 @@ static const struct camss_subdev_resources vfe_res_kaanapali[] = {
 		.vfe = {
 			.line_num = 3,
 			.is_lite = false,
+			.reg_update_after_csid_config = true,
 			.has_pd = true,
 			.pd_name = "ife2",
-			.hw_ops = &vfe_ops_1080,
+			.hw_ops = &vfe_ops_gen4,
 			.formats_rdi = &vfe_formats_rdi_845,
 			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE3 - IFE Lite */
 	{
-		.clock = { "vfe_lite_ahb", "vfe_lite", "cpas_vfe_lite",
-			   "camnoc_rt_axi", "camnoc_nrt_axi", "qdss_debug_xo" },
+		.clock = { "gcc_axi_hf", "vfe_lite_ahb", "vfe_lite",
+			   "cpas_vfe_lite", "camnoc_rt_axi",
+			   "camnoc_nrt_axi", "qdss_debug_xo" },
 		.clock_rate = { { 0 },
+				{ 0 },
 				{ 266666667, 400000000, 480000000 },
 				{ 0 },
 				{ 200000000, 300000000, 400000000, 480000000 },
@@ -326,18 +334,21 @@ static const struct camss_subdev_resources vfe_res_kaanapali[] = {
 		.reg = { "vfe_lite0" },
 		.interrupt = { "vfe_lite0" },
 		.vfe = {
-			.line_num = 3,
+			.line_num = 4,
 			.is_lite = true,
-			.hw_ops = &vfe_ops_1080,
+			.reg_update_after_csid_config = true,
+			.hw_ops = &vfe_ops_gen4,
 			.formats_rdi = &vfe_formats_rdi_845,
 			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE4 - IFE Lite */
 	{
-		.clock = { "vfe_lite_ahb", "vfe_lite", "cpas_vfe_lite",
-			   "camnoc_rt_axi", "camnoc_nrt_axi", "qdss_debug_xo" },
+		.clock = { "gcc_axi_hf", "vfe_lite_ahb", "vfe_lite",
+			   "cpas_vfe_lite", "camnoc_rt_axi",
+			   "camnoc_nrt_axi", "qdss_debug_xo" },
 		.clock_rate = { { 0 },
+				{ 0 },
 				{ 266666667, 400000000, 480000000 },
 				{ 0 },
 				{ 200000000, 300000000, 400000000, 480000000 },
@@ -346,9 +357,10 @@ static const struct camss_subdev_resources vfe_res_kaanapali[] = {
 		.reg = { "vfe_lite1" },
 		.interrupt = { "vfe_lite1" },
 		.vfe = {
-			.line_num = 3,
+			.line_num = 4,
 			.is_lite = true,
-			.hw_ops = &vfe_ops_1080,
+			.reg_update_after_csid_config = true,
+			.hw_ops = &vfe_ops_gen4,
 			.formats_rdi = &vfe_formats_rdi_845,
 			.formats_pix = &vfe_formats_pix_845
 		}
