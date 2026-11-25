@@ -216,6 +216,8 @@ devm_thermal_of_child_cooling_device_register(struct device *dev,
 					      struct device_node *np,
 					      const char *type, void *devdata,
 					      const struct thermal_cooling_device_ops *ops);
+
+struct thermal_zone_device *thermal_zone_get_zone_by_node(struct device_node *np);
 #else
 
 static inline
@@ -251,6 +253,12 @@ devm_thermal_of_child_cooling_device_register(struct device *dev,
 					      struct device_node *np,
 					      const char *type, void *devdata,
 					      const struct thermal_cooling_device_ops *ops)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct thermal_zone_device *
+thermal_zone_get_zone_by_node(struct device_node *np)
 {
 	return ERR_PTR(-ENODEV);
 }
