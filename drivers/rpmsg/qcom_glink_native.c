@@ -1331,9 +1331,14 @@ static struct rpmsg_endpoint *qcom_glink_create_ept(struct rpmsg_device *rpdev,
 	int ret;
 	unsigned long flags;
 
+	/*
+	 * open_ack is never reinitialized, so a completed open_ack means a
+	 * previous local endpoint used this channel. Don't reuse it.
+	 */
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	idr_for_each_entry(&glink->rcids, channel, cid) {
-		if (!strcmp(channel->name, name))
+		if (!strcmp(channel->name, name) &&
+		    !completion_done(&channel->open_ack))
 			break;
 	}
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
@@ -1637,9 +1642,14 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 	int ret;
 	unsigned long flags;
 
+	/*
+	 * open_req is never reinitialized, so a completed open_req means this
+	 * channel was already paired with a remote open. Don't reuse it.
+	 */
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	idr_for_each_entry(&glink->lcids, channel, lcid) {
-		if (!strcmp(channel->name, name))
+		if (!strcmp(channel->name, name) &&
+		    !completion_done(&channel->open_req))
 			break;
 	}
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
