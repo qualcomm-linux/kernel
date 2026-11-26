@@ -54,7 +54,7 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   reg-names:
     minItems: 1
@@ -62,6 +62,7 @@ properties:
       - const: kgsl_3d0_reg_memory
       - const: cx_mem
       - const: cx_dbgc
+      - const: aperture
 
   interrupts:
     maxItems: 1
@@ -451,6 +452,7 @@ allOf:
               - qcom,adreno-43050a01
               - qcom,adreno-43050c01
               - qcom,adreno-43051401
+              - qcom,adreno-43051701
               - qcom,adreno-44010000
               - qcom,adreno-44050001
               - qcom,adreno-44050a01
