@@ -952,12 +952,23 @@ void ath12k_mac_get_any_chanctx_conf_iter(struct ieee80211_hw *hw,
 static struct ath12k_link_vif *ath12k_mac_get_vif_up(struct ath12k *ar)
 {
 	struct ath12k_link_vif *arvif;
+	struct cfg80211_chan_def def;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
-		if (arvif->is_up)
-			return arvif;
+		if (!arvif->is_up)
+			continue;
+
+		/*
+		 * A deactivated MLO link keeps its vdev up in firmware but has
+		 * released its channel context, so it cannot be used to pick
+		 * the target pdev.
+		 */
+		if (ath12k_mac_vif_link_chan(arvif->ahvif->vif, arvif->link_id, &def))
+			continue;
+
+		return arvif;
 	}
 
 	return NULL;
@@ -3548,13 +3559,17 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 static void ath12k_peer_assoc_h_mlo(struct ath12k_link_sta *arsta,
 				    struct ath12k_wmi_peer_assoc_arg *arg)
 {
+	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arsta->arvif->ahvif);
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(arsta->ahsta);
+	const struct wiphy_iftype_ext_capab *iftype_ext_capa;
 	struct peer_assoc_mlo_params *ml = &arg->ml;
 	struct ath12k_sta *ahsta = arsta->ahsta;
 	struct ath12k_link_sta *arsta_p;
 	struct ath12k_link_vif *arvif;
 	struct ath12k_hw *ah = arsta->arvif->ar->ah;
 	unsigned long links;
+	u8 rec_max_links;
+	u8 max_links;
 	u8 link_id;
 	int i;
 
@@ -3592,6 +3607,31 @@ static void ath12k_peer_assoc_h_mlo(struct ath12k_link_sta *arsta,
 	ml->ieee_link_id = arsta->link_id;
 	ml->num_partner_links = 0;
 	ml->eml_cap = sta->eml_cap;
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		iftype_ext_capa = cfg80211_get_iftype_ext_capa(ah->hw->wiphy,
+							       vif->type);
+		/*
+		 * MLD Capabilities and Operations uses N-1 encoding
+		 * (IEEE 802.11be Table 9-417n); firmware peer assoc uses raw N.
+		 */
+		max_links = u16_get_bits(iftype_ext_capa->mld_capa_and_ops,
+					 IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS) + 1;
+		rec_max_links =
+		    u16_get_bits(sta->ext_mld_capa_ops,
+				 IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_RECO_MAX_LINKS_MASK);
+		/*
+		 * Figure 9-1074t / Table 9-417o define Recommended Max
+		 * Simultaneous Links as raw count L (0 no recommendation,
+		 * 1 reserved).
+		 */
+		if (rec_max_links <= 1 || rec_max_links > max_links)
+			rec_max_links = max_links;
+
+		ml->max_num_simultaneous_links = max_links;
+		ml->recommended_max_num_simultaneous_links = rec_max_links;
+	}
+
 	links = ahsta->links_map;
 
 	rcu_read_lock();
@@ -3791,6 +3831,79 @@ static int ath12k_mac_vif_recalc_sta_he_txbf(struct ath12k *ar,
 	return 0;
 }
 
+static int ath12k_mac_vif_recalc_sta_eht_txbf(struct ath12k *ar,
+					      struct ath12k_link_vif *arvif,
+					      struct ieee80211_link_sta *link_sta,
+					      u32 *ehtmode)
+{
+	const struct ieee80211_sta_eht_cap *peer_eht_cap;
+	const struct ieee80211_sta_eht_cap *own_eht_cap;
+	const struct ieee80211_sband_iftype_data *iftd;
+	struct ieee80211_vif *vif = arvif->ahvif->vif;
+	struct ieee80211_bss_conf *link_conf;
+	struct cfg80211_chan_def def;
+	enum nl80211_band band;
+	u8 mu_bformer;
+
+	*ehtmode = 0;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	link_conf = ath12k_mac_get_link_bss_conf(arvif);
+	if (!link_conf) {
+		ath12k_warn(ar->ab, "unable to access bss link conf in recalc eht txbf conf\n");
+		return -EINVAL;
+	}
+
+	if (!link_conf->eht_support || !link_sta->eht_cap.has_eht)
+		return 0;
+
+	if (WARN_ON(ath12k_mac_vif_link_chan(vif, arvif->link_id, &def)))
+		return -EINVAL;
+
+	band = def.chan->band;
+	iftd = ieee80211_get_sband_iftype_data(&ar->mac.sbands[band], vif->type);
+	if (!iftd) {
+		ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+			   "unable to access iftype data in recalc eht txbf conf\n");
+		return 0;
+	}
+
+	own_eht_cap = &iftd->eht_cap;
+	peer_eht_cap = &link_sta->eht_cap;
+
+	if (!own_eht_cap->has_eht)
+		return 0;
+
+	*ehtmode |= u32_encode_bits(EHT_DL_MUOFDMA_ENABLE, EHT_MODE_DL_OFDMA) |
+		    u32_encode_bits(EHT_UL_MUOFDMA_ENABLE, EHT_MODE_UL_OFDMA);
+
+	if ((own_eht_cap->eht_cap_elem.phy_cap_info[0] &
+	     IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE) &&
+	    (peer_eht_cap->eht_cap_elem.phy_cap_info[0] &
+	     IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER))
+		*ehtmode |= u32_encode_bits(EHT_SU_BFEE_ENABLE, EHT_MODE_SU_TX_BFEE);
+
+	switch (link_sta->bandwidth) {
+	case IEEE80211_STA_RX_BW_320:
+		mu_bformer = IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_320MHZ;
+		break;
+	case IEEE80211_STA_RX_BW_160:
+		mu_bformer = IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ;
+		break;
+	default:
+		mu_bformer = IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ;
+		break;
+	}
+
+	if (u32_get_bits(*ehtmode, EHT_MODE_SU_TX_BFEE) &&
+	    (peer_eht_cap->eht_cap_elem.phy_cap_info[7] & mu_bformer))
+		*ehtmode |= u32_encode_bits(EHT_MU_BFEE_ENABLE, EHT_MODE_MU_TX_BFEE);
+
+	return 0;
+}
+
 static int ath12k_mac_set_eht_txbf_conf(struct ath12k_link_vif *arvif)
 {
 	struct ath12k_vif *ahvif = arvif->ahvif;
@@ -3934,6 +4047,7 @@ static void ath12k_bss_assoc(struct ath12k *ar,
 	struct ath12k_sta *ahsta;
 	struct ath12k_dp_link_peer *peer;
 	bool is_auth = false;
+	u32 ehtmode = 0;
 	u32 hemode = 0;
 	int ret;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ar->ab);
@@ -3988,6 +4102,14 @@ static void ath12k_bss_assoc(struct ath12k *ar,
 		return;
 	}
 
+	ret = ath12k_mac_vif_recalc_sta_eht_txbf(ar, arvif, link_sta, &ehtmode);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to recalc eht txbf for vdev %i on bss %pM: %d\n",
+			    arvif->vdev_id, bss_conf->bssid, ret);
+		rcu_read_unlock();
+		return;
+	}
+
 	rcu_read_unlock();
 
 	/* keep this before ath12k_wmi_send_peer_assoc_cmd() */
@@ -3996,6 +4118,15 @@ static void ath12k_bss_assoc(struct ath12k *ar,
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to submit vdev param txbf 0x%x: %d\n",
 			    hemode, ret);
+		return;
+	}
+
+	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
+					    WMI_VDEV_PARAM_SET_EHT_MU_MODE,
+					    ehtmode);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to submit vdev param eht txbf 0x%x: %d\n",
+			    ehtmode, ret);
 		return;
 	}
 
@@ -4357,9 +4488,8 @@ ath12k_mac_op_change_vif_links(struct ieee80211_hw *hw,
 			       struct ieee80211_bss_conf *ol[IEEE80211_MLD_MAX_NUM_LINKS])
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
-	unsigned long to_remove = old_links & ~new_links;
-	unsigned long to_add = ~old_links & new_links;
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
+	unsigned long to_remove, to_add;
 	struct ath12k_link_vif *arvif;
 	u8 link_id;
 
@@ -4369,14 +4499,15 @@ ath12k_mac_op_change_vif_links(struct ieee80211_hw *hw,
 			   "mac vif link changed for MLD %pM old_links 0x%x new_links 0x%x\n",
 			   vif->addr, old_links, new_links);
 
-	for_each_set_bit(link_id, &to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
-		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
-		/* mac80211 wants to add link but driver already has the
-		 * link. This should not happen ideally.
-		 */
-		if (WARN_ON(arvif))
-			return -EINVAL;
+	/*
+	 * Link objects follow vif->valid_links, which mac80211 updates before
+	 * calling us. old_links/new_links only describe the active links and
+	 * must not be used to decide object lifetime.
+	 */
+	to_add = vif->valid_links & ~ahvif->links_map;
+	to_remove = ahvif->links_map & ~vif->valid_links;
 
+	for_each_set_bit(link_id, &to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		arvif = ath12k_mac_assign_link_vif(ah, vif, link_id);
 		if (WARN_ON(!arvif))
 			return -EINVAL;
@@ -4452,12 +4583,68 @@ static int ath12k_mac_fils_discovery(struct ath12k_link_vif *arvif,
 	return ret;
 }
 
+static void ath12k_mac_vif_setup_ps(struct ath12k_link_vif *arvif)
+{
+	struct ath12k *ar = arvif->ar;
+	struct ieee80211_vif *vif = arvif->ahvif->vif;
+	struct ieee80211_conf *conf = &ath12k_ar_to_hw(ar)->conf;
+	enum wmi_sta_powersave_param param;
+	struct ieee80211_bss_conf *info;
+	enum wmi_sta_ps_mode psmode;
+	int ret;
+	int timeout;
+	bool enable_ps;
+
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	enable_ps = arvif->ahvif->ps;
+	if (enable_ps) {
+		psmode = WMI_STA_PS_MODE_ENABLED;
+		param = WMI_STA_PS_PARAM_INACTIVITY_TIME;
+
+		timeout = conf->dynamic_ps_timeout;
+		if (timeout == 0) {
+			info = ath12k_mac_get_link_bss_conf(arvif);
+			if (!info) {
+				ath12k_warn(ar->ab, "unable to access bss link conf in setup ps for vif %pM link %u\n",
+					    vif->addr, arvif->link_id);
+				return;
+			}
+
+			/* firmware doesn't like 0 */
+			timeout = ieee80211_tu_to_usec(info->beacon_int) / 1000;
+		}
+
+		ret = ath12k_wmi_set_sta_ps_param(ar, arvif->vdev_id, param,
+						  timeout);
+		if (ret) {
+			ath12k_warn(ar->ab, "failed to set inactivity time for vdev %d: %i\n",
+				    arvif->vdev_id, ret);
+			return;
+		}
+	} else {
+		psmode = WMI_STA_PS_MODE_DISABLED;
+	}
+
+	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac vdev %d psmode %s\n",
+		   arvif->vdev_id, psmode ? "enable" : "disable");
+
+	ret = ath12k_wmi_pdev_set_ps_mode(ar, arvif->vdev_id, psmode);
+	if (ret)
+		ath12k_warn(ar->ab, "failed to set sta power save mode %d for vdev %d: %d\n",
+			    psmode, arvif->vdev_id, ret);
+}
+
 void ath12k_mac_op_vif_cfg_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   u64 changed)
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	unsigned long links = ahvif->links_map;
+	struct ieee80211_vif_cfg *vif_cfg;
 	struct ieee80211_bss_conf *info;
 	struct ath12k_link_vif *arvif;
 	struct ieee80211_sta *sta;
@@ -4521,63 +4708,26 @@ void ath12k_mac_op_vif_cfg_changed(struct ieee80211_hw *hw,
 			}
 		}
 	}
+
+	if (changed & BSS_CHANGED_PS) {
+		links = ahvif->links_map;
+		vif_cfg = &vif->cfg;
+
+		for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+			arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+			if (!arvif || !arvif->ar)
+				continue;
+
+			ar = arvif->ar;
+
+			if (ar->ab->hw_params->supports_sta_ps) {
+				ahvif->ps = vif_cfg->ps;
+				ath12k_mac_vif_setup_ps(arvif);
+			}
+		}
+	}
 }
 EXPORT_SYMBOL(ath12k_mac_op_vif_cfg_changed);
-
-static void ath12k_mac_vif_setup_ps(struct ath12k_link_vif *arvif)
-{
-	struct ath12k *ar = arvif->ar;
-	struct ieee80211_vif *vif = arvif->ahvif->vif;
-	struct ieee80211_conf *conf = &ath12k_ar_to_hw(ar)->conf;
-	enum wmi_sta_powersave_param param;
-	struct ieee80211_bss_conf *info;
-	enum wmi_sta_ps_mode psmode;
-	int ret;
-	int timeout;
-	bool enable_ps;
-
-	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
-
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return;
-
-	enable_ps = arvif->ahvif->ps;
-	if (enable_ps) {
-		psmode = WMI_STA_PS_MODE_ENABLED;
-		param = WMI_STA_PS_PARAM_INACTIVITY_TIME;
-
-		timeout = conf->dynamic_ps_timeout;
-		if (timeout == 0) {
-			info = ath12k_mac_get_link_bss_conf(arvif);
-			if (!info) {
-				ath12k_warn(ar->ab, "unable to access bss link conf in setup ps for vif %pM link %u\n",
-					    vif->addr, arvif->link_id);
-				return;
-			}
-
-			/* firmware doesn't like 0 */
-			timeout = ieee80211_tu_to_usec(info->beacon_int) / 1000;
-		}
-
-		ret = ath12k_wmi_set_sta_ps_param(ar, arvif->vdev_id, param,
-						  timeout);
-		if (ret) {
-			ath12k_warn(ar->ab, "failed to set inactivity time for vdev %d: %i\n",
-				    arvif->vdev_id, ret);
-			return;
-		}
-	} else {
-		psmode = WMI_STA_PS_MODE_DISABLED;
-	}
-
-	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac vdev %d psmode %s\n",
-		   arvif->vdev_id, psmode ? "enable" : "disable");
-
-	ret = ath12k_wmi_pdev_set_ps_mode(ar, arvif->vdev_id, psmode);
-	if (ret)
-		ath12k_warn(ar->ab, "failed to set sta power save mode %d for vdev %d: %d\n",
-			    psmode, arvif->vdev_id, ret);
-}
 
 static bool ath12k_mac_supports_tpc(struct ath12k *ar, struct ath12k_vif *ahvif,
 				    const struct cfg80211_chan_def *chandef)
@@ -4782,7 +4932,6 @@ static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 {
 	struct ath12k_vif *ahvif = arvif->ahvif;
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(ahvif);
-	struct ieee80211_vif_cfg *vif_cfg = &vif->cfg;
 	struct ath12k_link_vif *tx_arvif;
 	struct cfg80211_chan_def def;
 	u32 param_id, param_value;
@@ -5120,12 +5269,6 @@ skip_vdev_up:
 	}
 
 	ath12k_mac_fils_discovery(arvif, info);
-
-	if (changed & BSS_CHANGED_PS &&
-	    ar->ab->hw_params->supports_sta_ps) {
-		ahvif->ps = vif_cfg->ps;
-		ath12k_mac_vif_setup_ps(arvif);
-	}
 }
 
 static struct ath12k_vif_cache *ath12k_ahvif_get_link_cache(struct ath12k_vif *ahvif,
@@ -5613,6 +5756,25 @@ ath12k_mac_find_link_id_by_ar(struct ath12k_vif *ahvif, struct ath12k *ar)
 	return ATH12K_FIRST_SCAN_LINK;
 }
 
+static int ath12k_mac_set_scan_eht_cap_ie(struct ath12k *ar,
+					  struct ath12k_link_vif *arvif,
+					  const u8 *ies, size_t ies_len)
+{
+	const struct element *eht_cap;
+
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	eht_cap = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_CAPABILITY, ies,
+					 ies_len);
+	if (!eht_cap || eht_cap->datalen <= 1)
+		return 0;
+
+	return ath12k_wmi_vdev_set_ie(ar, arvif->vdev_id,
+				      WLAN_EID_EXTENSION,
+				      eht_cap->data, eht_cap->datalen,
+				      WMI_SET_VDEV_IE_BAND_ALL);
+}
+
 static int ath12k_mac_initiate_hw_scan(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_scan_request *hw_req,
@@ -5729,6 +5891,11 @@ static int ath12k_mac_initiate_hw_scan(struct ieee80211_hw *hw,
 			goto exit;
 		}
 		arg->extraie.len = req->ie_len;
+		ret = ath12k_mac_set_scan_eht_cap_ie(ar, arvif, req->ie,
+						     req->ie_len);
+		if (ret)
+			ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+				   "failed to set eht cap ie, ret %d\n", ret);
 	}
 
 	if (req->n_ssids) {
@@ -7124,6 +7291,13 @@ static int ath12k_mac_station_remove(struct ath12k *ar,
 		if (ret)
 			ath12k_warn(ar->ab, "failed to stop vdev %i: %d\n",
 				    arvif->vdev_id, ret);
+		else
+			/*
+			 * vdev is stopped in firmware now; clear the flag so
+			 * ath12k_mac_station_add() starts it again on reconnect
+			 * (vdev_start_delay targets).
+			 */
+			arvif->is_started = false;
 	}
 
 	if (sta->mlo)
@@ -7530,6 +7704,7 @@ static bool ath12k_mac_freqs_on_same_mac(struct ath12k_base *ab,
 static int ath12k_mac_mlo_sta_set_link_active(struct ath12k_base *ab,
 					      enum wmi_mlo_link_force_reason reason,
 					      enum wmi_mlo_link_force_mode mode,
+					      const u8 *ap_mld_addr,
 					      u8 *mlo_vdev_id_lst,
 					      u8 num_mlo_vdev,
 					      u8 *mlo_inactive_vdev_lst,
@@ -7542,11 +7717,19 @@ static int ath12k_mac_mlo_sta_set_link_active(struct ath12k_base *ab,
 	param.reason = reason;
 	param.force_mode = mode;
 
+	if (ap_mld_addr)
+		ether_addr_copy(param.force_cmd.ap_mld_mac_addr, ap_mld_addr);
+
+	if (mode == WMI_MLO_LINK_FORCE_MODE_ACTIVE_INACTIVE) {
+		param.ctrl_flags.overwrite_force_active_bitmap = true;
+		param.ctrl_flags.overwrite_force_inactive_bitmap = true;
+	}
+
 	for (vdev_idx = 0; vdev_idx < num_mlo_vdev; vdev_idx++) {
 		vdev_id = mlo_vdev_id_lst[vdev_idx];
 		entry_idx = vdev_id / 32;
 		entry_offset = vdev_id % 32;
-		if (entry_idx >= WMI_MLO_LINK_NUM_SZ) {
+		if (entry_idx >= WMI_MLO_VDEV_BITMAP_SZ) {
 			ath12k_warn(ab, "Invalid entry_idx %d num_mlo_vdev %d vdev %d",
 				    entry_idx, num_mlo_vdev, vdev_id);
 			return -EINVAL;
@@ -7566,7 +7749,7 @@ static int ath12k_mac_mlo_sta_set_link_active(struct ath12k_base *ab,
 			vdev_id = mlo_inactive_vdev_lst[vdev_idx];
 			entry_idx = vdev_id / 32;
 			entry_offset = vdev_id % 32;
-			if (entry_idx >= WMI_MLO_LINK_NUM_SZ) {
+			if (entry_idx >= WMI_MLO_VDEV_BITMAP_SZ) {
 				ath12k_warn(ab, "Invalid entry_idx %d num_mlo_vdev %d vdev %d",
 					    entry_idx, num_mlo_inactive_vdev, vdev_id);
 				return -EINVAL;
@@ -7608,6 +7791,8 @@ static int ath12k_mac_mlo_sta_update_link_active(struct ath12k_base *ab,
 	u8 num_mlo_vdev = 0;
 	u8 link_id;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
 		/* make sure vdev is created on this device */
@@ -7640,6 +7825,7 @@ static int ath12k_mac_mlo_sta_update_link_active(struct ath12k_base *ab,
 		mode = WMI_MLO_LINK_FORCE_MODE_INACTIVE_LINK_NUM;
 		reason = WMI_MLO_LINK_FORCE_REASON_NEW_CONNECT;
 		return ath12k_mac_mlo_sta_set_link_active(ab, reason, mode,
+							  NULL,
 							  mlo_vdev_id_lst, num_mlo_vdev,
 							  NULL, 0);
 	}
@@ -7922,6 +8108,14 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 
 	if (ieee80211_vif_is_mld(vif) && vif->type == NL80211_IFTYPE_STATION &&
 	    old_state == IEEE80211_STA_ASSOC && new_state == IEEE80211_STA_AUTHORIZED) {
+		/*
+		 * The cached active link state is only updated while AUTHORIZED,
+		 * so reset it on each ASSOC -> AUTHORIZED. The next active-link
+		 * sync then sends the state to firmware.
+		 */
+		ahvif->fw_active_links = 0;
+		ahvif->fw_inactive_links = 0;
+
 		for_each_ar(ah, ar, i) {
 			ab = ar->ab;
 			if (prev_ab == ab)
@@ -8185,6 +8379,194 @@ static struct ath12k_link_sta *ath12k_mac_alloc_assign_link_sta(struct ath12k_hw
 	return arsta;
 }
 
+static struct ieee80211_chanctx_conf *
+ath12k_mac_link_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			u8 link_id)
+{
+	struct ieee80211_bss_conf *link_conf;
+
+	link_conf = wiphy_dereference(hw->wiphy, vif->link_conf[link_id]);
+	if (!link_conf)
+		return NULL;
+
+	return wiphy_dereference(hw->wiphy, link_conf->chanctx_conf);
+}
+
+struct ath12k_mlo_dev_links {
+	u8 active_vdev[IEEE80211_MLD_MAX_NUM_LINKS];
+	u8 inactive_vdev[IEEE80211_MLD_MAX_NUM_LINKS];
+	u32 active_freq[IEEE80211_MLD_MAX_NUM_LINKS];
+	unsigned int num_active;
+	unsigned int num_inactive;
+};
+
+static u16 ath12k_mac_mlo_vif_active_links(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   unsigned long links)
+{
+	u16 active = 0;
+	u8 link_id;
+
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		if (ath12k_mac_link_chanctx(hw, vif, link_id))
+			active |= BIT(link_id);
+	}
+
+	return active;
+}
+
+static void ath12k_mac_mlo_sta_collect_dev_links(struct ieee80211_hw *hw,
+						 struct ath12k_vif *ahvif,
+						 struct ath12k_base *ab,
+						 unsigned long links,
+						 struct ath12k_mlo_dev_links *dl)
+{
+	struct ieee80211_chanctx_conf *conf;
+	struct ath12k_link_vif *arvif;
+	u8 link_id;
+
+	dl->num_active = 0;
+	dl->num_inactive = 0;
+
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+		if (!arvif || !arvif->is_created || arvif->ar->ab != ab)
+			continue;
+
+		conf = ath12k_mac_link_chanctx(hw, ahvif->vif, link_id);
+		if (!conf) {
+			dl->inactive_vdev[dl->num_inactive++] = arvif->vdev_id;
+			continue;
+		}
+
+		dl->active_freq[dl->num_active] = conf->def.chan->center_freq;
+		dl->active_vdev[dl->num_active++] = arvif->vdev_id;
+	}
+}
+
+static bool ath12k_mac_mlo_dev_same_mac(struct ath12k_base *ab,
+					const struct ath12k_mlo_dev_links *dl)
+{
+	return dl->num_active == 2 &&
+	       ath12k_mac_freqs_on_same_mac(ab, dl->active_freq[0],
+					    dl->active_freq[1]);
+}
+
+static int ath12k_mac_mlo_sta_send_inactive_link_num(struct ath12k_base *ab,
+						     struct ath12k_mlo_dev_links *dl)
+{
+	return ath12k_mac_mlo_sta_set_link_active(ab,
+						  WMI_MLO_LINK_FORCE_REASON_NEW_CONNECT,
+						  WMI_MLO_LINK_FORCE_MODE_INACTIVE_LINK_NUM,
+						  NULL, dl->active_vdev, dl->num_active,
+						  NULL, 0);
+}
+
+static int ath12k_mac_mlo_sta_send_set_active(struct ath12k_base *ab,
+					      struct ieee80211_vif *vif,
+					      struct ath12k_mlo_dev_links *dl)
+{
+	struct ath12k_mlo_link_set_active_req *req;
+	enum wmi_mlo_link_force_mode mode;
+	int ret;
+
+	req = kzalloc_obj(*req);
+	if (!req)
+		return -ENOMEM;
+
+	init_completion(&req->done);
+	rcu_assign_pointer(ab->mlo_link_set_active_req, req);
+
+	mode = dl->num_inactive ? WMI_MLO_LINK_FORCE_MODE_ACTIVE_INACTIVE :
+				  WMI_MLO_LINK_FORCE_MODE_ACTIVE;
+
+	ret = ath12k_mac_mlo_sta_set_link_active(ab,
+						 WMI_MLO_LINK_FORCE_REASON_NEW_CONNECT,
+						 mode, vif->cfg.ap_addr,
+						 dl->active_vdev, dl->num_active,
+						 dl->inactive_vdev, dl->num_inactive);
+
+	if (!ret && !wait_for_completion_timeout(&req->done,
+						 ATH12K_MLO_LINK_SET_ACTIVE_TIMEOUT_HZ)) {
+		ath12k_warn(ab, "timeout waiting for mlo set active links resp\n");
+		ret = -ETIMEDOUT;
+	}
+
+	if (!ret && req->status)
+		ret = -EIO;
+
+	rcu_assign_pointer(ab->mlo_link_set_active_req, NULL);
+	kfree_rcu(req, rcu_head);
+
+	return ret;
+}
+
+static int ath12k_mac_mlo_sta_sync_active_links(struct ath12k_hw *ah,
+						struct ath12k_vif *ahvif,
+						struct ath12k_sta *ahsta,
+						struct ieee80211_sta *sta)
+{
+	struct ath12k_base *ab, *prev_ab = NULL;
+	struct ieee80211_hw *hw = ah->hw;
+	struct ath12k_mlo_dev_links dl;
+	unsigned long links;
+	u16 active, inactive;
+	struct ath12k *ar;
+	int ret;
+	int i;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	links = ahsta->links_map & ahvif->links_map;
+
+	/*
+	 * A link holding a channel context is active. The links of an MLO STA
+	 * can be on different devices, so the active set is derived over all
+	 * links and each device is then programmed with the links it holds.
+	 */
+	active = ath12k_mac_mlo_vif_active_links(hw, ahvif->vif, links);
+	inactive = links & ~active;
+
+	if (!active) {
+		ath12k_hw_warn(ah, "no active link for sta %pM\n", sta->addr);
+		return -EINVAL;
+	}
+
+	if (active == ahvif->fw_active_links &&
+	    inactive == ahvif->fw_inactive_links)
+		return 0;
+
+	for_each_ar(ah, ar, i) {
+		ab = ar->ab;
+		if (ab == prev_ab)
+			continue;
+		prev_ab = ab;
+
+		ath12k_mac_mlo_sta_collect_dev_links(hw, ahvif, ab, links, &dl);
+
+		if (!dl.num_active && !dl.num_inactive)
+			continue;
+
+		if (!dl.num_active) {
+			ath12k_hw_warn(ah,
+				       "cannot deactivate all STA links on a device\n");
+			return -EOPNOTSUPP;
+		}
+
+		if (ath12k_mac_mlo_dev_same_mac(ab, &dl))
+			ret = ath12k_mac_mlo_sta_send_inactive_link_num(ab, &dl);
+		else
+			ret = ath12k_mac_mlo_sta_send_set_active(ab, ahvif->vif, &dl);
+		if (ret)
+			return ret;
+	}
+
+	ahvif->fw_active_links = active;
+	ahvif->fw_inactive_links = inactive;
+
+	return 0;
+}
+
 int ath12k_mac_op_change_sta_links(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,
@@ -8192,25 +8574,21 @@ int ath12k_mac_op_change_sta_links(struct ieee80211_hw *hw,
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
+	unsigned long to_create, to_remove;
 	struct ath12k_hw *ah = hw->priv;
 	struct ath12k_link_vif *arvif;
 	struct ath12k_link_sta *arsta;
-	unsigned long valid_links;
 	struct ath12k *ar;
+	int ret = 0;
 	u8 link_id;
-	int ret;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
+	to_create = sta->valid_links & ~ahsta->links_map;
+	to_remove = ahsta->links_map & ~sta->valid_links;
+
 	if (!sta->valid_links)
 		return -EINVAL;
-
-	/* Firmware does not support removal of one of link stas. All sta
-	 * would be removed during ML STA delete in sta_state(), hence link
-	 * sta removal is not handled here.
-	 */
-	if (new_links < old_links)
-		return 0;
 
 	if (ahsta->ml_peer_id == ATH12K_MLO_PEER_ID_INVALID) {
 		ath12k_hw_warn(ah, "unable to add link for ml sta %pM", sta->addr);
@@ -8221,11 +8599,17 @@ int ath12k_mac_op_change_sta_links(struct ieee80211_hw *hw,
 	if (WARN_ON(ahsta->links_map == 0))
 		return -EINVAL;
 
-	valid_links = new_links;
-	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-		if (ahsta->links_map & BIT(link_id))
-			continue;
+	/*
+	 * Firmware does not support removal of one of link stas. All sta
+	 * would be removed during ML STA delete in sta_state(), hence link
+	 * sta removal is not handled here.
+	 */
+	if (to_remove)
+		ath12k_generic_dbg(ATH12K_DBG_MAC,
+				   "ignoring link sta removal 0x%lx for %pM\n",
+				   to_remove, sta->addr);
 
+	for_each_set_bit(link_id, &to_create, IEEE80211_MLD_MAX_NUM_LINKS) {
 		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
 		if (!arvif || !arvif->is_created)
 			continue;
@@ -8247,7 +8631,20 @@ int ath12k_mac_op_change_sta_links(struct ieee80211_hw *hw,
 		}
 	}
 
-	return 0;
+	/*
+	 * Active-links are only meaningful once the sta is authorized. Before
+	 * that, the connect path in sta_state() programs firmware.
+	 */
+	if (sta->mlo && vif->type == NL80211_IFTYPE_STATION &&
+	    ahsta->state == IEEE80211_STA_AUTHORIZED) {
+		ret = ath12k_mac_mlo_sta_sync_active_links(ah, ahvif, ahsta, sta);
+		if (ret)
+			ath12k_hw_warn(ah,
+				       "failed to sync mlo active links for sta %pM: %d\n",
+				       sta->addr, ret);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(ath12k_mac_op_change_sta_links);
 
@@ -8996,8 +9393,7 @@ static void ath12k_mac_copy_eht_cap(struct ath12k *ar,
 
 	memset(eht_cap, 0, sizeof(struct ieee80211_sta_eht_cap));
 
-	if (!(test_bit(WMI_TLV_SERVICE_11BE, ar->ab->wmi_ab.svc_map)) ||
-	    ath12k_acpi_get_disable_11be(ar->ab))
+	if (!ath12k_is_11be_enabled(ar->ab))
 		return;
 
 	eht_cap->has_eht = true;
@@ -9613,6 +10009,7 @@ u8 ath12k_mac_get_tx_link(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
 	struct ieee80211_link_sta *link_sta;
 	struct ieee80211_bss_conf *bss_conf;
 	struct ath12k_sta *ahsta;
+	bool req_unspecified_link = (link == IEEE80211_LINK_UNSPECIFIED);
 
 	/* Use the link id passed or the default vif link */
 	if (!sta) {
@@ -9658,6 +10055,33 @@ u8 ath12k_mac_get_tx_link(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
 	if (!ieee80211_is_mgmt(hdr->frame_control))
 		return link;
 
+	/*
+	 * Keep ML management Tx on an active link only when mac80211 did
+	 * not request a specific link and the selected link is inactive.
+	 */
+	if (req_unspecified_link && !(vif->active_links & BIT(link))) {
+		unsigned long tx_links = vif->active_links;
+		unsigned long peer_tx_links;
+
+		if (!tx_links)
+			goto out_keep_link;
+
+		peer_tx_links = tx_links & sta->valid_links;
+
+		/*
+		 * Prefer links that are both active on the vif and valid for
+		 * this MLO peer. If no overlap exists, fall back to vif
+		 * active links.
+		 */
+		if (peer_tx_links)
+			tx_links = peer_tx_links;
+		else
+			WARN_ON_ONCE(1);
+
+		link = __ffs(tx_links);
+	}
+
+out_keep_link:
 	/* Perform address conversion for ML STA Tx */
 	bss_conf = rcu_dereference(vif->link_conf[link]);
 	link_sta = rcu_dereference(sta->link[link]);
@@ -11486,6 +11910,7 @@ ath12k_mac_vdev_start_restart(struct ath12k_link_vif *arvif,
 	}
 
 	ar->num_started_vdevs++;
+	arvif->started_chandef = *chandef;
 	ath12k_dbg(ab, ATH12K_DBG_MAC,  "vdev %pM started, vdev_id %d\n",
 		   ahvif->vif->addr, arvif->vdev_id);
 
@@ -12380,9 +12805,32 @@ ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (WARN_ON(arvif->is_started)) {
-		ret = -EBUSY;
-		goto out;
+	if (arvif->is_started) {
+		if (WARN_ON(ahvif->vdev_type != WMI_VDEV_TYPE_STA)) {
+			ret = -EBUSY;
+			goto out;
+		}
+
+		if (cfg80211_chandef_identical(&arvif->started_chandef, &ctx->def)) {
+			ath12k_dbg(ab, ATH12K_DBG_MAC,
+				   "vdev %d still started on same channel, skip restart\n",
+				   arvif->vdev_id);
+			return 0;
+		}
+
+		if (arvif->is_up) {
+			ret = ath12k_mac_vdev_restart(arvif, ctx);
+		} else {
+			ret = ath12k_mac_vdev_stop(arvif);
+			if (!ret)
+				ret = ath12k_mac_vdev_start(arvif, ctx);
+		}
+
+		if (ret)
+			ath12k_warn(ab, "failed to restart vdev %i addr %pM on freq %d: %d\n",
+				    arvif->vdev_id, vif->addr,
+				    ctx->def.chan->center_freq, ret);
+		return ret;
 	}
 
 	if (ahvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
@@ -12447,7 +12895,7 @@ ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		   "mac chanctx unassign ptr %p vdev_id %i\n",
 		   ctx, arvif->vdev_id);
 
-	WARN_ON(!arvif->is_started);
+	WARN_ON(ahvif->vdev_type != WMI_VDEV_TYPE_STA && !arvif->is_started);
 
 	if (ahvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
 		ret = ath12k_mac_monitor_stop(ar);
@@ -12464,8 +12912,14 @@ ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		if (ret)
 			ath12k_warn(ab, "failed to stop vdev %i: %d\n",
 				    arvif->vdev_id, ret);
+		arvif->is_started = false;
 	}
-	arvif->is_started = false;
+
+	/*
+	 * is_started is intentionally not cleared for a STA vdev: it is not
+	 * stopped here, so the flag has to keep matching the firmware state.
+	 * assign_vif_chanctx() restarts it if the channel changed.
+	 */
 
 	if (test_bit(WMI_TLV_SERVICE_11D_OFFLOAD, ab->wmi_ab.svc_map) &&
 	    ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
@@ -14728,7 +15182,8 @@ static const u8 ath12k_if_types_ext_capa_ap[] = {
 	[10] = WLAN_EXT_CAPA11_EMA_SUPPORT,
 };
 
-static struct wiphy_iftype_ext_capab ath12k_iftypes_ext_capa[] = {
+static const struct wiphy_iftype_ext_capab
+ath12k_iftypes_ext_capa_template[ATH12K_WIPHY_IFTYPE_EXT_CAPA_MAX] = {
 	{
 		.extended_capabilities = ath12k_if_types_ext_capa,
 		.extended_capabilities_mask = ath12k_if_types_ext_capa,
@@ -15021,12 +15476,25 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 
 	wiphy->features |= NL80211_FEATURE_TX_POWER_INSERTION;
 
-	/* Copy over MLO related capabilities received from
-	 * WMI_SERVICE_READY_EXT2_EVENT if single_chip_mlo_supp is set.
+	memcpy(ah->iftypes_ext_capa, ath12k_iftypes_ext_capa_template,
+	       sizeof(ah->iftypes_ext_capa));
+
+	/*
+	 * Copy over MLO related capabilities received from
+	 * WMI_SERVICE_READY_EXT2_EVENT if mlo_capable is set.
 	 */
 	if (ab->ag->mlo_capable) {
-		ath12k_iftypes_ext_capa[2].eml_capabilities = cap->eml_cap;
-		ath12k_iftypes_ext_capa[2].mld_capa_and_ops = cap->mld_cap;
+		for (i = 0; i < ARRAY_SIZE(ah->iftypes_ext_capa); i++) {
+			enum nl80211_iftype iftype = ah->iftypes_ext_capa[i].iftype;
+
+			if (iftype != NL80211_IFTYPE_STATION &&
+			    iftype != NL80211_IFTYPE_AP)
+				continue;
+
+			ah->iftypes_ext_capa[i].eml_capabilities = cap->eml_cap;
+			ah->iftypes_ext_capa[i].mld_capa_and_ops = cap->mld_cap;
+		}
+
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
 
 		ieee80211_hw_set(hw, MLO_MCAST_MULTI_LINK_TX);
@@ -15053,8 +15521,8 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	wiphy->cipher_suites = cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
-	wiphy->iftype_ext_capab = ath12k_iftypes_ext_capa;
-	wiphy->num_iftype_ext_capab = ARRAY_SIZE(ath12k_iftypes_ext_capa);
+	wiphy->iftype_ext_capab = ah->iftypes_ext_capa;
+	wiphy->num_iftype_ext_capab = ARRAY_SIZE(ah->iftypes_ext_capa);
 
 	wiphy->mbssid_max_interfaces = mbssid_max_interfaces;
 	wiphy->ema_max_profile_periodicity = TARGET_EMA_MAX_PROFILE_PERIOD;
