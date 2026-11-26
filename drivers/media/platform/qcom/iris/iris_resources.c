@@ -9,9 +9,9 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
-#include <linux/reset.h>
 
 #include "iris_core.h"
+#include "iris_instance.h"
 #include "iris_resources.h"
 
 #define BW_THRESHOLD 50000
@@ -72,71 +72,101 @@ int iris_opp_set_rate(struct device *dev, unsigned long freq)
 	return dev_pm_opp_set_opp(dev, opp);
 }
 
-int iris_enable_power_domains(struct iris_core *core, struct device *pd_dev)
+int iris_enable_power_domain_and_clocks(struct iris_core *core, struct iris_power_domain *pd)
 {
-	int ret;
+	int ret, i;
 
 	ret = iris_opp_set_rate(core->dev, ULONG_MAX);
 	if (ret)
 		return ret;
 
-	return pm_runtime_resume_and_get(pd_dev);
-}
+	for (i = 0; i < pd->pd_cnt; i++) {
+		ret = pm_runtime_resume_and_get(pd->dev[i]);
+		if (ret < 0)
+			goto error;
+	}
 
-int iris_disable_power_domains(struct iris_core *core, struct device *pd_dev)
-{
-	int ret;
-	int pm_ret;
+	ret = clk_bulk_prepare_enable(pd->clk_cnt, pd->clocks);
+	if (ret)
+		goto error;
 
-	ret = iris_opp_set_rate(core->dev, 0);
+	return 0;
 
-	pm_ret = pm_runtime_put_sync(pd_dev);
-	if (!ret)
-		ret = pm_ret;
+error:
+	iris_opp_set_rate(core->dev, 0);
+
+	while (--i >= 0)
+		pm_runtime_put_sync(pd->dev[i]);
 
 	return ret;
 }
 
-static struct clk *iris_get_clk_by_type(struct iris_core *core, enum platform_clk_type clk_type)
+void iris_disable_power_domain_and_clocks(struct iris_core *core, struct iris_power_domain *pd)
 {
-	const struct platform_clk_data *clk_tbl;
-	u32 clk_cnt, i, j;
+	int i;
 
-	clk_tbl = core->iris_platform_data->clk_tbl;
-	clk_cnt = core->iris_platform_data->clk_tbl_size;
+	iris_opp_set_rate(core->dev, 0);
+	clk_bulk_disable_unprepare(pd->clk_cnt, pd->clocks);
 
-	for (i = 0; i < clk_cnt; i++) {
-		if (clk_tbl[i].clk_type == clk_type) {
-			for (j = 0; core->clock_tbl && j < core->clk_count; j++) {
-				if (!strcmp(core->clock_tbl[j].id, clk_tbl[i].clk_name))
-					return core->clock_tbl[j].clk;
-			}
-		}
+	for (i = 0; i < pd->pd_cnt; i++)
+		pm_runtime_put_sync(pd->dev[i]);
+}
+
+int iris_genpd_set_hwmode(struct iris_power_domain *pd, bool mode)
+{
+	int i, ret;
+
+	for (i = 0; i < pd->pd_cnt; i++) {
+		ret = dev_pm_genpd_set_hwmode(pd->dev[i], mode);
+		if (ret)
+			goto error;
 	}
 
-	return NULL;
-}
-
-int iris_prepare_enable_clock(struct iris_core *core, enum platform_clk_type clk_type)
-{
-	struct clk *clock;
-
-	clock = iris_get_clk_by_type(core, clk_type);
-	if (!clock)
-		return -ENOENT;
-
-	return clk_prepare_enable(clock);
-}
-
-int iris_disable_unprepare_clock(struct iris_core *core, enum platform_clk_type clk_type)
-{
-	struct clk *clock;
-
-	clock = iris_get_clk_by_type(core, clk_type);
-	if (!clock)
-		return -EINVAL;
-
-	clk_disable_unprepare(clock);
-
 	return 0;
+
+error:
+	while (--i >= 0)
+		dev_pm_genpd_set_hwmode(pd->dev[i], !mode);
+
+	return ret;
+}
+
+struct device *iris_get_cb_dev(struct iris_inst *inst, enum iris_buffer_type buffer_type)
+{
+	struct iris_core *core = inst->core;
+	struct device *dev = NULL;
+
+	switch (buffer_type) {
+	case BUF_INPUT:
+		if (inst->domain == DECODER)
+			dev = core->np_dev;
+		else
+			dev = core->p_dev;
+		break;
+	case BUF_OUTPUT:
+		if (inst->domain == DECODER)
+			dev = core->p_dev;
+		else
+			dev = core->np_dev;
+		break;
+	case BUF_DPB:
+	case BUF_PARTIAL:
+	case BUF_SCRATCH_1:
+	case BUF_SCRATCH_2:
+	case BUF_VPSS:
+		dev = core->p_dev;
+		break;
+	case BUF_BIN:
+	case BUF_ARP:
+	case BUF_COMV:
+	case BUF_LINE:
+	case BUF_NON_COMV:
+	case BUF_PERSIST:
+		dev = core->np_dev;
+		break;
+	default:
+		dev_err(core->dev, "invalid buffer type: %d\n", buffer_type);
+	}
+
+	return dev ? dev : core->dev;
 }
