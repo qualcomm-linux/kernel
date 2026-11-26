@@ -876,9 +876,9 @@
 	vdda-phy-c-supply = <&vreg_l4a_1p2>;
 	vdda-phy-d-supply = <&vreg_l4a_1p2>;
 	vdda-pll-a-supply = <&vreg_l1e_0p9>;
-	vdda-pll-b-supply = <&vreg_l1e_0p9>;
-	vdda-pll-c-supply = <&vreg_l1e_0p9>;
-	vdda-pll-d-supply = <&vreg_l1e_0p9>;
+	vdda-pll-b-supply = <&vreg_l2e_0p9>;
+	vdda-pll-c-supply = <&vreg_l2e_0p9>;
+	vdda-pll-d-supply = <&vreg_l2e_0p9>;
 
 	status = "okay";
 };
