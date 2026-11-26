@@ -1,841 +1,884 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
- *
- * QCOM TSC PTP : Linux driver for Time Stamp Counter Hardware.
- *
  */
 
-#define pr_fmt(fmt) "qcom_tsc: %s: " fmt, __func__
-
-#include <linux/delay.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
-#include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/kernel.h>
+#include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/platform_device.h>
-#include <linux/of_irq.h>
 
-/* Register offset definitions */
-#define TSCSS_TSC_CONTROL_CNTCR			0x0
-#define TSCSS_TSC_CONTROL_CNTCV_LO		0x8
-#define TSCSS_TSC_CONTROL_CNTCV_HI		0xC
-#define TSCSS_TSC_CONTROL_CNTCV_FRAC		0x10
-#define TSCSS_TSC_SLEEP_INCR_VAL_LO		0x24
-#define TSCSS_TSC_SLEEP_INCR_VAL_HI		0x28
-#define TSCSS_TSC_DRIFT_CORRECT_INCR_VAL	0x2C
-#define TSCSS_TSC_DRIFT_CORRECT_DURATION	0x30
-#define TSCSS_TSC_DRIFT_CORRECT_CMD		0x34
-#define TSCSS_TSC_ROLLOVER_VAL			0x3C
-#define TSCSS_TSC_SPARE				0x40
-#define TSCSS_TSC_OFFSET_LO			0x50
-#define TSCSS_TSC_OFFSET_HI			0x54
-#define TSCSS_TSC_FUSA_CFG_STAT			0xF54
-#define TSCSS_TSC_READ_CNTCV_LO			0x1000
-#define TSCSS_TSC_READ_CNTCV_HI			0x1004
-#define TSCSS_TSC_HW_PRELOAD_VAL_LO		0x0060
-#define TSCSS_TSC_HW_PRELOAD_VAL_HI		0x0064
+#define ROLLOVER_VAL				999999999
+#define NSEC_SHIFT				32
+#define PULSE_WIDTH_MASK			GENMASK(7, 6)
+#define DRIFT_MAX_RES				0x1FFFF
+#define DRIFT_JUMP_SWALLOW			BIT(31)
+#define DRIFT_PERIOD_MASK			GENMASK(28, 12)
+#define DRIFT_SUBPERIOD_MASK			GENMASK(11, 0)
+#define DRIFT_INTERVAL_US			10
+#define DRIFT_MIN_TIMEOUT_US			5000
 
-#define TSCSS_TSC_SLICE_ETU_CFG			0x0
-#define TSCSS_TSC_SLICE_ETU_STATUS		0x4
-#define TSCSS_ETU_SLICE_TSC_TS_LO		0x8
-#define TSCSS_ETU_SLICE_TSC_TS_HI		0xC
-#define TSCSS_ETU_SLICE_TS_EVENT_TYPE		0x10
-#define TSCSS_ETU_SLICE_GCTR_TS_LO		0x20
-#define TSCSS_ETU_SLICE_GCTR_TS_HI		0x24
-#define TSCSS_ETU_SLICE_FIFO_CLR		0x30
-#define TSCSS_ETU_SLICE_SW_TRIG_CFG		0x34
-#define TSCSS_ETU_SLICE_TIMER_TRIG_PERIOD	0x38
-#define MAX_ETU_SLICE				16
+#define DRIFT_TIMEOUT_US(period, subperiod, cntr_res)			\
+	max_t(u64, div_u64((u64)(period) * (subperiod) * (cntr_res), NSEC_PER_USEC), \
+	      DRIFT_MIN_TIMEOUT_US)
 
-#define DRIFT_CORRECT_MAX_PERIOD		0x1FFFF
-#define DRIFT_CORRECT_MAX_RES			0x7FFFC0
+/* Dynamic (continuous) drift correction, used on Nord/Shikra */
+#define DRIFT_STATUS				BIT(1)
+#define DRIFT_DYNAMIC_EN			BIT(2)
+#define DYNAMIC_DRIFT_SUBPERIOD_MASK		GENMASK(27, 0)
+#define DYNAMIC_DRIFT_MIN_SUBPERIOD		6
+#define DYNAMIC_DRIFT_INCR_VAL			8
+#define DYNAMIC_DRIFT_POLL_US			10
+#define DYNAMIC_DRIFT_DISABLE_TIMEOUT_US	1000
 
-#define TSC_PRELOAD_POLLING_DELAY_MS		100
-#define NSEC_SHFT				32
-#define NSEC_MASK				GENMASK_ULL(31, 0)
-#define NSEC					1000000000ULL
-#define XO_MHZ					19200000
-#define TSCSS_TSC_ETU_SLICE_BASE(reg_base, num, offset)	\
-			(reg_base + num * 0x1000 + offset)
+#define ETU_CFG_EVENT_SEL_MASK			GENMASK(9, 4)
+#define ETU_CFG_GCTR_TS_EN			BIT(16)
+#define ETU_CFG_TSCTR_TS_EN			BIT(17)
+#define ETU_CFG_IRQ_MASK_EN			BIT(31)
+#define ETU_CFG_RISING_EDGE			BIT(0)
+#define ETU_STATUS_EVENT_MASK			GENMASK(5, 0)
+#define ETU_FIFO_CLR_VAL			0x7
 
-struct qcom_etu_slice {
-	char name[10];
-	struct ptp_clock *ptp_clock;
-	void __iomem *etu_baseaddr;
-	u64 etu_tsc_timestamp;
-	u64 last_sec;
-	u64 global_qtimer;
-	int extts_enable;
-	int extts_irq;
+/* Per-slice register stride within the shared "etu" reg region */
+#define ETU_SLICE_STRIDE			0x1000
+
+struct qcom_tsc_regs {
+	u32 control_cntcr;
+	u32 control_cntcv_lo;
+	u32 control_cntcv_hi;
+	u32 drift_correct_incr_val;
+	u32 drift_correct_duration;
+	u32 drift_correct_cmd;
+	u32 drift_correct_duration_2;
+	u32 drift_correct_cmd_2;
+	u32 rollover_val;
+	u32 offset_lo;
+	u32 offset_hi;
+	u32 read_cntcv_lo;
+	u32 read_cntcv_hi;
+};
+
+/* ETU slice register layout, relative to each slice's own reg base */
+struct qcom_etu_regs {
+	u32 cfg;
+	u32 status;
+	u32 tsc_ts_lo;
+	u32 tsc_ts_hi;
+	u32 ts_event_type;
+	u32 gctr_ts_lo;
+	u32 gctr_ts_hi;
+	u32 fifo_clr;
+	u32 sw_trig_cfg;
+	u32 fusa_status_register;
+};
+
+/**
+ * struct qcom_tsc_soc_data - SoC specific TSC hardware capabilities
+ *
+ * @rollover: indicates the counter uses sec/nsec split
+ * @offset_correction: hardware supports one-shot offset correction
+ * @dynamic_drift_correction: hardware supports continuous drift correction,
+ *                            instead of a one-shot jump/swallow correction
+ * @pulse_width: valid pulse width in cycles for drift correction
+ * @cntr_res: TSC counter resolution in nsec
+ * @reg_layout: register layout for this SoC/version
+ * @etu_reg_layout: ETU slice register layout for this SoC/version
+ */
+struct qcom_tsc_soc_data {
+	bool rollover;
+	bool offset_correction;
+	bool dynamic_drift_correction;
+	int pulse_width;
+	int cntr_res;
+	const struct qcom_tsc_regs *reg_layout;
+	const struct qcom_etu_regs *etu_reg_layout;
+};
+
+struct qcom_tsc;
+
+struct qcom_tsc_etu_slice {
+	struct qcom_tsc *tsc;
+	void __iomem *base;
+	struct pinctrl_state *pinctrl_state;
+	u32 event_sel;
+	u32 slice_num;
 	int extts_index;
-	int extts_event_sel;
-	int extts_slice_num;
-	int extts_event_type;
-	u32 etu_tsc_sec;
-	u32 etu_tsc_nsec;
-	u32 etu_gctr_sec;
-	u32 etu_gctr_nsec;
-	bool extts_present;
+	u64 last_timestamp;
 };
 
-struct qcom_ptp_tsc {
-	struct	device *dev;
-	void __iomem *baseaddr;
-	void __iomem *etu_baseaddr;
-	struct clk *tsc_cfg_ahb_clk;
-	struct clk *tsc_cntr_clk;
-	struct clk *tsc_etu_clk;
-	struct ptp_clock *ptp_clock;
-	struct ptp_clock_info  ptp_clock_info;
-	struct qcom_etu_slice etu_slice[MAX_ETU_SLICE];
-	int pps_enable;
-	int total_etu_cnt;
-	bool tsc_nsec_update;
-	bool tsc_hw_preload;
-	spinlock_t reg_lock;
-	struct delayed_work tsc_preload_poll_work;
-	u32 configured_slice_mask;
+struct qcom_tsc {
+	struct device *dev;
+	void __iomem *base;
+	void __iomem *etu_base;
+	const struct qcom_tsc_soc_data *soc;
+	struct clk *ahb_clk;
+	struct clk *cntr_clk;
+	struct clk *etu_clk;
+	bool clocks_enabled;
+	bool etu_clk_enabled;
+	struct pinctrl *pinctrl;
+	struct qcom_tsc_etu_slice *etu_slices;
+	int num_etu_slices;
+	struct ptp_clock *ptp;
+	struct ptp_clock_info ptp_info;
+	/* Mutex to protect operations from being interrupted */
+	struct mutex lock;
 };
 
-static void tsc_preload_poll(struct work_struct *work)
+static bool qcom_tsc_is_enabled(struct qcom_tsc *tsc)
 {
-	struct qcom_ptp_tsc *timer = container_of(work, struct qcom_ptp_tsc,
-						tsc_preload_poll_work.work);
-	u32 regval;
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
 
-	regval = readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-	/* Check for the HW_PRELOAD_STATUS and disable HW_PRELOAD */
-	if (!(regval & BIT(14))) {
-		regval &= ~BIT(2);
-		writel_relaxed(regval, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-		pr_info("TSC CNTCR: 0x%x HW_PRELOAD is disabled\n",
-			readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR));
-		return;
-	}
-
-	pr_debug("TSC CNTCR: 0x%x HW_PRELOAD_STATUS is not cleared\n", regval);
-	mod_delayed_work(system_highpri_wq, &timer->tsc_preload_poll_work,
-			msecs_to_jiffies(TSC_PRELOAD_POLLING_DELAY_MS));
+	return readl_relaxed(tsc->base + regs->control_cntcr) & BIT(0);
 }
 
-static int qcom_ptp_tsc_is_enabled(void __iomem *addr)
+static int qcom_tsc_read_time(struct qcom_tsc *tsc, struct timespec64 *ts)
 {
-	return readl_relaxed(addr + TSCSS_TSC_CONTROL_CNTCR) & BIT(0);
-}
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+	u32 hi, lo;
 
-static void qcom_tod_read(struct qcom_ptp_tsc *timer, struct timespec64 *ts)
-{
-	u64 temp, final;
-	u32 sec, nsec;
+	if (!qcom_tsc_is_enabled(tsc))
+		return -EINVAL;
 
-	if (!qcom_ptp_tsc_is_enabled(timer->baseaddr)) {
-		pr_debug("TSC is not enabled\n");
-		return;
-	}
+	hi = readl_relaxed(tsc->base + regs->read_cntcv_hi);
+	lo = readl_relaxed(tsc->base + regs->read_cntcv_lo);
 
-	sec = readl_relaxed(timer->baseaddr + TSCSS_TSC_READ_CNTCV_HI);
-	nsec = readl_relaxed(timer->baseaddr + TSCSS_TSC_READ_CNTCV_LO);
-
-	pr_debug("CNTR_HI: 0x%x, sec %u\n",
-			readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_HI), sec);
-	pr_debug("CNTR_LO: 0x%x nsec %u\n",
-			readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_LO), nsec);
-
-	if (timer->tsc_nsec_update) {
-		temp = sec;
-		final = (temp << NSEC_SHFT) | nsec;
-		sec = div_u64_rem(final, NSEC, &nsec);
-		pr_debug("tsc_nsec_update: %d, sec %u, nsec %u\n",
-						timer->tsc_nsec_update, sec, nsec);
-	}
-
-	ts->tv_sec = sec;
-	ts->tv_nsec = nsec;
-}
-
-static void qcom_ptp_enable_tsc_hw_preload(struct qcom_ptp_tsc *timer, struct timespec64 ts)
-{
-	u32 regval;
-	int timeout = 500;
-
-	/* Enable HW_PRELOAD */
-	regval = readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-	regval |= BIT(2);
-	writel_relaxed(regval, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-
-	/* Program PRELOAD registers */
-	writel_relaxed(ts.tv_sec, timer->baseaddr + TSCSS_TSC_HW_PRELOAD_VAL_HI);
-	writel_relaxed(ts.tv_nsec, timer->baseaddr + TSCSS_TSC_HW_PRELOAD_VAL_LO);
-
-	pr_debug("HW_PRELOAD_VAL_HI: 0x%x\n",
-		readl_relaxed(timer->baseaddr + TSCSS_TSC_HW_PRELOAD_VAL_HI));
-	pr_debug("HW_PRELOAD_VAL_LO: 0x%x\n",
-		readl_relaxed(timer->baseaddr + TSCSS_TSC_HW_PRELOAD_VAL_LO));
-
-	/* Check for the HW_PRELOAD_STATUS and start poll thread */
-	while (timeout-- > 0) {
-		regval = readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-		if (regval & BIT(14)) {
-			pr_debug("TSC CNTR: 0x%x HW_PRELOAD is enabled\n", regval);
-			mod_delayed_work(system_highpri_wq, &timer->tsc_preload_poll_work,
-					msecs_to_jiffies(TSC_PRELOAD_POLLING_DELAY_MS));
-			return;
-		}
-		udelay(1);
-	}
-
-	pr_warn("TSC CNTR: 0x%x HW_PRELOAD enable failed\n",
-		readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR));
-}
-
-static int qcom_ptp_update_tsc_cntr(struct qcom_ptp_tsc *timer,
-				struct timespec64 offset)
-{
-	u64 timestamp = 0;
-	u32 regval;
-
-	/* Update to 1ns resolution */
-	if (timer->tsc_nsec_update) {
-		timestamp =  offset.tv_sec * NSEC + offset.tv_nsec;
-		writel_relaxed((timestamp >> NSEC_SHFT),
-				timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_HI);
-		writel_relaxed(timestamp & NSEC_MASK, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_LO);
+	if (tsc->soc->rollover) {
+		ts->tv_sec = hi;
+		ts->tv_nsec = lo;
 	} else {
-		writel_relaxed(offset.tv_sec, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_HI);
-		writel_relaxed(offset.tv_nsec, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_LO);
+		u64 ns = ((u64)hi << NSEC_SHIFT) | lo;
+
+		*ts = ns_to_timespec64(ns);
 	}
-
-	pr_debug("Timestamp %llu: sec: %lld, nsec: %ld\n", timestamp,
-							offset.tv_sec, offset.tv_nsec);
-
-	pr_debug("CNTR_HI: 0x%x\n", readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_HI));
-	pr_debug("CNTR_LO: 0x%x\n", readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_LO));
-
-	/* Enable the counter */
-	regval = readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-	regval |= BIT(0);
-
-	writel_relaxed(regval, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
 
 	return 0;
 }
 
-static void qcom_ptp_update_tsc_offset(struct qcom_ptp_tsc *timer,
-				struct timespec64 offset)
+static int qcom_tsc_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
-	struct timespec64 tod;
-	u32 regval;
+	struct qcom_tsc *tsc = container_of(ptp, struct qcom_tsc, ptp_info);
+	int ret;
 
-	if (timer->tsc_nsec_update) {
-		/* Read TOD and add delta */
-		qcom_tod_read(timer, &tod);
-		tod = timespec64_add(tod, offset);
+	mutex_lock(&tsc->lock);
 
-		pr_debug("%s disable the counter and re-init with tod+delta\n", __func__);
-		/* Disable the counter */
-		regval = readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-		regval &= ~BIT(0);
-		writel_relaxed(regval, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-
-		/* Re-initialize the counter with updated time */
-		qcom_ptp_update_tsc_cntr(timer, tod);
-	} else {
-		writel_relaxed(offset.tv_nsec, timer->baseaddr + TSCSS_TSC_OFFSET_LO);
-		writel_relaxed(offset.tv_sec, timer->baseaddr + TSCSS_TSC_OFFSET_HI);
-
-		pr_debug("OFFSET_HI: 0x%x\n", readl_relaxed(timer->baseaddr + TSCSS_TSC_OFFSET_HI));
-		pr_debug("OFFSET_LO: 0x%x\n", readl_relaxed(timer->baseaddr + TSCSS_TSC_OFFSET_LO));
-	}
-
-	pr_debug("CNTCV_HI: 0x%x\n", readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_HI));
-	pr_debug("CNTCV_LO: 0x%x\n", readl_relaxed(timer->baseaddr + TSCSS_TSC_CONTROL_CNTCV_LO));
-}
-
-static int qcom_ptp_normal_drift_correction(struct qcom_ptp_tsc *timer, long delta)
-{
-	u64 regval = 0, period, subperiod = 4, res = 64, incval = 0, multiple, total_cycles;
-	bool is_jump;
-
-	regval = readl_relaxed(timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_CMD);
-	if (regval & BIT(1)) {
-		pr_debug("Previous drift correction is still in progress...\n");
+	if (!tsc->clocks_enabled) {
+		mutex_unlock(&tsc->lock);
 		return -EINVAL;
 	}
 
-	regval = 0;
+	ret = qcom_tsc_read_time(tsc, ts);
+	mutex_unlock(&tsc->lock);
 
-	if (delta == 0)
-		return 0;
+	return ret;
+}
 
-	if (delta < 0) {
-		/* Swallow the counter */
-		delta = -delta;
-		regval &= ~BIT(31);
-		is_jump = false;
-
-		if (delta > DRIFT_CORRECT_MAX_RES) {
-			period = DRIFT_CORRECT_MAX_PERIOD;
-			pr_debug("Delta(%ldns) > 8.3ms, program max swallow resolution\n", delta);
-		} else {
-			period = div_u64(delta, res);
-		}
+static void qcom_tsc_split_ts(struct qcom_tsc *tsc, struct timespec64 ts, u32 *hi, u32 *lo)
+{
+	if (tsc->soc->rollover) {
+		*hi = ts.tv_sec;
+		*lo = ts.tv_nsec;
 	} else {
-		/* Jump the counter */
-		regval |= BIT(31);
-		is_jump = true;
+		u64 ns = timespec64_to_ns(&ts);
 
-		total_cycles = delta / res;
-		multiple = total_cycles / DRIFT_CORRECT_MAX_RES;
-		pr_debug("total_cycles = %lld multiple = %lld\n", total_cycles, multiple);
-		if (multiple == 0) {
-			if (delta < res) {
-				period = 1;
-				incval = res + delta;
-			} else {
-				period = div_u64(delta, res);
-				incval = res * 2;
-			}
-		} else {
-			pr_debug("Delta(%ldns) > 8.3ms, do nothing...\n", delta);
-			return 0;
-		}
+		*lo = lower_32_bits(ns);
+		*hi = upper_32_bits(ns);
 	}
-
-	regval |= subperiod;
-	regval |= (period << 12);
-
-	pr_debug("delta:%ld period:%lld subperiod:%lld is_jump:%d regval:0x%llx\n",
-			delta, period, subperiod, is_jump, regval);
-
-	/* Update jump/swallow, period, subperiod */
-	writel_relaxed(regval, timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_DURATION);
-
-	/* Update the INCR VAL */
-	writel_relaxed(incval, timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_INCR_VAL);
-
-	/* Trigger the drift correction */
-	regval = readl_relaxed(timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_CMD);
-	regval |= BIT(0);
-	writel_relaxed(regval, timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_CMD);
-
-	readl_poll_timeout(timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_CMD,
-			   regval, !(regval & BIT(1)), 5, 500);
-
-	pr_debug("duration = 0x%x incr_val = 0x%x cmd = 0x%x\n",
-			readl_relaxed(timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_DURATION),
-			readl_relaxed(timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_INCR_VAL),
-			readl_relaxed(timer->baseaddr + TSCSS_TSC_DRIFT_CORRECT_CMD));
-
-	return 0;
 }
 
-/*
- * PTP clock operations
- */
-static int qcom_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
+static void qcom_tsc_clk_disable(void *data)
 {
-	struct qcom_ptp_tsc *timer = container_of(ptp, struct qcom_ptp_tsc,
-			ptp_clock_info);
-
-	return qcom_ptp_normal_drift_correction(timer, scaled_ppm_to_ppb(scaled_ppm));
+	clk_disable_unprepare(data);
 }
 
-static int qcom_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
+static int qcom_tsc_enable_clocks(struct qcom_tsc *tsc)
 {
-	unsigned long flags;
-	struct qcom_ptp_tsc *timer = container_of(ptp, struct qcom_ptp_tsc,
-			ptp_clock_info);
-	struct timespec64 offset;
-
-	spin_lock_irqsave(&timer->reg_lock, flags);
-
-	offset = ns_to_timespec64(delta);
-	pr_debug("sec: %lld, nsec: %ld\n", offset.tv_sec, offset.tv_nsec);
-
-	qcom_ptp_update_tsc_offset(timer, offset);
-	spin_unlock_irqrestore(&timer->reg_lock, flags);
-
-	return 0;
-}
-
-static int qcom_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
-{
-	unsigned long flags;
-	struct qcom_ptp_tsc *timer = container_of(ptp, struct qcom_ptp_tsc,
-								ptp_clock_info);
-
-	spin_lock_irqsave(&timer->reg_lock, flags);
-	qcom_tod_read(timer, ts);
-	spin_unlock_irqrestore(&timer->reg_lock, flags);
-	return 0;
-}
-
-/**
- * qcom_ptp_settime - Set the current time on the hardware clock
- * @ptp: ptp clock structure
- * @ts: timespec64 containing the new time for the cycle counter
- */
-static int qcom_ptp_settime(struct ptp_clock_info *ptp, const struct timespec64 *ts)
-{
-	struct qcom_ptp_tsc *timer = container_of(ptp, struct qcom_ptp_tsc, ptp_clock_info);
-	struct timespec64 delta, tod;
-	struct timespec64 offset;
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&timer->reg_lock, flags);
+	if (tsc->clocks_enabled)
+		return 0;
 
-	pr_debug("TS.sec %lld TS.tv_nsec %ld\n", ts->tv_sec,  ts->tv_nsec);
+	ret = clk_prepare_enable(tsc->ahb_clk);
+	if (ret)
+		return ret;
 
-	if (!qcom_ptp_tsc_is_enabled(timer->baseaddr)) {
-		/* Update the Counter */
-		offset.tv_sec = ts->tv_sec;
-		offset.tv_nsec = ts->tv_nsec;
+	ret = devm_add_action_or_reset(tsc->dev, qcom_tsc_clk_disable, tsc->ahb_clk);
+	if (ret)
+		return ret;
 
-		ret = qcom_ptp_update_tsc_cntr(timer, offset);
+	ret = clk_prepare_enable(tsc->cntr_clk);
+	if (ret)
+		return ret;
 
-		spin_unlock_irqrestore(&timer->reg_lock, flags);
+	ret = devm_add_action_or_reset(tsc->dev, qcom_tsc_clk_disable, tsc->cntr_clk);
+	if (ret)
+		return ret;
+
+	tsc->clocks_enabled = true;
+
+	return 0;
+}
+
+static int qcom_tsc_update_counter(struct qcom_tsc *tsc, struct timespec64 ts)
+{
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+	u32 regval, hi, lo;
+
+	qcom_tsc_split_ts(tsc, ts, &hi, &lo);
+
+	writel_relaxed(lo, tsc->base + regs->control_cntcv_lo);
+	writel_relaxed(hi, tsc->base + regs->control_cntcv_hi);
+
+	regval = readl_relaxed(tsc->base + regs->control_cntcr);
+	regval |= BIT(0);
+	writel_relaxed(regval, tsc->base + regs->control_cntcr);
+
+	return 0;
+}
+
+static int qcom_tsc_update_offset(struct qcom_tsc *tsc, const struct timespec64 ts)
+{
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+	struct timespec64 tod;
+	u32 regval, hi, lo;
+	int ret;
+
+	if (tsc->soc->offset_correction) {
+		qcom_tsc_split_ts(tsc, ts, &hi, &lo);
+
+		writel_relaxed(lo, tsc->base + regs->offset_lo);
+		writel_relaxed(hi, tsc->base + regs->offset_hi);
+
+		return 0;
+	}
+
+	/*
+	 * No hardware offset correction support: disable and reload the
+	 * counter with the corrected time, as recommended by the hardware
+	 * design team.
+	 */
+	ret = qcom_tsc_read_time(tsc, &tod);
+	if (ret)
+		return ret;
+
+	regval = readl_relaxed(tsc->base + regs->control_cntcr);
+	regval &= ~BIT(0);
+	writel_relaxed(regval, tsc->base + regs->control_cntcr);
+
+	return qcom_tsc_update_counter(tsc, timespec64_add(tod, ts));
+}
+
+static int qcom_tsc_settime(struct ptp_clock_info *ptp, const struct timespec64 *ts)
+{
+	struct qcom_tsc *tsc = container_of(ptp, struct qcom_tsc, ptp_info);
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+	struct timespec64 tod;
+	u32 regval;
+	int ret;
+
+	mutex_lock(&tsc->lock);
+
+	ret = qcom_tsc_enable_clocks(tsc);
+	if (ret) {
+		mutex_unlock(&tsc->lock);
 		return ret;
 	}
 
-	/* Get the current timer value */
-	qcom_tod_read(timer, &tod);
+	if (qcom_tsc_is_enabled(tsc)) {
+		qcom_tsc_read_time(tsc, &tod);
+		ret = qcom_tsc_update_offset(tsc, timespec64_sub(*ts, tod));
+		mutex_unlock(&tsc->lock);
+		return ret;
+	}
 
-	/* Subtract the current reported time from our desired time */
-	delta = timespec64_sub((struct timespec64)*ts, tod);
+	/* Configure and enable the TSC counter */
+	regval = readl_relaxed(tsc->base + regs->control_cntcr);
+	regval &= ~PULSE_WIDTH_MASK;
+	regval |= FIELD_PREP(PULSE_WIDTH_MASK, tsc->soc->pulse_width);
+	writel_relaxed(regval, tsc->base + regs->control_cntcr);
 
-	pr_debug("Delta.sec %lld delta.tv_nsec %ld\n", delta.tv_sec,  delta.tv_nsec);
+	if (tsc->soc->rollover)
+		writel_relaxed(ROLLOVER_VAL, tsc->base + regs->rollover_val);
 
-	/* Update the Counter */
-	qcom_ptp_update_tsc_offset(timer, delta);
+	ret = qcom_tsc_update_counter(tsc, *ts);
+	mutex_unlock(&tsc->lock);
 
-	spin_unlock_irqrestore(&timer->reg_lock, flags);
+	return ret;
+}
+
+static int qcom_tsc_adjtime(struct ptp_clock_info *ptp, s64 delta)
+{
+	struct qcom_tsc *tsc = container_of(ptp, struct qcom_tsc, ptp_info);
+	int ret;
+
+	mutex_lock(&tsc->lock);
+
+	if (!tsc->clocks_enabled) {
+		mutex_unlock(&tsc->lock);
+		return -EINVAL;
+	}
+
+	ret = qcom_tsc_update_offset(tsc, ns_to_timespec64(delta));
+	mutex_unlock(&tsc->lock);
+
+	return ret;
+}
+
+static int qcom_tsc_drift_correction(struct qcom_tsc *tsc, long scaled_ppm)
+{
+	const struct qcom_tsc_soc_data *soc = tsc->soc;
+	const struct qcom_tsc_regs *regs = soc->reg_layout;
+	long ppb = scaled_ppm_to_ppb(scaled_ppm);
+	u64 period, incval = 0;
+	u32 regval = 0, subperiod;
+
+	if (ppb == 0)
+		return 0;
+
+	if (ppb < 0) {
+		ppb = -ppb;
+		regval &= ~DRIFT_JUMP_SWALLOW;
+
+		period = div_u64(ppb, soc->cntr_res);
+		if (period >= DRIFT_MAX_RES)
+			period = DRIFT_MAX_RES;
+	} else {
+		regval |= DRIFT_JUMP_SWALLOW;
+
+		period = div_u64(ppb, soc->cntr_res);
+		if (period >= DRIFT_MAX_RES) {
+			period = DRIFT_MAX_RES;
+			incval = soc->cntr_res * 2;
+		} else if (ppb < soc->cntr_res) {
+			incval = soc->cntr_res + ppb;
+			period = 1;
+		} else {
+			incval = soc->cntr_res * 2;
+		}
+	}
+
+	subperiod = soc->pulse_width * 2;
+	regval |= FIELD_PREP(DRIFT_SUBPERIOD_MASK, subperiod);
+	regval |= FIELD_PREP(DRIFT_PERIOD_MASK, period);
+
+	/* Update jump/swallow, period, subperiod */
+	writel_relaxed(regval, tsc->base + regs->drift_correct_duration);
+
+	writel_relaxed(incval, tsc->base + regs->drift_correct_incr_val);
+
+	/* Trigger the drift correction */
+	regval = readl_relaxed(tsc->base + regs->drift_correct_cmd);
+	regval |= BIT(0);
+	writel_relaxed(regval, tsc->base + regs->drift_correct_cmd);
+
+	return readl_poll_timeout(tsc->base + regs->drift_correct_cmd, regval,
+				  !(regval & BIT(1)), DRIFT_INTERVAL_US,
+				  DRIFT_TIMEOUT_US(period, subperiod, soc->cntr_res));
+}
+
+static bool qcom_tsc_dynamic_drift_type_matches(u32 duration, bool neg_adj)
+{
+	return !(duration & DRIFT_JUMP_SWALLOW) == neg_adj;
+}
+
+static void qcom_tsc_set_dynamic_drift_enable(struct qcom_tsc *tsc, u32 cmd, bool enable)
+{
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+
+	if (enable)
+		cmd |= DRIFT_DYNAMIC_EN;
+	else
+		cmd &= ~DRIFT_DYNAMIC_EN;
+
+	writel_relaxed(cmd, tsc->base + regs->drift_correct_cmd);
+}
+
+static int qcom_tsc_disable_dynamic_drift(struct qcom_tsc *tsc, u32 cmd)
+{
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+
+	qcom_tsc_set_dynamic_drift_enable(tsc, cmd, false);
+
+	return readl_poll_timeout(tsc->base + regs->drift_correct_cmd, cmd,
+				  !(cmd & DRIFT_STATUS), DYNAMIC_DRIFT_POLL_US,
+				  DYNAMIC_DRIFT_DISABLE_TIMEOUT_US);
+}
+
+static void qcom_tsc_program_dynamic_drift(struct qcom_tsc *tsc, u32 duration,
+					   bool neg_adj, u32 subperiod)
+{
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+
+	if (neg_adj)
+		duration &= ~DRIFT_JUMP_SWALLOW;
+	else
+		duration |= DRIFT_JUMP_SWALLOW;
+
+	writel_relaxed(duration, tsc->base + regs->drift_correct_duration);
+	writel_relaxed(DYNAMIC_DRIFT_INCR_VAL, tsc->base + regs->drift_correct_incr_val);
+	writel_relaxed(FIELD_PREP(DYNAMIC_DRIFT_SUBPERIOD_MASK, subperiod),
+		       tsc->base + regs->drift_correct_duration_2);
+}
+
+/*
+ * Unlike qcom_tsc_drift_correction()'s one-shot jump/swallow correction,
+ * hardware supporting dynamic drift correction keeps the correction
+ * continuously active across adjfine() calls. The subperiod can be updated
+ * in place while active, as long as the correction direction (jump vs
+ * swallow) is unchanged; otherwise the correction must be disabled and
+ * reprogrammed before being re-enabled.
+ */
+static int qcom_tsc_dynamic_drift_correction(struct qcom_tsc *tsc, long scaled_ppm)
+{
+	const struct qcom_tsc_regs *regs = tsc->soc->reg_layout;
+	long ppb = scaled_ppm_to_ppb(scaled_ppm);
+	bool neg_adj = ppb < 0;
+	u32 duration, cmd, subperiod;
+	int ret;
+
+	if (neg_adj)
+		ppb = -ppb;
+
+	cmd = readl_relaxed(tsc->base + regs->drift_correct_cmd);
+
+	if (ppb == 0) {
+		if (cmd & DRIFT_STATUS)
+			return qcom_tsc_disable_dynamic_drift(tsc, cmd);
+
+		return 0;
+	}
+
+	subperiod = NSEC_PER_SEC / ppb;
+	subperiod = clamp_val(subperiod, DYNAMIC_DRIFT_MIN_SUBPERIOD, DYNAMIC_DRIFT_SUBPERIOD_MASK);
+
+	duration = readl_relaxed(tsc->base + regs->drift_correct_duration);
+
+	if ((cmd & DRIFT_STATUS) && qcom_tsc_dynamic_drift_type_matches(duration, neg_adj)) {
+		writel_relaxed(FIELD_PREP(DYNAMIC_DRIFT_SUBPERIOD_MASK, subperiod),
+			       tsc->base + regs->drift_correct_duration_2);
+		return 0;
+	}
+
+	if (cmd & DRIFT_STATUS) {
+		ret = qcom_tsc_disable_dynamic_drift(tsc, cmd);
+		if (ret)
+			return ret;
+
+		cmd = readl_relaxed(tsc->base + regs->drift_correct_cmd);
+	}
+
+	qcom_tsc_program_dynamic_drift(tsc, duration, neg_adj, subperiod);
+	qcom_tsc_set_dynamic_drift_enable(tsc, cmd, true);
+
 	return 0;
 }
 
-static void qcom_etu_event_handler(struct qcom_etu_slice *etu, struct qcom_ptp_tsc *timer)
+static int qcom_tsc_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
-	struct ptp_clock_event extts_event;
-	u64 ts, temp;
-	u32 regval;
+	struct qcom_tsc *tsc = container_of(ptp, struct qcom_tsc, ptp_info);
+	int ret;
 
-	etu->etu_tsc_sec = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_ETU_SLICE_TSC_TS_HI));
+	mutex_lock(&tsc->lock);
 
-	etu->etu_tsc_nsec = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_ETU_SLICE_TSC_TS_LO));
-
-	if (!timer->tsc_nsec_update) {
-		ts = etu->etu_tsc_sec * NSEC + etu->etu_tsc_nsec;
-	} else {
-		temp = etu->etu_tsc_sec;
-		ts = (temp << NSEC_SHFT) | etu->etu_tsc_nsec;
+	if (!tsc->clocks_enabled) {
+		mutex_unlock(&tsc->lock);
+		return -EINVAL;
 	}
 
-	if (ts != etu->etu_tsc_timestamp) {
-		extts_event.type = PTP_CLOCK_EXTTS;
-		extts_event.index = etu->extts_index;
-		extts_event.timestamp = ts;
+	if (tsc->soc->dynamic_drift_correction)
+		ret = qcom_tsc_dynamic_drift_correction(tsc, scaled_ppm);
+	else
+		ret = qcom_tsc_drift_correction(tsc, scaled_ppm);
+	mutex_unlock(&tsc->lock);
 
-		pr_debug("type:%d index:%d timestamp:%llu\n", extts_event.type,
-				extts_event.index, extts_event.timestamp);
-
-		ptp_clock_event(etu->ptp_clock, &extts_event);
-	}
-	etu->etu_tsc_timestamp = ts;
-
-	pr_debug("etu_tsc_sec:%u etu_tsc_nsec:%u etu_tsc_timestamp:%llu\n",
-			etu->etu_tsc_sec, etu->etu_tsc_nsec, etu->etu_tsc_timestamp);
-
-	etu->etu_gctr_sec = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_ETU_SLICE_GCTR_TS_HI));
-
-	etu->etu_gctr_nsec = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_ETU_SLICE_GCTR_TS_LO));
-
-	etu->extts_event_type = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_ETU_SLICE_TS_EVENT_TYPE));
-
-	/* Concatenate GCTR_TS_HI(31:0) & GCTR_TS_LO(31:8) and divide with 19.2MHz */
-	etu->global_qtimer = (((u64)etu->etu_gctr_sec << 24) |
-			(etu->etu_gctr_nsec >> 8)) / XO_MHZ;
-
-	pr_debug("etu_gctr_sec:%u etu_gctr_nsec:%u global_qtimer:%llx extts_event_type %d\n",
-			etu->etu_gctr_sec, etu->etu_gctr_nsec,
-			etu->global_qtimer, etu->extts_event_type);
-
-	regval = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_TSC_SLICE_ETU_CFG));
-	regval &= ~BIT(17);
-	regval &= ~BIT(16);
-
-	writel_relaxed(regval, TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_TSC_SLICE_ETU_CFG));
-
-	/* FIFO CLR */
-	writel_relaxed(0x7, TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_ETU_SLICE_FIFO_CLR));
-
-	/* Enable GCTR_TS_EN & TSCTR_TS_EN*/
-	regval |= BIT(16) | BIT(17);
-
-	writel_relaxed(regval, TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-				etu->extts_slice_num, TSCSS_TSC_SLICE_ETU_CFG));
+	return ret;
 }
 
-static irqreturn_t qcom_etu_summary_irq_handler(int irq, void *data)
+static void qcom_tsc_etu_configure(struct qcom_tsc_etu_slice *slice)
 {
-	struct qcom_etu_slice *etu;
-	struct qcom_ptp_tsc *timer;
-	unsigned long mask;
+	const struct qcom_etu_regs *regs = slice->tsc->soc->etu_reg_layout;
+	u32 regval;
+
+	regval = readl_relaxed(slice->base + regs->cfg);
+	regval &= ~ETU_CFG_EVENT_SEL_MASK;
+	regval |= FIELD_PREP(ETU_CFG_EVENT_SEL_MASK, slice->event_sel);
+	regval |= ETU_CFG_GCTR_TS_EN | ETU_CFG_TSCTR_TS_EN;
+	regval |= ETU_CFG_IRQ_MASK_EN;
+	regval |= ETU_CFG_RISING_EDGE;
+	writel_relaxed(regval, slice->base + regs->cfg);
+
+	/* Slice 0 is reserved for the internal SW trigger self-test path */
+	if (slice->event_sel == 0)
+		writel_relaxed(BIT(1), slice->base + regs->sw_trig_cfg);
+}
+
+static void qcom_tsc_etu_handle_event(struct qcom_tsc_etu_slice *slice)
+{
+	struct qcom_tsc *tsc = slice->tsc;
+	const struct qcom_etu_regs *regs = tsc->soc->etu_reg_layout;
+	struct ptp_clock_event event;
+	struct timespec64 ts;
+	u32 hi, lo, regval;
+	u64 timestamp;
+
+	hi = readl_relaxed(slice->base + regs->tsc_ts_hi);
+	lo = readl_relaxed(slice->base + regs->tsc_ts_lo);
+
+	if (tsc->soc->rollover) {
+		ts.tv_sec = hi;
+		ts.tv_nsec = lo;
+		timestamp = timespec64_to_ns(&ts);
+	} else {
+		timestamp = ((u64)hi << NSEC_SHIFT) | lo;
+	}
+
+	if (timestamp != slice->last_timestamp) {
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = slice->extts_index;
+		event.timestamp = timestamp;
+		ptp_clock_event(tsc->ptp, &event);
+	}
+	slice->last_timestamp = timestamp;
+
+	/* Clear the FIFO and re-enable timestamp capture for the next event */
+	regval = readl_relaxed(slice->base + regs->cfg);
+	regval &= ~(ETU_CFG_GCTR_TS_EN | ETU_CFG_TSCTR_TS_EN);
+	writel_relaxed(regval, slice->base + regs->cfg);
+
+	writel_relaxed(ETU_FIFO_CLR_VAL, slice->base + regs->fifo_clr);
+
+	regval |= ETU_CFG_GCTR_TS_EN | ETU_CFG_TSCTR_TS_EN;
+	writel_relaxed(regval, slice->base + regs->cfg);
+}
+
+static irqreturn_t qcom_tsc_etu_irq_handler(int irq, void *data)
+{
+	struct qcom_tsc_etu_slice *slice = data;
+	const struct qcom_etu_regs *regs = slice->tsc->soc->etu_reg_layout;
 	u32 status;
-	int slice;
 
-	timer = data;
-	mask = timer->configured_slice_mask;
+	status = readl_relaxed(slice->base + regs->status);
+	if (status & ETU_STATUS_EVENT_MASK)
+		qcom_tsc_etu_handle_event(slice);
 
-	for_each_set_bit(slice, &mask, MAX_ETU_SLICE) {
-		etu = &timer->etu_slice[slice];
-		status = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(etu->etu_baseaddr,
-						slice, TSCSS_TSC_SLICE_ETU_STATUS));
+	return IRQ_HANDLED;
+}
 
-		if (etu->extts_enable && (status & GENMASK(5, 0)))
-			qcom_etu_event_handler(etu, timer);
+static irqreturn_t qcom_tsc_etu_summary_irq_handler(int irq, void *data)
+{
+	struct qcom_tsc *tsc = data;
+	const struct qcom_etu_regs *regs = tsc->soc->etu_reg_layout;
+	int i;
+
+	for (i = 0; i < tsc->num_etu_slices; i++) {
+		struct qcom_tsc_etu_slice *slice = &tsc->etu_slices[i];
+		u32 status = readl_relaxed(slice->base + regs->status);
+
+		if (status & ETU_STATUS_EVENT_MASK)
+			qcom_tsc_etu_handle_event(slice);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static void qcom_tsc_configure_etu(struct qcom_ptp_tsc *timer, int slice)
+static int qcom_tsc_etu_probe(struct platform_device *pdev, struct qcom_tsc *tsc)
 {
-	void __iomem *base = timer->etu_baseaddr;
-	u32 regval;
+	struct device_node *np = pdev->dev.of_node;
+	int summary_irq, count, i;
+	int ret;
 
-	/* Register for the IRQ */
-	regval = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(base, slice, TSCSS_TSC_SLICE_ETU_CFG));
-	regval |= (timer->etu_slice[slice].extts_event_sel << 4) & GENMASK(9, 4);
-
-	writel_relaxed(regval, TSCSS_TSC_ETU_SLICE_BASE(base, slice, TSCSS_TSC_SLICE_ETU_CFG));
-
-	regval = readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(base, slice, TSCSS_TSC_SLICE_ETU_CFG));
-
-	/* Enable GCTR_TS_EN & TSCTR_TS_EN*/
-	regval |= BIT(16) | BIT(17);
-	/* Interrupt MASK enable */
-	regval |= BIT(31);
-
-	/* Enable rising edge config */
-	regval |= BIT(0);
-	writel_relaxed(regval, TSCSS_TSC_ETU_SLICE_BASE(base, slice, TSCSS_TSC_SLICE_ETU_CFG));
-
-	/* Bitmask of configured slices.*/
-	timer->configured_slice_mask |= BIT(slice);
-
-	pr_debug("ETU_SLICE#%d: 0x%x\n", slice,
-		readl_relaxed(TSCSS_TSC_ETU_SLICE_BASE(base, slice, TSCSS_TSC_SLICE_ETU_CFG)));
-}
-
-static int qcom_ptp_enable(struct ptp_clock_info *ptp,
-			  struct ptp_clock_request *rq, int on)
-{
-	struct qcom_ptp_tsc *timer = container_of(ptp, struct qcom_ptp_tsc,
-							ptp_clock_info);
-	struct timespec64 ts;
-	int slice;
-
-	pr_debug("Request Type %d\n", rq->type);
-
-	switch (rq->type) {
-	case PTP_CLK_REQ_PPS:
-		timer->pps_enable = 1;
+	count = of_property_count_u32_elems(np, "qcom,etu-slice");
+	if (count <= 0)
 		return 0;
-	case PTP_CLK_REQ_EXTTS:
-		pr_debug("PTP_CLK_REQ_EXTTS: Request external Index %d\n", rq->extts.index);
 
-		if (rq->extts.index >= timer->total_etu_cnt)
-			return -EINVAL;
-		else if (!on)
-			return 0;
+	if (of_property_count_u32_elems(np, "qcom,etu-event-sel") != count)
+		return dev_err_probe(&pdev->dev, -EINVAL,
+				      "qcom,etu-slice and qcom,etu-event-sel size mismatch\n");
 
-		for (slice = 0; slice < MAX_ETU_SLICE; slice++) {
-			if (!timer->etu_slice[slice].extts_present)
-				continue;
+	tsc->etu_base = devm_platform_ioremap_resource_byname(pdev, "etu");
+	if (IS_ERR(tsc->etu_base))
+		return PTR_ERR(tsc->etu_base);
 
-			if (rq->extts.index == timer->etu_slice[slice].extts_index) {
-				pr_debug("slice %d, index %d, etu_index %d\n", slice,
-					rq->extts.index, timer->etu_slice[slice].extts_index);
-				qcom_tsc_configure_etu(timer,
-					timer->etu_slice[slice].extts_slice_num);
-				timer->etu_slice[slice].extts_enable = true;
-			}
+	/* Not every SoC/board routes any ETU slice to an external pin */
+	tsc->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(tsc->pinctrl)) {
+		if (PTR_ERR(tsc->pinctrl) != -ENODEV)
+			return PTR_ERR(tsc->pinctrl);
+		tsc->pinctrl = NULL;
+	}
 
+	tsc->etu_slices = devm_kcalloc(&pdev->dev, count, sizeof(*tsc->etu_slices), GFP_KERNEL);
+	if (!tsc->etu_slices)
+		return -ENOMEM;
+
+	summary_irq = platform_get_irq_byname_optional(pdev, "etu_summary");
+
+	for (i = 0; i < count; i++) {
+		struct qcom_tsc_etu_slice *slice = &tsc->etu_slices[i];
+		char name[16];
+		int irq;
+
+		slice->tsc = tsc;
+
+		of_property_read_u32_index(np, "qcom,etu-slice", i, &slice->slice_num);
+		of_property_read_u32_index(np, "qcom,etu-event-sel", i, &slice->event_sel);
+
+		slice->base = tsc->etu_base + slice->slice_num * ETU_SLICE_STRIDE;
+
+		snprintf(name, sizeof(name), "slice%u", slice->slice_num);
+
+		/* Not every slice is routed to an external pin */
+		slice->pinctrl_state = tsc->pinctrl ?
+			pinctrl_lookup_state(tsc->pinctrl, name) : NULL;
+		if (IS_ERR(slice->pinctrl_state))
+			slice->pinctrl_state = NULL;
+
+		/*
+		 * QDU1000 gives each slice its own interrupt; SA8775P/Nord
+		 * instead share a single summary interrupt across all slices,
+		 * requested once below, outside this loop.
+		 */
+		if (summary_irq < 0) {
+			irq = platform_get_irq_byname(pdev, name);
+			if (irq < 0)
+				return irq;
+
+			ret = devm_request_irq(&pdev->dev, irq, qcom_tsc_etu_irq_handler,
+						IRQF_TRIGGER_RISING, dev_name(&pdev->dev),
+						slice);
+			if (ret)
+				return ret;
 		}
-		return 0;
-	case PTP_CLK_REQ_PEROUT:
-		if (timer->tsc_hw_preload) {
-			if (!rq->perout.period.sec) {
-				/* Get the current timer value */
-				qcom_tod_read(timer, &ts);
-			} else {
-				pr_debug("PTP_CLK_REQ_PEROUT: sec:%lld nsec:%u\n",
-					rq->perout.period.sec, rq->perout.period.nsec);
-				ts.tv_sec = rq->perout.period.sec;
-				ts.tv_nsec = rq->perout.period.nsec;
-			}
 
-			/* Preload TSC with tv_sec += 1 and tv_nsec = 0 values */
-			ts.tv_sec += 1;
-			ts.tv_nsec = 0;
-			qcom_ptp_enable_tsc_hw_preload(timer, ts);
-		}
-		return 0;
-	default:
-		break;
+		slice->extts_index = i;
 	}
 
-	return -EOPNOTSUPP;
-}
+	tsc->num_etu_slices = count;
+	tsc->ptp_info.n_ext_ts = count;
 
-static struct ptp_clock_info qcom_ptp_clock_info = {
-	.owner    = THIS_MODULE,
-	.name     = "QCOM TSC",
-	.max_adj  = 999999999,
-	/* The number of external time stamp channels. */
-	.n_ext_ts = 1,
-	.n_per_out = 1,
-	.pps = 1,
-	.adjfine  = qcom_ptp_adjfine,
-	.adjtime  = qcom_ptp_adjtime,
-	.gettime64  = qcom_ptp_gettime,
-	.settime64 = qcom_ptp_settime,
-	.enable   = qcom_ptp_enable,
-};
-
-/* module operations */
-
-static void qcom_ptp_tsc_remove(struct platform_device *pdev)
-{
-	struct qcom_ptp_tsc *timer = platform_get_drvdata(pdev);
-
-	if (timer->ptp_clock) {
-		ptp_clock_unregister(timer->ptp_clock);
-		timer->ptp_clock = NULL;
-	}
-
-	if (timer->tsc_etu_clk)
-		clk_disable_unprepare(timer->tsc_etu_clk);
-
-	if (timer->tsc_cntr_clk)
-		clk_disable_unprepare(timer->tsc_cntr_clk);
-
-	if (timer->tsc_cfg_ahb_clk)
-		clk_disable_unprepare(timer->tsc_cfg_ahb_clk);
-
-}
-
-static int qcom_tsc_etu_get_data(struct platform_device *pdev,
-		 struct qcom_ptp_tsc *timer)
-{
-	struct device *dev = &pdev->dev;
-	struct resource *r_mem;
-	struct pinctrl *pinctrl;
-	int ret, cnt, i, summary_irq;
-
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!r_mem) {
-		dev_err(&pdev->dev, "No ETU resource defined\n");
-		return 0;
-	}
-
-	timer->etu_baseaddr = devm_ioremap_resource(&pdev->dev, r_mem);
-	if (IS_ERR(timer->etu_baseaddr))
-		return PTR_ERR(timer->etu_baseaddr);
-
-	summary_irq = platform_get_irq_byname(pdev, "etu_summary_irq");
-
-	if (summary_irq > 0) {
-		ret = devm_request_irq(dev, summary_irq,
-				qcom_etu_summary_irq_handler, IRQF_TRIGGER_HIGH,
-				"etu_summary_irq", timer);
-		if (ret) {
-			dev_err(&pdev->dev, "Request_summary_irq failed:%d: err:%d\n",
-				summary_irq, ret);
-			return ret;
-		}
-	}
-
-	cnt = of_property_count_elems_of_size(dev->of_node, "qcom,etu-event-sel",
-						sizeof(u32));
-	pr_debug("Number of event-sel %d\n", cnt);
-
-	for (i = 0; i < cnt; i++) {
-		const char *name;
-		u32 sel, slice;
-
-		ret = of_property_read_u32_index(dev->of_node, "qcom,etu-event-sel", i, &sel);
+	if (summary_irq >= 0) {
+		ret = devm_request_irq(&pdev->dev, summary_irq, qcom_tsc_etu_summary_irq_handler,
+					IRQF_TRIGGER_HIGH, dev_name(&pdev->dev), tsc);
 		if (ret)
-			break;
-
-		ret = of_property_read_u32_index(dev->of_node, "qcom,etu-slice", i, &slice);
-		if (ret) {
-			pr_debug("etu-slice property does not exist, configure using sel value\n");
-			slice = sel;
-		}
-
-		timer->etu_slice[slice].etu_baseaddr = timer->etu_baseaddr;
-		timer->etu_slice[slice].extts_index = i;
-		timer->etu_slice[slice].extts_event_sel = sel;
-		timer->etu_slice[slice].extts_slice_num = slice;
-		of_property_read_string_index(dev->of_node,
-				"qcom,etu-event-names", i, &name);
-
-		strscpy(timer->etu_slice[slice].name, name, sizeof(timer->etu_slice[slice].name));
-
-		timer->etu_slice[slice].extts_irq = summary_irq;
-
-		pr_debug("sel: %d, index: %d, slice-num:%d slice-name: %s, IRQ: %d\n", sel,
-				timer->etu_slice[slice].extts_index, slice,
-				timer->etu_slice[slice].name, timer->etu_slice[slice].extts_irq);
-
-		timer->etu_slice[slice].extts_present = true;
-		timer->etu_slice[slice].ptp_clock = timer->ptp_clock;
+			return ret;
 	}
-
-	timer->total_etu_cnt = cnt;
-	timer->ptp_clock_info.n_ext_ts = cnt;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_info(&pdev->dev, "No default pinctrl found\n");
 
 	return 0;
 }
+
+static int qcom_tsc_enable(struct ptp_clock_info *ptp, struct ptp_clock_request *rq, int on)
+{
+	struct qcom_tsc *tsc = container_of(ptp, struct qcom_tsc, ptp_info);
+	struct qcom_tsc_etu_slice *slice;
+	int ret;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		if (rq->extts.index >= tsc->num_etu_slices)
+			return -EINVAL;
+
+		if (!on)
+			return 0;
+
+		if (!tsc->etu_clk_enabled) {
+			ret = clk_prepare_enable(tsc->etu_clk);
+			if (ret)
+				return ret;
+
+			ret = devm_add_action_or_reset(tsc->dev, qcom_tsc_clk_disable, tsc->etu_clk);
+			if (ret)
+				return ret;
+
+			tsc->etu_clk_enabled = true;
+		}
+
+		slice = &tsc->etu_slices[rq->extts.index];
+
+		if (slice->pinctrl_state) {
+			ret = pinctrl_select_state(tsc->pinctrl, slice->pinctrl_state);
+			if (ret)
+				return ret;
+		}
+
+		qcom_tsc_etu_configure(slice);
+
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static struct ptp_clock_info qcom_ptp_info = {
+	.owner		= THIS_MODULE,
+	.name		= "PTP_QCOM_TSC",
+	.max_adj	= 9999999,
+	.adjfine	= qcom_tsc_adjfine,
+	.adjtime	= qcom_tsc_adjtime,
+	.gettime64      = qcom_tsc_gettime,
+	.settime64      = qcom_tsc_settime,
+	.enable		= qcom_tsc_enable,
+};
+
+static const struct qcom_tsc_regs qcom_tsc_layout = {
+	.control_cntcr            = 0x0,
+	.control_cntcv_lo         = 0x8,
+	.control_cntcv_hi         = 0xc,
+	.drift_correct_incr_val   = 0x2c,
+	.drift_correct_duration   = 0x30,
+	.drift_correct_cmd        = 0x34,
+	.rollover_val             = 0x3c,
+	.offset_lo                = 0x50,
+	.offset_hi                = 0x54,
+	.read_cntcv_lo            = 0x1000,
+	.read_cntcv_hi            = 0x1004,
+};
+
+static const struct qcom_tsc_regs qcom_tsc_layout_v2 = {
+	.control_cntcr            = 0x0,
+	.control_cntcv_lo         = 0x8,
+	.control_cntcv_hi         = 0xc,
+	.drift_correct_incr_val   = 0x2c,
+	.drift_correct_duration   = 0x30,
+	.drift_correct_duration_2 = 0x34,
+	.drift_correct_cmd        = 0x38,
+	.drift_correct_cmd_2      = 0x3c,
+	.rollover_val             = 0x44,
+	.offset_lo                = 0x50,
+	.offset_hi                = 0x54,
+	.read_cntcv_lo            = 0x1000,
+	.read_cntcv_hi            = 0x1004,
+};
+
+static const struct qcom_etu_regs qcom_etu_layout = {
+	.cfg                    = 0x0,
+	.status                 = 0x4,
+	.tsc_ts_lo              = 0x8,
+	.tsc_ts_hi              = 0xc,
+	.ts_event_type          = 0x10,
+	.gctr_ts_lo             = 0x20,
+	.gctr_ts_hi             = 0x24,
+	.fifo_clr               = 0x30,
+	.sw_trig_cfg            = 0x34,
+	.fusa_status_register   = 0xf50,
+};
+
+static const struct qcom_tsc_soc_data qcom_tsc_sa8775p = {
+	.reg_layout		= &qcom_tsc_layout,
+	.etu_reg_layout		= &qcom_etu_layout,
+	.rollover		= false,
+	.offset_correction	= false,
+	.pulse_width		= 2,
+	.cntr_res		= 64,
+};
+
+static const struct qcom_tsc_soc_data qcom_tsc_qdu1000 = {
+	.reg_layout		= &qcom_tsc_layout,
+	.etu_reg_layout		= &qcom_etu_layout,
+	.rollover		= true,
+	.offset_correction	= true,
+	.pulse_width		= 3,
+	.cntr_res		= 2,
+};
+
+static const struct qcom_tsc_soc_data qcom_tsc_nord = {
+	.reg_layout		= &qcom_tsc_layout_v2,
+	.etu_reg_layout		= &qcom_etu_layout,
+	.rollover		= false,
+	.offset_correction	= true,
+	.dynamic_drift_correction = true,
+	.pulse_width		= 3,
+	.cntr_res		= 4,
+};
+
+static const struct of_device_id qcom_tsc_of_match[] = {
+	{ .compatible = "qcom,sa8775p-tscss", .data = &qcom_tsc_sa8775p },
+	{ .compatible = "qcom,qdu1000-tscss", .data = &qcom_tsc_qdu1000 },
+	{ .compatible = "qcom,nord-tscss", .data = &qcom_tsc_nord },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, qcom_tsc_of_match);
 
 static int qcom_ptp_tsc_probe(struct platform_device *pdev)
 {
-	struct qcom_ptp_tsc *timer;
-	struct resource *r_mem;
-	u32 cntr_val;
+	const struct qcom_tsc_soc_data *soc;
+	struct qcom_tsc *tsc;
 	int ret;
 
-	timer = devm_kzalloc(&pdev->dev, sizeof(*timer), GFP_KERNEL);
-	if (!timer)
+	soc = of_device_get_match_data(&pdev->dev);
+	if (!soc)
+		return -ENODEV;
+
+	tsc = devm_kzalloc(&pdev->dev, sizeof(*tsc), GFP_KERNEL);
+	if (!tsc)
 		return -ENOMEM;
 
-	timer->dev = &pdev->dev;
+	tsc->dev = &pdev->dev;
+	tsc->soc = soc;
 
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r_mem) {
-		dev_err(&pdev->dev, "no IO resource defined\n");
-		return -ENXIO;
-	}
-
-	timer->baseaddr = devm_ioremap_resource(&pdev->dev, r_mem);
-	if (IS_ERR(timer->baseaddr))
-		return PTR_ERR(timer->baseaddr);
-
-	spin_lock_init(&timer->reg_lock);
-
-	timer->tsc_cfg_ahb_clk = devm_clk_get(&pdev->dev, "cfg_ahb");
-	if (IS_ERR(timer->tsc_cfg_ahb_clk)) {
-		if (PTR_ERR(timer->tsc_cfg_ahb_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Unable to get CFG AHB clock\n");
-		return PTR_ERR(timer->tsc_cfg_ahb_clk);
-	}
-
-	timer->tsc_cntr_clk = devm_clk_get(&pdev->dev, "cntr");
-	if (IS_ERR(timer->tsc_cntr_clk)) {
-		if (PTR_ERR(timer->tsc_cntr_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Unable to get Counter clock\n");
-		return PTR_ERR(timer->tsc_cntr_clk);
-	}
-
-	timer->tsc_etu_clk = devm_clk_get(&pdev->dev, "etu");
-	if (IS_ERR(timer->tsc_etu_clk)) {
-		if (PTR_ERR(timer->tsc_etu_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Unable to get ETU clock\n");
-		return PTR_ERR(timer->tsc_etu_clk);
-	}
-
-	ret = clk_prepare_enable(timer->tsc_cfg_ahb_clk);
-	if (ret) {
-		pr_debug("Failed to enable AHB clock\n");
+	ret = devm_mutex_init(&pdev->dev, &tsc->lock);
+	if (ret)
 		return ret;
-	}
 
-	ret = clk_prepare_enable(timer->tsc_cntr_clk);
-	if (ret) {
-		pr_debug("Failed to enable counter clock\n");
+	tsc->base = devm_platform_ioremap_resource_byname(pdev, "tsc");
+	if (IS_ERR(tsc->base))
+		return PTR_ERR(tsc->base);
+
+	/* Both clocks are enabled on first use, when the counter is set */
+	tsc->ahb_clk = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(tsc->ahb_clk))
+		return PTR_ERR(tsc->ahb_clk);
+
+	tsc->cntr_clk = devm_clk_get(&pdev->dev, "cntr");
+	if (IS_ERR(tsc->cntr_clk))
+		return PTR_ERR(tsc->cntr_clk);
+
+	/* ETU clock is enabled on first extts request, when a slice is configured */
+	tsc->etu_clk = devm_clk_get(&pdev->dev, "etu");
+	if (IS_ERR(tsc->etu_clk))
+		return PTR_ERR(tsc->etu_clk);
+
+	tsc->ptp_info = qcom_ptp_info;
+
+	ret = qcom_tsc_etu_probe(pdev, tsc);
+	if (ret)
 		return ret;
-	}
 
-	ret = clk_prepare_enable(timer->tsc_etu_clk);
-	if (ret) {
-		pr_debug("Failed to enable etu clock\n");
-		return ret;
-	}
+	tsc->ptp = ptp_clock_register(&tsc->ptp_info, &pdev->dev);
+	if (IS_ERR(tsc->ptp))
+		return dev_err_probe(&pdev->dev, PTR_ERR(tsc->ptp),
+				      "Failed to register ptp clock\n");
 
-	timer->tsc_nsec_update = of_property_read_bool(pdev->dev.of_node,
-							"qcom,tsc-nsec-update");
-
-	timer->tsc_hw_preload = of_property_read_bool(pdev->dev.of_node,
-							"qcom,tsc-hw-preload");
-
-	if (timer->tsc_hw_preload)
-		INIT_DEFERRABLE_WORK(&timer->tsc_preload_poll_work, tsc_preload_poll);
-
-	timer->ptp_clock_info = qcom_ptp_clock_info;
-
-	timer->ptp_clock = ptp_clock_register(&timer->ptp_clock_info, &pdev->dev);
-	if (IS_ERR(timer->ptp_clock)) {
-		ret = PTR_ERR(timer->ptp_clock);
-		dev_err(&pdev->dev, "Failed to register ptp clock\n");
-		goto out;
-	}
-
-	qcom_tsc_etu_get_data(pdev, timer);
-
-	if (!timer->tsc_nsec_update) {
-		cntr_val = (timer->tsc_hw_preload ? 0x1D8 : 0x1CC);
-		writel_relaxed(0x3B9AC9FF, timer->baseaddr + TSCSS_TSC_ROLLOVER_VAL);
-	} else {
-		cntr_val = 0x18C;
-	}
-
-	writel_relaxed(cntr_val, timer->baseaddr + TSCSS_TSC_CONTROL_CNTCR);
-
-	pr_info("TSC CNTR 0x%x tsc-nsec-update %d tsc-hw-preload %d\n",
-		readl_relaxed(timer->baseaddr), timer->tsc_nsec_update, timer->tsc_hw_preload);
-
-	platform_set_drvdata(pdev, timer);
+	platform_set_drvdata(pdev, tsc);
 
 	return 0;
-out:
-	timer->ptp_clock = NULL;
-	return ret;
 }
 
-static const struct of_device_id tsc_of_match[] = {
-	{ .compatible = "qcom,tsc", },
-	{ /* end of table */ }
-};
-MODULE_DEVICE_TABLE(of, tsc_of_match);
+static void qcom_ptp_tsc_remove(struct platform_device *pdev)
+{
+	struct qcom_tsc *tsc = platform_get_drvdata(pdev);
+
+	if (tsc && tsc->ptp) {
+		ptp_clock_unregister(tsc->ptp);
+		tsc->ptp = NULL;
+	}
+}
 
 static struct platform_driver qcom_ptp_tsc_driver = {
 	.probe  = qcom_ptp_tsc_probe,
 	.remove = qcom_ptp_tsc_remove,
 	.driver = {
 		.name = "qcom_ptp_tsc",
-		.of_match_table = tsc_of_match,
+		.of_match_table = qcom_tsc_of_match,
 	},
 };
-
 module_platform_driver(qcom_ptp_tsc_driver);
 
 MODULE_DESCRIPTION("PTP QCOM TSC driver");

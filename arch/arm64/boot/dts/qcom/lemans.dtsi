@@ -2796,6 +2796,34 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
+		ptp@1c80000 {
+			compatible = "qcom,sa8775p-tscss";
+			reg = <0x0 0x01c80000 0x0 0x2000>,
+			      <0x0 0x01c90000 0x0 0x10000>;
+			reg-names = "tsc", "etu";
+
+			clocks = <&gcc GCC_TSCSS_AHB_CLK>,
+				 <&gcc GCC_TSCSS_GLOBAL_CNTR_CLK>,
+				 <&gcc GCC_TSCSS_ETU_CLK>;
+			clock-names = "ahb", "cntr", "etu";
+
+			assigned-clocks = <&gcc GCC_TSCSS_GLOBAL_CNTR_CLK>,
+					  <&gcc GCC_TSCSS_ETU_CLK>;
+			assigned-clock-rates = <15625000>, <15625000>;
+
+			interrupts = <GIC_SPI 766 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "etu_summary";
+
+			qcom,etu-slice = <12 13>;
+			qcom,etu-event-sel = <12 13>;
+
+			pinctrl-names = "slice12", "slice13";
+			pinctrl-0 = <&cci_async0_default>;
+			pinctrl-1 = <&cci_async1_default>;
+
+			status = "disabled";
+		};
+
 		ufs_mem_hc: ufshc@1d84000 {
 			compatible = "qcom,sa8775p-ufshc", "qcom,ufshc", "jedec,ufs-2.0";
 			reg = <0x0 0x01d84000 0x0 0x3000>;
@@ -4208,17 +4236,17 @@
 		};
 
 		gp_mn: clock-controller@88d3000 {
-			compatible = "qcom,clk-gp-mnd";
-			reg = <0x0 0x088d3000 0x0 0xc>;
+			compatible = "qcom,sa8775p-gp-mnd", "qcom,sc7280-gp-mnd";
+			reg = <0x0 0x088d3000 0x0 0x1000>;
 			clocks = <&gcc GCC_PDM_XO4_CLK>,
 				 <&gcc GCC_PDM_AHB_CLK>;
-			clock-names = "pdm_clk", "ahb_clk";
-			clock-output-names = "gp_mn_clk";
+			clock-names = "pdm", "ahb";
 			#clock-cells = <0>;
-			pinctrl-names = "active";
 			pinctrl-0 = <&gp_mn_active>;
+			pinctrl-names = "default";
 			assigned-clocks = <&gcc GCC_PDM_XO4_CLK>;
 			assigned-clock-rates = <4800000>;
+			status = "disabled";
 		};
 
 		usb_0_hsphy: phy@88e4000 {
@@ -5846,7 +5874,7 @@
 				bias-disable;
 			};
 
-			gp_mn_active: gp_mn_active-state {
+			gp_mn_active: gp-mn-active-state {
 				pins = "gpio35";
 				function = "gp_mn";
 				drive-strength = <2>;
@@ -5963,6 +5991,20 @@
 				function = "cci_i2c";
 				drive-strength = <2>;
 				bias-pull-down;
+			};
+
+			cci_async0_default: cci-async0-state {
+				pins = "gpio70";
+				function = "cci_async";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			cci_async1_default: cci-async1-state {
+				pins = "gpio71";
+				function = "cci_async";
+				drive-strength = <2>;
+				bias-disable;
 			};
 
 			cci3_1_default: cci3-1-default-state {

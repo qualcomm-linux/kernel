@@ -1295,6 +1295,13 @@
 					bias-bus-hold;
 				};
 			};
+
+			gp_mn_active: gp-mn-active-state {
+				pins = "gpio87";
+				function = "gp_mn";
+				drive-strength = <2>;
+				bias-disable;
+			};
 		};
 
 		pmu@c91000 {
@@ -1766,6 +1773,83 @@
 		sram@4690000 {
 			compatible = "qcom,shikra-rpm-stats", "qcom,rpm-stats";
 			reg = <0x0 0x04690000 0x0 0x14000>;
+		};
+
+		pwm: pwm@4700000 {
+			compatible = "qcom,shikra-pwm";
+			reg = <0x0 0x04700000 0x0 0x10>;
+			clocks = <&gcc GCC_PDM_AHB_CLK>, <&gcc GCC_PWM0_XO512_CLK>;
+			clock-names = "ahb", "core";
+			assigned-clocks = <&gcc GCC_PWM0_XO512_CLK>;
+			assigned-clock-rates = <9600000>;
+			#pwm-cells = <3>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			pwm@4701000 {
+				reg = <0x0 0x04701000 0x0 0x1c>;
+				qcom,frame-index = <0>;
+			};
+
+			pwm@4702000 {
+				reg = <0x0 0x04702000 0x0 0x1c>;
+				qcom,frame-index = <1>;
+			};
+
+			pwm@4703000 {
+				reg = <0x0 0x04703000 0x0 0x1c>;
+				qcom,frame-index = <2>;
+			};
+
+			pwm@4704000 {
+				reg = <0x0 0x04704000 0x0 0x1c>;
+				qcom,frame-index = <3>;
+			};
+
+			pwm@4705000 {
+				reg = <0x0 0x04705000 0x0 0x1c>;
+				qcom,frame-index = <4>;
+			};
+
+			pwm@4706000 {
+				reg = <0x0 0x04706000 0x0 0x1c>;
+				qcom,frame-index = <5>;
+			};
+
+			pwm@4707000 {
+				reg = <0x0 0x04707000 0x0 0x1c>;
+				qcom,frame-index = <6>;
+			};
+
+			pwm@4708000 {
+				reg = <0x0 0x04708000 0x0 0x1c>;
+				qcom,frame-index = <7>;
+			};
+
+			pwm@4709000 {
+				reg = <0x0 0x04709000 0x0 0x1c>;
+				qcom,frame-index = <8>;
+			};
+
+			pwm@470a000 {
+				reg = <0x0 0x0470a000 0x0 0x1c>;
+				qcom,frame-index = <9>;
+			};
+		};
+
+		gp_mn: clock-controller@4713000 {
+			compatible = "qcom,shikra-gp-mnd", "qcom,sc7280-gp-mnd";
+			reg = <0x0 0x04713000 0x0 0x1000>;
+			clocks = <&gcc GCC_PDM_XO4_CLK>,
+				 <&gcc GCC_PDM_AHB_CLK>;
+			clock-names = "pdm", "ahb";
+			#clock-cells = <0>;
+			pinctrl-0 = <&gp_mn_active>;
+			pinctrl-names = "default";
+			assigned-clocks = <&gcc GCC_PDM_XO4_CLK>;
+			assigned-clock-rates = <4800000>;
+			status = "disabled";
 		};
 
 		sdhc_1: mmc@4744000 {
@@ -3053,6 +3137,27 @@
 						#cooling-cells = <2>;
 					};
 			};
+		};
+
+		ptp@4b00000 {
+			compatible = "qcom,shikra-tscss", "qcom,nord-tscss";
+			reg = <0x0 0x04b00000 0x0 0x2000>,
+			      <0x0 0x04b10000 0x0 0x10000>;
+			reg-names = "tsc", "etu";
+			clocks = <&gcc GCC_TSCSS_AHB_CLK>,
+				 <&gcc GCC_TSCSS_CNTR_CLK>,
+				 <&gcc GCC_TSCSS_ETU_CLK>;
+			clock-names = "ahb", "cntr", "etu";
+			assigned-clocks = <&gcc GCC_TSCSS_CNTR_CLK>;
+			assigned-clock-rates = <250000000>;
+
+			interrupts = <GIC_SPI 503 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupt-names = "etu_summary";
+
+			qcom,etu-slice = <1 2 3 4>;
+			qcom,etu-event-sel = <1 2 3 4>;
+
+			status = "disabled";
 		};
 
 		usb_2: usb@4c00000 {

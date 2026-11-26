@@ -6,9 +6,9 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm_clock.h>
+#include <linux/pm_runtime.h>
 #include <linux/rational.h>
 #include <linux/regmap.h>
 
@@ -37,14 +37,14 @@
 
 /**
  * struct clk_gp_mnd - GP_MND fractional clock divider
- * @pdm_ahb_clk:	AHB bus clock required for register access
+ * @dev:		device for runtime PM
  * @regmap:		register map for the PDM block
  * @hw:			handle between common and hardware-specific interfaces
  * @m_val:		M value (numerator)
  * @n_val:		N value (period)
  */
 struct clk_gp_mnd {
-	struct clk		*pdm_ahb_clk;
+	struct device		*dev;
 	struct regmap		*regmap;
 	struct clk_hw		hw;
 	unsigned int		m_val;
@@ -52,6 +52,16 @@ struct clk_gp_mnd {
 };
 
 #define to_clk_gp_mnd(_hw) container_of(_hw, struct clk_gp_mnd, hw)
+
+static int gp_mnd_clk_runtime_resume(struct clk_gp_mnd *gp)
+{
+	return pm_runtime_resume_and_get(gp->dev);
+}
+
+static void gp_mnd_clk_runtime_put(struct clk_gp_mnd *gp)
+{
+	pm_runtime_put(gp->dev);
+}
 
 static int gp_mnd_clk_determine_rate(struct clk_hw *hw,
 				     struct clk_rate_request *req)
@@ -62,12 +72,10 @@ static int gp_mnd_clk_determine_rate(struct clk_hw *hw,
 				    (unsigned long)GP_MND_MAX_M,
 				    (unsigned long)GP_MND_MAX_N,
 				    &m, &n);
-
 	if (!m || !n)
 		return -EINVAL;
 
-	/* N = 2M + 1 leaves no valid D satisfying M < D < (N - M) */
-	if (n == 2 * m + 1)
+	if (n <= 2 * m + 1)
 		return -EINVAL;
 
 	req->rate = DIV_ROUND_CLOSEST_ULL((u64)req->best_parent_rate * m, n);
@@ -76,7 +84,7 @@ static int gp_mnd_clk_determine_rate(struct clk_hw *hw,
 }
 
 static int gp_mnd_clk_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
+			       unsigned long parent_rate)
 {
 	struct clk_gp_mnd *gp = to_clk_gp_mnd(hw);
 	unsigned long m = 0, n = 0;
@@ -87,78 +95,82 @@ static int gp_mnd_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				    (unsigned long)GP_MND_MAX_M,
 				    (unsigned long)GP_MND_MAX_N,
 				    &m, &n);
-
 	if (!m || !n)
 		return -EINVAL;
 
-	/*
-	 * When N = 2M + 1 the valid D range [M+1, M] is empty; no duty
-	 * cycle can satisfy M < D < (N - M).  Reject before touching hw.
-	 */
-	if (n == 2 * m + 1)
+	if (n <= 2 * m + 1)
 		return -EINVAL;
 
-	ret = clk_prepare_enable(gp->pdm_ahb_clk);
+	ret = gp_mnd_clk_runtime_resume(gp);
 	if (ret)
 		return ret;
 
 	ret = regmap_write(gp->regmap, GP_MND_MDIV_REG, m);
 	if (ret)
-		goto err_unprepare;
+		goto err_runtime_put;
 
 	/* N divider holds the 1's complement of (N - M), N_WIDTH bits wide */
 	n_val = ~(n - m) & GP_MND_MAX_N;
 	ret = regmap_write(gp->regmap, GP_MND_NDIV_REG, n_val);
 	if (ret)
-		goto err_unprepare;
+		goto err_runtime_put;
 
 	/* Program the closest-to-50% duty cycle. */
 	d_val = n / 2;
 	ret = regmap_write(gp->regmap, GP_MND_DUTY_REG, d_val);
 	if (ret)
-		goto err_unprepare;
+		goto err_runtime_put;
 
 	gp->m_val = m;
 	gp->n_val = n;
 
-err_unprepare:
-	clk_disable_unprepare(gp->pdm_ahb_clk);
+err_runtime_put:
+	gp_mnd_clk_runtime_put(gp);
 
 	return ret;
 }
 
 static unsigned long gp_mnd_clk_recalc_rate(struct clk_hw *hw,
-		unsigned long parent_rate)
+					    unsigned long parent_rate)
 {
 	struct clk_gp_mnd *gp = to_clk_gp_mnd(hw);
 	unsigned int m_val, n_val;
 	int ret;
 
-	ret = clk_prepare_enable(gp->pdm_ahb_clk);
+	ret = gp_mnd_clk_runtime_resume(gp);
 	if (ret)
 		return 0;
 
 	ret = regmap_read(gp->regmap, GP_MND_MDIV_REG, &m_val);
 	if (ret)
-		goto out_unprepare;
+		goto out_runtime_put;
 
 	m_val &= GP_MND_MAX_M;
 
 	ret = regmap_read(gp->regmap, GP_MND_NDIV_REG, &n_val);
 	if (ret)
-		goto out_unprepare;
+		goto out_runtime_put;
 
 	/* Reverse the 1's complement encoding: N = ~NDIV_REG + M */
 	n_val = (~n_val & GP_MND_MAX_N) + m_val;
 
-out_unprepare:
-	clk_disable_unprepare(gp->pdm_ahb_clk);
+out_runtime_put:
+	gp_mnd_clk_runtime_put(gp);
 
 	if (ret)
 		return 0;
 
-	if (!n_val)
+	/*
+	 * At power-on the divider registers read back as zero (M = 0), which
+	 * the 1's complement encoding would turn into a bogus N = 8191. Treat
+	 * an unconfigured divider as rate 0 and leave the cached M/N cleared so
+	 * the 50% duty-cycle default path in get_duty_cycle() stays valid.
+	 */
+	if (!m_val || !n_val) {
+		gp->m_val = 0;
+		gp->n_val = 0;
 		return 0;
+	}
 
 	gp->m_val = m_val;
 	gp->n_val = n_val;
@@ -178,18 +190,22 @@ static int gp_mnd_clk_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 		return 0;
 	}
 
-	ret = clk_prepare_enable(gp->pdm_ahb_clk);
+	ret = gp_mnd_clk_runtime_resume(gp);
 	if (ret)
 		return ret;
 
 	ret = regmap_read(gp->regmap, GP_MND_DUTY_REG, &d_val);
 
-	clk_disable_unprepare(gp->pdm_ahb_clk);
+	gp_mnd_clk_runtime_put(gp);
 
 	if (ret)
 		return ret;
 
-	duty->num = d_val;
+	if (d_val >= gp->n_val)
+		return -EINVAL;
+
+	/* DUTY stores the low-phase count; report the high-phase duty cycle. */
+	duty->num = gp->n_val - d_val;
 	duty->den = gp->n_val;
 
 	return 0;
@@ -201,23 +217,23 @@ static int gp_mnd_clk_set_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 	unsigned int d_val;
 	int ret;
 
-	if (!gp->n_val || !gp->m_val)
+	if (!gp->n_val || !gp->m_val || !duty->den || duty->num > duty->den)
 		return -EINVAL;
 
 	/* D = (1 - duty) * N, giving the low-phase count */
-	d_val = DIV_ROUND_UP((u64)(duty->den - duty->num) * gp->n_val, duty->den);
+	d_val = DIV_ROUND_UP_ULL((u64)(duty->den - duty->num) * gp->n_val, duty->den);
 
 	/* Hardware constraint: M < D < (N - M) */
 	if (d_val <= gp->m_val || d_val >= (gp->n_val - gp->m_val))
 		return -EINVAL;
 
-	ret = clk_prepare_enable(gp->pdm_ahb_clk);
+	ret = gp_mnd_clk_runtime_resume(gp);
 	if (ret)
 		return ret;
 
 	ret = regmap_write(gp->regmap, GP_MND_DUTY_REG, d_val);
 
-	clk_disable_unprepare(gp->pdm_ahb_clk);
+	gp_mnd_clk_runtime_put(gp);
 
 	return ret;
 }
@@ -241,6 +257,7 @@ static int clk_gp_mnd_probe(struct platform_device *pdev)
 {
 	struct clk_parent_data parent_data = { .index = 0 };
 	struct clk_init_data init = {
+		.name		= "gp_mn_clk",
 		.ops		= &clk_gp_mnd_ops,
 		.parent_data	= &parent_data,
 		.num_parents	= 1,
@@ -249,8 +266,6 @@ static int clk_gp_mnd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct clk_gp_mnd *gp;
 	struct clk *clk;
-	struct pinctrl *pin;
-	struct pinctrl_state *pin_default_state;
 	void __iomem *base;
 	int ret;
 
@@ -258,12 +273,21 @@ static int clk_gp_mnd_probe(struct platform_device *pdev)
 	if (!gp)
 		return -ENOMEM;
 
-	gp->pdm_ahb_clk = devm_clk_get(dev, "ahb_clk");
-	if (IS_ERR(gp->pdm_ahb_clk))
-		return dev_err_probe(dev, PTR_ERR(gp->pdm_ahb_clk),
-				     "failed to get ahb_clk\n");
+	gp->dev = dev;
 
-	clk = devm_clk_get(dev, "pdm_clk");
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
+
+	ret = devm_pm_clk_create(dev);
+	if (ret)
+		return ret;
+
+	ret = pm_clk_add(dev, "ahb");
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get ahb clock\n");
+
+	clk = devm_clk_get(dev, "pdm");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -271,7 +295,7 @@ static int clk_gp_mnd_probe(struct platform_device *pdev)
 	if (!clk_get_rate(clk)) {
 		ret = clk_set_rate(clk, 19200000);
 		if (ret)
-			dev_warn(dev, "failed to set default pdm_clk rate\n");
+			dev_warn(dev, "failed to set default pdm clock rate\n");
 	}
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -284,27 +308,7 @@ static int clk_gp_mnd_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(gp->regmap),
 				     "failed to init regmap\n");
 
-	ret = of_property_read_string_index(dev->of_node,
-					    "clock-output-names", 0,
-					    &init.name);
-	if (ret)
-		return dev_err_probe(dev, ret, "missing clock-output-names\n");
-
 	gp->hw.init = &init;
-
-	pin = devm_pinctrl_get(dev);
-	if (IS_ERR(pin))
-		return dev_err_probe(dev, PTR_ERR(pin), "missing pinctrl device\n");
-
-	pin_default_state = pinctrl_lookup_state(pin, "active");
-	if (IS_ERR(pin_default_state))
-		return dev_err_probe(dev, PTR_ERR(pin_default_state),
-				     "missing pinctrl default state\n");
-
-	ret = pinctrl_select_state(pin, pin_default_state);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to select pinctrl default state\n");
 
 	ret = devm_clk_hw_register(dev, &gp->hw);
 	if (ret)
@@ -315,16 +319,21 @@ static int clk_gp_mnd_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id clk_gp_mnd_match_table[] = {
-	{ .compatible = "qcom,clk-gp-mnd" },
+	{ .compatible = "qcom,sc7280-gp-mnd" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_gp_mnd_match_table);
+
+static const struct dev_pm_ops clk_gp_mnd_pm_ops = {
+	SET_RUNTIME_PM_OPS(pm_clk_suspend, pm_clk_resume, NULL)
+};
 
 static struct platform_driver clk_gp_mnd_driver = {
 	.probe  = clk_gp_mnd_probe,
 	.driver = {
 		.name		= "qcom-clk-gp-mnd",
 		.of_match_table	= clk_gp_mnd_match_table,
+		.pm		= pm_ptr(&clk_gp_mnd_pm_ops),
 	},
 };
 module_platform_driver(clk_gp_mnd_driver);
