@@ -88,6 +88,8 @@
 #define PARF_DEVICE_TYPE			0x1000
 #define PARF_BDF_TO_SID_TABLE_N			0x2000
 #define PARF_BDF_TO_SID_CFG			0x2c00
+#define PARF_INT_ALL_3_MASK			0x2d8c
+#define PARF_INT_ALL_3_CLEAR			0x2d90
 
 /*
  * Outbound blocker range registers. The blocked range has a write pair
@@ -361,6 +363,8 @@ struct qcom_pcie_ops {
   * transactions from the controller.
   * @has_ext_parf_regs: Set if the PARF block implements the extended
   * register set used by qcom_pcie_dump_regs().
+  * @mask_int_all_3: Mask PARF_INT_ALL_3 events, which are unmasked by default
+  * and would otherwise keep the 'global' IRQ asserted
   */
 struct qcom_pcie_cfg {
 	const struct qcom_pcie_ops *ops;
@@ -369,6 +373,8 @@ struct qcom_pcie_cfg {
 	bool no_l0s;
 	bool noc_ensures_ordering;
 	bool has_ext_parf_regs;
+	bool disable_cgc;
+	bool mask_int_all_3;
 };
 
 struct qcom_pcie_perst {
@@ -1258,10 +1264,17 @@ err_disable_regulators:
 static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
 {
 	const struct qcom_pcie_cfg *pcie_cfg = pcie->cfg;
+	u32 val;
 
 	if (pcie_cfg->override_no_snoop)
 		writel(WR_NO_SNOOP_OVERRIDE_EN | RD_NO_SNOOP_OVERRIDE_EN,
 				pcie->parf + PARF_NO_SNOOP_OVERRIDE);
+
+	if (pcie_cfg->disable_cgc) {
+		val = readl(pcie->parf + PARF_SYS_CTRL);
+		val |= CORE_CLK_CGC_DIS | AUX_PWR_DET;
+		writel(val, pcie->parf + PARF_SYS_CTRL);
+	}
 
 	qcom_pcie_set_slot_cap(pcie->pci);
 	qcom_pcie_set_link_bw_notif_cap(pcie->pci);
@@ -1848,6 +1861,14 @@ static const struct qcom_pcie_cfg cfg_2_7_0 = {
 static const struct qcom_pcie_cfg cfg_2_9_0 = {
 	.ops = &ops_2_9_0,
 	.noc_ensures_ordering = true,
+};
+
+static const struct qcom_pcie_cfg cfg_nord = {
+	.ops = &ops_1_9_0,
+	.override_no_snoop = true,
+	.no_l0s = true,
+	.disable_cgc = true,
+	.mask_int_all_3 = true,
 };
 
 static const struct qcom_pcie_cfg cfg_sc8280xp = {
@@ -2454,6 +2475,22 @@ static int qcom_pcie_regdump_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static void qcom_pcie_enable_global_irq_events(struct qcom_pcie *pcie)
+{
+	/*
+	 * The PARF_INT_ALL_3 events (e.g. DRS_MSG_RECEIVED) are unmasked by
+	 * default, but not handled by the driver. Once latched, they keep the
+	 * level triggered 'global' IRQ asserted, so mask and clear them.
+	 */
+	if (pcie->cfg->mask_int_all_3) {
+		writel_relaxed(0, pcie->parf + PARF_INT_ALL_3_MASK);
+		writel_relaxed(~0U, pcie->parf + PARF_INT_ALL_3_CLEAR);
+	}
+
+	writel_relaxed(PARF_INT_ALL_LINK_DOWN | PARF_INT_MSI_DEV_0_7,
+		       pcie->parf + PARF_INT_ALL_MASK);
+}
+
 /*
  * Qcom PCIe controllers only support one Root Port per controller instance. So
  * this function ignores the 'pci_dev' associated with the Root Port and just
@@ -2511,8 +2548,7 @@ static int qcom_pcie_reset_root_port(struct pci_host_bridge *bridge,
 	 * non-sticky.
 	 */
 	if (pcie->global_irq)
-		writel_relaxed(PARF_INT_ALL_LINK_DOWN | PARF_INT_MSI_DEV_0_7,
-				pcie->parf + PARF_INT_ALL_MASK);
+		qcom_pcie_enable_global_irq_events(pcie);
 
 	qcom_pcie_start_link(pci);
 
@@ -3020,6 +3056,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 			goto err_host_deinit;
 		}
 
+		qcom_pcie_enable_global_irq_events(pcie);
+
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						qcom_pcie_global_irq_thread,
 						IRQF_ONESHOT, name, pcie);
@@ -3028,9 +3066,6 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				      "Failed to request Global IRQ\n");
 			goto err_host_deinit;
 		}
-
-		writel_relaxed(PARF_INT_ALL_LINK_DOWN | PARF_INT_MSI_DEV_0_7,
-				pcie->parf + PARF_INT_ALL_MASK);
 
 		pcie->global_irq = irq;
 	}
@@ -3202,6 +3237,7 @@ disable_icc_cpu:
 
 static const struct of_device_id qcom_pcie_match[] = {
 	{ .compatible = "qcom,hawi-pcie", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,nord-pcie", .data = &cfg_nord },
 	{ .compatible = "qcom,pcie-apq8064", .data = &cfg_2_1_0 },
 	{ .compatible = "qcom,pcie-apq8084", .data = &cfg_1_0_0 },
 	{ .compatible = "qcom,pcie-ipq4019", .data = &cfg_2_4_0 },
