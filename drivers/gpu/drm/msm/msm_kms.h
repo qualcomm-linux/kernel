@@ -23,6 +23,9 @@
  * for constructing the appropriate planes/crtcs/encoders/connectors.
  */
 struct msm_kms_funcs {
+	/* Optional component discovery before binding, replacing the DT graph walk. */
+	int (*add_components)(struct msm_kms *kms,
+			      struct component_match **matchptr);
 	/* hw initialization: */
 	int (*hw_init)(struct msm_kms *kms);
 	/* irq handling: */
