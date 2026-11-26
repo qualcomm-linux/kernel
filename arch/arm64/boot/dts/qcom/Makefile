@@ -605,6 +605,7 @@ lemans-draco-evk-camx-dtbs	:= lemans-draco-evk.dtb lemans-draco-evk-camx.dtbo
 lemans-draco-evk-el2-dtbs := lemans-draco-evk.dtb lemans-el2.dtbo
 
 lemans-draco-evk-hdmi-dual-dsi-dtbs := lemans-draco-evk.dtb lemans-draco-evk-hdmi-dual-dsi.dtbo
+lemans-draco-evk-dlc0697-dsi-dtbs := lemans-draco-evk.dtb lemans-draco-evk-dlc0697-dsi.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-camx.dtbo
@@ -619,6 +620,8 @@ lemans-draco-evk-camx-el2-dtbs    := lemans-draco-evk-el2.dtb lemans-draco-evk-c
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-camx-el2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-camx-el2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-dlc0697-dsi.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-dlc0697-dsi.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-staging.dtbo
 
