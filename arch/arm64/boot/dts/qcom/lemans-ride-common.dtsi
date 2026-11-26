@@ -582,8 +582,6 @@
 };
 
 &iris {
-	firmware-name = "qcom/vpu/vpu30_p4_s6.mbn";
-
 	status = "okay";
 };
 
@@ -798,6 +796,13 @@
 			  "GNSS_RST",
 			  "GNSS_EN",
 			  "GNSS_BOOT_MODE";
+};
+
+&psci {
+	reboot-mode {
+		mode-bootloader = <0x80010001 0x2>;
+		mode-edl = <0x80000000 0x1>;
+	};
 };
 
 &qupv3_id_1 {
