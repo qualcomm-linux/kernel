@@ -305,6 +305,7 @@
 		interrupts-extended = <&tlmm 86 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&usb0_intr_state>;
 		pinctrl-names = "default";
+		orientation-gpios = <0>, <&tlmm 104 GPIO_ACTIVE_HIGH>;
 		wakeup-source;
 
 		#address-cells = <1>;
