@@ -280,24 +280,25 @@ static const char * const nord_pciephy_port_a_vreg_l[] = {
 };
 
 static const char * const nord_pciephy_port_b_vreg_l[] = {
-	"vdda-phy-b", "vdda-pll-b",
+	"vdda-phy-a", "vdda-pll-a", "vdda-phy-b", "vdda-pll-b",
 };
 
 static const char * const nord_pciephy_port_c_vreg_l[] = {
-	"vdda-phy-c", "vdda-pll-c",
+	"vdda-phy-a", "vdda-pll-a", "vdda-phy-c", "vdda-pll-c",
 };
 
 static const char * const nord_pciephy_port_d_vreg_l[] = {
-	"vdda-phy-d", "vdda-pll-d",
+	"vdda-phy-a", "vdda-pll-a", "vdda-phy-d", "vdda-pll-d",
 };
 
 static const char * const nord_pciephy_port_cd_vreg_l[] = {
-	"vdda-phy-c", "vdda-pll-c", "vdda-phy-d", "vdda-pll-d",
+	"vdda-phy-a", "vdda-pll-a", "vdda-phy-c", "vdda-pll-c",
+	"vdda-phy-d", "vdda-pll-d",
 };
 
 static const char * const nord_pciephy_port_bcd_vreg_l[] = {
-	"vdda-phy-b", "vdda-pll-b", "vdda-phy-c", "vdda-pll-c",
-	"vdda-phy-d", "vdda-pll-d",
+	"vdda-phy-a", "vdda-pll-a", "vdda-phy-b", "vdda-pll-b",
+	"vdda-phy-c", "vdda-pll-c", "vdda-phy-d", "vdda-pll-d",
 };
 
 static const char * const nord_pciephy_port_abcd_vreg_l[] = {
