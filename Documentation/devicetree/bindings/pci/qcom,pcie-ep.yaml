@@ -18,6 +18,10 @@ properties:
           - qcom,sdx55-pcie-ep
           - qcom,sm8450-pcie-ep
       - items:
+          - enum:
+              - qcom,qcs8300-pcie-ep
+          - const: qcom,sa8775p-pcie-ep
+      - items:
           - const: qcom,sdx65-pcie-ep
           - const: qcom,sdx55-pcie-ep
 
