@@ -3106,6 +3106,11 @@
 		#power-domain-cells = <1>;
 	};
 
+	sram@c30f000 {
+		compatible = "qcom,rpmh-stats";
+		reg = <0x0 0x0c30f000 0x0 0x400>;
+	};
+
 	tcsrcc: clock-controller@f1d9000 {
 		compatible = "qcom,nord-tcsrcc",
 			     "syscon";
