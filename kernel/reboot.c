@@ -1123,6 +1123,13 @@ static const struct psc_reason_desc psc_reason_descs[] = {
 	[PSCR_XTAL_FAIL]	 = { "crystal-failure",	  POWER_ON_REASON_XTAL_FAIL },
 	[PSCR_KERNEL_PANIC]	 = { "kernel-panic",	  POWER_ON_REASON_KERNEL_PANIC },
 	[PSCR_WATCHDOG_PRETIMEOUT] = { "watchdog-pretimeout", POWER_ON_REASON_WATCHDOG_PRETIMEOUT },
+	[PSCR_KERNEL_WATCHDOG_HARDLOCKUP] = { "hardlockup",	  POWER_ON_REASON_HARD_LOCKUP },
+	[PSCR_KERNEL_WATCHDOG_SOFTLOCKUP] = { "softlockup",	  POWER_ON_REASON_SOFT_LOCKUP },
+	[PSCR_BOOTLOADER]	 = { "bootloader",	  POWER_ON_REASON_REBOOT_BOOTLOADER },
+	[PSCR_RECOVERY]		 = { "recovery",	  POWER_ON_REASON_REBOOT_RECOVERY },
+	[PSCR_OTA]		 = { "ota-update",	  POWER_ON_REASON_REBOOT_OTA },
+	[PSCR_EDL]		 = { "edl",		  POWER_ON_REASON_EDL },
+	[PSCR_FACTORY_RESET]	 = { "factory-reset",	  POWER_ON_REASON_REBOOT_FACTORY_RESET },
 };
 static_assert(ARRAY_SIZE(psc_reason_descs) == PSCR_REASON_COUNT,
 	      "psc_reason_descs[] must have an entry for every psc_reason");
@@ -1179,6 +1186,41 @@ int psc_reason_from_token(const char *token, enum psc_reason *reason)
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(psc_reason_from_token);
+
+/**
+ * psc_reason_from_reboot_cmd - Map a userspace reboot(2) command string to a
+ *				 power-state-change reason.
+ * @cmd: Command string passed via LINUX_REBOOT_CMD_RESTART2 (e.g.
+ *	 "bootloader", "recovery", "ota-update", "edl", "factory-reset"), or
+ *	 NULL.
+ *
+ * Return: The specific reason for a recognized command, or PSCR_SOFTWARE for
+ * an unrecognized or absent command.
+ */
+enum psc_reason psc_reason_from_reboot_cmd(const char *cmd)
+{
+	static const struct {
+		const char *cmd;
+		enum psc_reason reason;
+	} cmd_reasons[] = {
+		{ "bootloader", PSCR_BOOTLOADER },
+		{ "recovery",	PSCR_RECOVERY },
+		{ "ota-update", PSCR_OTA },
+		{ "edl",	PSCR_EDL },
+		{ "factory-reset", PSCR_FACTORY_RESET },
+	};
+	int i;
+
+	if (!cmd)
+		return PSCR_SOFTWARE;
+
+	for (i = 0; i < ARRAY_SIZE(cmd_reasons); i++)
+		if (!strcmp(cmd, cmd_reasons[i].cmd))
+			return cmd_reasons[i].reason;
+
+	return PSCR_SOFTWARE;
+}
+EXPORT_SYMBOL_GPL(psc_reason_from_reboot_cmd);
 
 /**
  * __hw_protection_trigger - Trigger an emergency system shutdown or reboot
