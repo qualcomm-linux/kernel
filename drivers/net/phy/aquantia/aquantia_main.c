@@ -684,12 +684,24 @@ static int aqr107_set_tunable(struct phy_device *phydev,
 #define AQR_FW_WAIT_SLEEP_US	20000
 #define AQR_FW_WAIT_TIMEOUT_US	2000000
 
+static bool aqr_need_provision_id_check(struct phy_device *phydev)
+{
+	return phy_id_compare(phydev->drv->phy_id, PHY_ID_AQR113,
+			      phydev->drv->phy_id_mask) ||
+	       phy_id_compare(phydev->drv->phy_id, PHY_ID_AQR113C,
+			      phydev->drv->phy_id_mask);
+}
+
 /* If we configure settings whilst firmware is still initializing the chip,
  * then these settings may be overwritten. Therefore make sure chip
  * initialization has completed. Use presence of the firmware ID as
  * indicator for initialization having completed.
  * The chip also provides a "reset completed" bit, but it's cleared after
  * read. Therefore function would time out if called again.
+ *
+ * On AQR113 and AQR113C, additionally wait for the provisioning ID to
+ * become non-zero, indicating that firmware provisioning is complete.
+ * Without this polling, link issue can be seen after phy boot.
  */
 int aqr_wait_reset_complete(struct phy_device *phydev)
 {
@@ -705,7 +717,26 @@ int aqr_wait_reset_complete(struct phy_device *phydev)
 		return val;
 	}
 
-	return ret;
+	if (ret)
+		return ret;
+
+	if (aqr_need_provision_id_check(phydev)) {
+		ret = read_poll_timeout(phy_read_mmd, val,
+					val < 0 ||
+					FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_PROV_ID, val),
+					AQR_FW_WAIT_SLEEP_US, AQR_FW_WAIT_TIMEOUT_US,
+					false, phydev, MDIO_MMD_VEND1,
+					VEND1_GLOBAL_RSVD_STAT1);
+		if (val < 0) {
+			phydev_err(phydev, "Failed to read VEND1_GLOBAL_RSVD_STAT1: %pe\n",
+				   ERR_PTR(val));
+			return val;
+		}
+		if (ret)
+			phydev_warn(phydev, "Firmware provisioning ID not ready\n");
+	}
+
+	return 0;
 }
 
 static int aqr_build_fingerprint(struct phy_device *phydev)
@@ -1097,6 +1128,24 @@ static int aqr111_get_features(struct phy_device *phydev)
 	return 0;
 }
 
+static int aqr113c_get_features(struct phy_device *phydev)
+{
+	/* AQR113C does not correctly report 10G in PMA extended abilities.
+	 * Build on aqr111_get_features() for 5G/2.5G and add 10G explicitly.
+	 */
+	int ret;
+
+	ret = aqr111_get_features(phydev);
+	if (ret)
+		return ret;
+
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 phydev->supported);
+
+	genphy_c45_read_eee_abilities(phydev);
+	return 0;
+}
+
 static int aqr_gen4_config_init(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
@@ -1447,6 +1496,7 @@ static struct phy_driver aqr_driver[] = {
 	.get_sset_count = aqr107_get_sset_count,
 	.get_strings    = aqr107_get_strings,
 	.get_stats      = aqr107_get_stats,
+	.get_features   = aqr113c_get_features,
 	.link_change_notify = aqr107_link_change_notify,
 	.led_brightness_set = aqr_phy_led_brightness_set,
 	.led_hw_is_supported = aqr_phy_led_hw_is_supported,
