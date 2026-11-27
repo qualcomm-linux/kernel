@@ -763,7 +763,6 @@ lemans-draco-evk-camx-el2-dtbs	:= lemans-draco-evk-el2.dtb lemans-draco-evk-camx
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-camx-el2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-camx-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-camx-el2.dtb
-dtb-$(CONFIG_ARCH_QCOM)	+= lemans-draco-evk-camx-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= lemans-evk-staging.dtbo
 
@@ -783,7 +782,6 @@ monaco-draco-evk-camx-el2-dtbs    := monaco-draco-evk-el2.dtb monaco-draco-evk-c
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-camx-el2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-camx-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-draco-evk-camx-el2.dtb
-dtb-$(CONFIG_ARCH_QCOM)	+= monaco-draco-evk-camx-el2.dtbo
 
 dtb-$(CONFIG_ARCH_QCOM)	+= monaco-evk-staging.dtbo
 
