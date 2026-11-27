@@ -10,7 +10,7 @@
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
-#include "lemans.dtsi"
+#include "lemans-embedded.dtsi"
 #include "lemans-pmics.dtsi"
 
 / {
@@ -56,7 +56,7 @@
 				reg = <0>;
 
 				usb0_con_hs_ep: endpoint {
-					remote-endpoint = <&usb_0_dwc3_hs>;
+					remote-endpoint = <&eud_con>;
 				};
 			};
 
@@ -208,6 +208,22 @@
 
 			cpu {
 				sound-dai = <&q6apmbedai TERTIARY_MI2S_TX>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		dp0-dai-link {
+			link-name = "DisplayPort0 Playback";
+
+			cpu {
+				sound-dai = <&q6apmbedai DISPLAY_PORT_RX_0>;
+			};
+
+			codec {
+				sound-dai = <&mdss0_dp0>;
 			};
 
 			platform {
@@ -607,6 +623,14 @@
 	};
 };
 
+&eud_ep {
+	remote-endpoint = <&usb_0_dwc3_hs>;
+};
+
+&eud_con {
+	remote-endpoint = <&usb0_con_hs_ep>;
+};
+
 &gpi_dma0 {
 	status = "okay";
 };
@@ -640,6 +664,8 @@
 
 		pinctrl-0 = <&usb_id>, <&usb0_intr_state>;
 		pinctrl-names = "default";
+
+		wakeup-source;
 
 		ports {
 			#address-cells = <1>;
@@ -912,6 +938,13 @@
 	};
 };
 
+&psci {
+	reboot-mode {
+		mode-bootloader = <0x80010001 0x2>;
+		mode-edl = <0x80000000 0x1>;
+	};
+};
+
 &qup_i2c19_default {
 	drive-strength = <2>;
 	bias-pull-up;
@@ -958,22 +991,6 @@
 
 &remoteproc_gpdsp1 {
 	firmware-name = "qcom/sa8775p/gpdsp1.mbn";
-
-	status = "okay";
-};
-
-&sdhc {
-	vmmc-supply = <&vmmc_sdc>;
-	vqmmc-supply = <&vreg_sdc>;
-
-	pinctrl-0 = <&sdc_default>, <&sd_cd>;
-	pinctrl-1 = <&sdc_sleep>, <&sd_cd>;
-	pinctrl-names = "default", "sleep";
-
-	bus-width = <4>;
-	cd-gpios = <&tlmm 36 GPIO_ACTIVE_LOW>;
-	no-mmc;
-	no-sdio;
 
 	status = "okay";
 };
@@ -1156,7 +1173,7 @@
 };
 
 &usb_0_dwc3_hs {
-	remote-endpoint = <&usb0_con_hs_ep>;
+	remote-endpoint = <&eud_ep>;
 };
 
 &usb_0_dwc3_ss {

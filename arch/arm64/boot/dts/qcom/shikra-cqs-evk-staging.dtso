@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	eth0_phy_vreg: regulator-eth0-phy {
+		compatible = "regulator-fixed";
+		regulator-name = "eth0_phy_pwr";
+
+		gpio = <&expander2 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+	};
+
+	eth1_phy_vreg: regulator-eth1-phy {
+		compatible = "regulator-fixed";
+		regulator-name = "eth1_phy_pwr";
+
+		gpio = <&expander2 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+	};
+};
+
+&pcie_port0 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	pcie@0,0 {
+		reg = <0x10000 0x0 0x0 0x0 0x0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges;
+		bus-range = <0x2 0xff>;
+		aspm-no-l1;
+		aspm-no-l0s;
+
+		pcie@3,0 {
+			reg = <0x21800 0x0 0x0 0x0 0x0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges;
+			bus-range = <0x5 0xff>;
+			aspm-no-l1;
+			aspm-no-l0s;
+
+			pci@0,0 {
+				reg = <0x50000 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+				aspm-no-l1;
+				aspm-no-l0s;
+
+				phy-mode = "sgmii";
+				phy-supply = <&eth0_phy_vreg>;
+				phy-reset-gpios = <&expander2 7 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <221000>;
+				qcom,phy-polling;
+			};
+
+			pci@0,1 {
+				reg = <0x50100 0x0 0x0 0x0 0x0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				device_type = "pci";
+				ranges;
+				aspm-no-l1;
+				aspm-no-l0s;
+
+				phy-mode = "sgmii";
+				phy-supply = <&eth1_phy_vreg>;
+				phy-reset-gpios = <&expander2 2 GPIO_ACTIVE_LOW>;
+				reset-deassert-us = <20000>;
+				qcom,phy-polling;
+			};
+		};
+	};
+};

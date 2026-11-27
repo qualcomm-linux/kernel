@@ -220,6 +220,7 @@ struct ath12k_hw_params {
 	u32 otp_board_id_register;
 
 	bool supports_sta_ps;
+	bool mlo_max_simul_links_by_num_radios;
 
 	const guid_t *acpi_guid;
 	bool supports_dynamic_smps_6ghz;

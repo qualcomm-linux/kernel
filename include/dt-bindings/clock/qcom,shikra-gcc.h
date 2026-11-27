@@ -222,6 +222,8 @@
 #define GCC_VIDEO_VENUS_CLK_SRC					212
 #define GCC_VIDEO_VENUS_CTL_CLK					213
 #define GCC_VIDEO_XO_CLK					214
+#define GCC_PWM0_XO512_CLK_SRC					215
+#define GCC_PDM_XO4_DIV_CLK_SRC					216
 
 /* GCC power domains */
 #define GCC_CAMSS_TOP_GDSC					0

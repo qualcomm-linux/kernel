@@ -24,6 +24,55 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	dp-connector-0 {
+		compatible = "dp-connector";
+		label = "DP0";
+		type = "full-size";
+
+		pinctrl-0 = <&usb0_dp_hpd_default>;
+		pinctrl-names = "default";
+
+		port {
+			dp0_connector_in: endpoint {
+				remote-endpoint = <&usb_1_ss0_qmpphy_out_dp>;
+			};
+		};
+	};
+
+	dp-connector-1 {
+		compatible = "dp-connector";
+		label = "DP1";
+		type = "full-size";
+
+		pinctrl-0 = <&usb1_dp_hpd_default>;
+		pinctrl-names = "default";
+
+		port {
+			dp1_connector_in: endpoint {
+				remote-endpoint = <&usb_1_ss1_qmpphy_out_dp>;
+			};
+		};
+	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dp0 {
+	status = "okay";
+};
+
+&mdss_dp0_out {
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
+};
+
+&mdss_dp1 {
+	status = "okay";
+};
+
+&mdss_dp1_out {
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
 };
 
 &pcie3_port0 {
@@ -112,8 +161,80 @@
 	};
 };
 
+&tlmm {
+	usb0_dp_hpd_default: usb0-dp-hpd-default-state {
+		pins = "gpio122";
+		function = "usb0_dp";
+		bias-disable;
+	};
+
+	usb1_dp_hpd_default: usb1-dp-hpd-default-state {
+		pins = "gpio124";
+		function = "usb1_dp";
+		bias-disable;
+	};
+};
+
 &uart21 {
 	compatible = "qcom,geni-debug-uart";
 
 	status = "okay";
+};
+
+&usb_1_ss0 {
+	phys = <&usb_1_ss0_hsphy>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
+
+	qcom,select-utmi-as-pipe-clk;
+};
+
+&usb_1_ss0_qmpphy {
+	/delete-property/ mode-switch;
+	/delete-property/ orientation-switch;
+
+	ports {
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/delete-node/ endpoint;
+
+			usb_1_ss0_qmpphy_out_dp: endpoint@0 {
+				reg = <0>;
+
+				data-lanes = <3 2 1 0>;
+				remote-endpoint = <&dp0_connector_in>;
+			};
+		};
+	};
+};
+
+&usb_1_ss1 {
+	phys = <&usb_1_ss1_hsphy>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
+
+	qcom,select-utmi-as-pipe-clk;
+};
+
+&usb_1_ss1_qmpphy {
+	/delete-property/ mode-switch;
+	/delete-property/ orientation-switch;
+
+	ports {
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/delete-node/ endpoint;
+
+			usb_1_ss1_qmpphy_out_dp: endpoint@0 {
+				reg = <0>;
+
+				data-lanes = <3 2 1 0>;
+				remote-endpoint = <&dp1_connector_in>;
+			};
+		};
+	};
 };

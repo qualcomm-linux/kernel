@@ -26,6 +26,10 @@ enum {
 };
 
 enum {
+	DT_ICC_TOP_GDSC,
+};
+
+enum {
 	P_BI_TCXO,
 	P_BI_TCXO_AO,
 	P_CAM_CC_PLL0_OUT_EVEN,
@@ -2432,6 +2436,8 @@ static struct gdsc cam_cc_titan_top_gdsc = {
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = POLL_CFG_GDSCR | RETAIN_FF_ENABLE,
+	.needs_icc = true,
+	.icc_path_index = DT_ICC_TOP_GDSC,
 };
 
 static struct gdsc cam_cc_ipe_0_gdsc = {

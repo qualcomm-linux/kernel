@@ -78,6 +78,26 @@ properties:
       - const: pci # PCIe core reset
       - const: link_down # PCIe link down reset
 
+  qcom,pcie-recalibration-thermal-zones:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 1
+    maxItems: 16
+    items:
+      items:
+        - description:
+            Phandle to a thermal zone corresponding to the sensor used to
+            monitor the PHY temperature drift.
+        - description:
+            Temperature drift this zone is allowed to accumulate before the
+            PHY needs a fresh calibration, in millidegree Celsius.
+          minimum: 1000
+          maximum: 100000
+    description:
+      Thermal zones whose sensors track the PCIe PHY temperature, along with
+      the temperature drift each zone is allowed to accumulate before the PHY
+      needs a fresh calibration. Applies to PCIe instances that rely on
+      periodic PHY recalibration to maintain stable link operation.
+
 required:
   - power-domains
   - resets
@@ -85,6 +105,17 @@ required:
 
 allOf:
   - $ref: qcom,pcie-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,glymur-pcie
+    then:
+      properties:
+        qcom,pcie-recalibration-thermal-zones: true
+    else:
+      properties:
+        qcom,pcie-recalibration-thermal-zones: false
 
 unevaluatedProperties: false
 

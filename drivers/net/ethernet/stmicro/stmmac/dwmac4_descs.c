@@ -102,7 +102,9 @@ static int dwmac4_wrback_get_rx_status(struct stmmac_extra_stats *x,
 		if (unlikely(rdes3 & RDES3_DRIBBLE_ERROR))
 			x->dribbling_bit++;
 
-		ret = discard_frame;
+		if ((rdes3 & RDES3_ERROR_SUMMARY_MASK) !=
+		    RDES3_DRIBBLE_ERROR)
+			ret = discard_frame;
 	}
 
 	message_type = FIELD_GET(RDES1_PTP_MSG_TYPE_MASK, rdes1);

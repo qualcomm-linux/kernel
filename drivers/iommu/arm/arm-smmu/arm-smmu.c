@@ -286,6 +286,9 @@ static void arm_smmu_tlb_inv_range_s1(unsigned long iova, size_t size,
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
 	int idx = cfg->cbndx;
 
+	if (cfg->force_min_tlbival_granule)
+		granule = 1UL << __ffs(smmu_domain->domain.pgsize_bitmap);
+
 	if (smmu->features & ARM_SMMU_FEAT_COHERENT_WALK)
 		wmb();
 
@@ -1274,6 +1277,11 @@ static int arm_smmu_map_pages(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return -ENODEV;
 
+	/* Non-coherent walkers cannot safely use cacheable page-table attributes. */
+	if (smmu->impl && smmu->impl->prot_mask &&
+	    !(smmu->features & ARM_SMMU_FEAT_COHERENT_WALK))
+		prot &= ~smmu->impl->prot_mask;
+
 	arm_smmu_rpm_get(smmu);
 	ret = ops->map_pages(ops, iova, paddr, pgsize, pgcount, prot, gfp, mapped);
 	arm_smmu_rpm_put(smmu);
@@ -1397,7 +1405,7 @@ static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
 	return ops->iova_to_phys(ops, iova);
 }
 
-static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
+bool arm_smmu_capable_default(struct device *dev, enum iommu_cap cap)
 {
 	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
 
@@ -1418,6 +1426,17 @@ static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
 		return false;
 	}
 }
+
+bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
+{
+	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
+
+	if (cfg->smmu->impl && cfg->smmu->impl->capable)
+		return cfg->smmu->impl->capable(dev, cap);
+
+	return arm_smmu_capable_default(dev, cap);
+}
+EXPORT_SYMBOL_GPL(arm_smmu_capable);
 
 static
 struct arm_smmu_device *arm_smmu_get_by_fwnode(struct fwnode_handle *fwnode)
@@ -2183,6 +2202,14 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	if (smmu->impl && smmu->impl->runtime_resume) {
+		err = smmu->impl->runtime_resume(smmu);
+		if (err) {
+			clk_bulk_disable_unprepare(smmu->num_clks, smmu->clks);
+			return err;
+		}
+	}
+
 	err = arm_smmu_device_cfg_probe(smmu);
 	if (err)
 		return err;
@@ -2265,8 +2292,11 @@ static void arm_smmu_device_shutdown(struct platform_device *pdev)
 
 	if (pm_runtime_enabled(smmu->dev))
 		pm_runtime_force_suspend(smmu->dev);
-	else
+	else {
 		clk_bulk_disable(smmu->num_clks, smmu->clks);
+		if (smmu->impl && smmu->impl->runtime_suspend)
+			smmu->impl->runtime_suspend(smmu);
+	}
 
 	clk_bulk_unprepare(smmu->num_clks, smmu->clks);
 }
@@ -2286,9 +2316,18 @@ static int __maybe_unused arm_smmu_runtime_resume(struct device *dev)
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
 	int ret;
 
+	if (smmu->impl && smmu->impl->runtime_resume) {
+		ret = smmu->impl->runtime_resume(smmu);
+		if (ret)
+			return ret;
+	}
+
 	ret = clk_bulk_enable(smmu->num_clks, smmu->clks);
-	if (ret)
+	if (ret) {
+		if (smmu->impl && smmu->impl->runtime_suspend)
+			smmu->impl->runtime_suspend(smmu);
 		return ret;
+	}
 
 	arm_smmu_device_reset(smmu);
 
@@ -2300,6 +2339,9 @@ static int __maybe_unused arm_smmu_runtime_suspend(struct device *dev)
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
 
 	clk_bulk_disable(smmu->num_clks, smmu->clks);
+
+	if (smmu->impl && smmu->impl->runtime_suspend)
+		return smmu->impl->runtime_suspend(smmu);
 
 	return 0;
 }

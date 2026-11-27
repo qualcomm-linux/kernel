@@ -286,6 +286,7 @@ struct sdhci_msm_host {
 	/* core, iface, cal and sleep clocks */
 	struct clk_bulk_data bulk_clks[4];
 #ifdef CONFIG_MMC_CRYPTO
+	struct clk *ice_clk;	/* ICE clock */
 	struct qcom_ice *ice;
 #endif
 	unsigned long clk_rate;
@@ -1902,6 +1903,16 @@ out:
 
 static const struct blk_crypto_ll_ops sdhci_msm_crypto_ops; /* forward decl */
 
+static int sdhci_msm_ice_scale_clk(struct sdhci_msm_host *msm_host,
+				   unsigned long target_freq,
+				   bool round_ceil)
+{
+	if (msm_host->mmc->caps2 & MMC_CAP2_CRYPTO)
+		return qcom_ice_scale_clk(msm_host->ice, target_freq, round_ceil);
+
+	return 0;
+}
+
 static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 			      struct cqhci_host *cq_host)
 {
@@ -1927,6 +1938,12 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 	}
 
 	msm_host->ice = ice;
+
+	err = qcom_ice_enable(msm_host->ice);
+	if (err) {
+		dev_err(dev, "%s: failed to enable ICE: %d\n", __func__, err);
+		return err;
+	}
 
 	/* Initialize the blk_crypto_profile */
 
@@ -1960,13 +1977,12 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 
 	mmc->caps2 |= MMC_CAP2_CRYPTO;
 	mmc->caps2 |= MMC_CAP2_CRYPTO_NO_REPROG;
-	return 0;
-}
 
-static void sdhci_msm_ice_enable(struct sdhci_msm_host *msm_host)
-{
-	if (msm_host->mmc->caps2 & MMC_CAP2_CRYPTO)
-		qcom_ice_enable(msm_host->ice);
+	err = sdhci_msm_ice_scale_clk(msm_host, ULONG_MAX, false);
+	if (err && err != -EOPNOTSUPP)
+		dev_warn(dev, "Unable to boost ICE clock to TURBO\n");
+
+	return 0;
 }
 
 static int sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
@@ -2141,10 +2157,6 @@ static inline int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 	return 0;
 }
 
-static inline void sdhci_msm_ice_enable(struct sdhci_msm_host *msm_host)
-{
-}
-
 static inline int
 sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
 {
@@ -2159,6 +2171,13 @@ sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
 
 static inline void sdhci_msm_ice_restore(struct sdhci_host *host)
 {
+}
+
+static inline int
+sdhci_msm_ice_scale_clk(struct sdhci_msm_host *msm_host, unsigned long target_freq,
+			bool round_ceil)
+{
+	return 0;
 }
 #endif /* !CONFIG_MMC_CRYPTO */
 
@@ -2182,12 +2201,7 @@ static u32 sdhci_msm_cqe_irq(struct sdhci_host *host, u32 intmask)
 
 static void sdhci_msm_cqe_enable(struct mmc_host *mmc)
 {
-	struct sdhci_host *host = mmc_priv(mmc);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
-
 	sdhci_cqe_enable(mmc);
-	sdhci_msm_ice_enable(msm_host);
 }
 
 static void sdhci_msm_cqe_disable(struct mmc_host *mmc, bool recovery)
@@ -2713,6 +2727,17 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
+
+#ifdef CONFIG_MMC_CRYPTO
+	/* Setup ICE clock */
+	msm_host->ice_clk = devm_clk_get(&pdev->dev, "ice");
+	if (!IS_ERR(msm_host->ice_clk)) {
+		/* Vote for max. clk rate for max. performance */
+		ret = clk_set_rate(msm_host->ice_clk, INT_MAX);
+		if (ret)
+			dev_err(&pdev->dev, "ice clk set rate failed (%d)\n", ret);
+	}
+#endif
 
 	/* Setup main peripheral bus clock */
 	clk = devm_clk_get(&pdev->dev, "iface");

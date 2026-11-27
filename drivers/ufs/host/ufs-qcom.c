@@ -157,13 +157,15 @@ static void ufs_qcom_config_ice_allocator(struct ufs_qcom_host *host)
 	ufshcd_writel(hba, config, REG_UFS_MEM_ICE_NUM_CORE);
 }
 
-static inline void ufs_qcom_ice_enable(struct ufs_qcom_host *host)
+static const struct blk_crypto_ll_ops ufs_qcom_crypto_ops; /* forward decl */
+
+static inline int ufs_qcom_ice_enable(struct ufs_qcom_host *host)
 {
 	if (host->hba->caps & UFSHCD_CAP_CRYPTO)
-		qcom_ice_enable(host->ice);
-}
+		return qcom_ice_enable(host->ice);
 
-static const struct blk_crypto_ll_ops ufs_qcom_crypto_ops; /* forward decl */
+	return 0;
+}
 
 static int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 {
@@ -186,6 +188,12 @@ static int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 	}
 
 	host->ice = ice;
+
+	err = qcom_ice_enable(host->ice);
+	if (err) {
+		dev_err(dev, "Failed to enable ICE: %d\n", err);
+		return err;
+	}
 
 	/* Initialize the blk_crypto_profile */
 
@@ -306,6 +314,15 @@ static int ufs_qcom_ice_prepare_key(struct blk_crypto_profile *profile,
 	return qcom_ice_prepare_key(host->ice, lt_key, lt_key_size, eph_key);
 }
 
+static int ufs_qcom_ice_scale_clk(struct ufs_qcom_host *host, unsigned long target_freq,
+				  bool round_ceil)
+{
+	if (host->hba->caps & UFSHCD_CAP_CRYPTO)
+		return qcom_ice_scale_clk(host->ice, target_freq, round_ceil);
+
+	return 0;
+}
+
 static const struct blk_crypto_ll_ops ufs_qcom_crypto_ops = {
 	.keyslot_program	= ufs_qcom_ice_keyslot_program,
 	.keyslot_evict		= ufs_qcom_ice_keyslot_evict,
@@ -317,11 +334,12 @@ static const struct blk_crypto_ll_ops ufs_qcom_crypto_ops = {
 
 #else
 
-static inline void ufs_qcom_ice_enable(struct ufs_qcom_host *host)
+static int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 {
+	return 0;
 }
 
-static int ufs_qcom_ice_init(struct ufs_qcom_host *host)
+static inline int ufs_qcom_ice_enable(struct ufs_qcom_host *host)
 {
 	return 0;
 }
@@ -338,6 +356,12 @@ static inline int ufs_qcom_ice_suspend(struct ufs_qcom_host *host)
 
 static void ufs_qcom_config_ice_allocator(struct ufs_qcom_host *host)
 {
+}
+
+static int ufs_qcom_ice_scale_clk(struct ufs_qcom_host *host, unsigned long target_freq,
+				  bool round_ceil)
+{
+	return 0;
 }
 
 #endif
@@ -374,7 +398,6 @@ static int ufs_qcom_enable_lane_clks(struct ufs_qcom_host *host)
 		goto out_disable_rx_lane0;
 
 	host->is_lane_clks_enabled = true;
-
 	return 0;
 
 out_disable_rx_lane0:
@@ -635,12 +658,15 @@ static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba,
 		 * is initialized.
 		 */
 		err = ufs_qcom_enable_lane_clks(host);
+		if (err)
+			return err;
+
+		err = ufs_qcom_ice_enable(host);
 		break;
 	case POST_CHANGE:
 		/* check if UFS PHY moved from DISABLED to HIBERN8 */
 		err = ufs_qcom_check_hibern8(hba);
 		ufs_qcom_enable_hw_clk_gating(hba);
-		ufs_qcom_ice_enable(host);
 		ufs_qcom_config_ice_allocator(host);
 		break;
 	default:
@@ -659,10 +685,9 @@ static int ufs_qcom_fw_managed_hce_enable_notify(struct ufs_hba *hba,
 	switch (status) {
 	case PRE_CHANGE:
 		ufs_qcom_select_unipro_mode(host);
-		break;
+		return ufs_qcom_ice_enable(host);
 	case POST_CHANGE:
 		ufs_qcom_enable_hw_clk_gating(hba);
-		ufs_qcom_ice_enable(host);
 		break;
 	default:
 		dev_err(hba->dev, "Invalid status %d\n", status);
@@ -810,9 +835,17 @@ static int ufs_qcom_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 	if (!ufs_qcom_is_link_active(hba))
 		ufs_qcom_disable_lane_clks(host);
 
-
-	/* reset the connected UFS device during power down */
-	if (ufs_qcom_is_link_off(hba) && host->device_reset) {
+	/*
+	 * For some UFS vendors, skip asserting device reset here.
+	 * These vendor parts keep drawing larger current after reset
+	 * is asserted until it is deasserted, and the 10ms delay is
+	 * not sufficient to prevent OCP (Over Current Protection)
+	 * on the regulator. This is for the powerdown case, so
+	 * the device reset can be asserted later as part of the
+	 * platform shutdown sequence.
+	 */
+	if (ufs_qcom_is_link_off(hba) && host->device_reset &&
+	    !(hba->quirks & UFSHCD_QUIRK_SKIP_DEVICE_RESET)) {
 		ufs_qcom_device_reset_ctrl(hba, true);
 		/*
 		 * After sending the SSU command, asserting the rst_n
@@ -1328,6 +1361,19 @@ static struct ufs_dev_quirk ufs_qcom_dev_fixups[] = {
 static void ufs_qcom_fixup_dev_quirks(struct ufs_hba *hba)
 {
 	ufshcd_fixup_dev_quirks(hba, ufs_qcom_dev_fixups);
+
+	/*
+	 * Some UFS parts keep drawing larger current after reset is asserted
+	 * until it is deasserted. The 10ms delay added after asserting HWRST
+	 * (as done for other vendors) is not sufficient for these parts.
+	 *
+	 * Skip asserting device reset during UFS power down for these parts
+	 * to prevent OCP (Over Current Protection) fault on the regulator.
+	 * This is handled only in shutdown; the device reset will be asserted
+	 * as part of the platform shutdown sequence.
+	 */
+	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_MICRON)
+		hba->quirks |= UFSHCD_QUIRK_SKIP_DEVICE_RESET;
 }
 
 static u32 ufs_qcom_get_ufs_hci_version(struct ufs_hba *hba)
@@ -1986,6 +2032,12 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba, bool scale_up,
 			return err;
 		}
 
+		err = ufs_qcom_ice_scale_clk(host, target_freq, !scale_up);
+		if (err && err != -EOPNOTSUPP) {
+			ufshcd_uic_hibern8_exit(hba);
+			return err;
+		}
+
 		ufs_qcom_icc_update_bw(host);
 		ufshcd_uic_hibern8_exit(hba);
 	}
@@ -2505,8 +2557,9 @@ static unsigned long ufs_qcom_opp_freq_to_clk_freq(struct ufs_hba *hba,
 	bool found = false;
 
 	opp = dev_pm_opp_find_freq_exact_indexed(hba->dev, freq, 0, true);
-	if (IS_ERR(opp)) {
-		dev_err(hba->dev, "Failed to find OPP for exact frequency %lu\n", freq);
+	if (IS_ERR_OR_NULL(opp)) {
+		dev_err(hba->dev, "%s: Failed to find OPP for exact frequency %lu\n",
+			__func__, freq);
 		return 0;
 	}
 
@@ -2534,12 +2587,32 @@ static unsigned long ufs_qcom_opp_freq_to_clk_freq(struct ufs_hba *hba,
 
 static u32 ufs_qcom_freq_to_gear_speed(struct ufs_hba *hba, unsigned long freq)
 {
-	u32 gear = UFS_HS_DONT_CHANGE;
+	struct dev_pm_opp *opp;
 	unsigned long unipro_freq;
+	u32 gear = UFS_HS_DONT_CHANGE;
 
 	if (!hba->use_pm_opp)
 		return gear;
 
+	opp = dev_pm_opp_find_freq_exact_indexed(hba->dev, freq, 0, true);
+	if (IS_ERR_OR_NULL(opp)) {
+		dev_err(hba->dev, "%s: Failed to find OPP for exact frequency %lu\n",
+			__func__, freq);
+		return gear;
+	}
+
+	/* Get HS gear speed from 'opp-level' */
+	gear = dev_pm_opp_get_level(opp);
+	dev_pm_opp_put(opp);
+
+	/*
+	 * Greater than max gear means that there is no specified gear configured in DT
+	 * or the specified gear is invalid.
+	 */
+	if (gear <= hba->max_pwr_info.info.gear_rx)
+		return gear;
+
+	gear = UFS_HS_DONT_CHANGE;
 	unipro_freq = ufs_qcom_opp_freq_to_clk_freq(hba, freq, "core_clk_unipro");
 	switch (unipro_freq) {
 	case 403000000:
@@ -2560,7 +2633,8 @@ static u32 ufs_qcom_freq_to_gear_speed(struct ufs_hba *hba, unsigned long freq)
 		gear = UFS_HS_G1;
 		break;
 	default:
-		dev_err(hba->dev, "%s: Unsupported clock freq : %lu\n", __func__, freq);
+		dev_err(hba->dev, "%s: Unsupported clock freq [sys_clk: %lu, unipro_clk: %lu]\n",
+			__func__, freq, unipro_freq);
 		return UFS_HS_DONT_CHANGE;
 	}
 

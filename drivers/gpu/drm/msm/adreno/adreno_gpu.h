@@ -88,6 +88,19 @@ struct adreno_reglist {
 	u32 value;
 };
 
+struct adreno_regpair_list {
+	/** @regs: List of register offset and value pairs **/
+	const struct adreno_reglist *regs;
+	/** @count: Number of registers in the list **/
+	u32 count;
+};
+
+#define DECLARE_ADRENO_REGPAIR_LIST(name)	\
+static const struct adreno_regpair_list name = {		\
+	.regs = name ## _regs,				\
+	.count = ARRAY_SIZE(name ## _regs),		\
+}
+
 /* Reglist with pipe information */
 struct adreno_reglist_pipe {
 	u32 offset;
@@ -129,6 +142,11 @@ struct adreno_info {
 	 */
 	struct adreno_speedbin *speedbins;
 	u64 preempt_record_size;
+	/**
+	 * @aperture_reglist: Optional GPU aperture register values. Used if
+	 * the secure world does not program the aperture.
+	 */
+	const struct adreno_regpair_list *aperture_reglist;
 };
 
 #define ADRENO_CHIP_IDS(tbl...) (uint32_t[]) { tbl, 0 }
@@ -249,6 +267,9 @@ struct adreno_gpu {
 	bool gmu_is_wrapper;
 
 	bool has_ray_tracing;
+
+	/* GPU aperture, if the driver may need to program it */
+	void __iomem *aperture;
 
 	u64 uche_trap_base;
 };
@@ -559,6 +580,11 @@ static inline int adreno_is_a750(struct adreno_gpu *gpu)
 	return gpu->info->chip_ids[0] == 0x43051401;
 }
 
+static inline int adreno_is_a753(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x43051701;
+}
+
 static inline int adreno_is_x185(struct adreno_gpu *gpu)
 {
 	return gpu->info->chip_ids[0] == 0x43050c01;
@@ -678,6 +704,8 @@ int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state);
 int adreno_gpu_state_put(struct msm_gpu_state *state);
 void adreno_show_object(struct drm_printer *p, void **ptr, int len,
 		bool *encoded);
+void adreno_gmu_register(void);
+void adreno_gmu_unregister(void);
 
 /*
  * Common helper function to initialize the default address space for arm-smmu
