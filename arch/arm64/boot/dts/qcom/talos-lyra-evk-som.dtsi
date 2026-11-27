@@ -380,8 +380,6 @@
 };
 
 &pcie {
-	wake-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
-
 	iommu-map = <0x0 &apps_smmu 0x400 0x1>,
 		    <0x100 &apps_smmu 0x401 0x1>,
 		    <0x208 &apps_smmu 0x402 0x1>,
@@ -393,6 +391,10 @@
 		    <0x501 &apps_smmu 0x408 0x1>;
 
 	status = "okay";
+};
+
+&pcie_port0 {
+	wake-gpios = <&tlmm 100 GPIO_ACTIVE_LOW>;
 };
 
 &pcie_phy {
