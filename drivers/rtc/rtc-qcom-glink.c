@@ -311,9 +311,11 @@ static int qcom_rtc_glink_set_time(struct qcom_rtc_glink *rtc_glink,
 static int qcom_rtc_glink_set_alarm_en(struct qcom_rtc_glink *rtc_glink,
 				       int enabled)
 {
-	return qcom_rtc_glink_set_property(rtc_glink,
-					   QCOM_RTC_GLINK_ALARM_ENABLE,
-					   enabled);
+	if (!enabled)
+		return qcom_rtc_glink_set_property(rtc_glink,
+						   QCOM_RTC_GLINK_ALARM_ENABLE,
+						   U32_MAX);
+	return 0;
 }
 
 static int qcom_rtc_glink_set_alarm(struct qcom_rtc_glink *rtc_glink,
@@ -322,7 +324,7 @@ static int qcom_rtc_glink_set_alarm(struct qcom_rtc_glink *rtc_glink,
 	time64_t alarm_t = rtc_tm_to_time64(&alarm->time);
 	struct rtc_time now_tm;
 	time64_t now_real, secs_until_alarm;
-	u32 fw_current, fw_alarm;
+	u32 fw_alarm;
 	int ret;
 
 	ret = qcom_rtc_glink_get_time(rtc_glink, &now_tm);
@@ -338,35 +340,19 @@ static int qcom_rtc_glink_set_alarm(struct qcom_rtc_glink *rtc_glink,
 	if (secs_until_alarm > U32_MAX)
 		return -ERANGE;
 
-	ret = qcom_rtc_glink_get_property(rtc_glink, QCOM_RTC_GLINK_TIME,
-					  &fw_current);
-	if (ret)
-		return ret;
-	if (fw_current == U32_MAX)
-		fw_current = 0;
-	fw_alarm = fw_current + (u32)secs_until_alarm;
-	dev_dbg(rtc_glink->dev,
-		"set_alarm: fw_current=%u fw_alarm=%u\n",
-		fw_current, fw_alarm);
+	fw_alarm = alarm->enabled ? (u32)secs_until_alarm : U32_MAX;
+	dev_dbg(rtc_glink->dev, "set_alarm: fw_alarm=%u\n", fw_alarm);
 
-	ret = qcom_rtc_glink_set_alarm_en(rtc_glink, 0);
-	if (ret)
-		return ret;
-
-	ret = qcom_rtc_glink_set_property(rtc_glink,
-					  QCOM_RTC_GLINK_ALARM_TIME, fw_alarm);
-	if (ret)
-		return ret;
-
-	return qcom_rtc_glink_set_alarm_en(rtc_glink, alarm->enabled);
+	return qcom_rtc_glink_set_property(rtc_glink, QCOM_RTC_GLINK_ALARM_ENABLE,
+					   fw_alarm);
 }
 
 static int qcom_rtc_glink_get_alarm(struct qcom_rtc_glink *rtc_glink,
 				    struct rtc_wkalrm *alarm)
 {
-	u32 fw_alarm_time, fw_current, alarm_en;
+	u32 fw_alarm_time;
 	struct rtc_time now_tm;
-	time64_t now_real, secs_until_alarm, alarm_real;
+	time64_t now_real, alarm_real;
 	int ret;
 
 	ret = qcom_rtc_glink_get_property(rtc_glink,
@@ -375,30 +361,17 @@ static int qcom_rtc_glink_get_alarm(struct qcom_rtc_glink *rtc_glink,
 	if (ret)
 		return ret;
 
-	ret = qcom_rtc_glink_get_property(rtc_glink, QCOM_RTC_GLINK_TIME,
-					  &fw_current);
-	if (ret)
-		return ret;
-
-	ret = qcom_rtc_glink_get_property(rtc_glink,
-					  QCOM_RTC_GLINK_ALARM_ENABLE,
-					  &alarm_en);
-	if (ret)
-		return ret;
-	if (fw_current == U32_MAX)
-		fw_current = 0;
-
 	ret = qcom_rtc_glink_get_time(rtc_glink, &now_tm);
 	if (ret)
 		return ret;
 	now_real = rtc_tm_to_time64(&now_tm);
-	secs_until_alarm = (time64_t)fw_alarm_time - (time64_t)fw_current;
-	alarm_real = now_real + secs_until_alarm;
+
+	alarm->enabled = (fw_alarm_time != U32_MAX);
+	alarm_real = now_real + (alarm->enabled ? (time64_t)fw_alarm_time : 0);
 	dev_dbg(rtc_glink->dev,
-		"get_alarm: now_real=%lld fw_current=%u fw_alarm=%u delta=%lld\n",
-		now_real, fw_current, fw_alarm_time, secs_until_alarm);
+		"get_alarm: now_real=%lld fw_alarm=%u enabled=%d\n",
+		now_real, fw_alarm_time, alarm->enabled);
 	rtc_time64_to_tm(alarm_real, &alarm->time);
-	alarm->enabled = !!alarm_en;
 	return 0;
 }
 
