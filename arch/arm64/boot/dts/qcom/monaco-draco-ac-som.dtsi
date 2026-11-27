@@ -5,6 +5,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
 
 #include "monaco.dtsi"
 #include "monaco-pmics.dtsi"
@@ -299,13 +300,6 @@
 	status = "okay";
 };
 
-&usb_qmpphy {
-	vdda-phy-supply = <&vreg_l7a>;
-	vdda-pll-supply = <&vreg_l5a>;
-
-	status = "okay";
-};
-
 &usb_2 {
 	status = "okay";
 };
@@ -314,6 +308,13 @@
 	vdda-pll-supply = <&vreg_l7a>;
 	vdda18-supply = <&vreg_l7c>;
 	vdda33-supply = <&vreg_l9a>;
+
+	status = "okay";
+};
+
+&usb_qmpphy {
+	vdda-phy-supply = <&vreg_l7a>;
+	vdda-pll-supply = <&vreg_l5a>;
 
 	status = "okay";
 };
