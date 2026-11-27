@@ -7,6 +7,7 @@
 
 / {
 	aliases {
+		i2c8 = &i2c8;
 		serial0 = &uart13;
 	};
 
@@ -207,6 +208,27 @@
 			};
 		};
 	};
+
+	hdmi_0_connector: hdmi-0-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_0_connector_out: endpoint {
+				remote-endpoint = <&hdmi_bridge_out>;
+			};
+		};
+	};
+
+	vreg_disp_3p3: regulator-disp-3p3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_disp_3p3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pm8550vs_g_gpios 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 };
 
 &i2c4 {
@@ -222,6 +244,45 @@
 		#gpio-cells = <2>;
 		gpio-controller;
 		reg = <0x3c>;
+	};
+};
+
+&i2c8 {
+	status = "okay";
+
+	hdmi_bridge: hdmi-bridge@41 {
+		compatible = "lontium,lt9611uxd";
+		reg = <0x41>;
+
+		interrupts-extended = <&tlmm 13 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 16 GPIO_ACTIVE_LOW>;
+
+		vcc-supply = <&vreg_disp_3p3>;
+		vdd-supply = <&vreg_l8b>;
+
+		pinctrl-0 = <&bridge_irq_pin>, <&bridge_rst_pin>;
+		pinctrl-names = "default";
+
+		hdmi_bridge_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				hdmi_bridge_in: endpoint {
+					remote-endpoint = <&mdss_dsi0_out>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+
+				hdmi_bridge_out: endpoint {
+					remote-endpoint = <&hdmi_0_connector_out>;
+				};
+			};
+		};
 	};
 };
 
@@ -496,6 +557,18 @@
 };
 
 &tlmm {
+	bridge_irq_pin: bridge-irq-state {
+		pins = "gpio13";
+		function = "gpio";
+		bias-disable;
+	};
+
+	bridge_rst_pin: bridge-rst-state {
+		pins = "gpio16";
+		function = "gpio";
+		bias-disable;
+	};
+
 	m2_w_disable1: m2-w-disable1-state {
 		pins = "gpio35";
 		function = "gpio";
@@ -521,5 +594,22 @@
 };
 
 &mdss_dp0 {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l4b>;
+
+	status = "okay";
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&hdmi_bridge_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l2b>;
+
 	status = "okay";
 };
