@@ -22,4 +22,14 @@ config INTERCONNECT_CLK
 	help
 	  Support for wrapping clocks into the interconnect nodes.
 
+config INTERCONNECT_BW_LIMIT
+	bool "Interconnect bandwidth limiter sysfs interface"
+	default y
+	help
+	  Expose sysfs nodes per interconnect path that allow userspace to
+	  place upper bandwidth limits on client voting.
+
+	  This interface is disabled by default. Say Y to allow userspace
+	  to opt in to controlling interconnect bandwidth limits.
+
 endif
