@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
 
@@ -98,12 +99,17 @@ static int gpio_sbu_mux_probe(struct platform_device *pdev)
 	struct typec_mux_desc mux_desc = { };
 	struct device *dev = &pdev->dev;
 	struct gpio_sbu_mux *sbu_mux;
+	int ret;
 
 	sbu_mux = devm_kzalloc(dev, sizeof(*sbu_mux), GFP_KERNEL);
 	if (!sbu_mux)
 		return -ENOMEM;
 
 	mutex_init(&sbu_mux->lock);
+
+	ret = devm_regulator_get_enable_optional(dev, "vcc");
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "failed to enable vcc supply\n");
 
 	sbu_mux->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						       GPIOD_OUT_LOW);
