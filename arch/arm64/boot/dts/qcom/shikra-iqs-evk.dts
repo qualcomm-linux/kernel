@@ -456,6 +456,7 @@
 		pinctrl-0 = <&usb0_intr_state>;
 		pinctrl-names = "default";
 		wakeup-source;
+		orientation-gpios = <0>, <&tlmm 90 GPIO_ACTIVE_HIGH>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;

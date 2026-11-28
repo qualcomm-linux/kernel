@@ -24,7 +24,7 @@
 		label = "DP0";
 		type = "full-size";
 
-		hpd-gpios = <&tlmm 104 GPIO_ACTIVE_HIGH>;
+		hpd-gpios = <&tlmm 80 GPIO_ACTIVE_HIGH>;
 
 		port {
 			dp0_connector_in: endpoint {
