@@ -452,7 +452,7 @@
 };
 
 &pm4125_hs_in {
-	remote-endpoint = <&usb_1_dwc3_hs>;
+	remote-endpoint = <&usb_1_hsphy_connector>;
 };
 
 &pm4125_ss_in {
@@ -675,14 +675,12 @@
 	};
 };
 
-&usb_1_dwc3_hs {
-	remote-endpoint = <&pm4125_hs_in>;
-};
-
 &usb_1_hsphy {
 	vdd-supply = <&pm4125_l12>;
 	vdda-pll-supply = <&pm4125_l13>;
 	vdda-phy-dpdm-supply = <&pm4125_l21>;
+
+	usb-role-switch;
 
 	status = "okay";
 };
@@ -711,6 +709,10 @@
 
 	qcom,dmic-sample-rate = <4800000>;
 	status = "okay";
+};
+
+&usb_1_hsphy_connector {
+	remote-endpoint = <&pm4125_hs_in>;
 };
 
 &usb_qmpphy_out {

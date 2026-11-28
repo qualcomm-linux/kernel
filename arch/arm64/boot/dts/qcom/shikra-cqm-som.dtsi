@@ -234,6 +234,10 @@
 	};
 };
 
+&pm4125_charger {
+	status = "okay";
+};
+
 &pm4125_gpios {
 	pm4125_adc_gpio5_default: pm4125-adc-gpio5-state {
 		pins = "gpio5";

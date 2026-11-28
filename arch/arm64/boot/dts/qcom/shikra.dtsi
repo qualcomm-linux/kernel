@@ -1395,6 +1395,26 @@
 			#phy-cells = <0>;
 
 			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_1_hsphy_connector: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					usb_1_hsphy_controller: endpoint {
+						remote-endpoint = <&usb_1_dwc3_hs>;
+					};
+				};
+			};
 		};
 
 		usb_qmpphy: phy@1615000 {
@@ -3295,6 +3315,7 @@
 					reg = <0>;
 
 					usb_1_dwc3_hs: endpoint {
+						remote-endpoint = <&usb_1_hsphy_controller>;
 					};
 				};
 
