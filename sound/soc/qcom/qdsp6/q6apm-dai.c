@@ -1,22 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2021, Linaro Limited
 
-#include <linux/init.h>
+#include <dt-bindings/firmware/qcom,scm.h>
+#include <dt-bindings/soc/qcom,gpr.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
+#include <linux/firmware/qcom/qcom_scm.h>
+#include <linux/init.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <linux/spinlock.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
+#include <sound/soc.h>
+#include <sound/soc-dapm.h>
 #include <asm/div64.h>
 #include <asm/dma.h>
-#include <linux/dma-mapping.h>
-#include <linux/firmware/qcom/qcom_scm.h>
-#include <linux/of_reserved_mem.h>
-#include <sound/pcm_params.h>
 #include "q6apm.h"
 
 #define DRV_NAME "q6apm-dai"
@@ -35,10 +38,17 @@
 #define COMPR_PLAYBACK_MAX_NUM_FRAGMENTS (16 * 4)
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
 #define COMPR_PLAYBACK_MIN_NUM_FRAGMENTS (4)
-#define Q6APM_SCM_MAX_VMID	31
-#define Q6APM_MAX_VMIDS		8
-#define Q6APM_MAX_CARVEOUTS	8
 #define SID_MASK_DEFAULT	0xF
+
+#define Q6APM_MAX_SCM_REGIONS	16
+#define Q6APM_POOL_MAX_STREAMS	8
+
+struct q6apm_scm_region {
+	phys_addr_t addr;
+	size_t size;
+	u64 src_perms;
+	bool assigned;
+};
 
 static const struct snd_compr_codec_caps q6apm_compr_caps = {
 	.num_descriptors = 1,
@@ -83,210 +93,102 @@ struct q6apm_dai_rtd {
 	bool notify_on_drain;
 };
 
-struct q6apm_scm_region {
-	phys_addr_t dma_addr;
-	unsigned int size;
-	u64 src_perms;
-	bool assigned;
-};
-
 struct q6apm_dai_data {
+	struct device *dev;
 	long long sid;
-	int num_vmids;
-	u32 vmids[Q6APM_MAX_VMIDS];
 	bool use_scm_assign;
-	struct q6apm_scm_region scm_regions[SNDRV_PCM_STREAM_LAST + 1];
-	/*
-	 * carveout regions from memory-region DT property
-	 * (index 0: control path, index 1+: data path)
-	 */
-	struct q6apm_scm_region carveout_regions[Q6APM_MAX_CARVEOUTS];
-	int num_carveouts;
-	/* true when memory-region DT property is present and DMA pool attached */
 	bool has_reserved_mem;
-	/* size of the data-path reserved region, capped at BUFFER_BYTES_MAX */
 	size_t reserved_buf_size;
+	struct mutex scm_lock; /* protects scm_regions and num_scm_regions */
+	struct q6apm_scm_region scm_regions[Q6APM_MAX_SCM_REGIONS];
+	int num_scm_regions;
 };
 
-static int q6apm_dai_assign_memory(struct snd_pcm_substream *substream,
-				   struct q6apm_dai_data *pdata)
+static int q6apm_dai_scm_assign(struct q6apm_dai_data *pdata,
+				phys_addr_t addr, size_t size)
 {
-	struct q6apm_scm_region *scm_region = &pdata->scm_regions[substream->stream];
-	struct qcom_scm_vmperm *dst_vmids;
-	int dst_count = 0;
+	struct qcom_scm_vmperm dst[] = {
+		{ .vmid = QCOM_SCM_VMID_HLOS, .perm = QCOM_SCM_PERM_RW },
+		{ .vmid = QCOM_SCM_VMID_MSS_MSA, .perm = QCOM_SCM_PERM_RW },
+		{ .vmid = QCOM_SCM_VMID_LPASS, .perm = QCOM_SCM_PERM_RW },
+	};
+	struct q6apm_scm_region *r;
+	u64 src = BIT(QCOM_SCM_VMID_HLOS);
 	int ret;
-	int i;
 
-	if (!pdata->use_scm_assign || pdata->num_vmids <= 0 || scm_region->assigned)
-		return 0;
+	mutex_lock(&pdata->scm_lock);
 
-	if (!substream->dma_buffer.addr)
-		return -ENOMEM;
-
-	dst_vmids = kcalloc(pdata->num_vmids + 1, sizeof(*dst_vmids), GFP_KERNEL);
-	if (!dst_vmids)
-		return -ENOMEM;
-
-	/* Always keep HLOS RW so CPU can continue buffer access. */
-	dst_vmids[dst_count].vmid = QCOM_SCM_VMID_HLOS;
-	dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
-	dst_count++;
-
-	for (i = 0; i < pdata->num_vmids; i++) {
-		/*
-		 * Probe-time validation rejects HLOS in qcom,vmid, so this is
-		 * only a defensive check for future non-DT vmids[] population.
-		 */
-		if (WARN_ON_ONCE(pdata->vmids[i] == QCOM_SCM_VMID_HLOS))
-			continue;
-
-		dst_vmids[dst_count].vmid = pdata->vmids[i];
-		dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
-		dst_count++;
+	if (pdata->num_scm_regions >= Q6APM_MAX_SCM_REGIONS) {
+		mutex_unlock(&pdata->scm_lock);
+		return -ENOSPC;
 	}
 
-	/* Nothing to assign beyond HLOS access. */
-	if (dst_count == 1) {
-		kfree(dst_vmids);
-		return 0;
-	}
-
-	scm_region->dma_addr = substream->dma_buffer.addr;
-	scm_region->size = ALIGN(pdata->reserved_buf_size, PAGE_SIZE);
-	scm_region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
-
-	ret = qcom_scm_assign_mem(scm_region->dma_addr, scm_region->size,
-				  &scm_region->src_perms, dst_vmids, dst_count);
-	kfree(dst_vmids);
-	if (ret)
+	ret = qcom_scm_assign_mem(addr, size, &src, dst, ARRAY_SIZE(dst));
+	if (ret) {
+		mutex_unlock(&pdata->scm_lock);
 		return ret;
+	}
 
-	scm_region->assigned = true;
+	r = &pdata->scm_regions[pdata->num_scm_regions++];
+	r->addr = addr;
+	r->size = size;
+	r->src_perms = src;
+	r->assigned = true;
+
+	mutex_unlock(&pdata->scm_lock);
+
 	return 0;
 }
 
-static int q6apm_dai_unassign_memory(struct snd_soc_component *component,
-				     struct snd_pcm_substream *substream,
-				     struct q6apm_dai_data *pdata)
+static void q6apm_dai_scm_unassign(struct q6apm_dai_data *pdata,
+				   phys_addr_t addr)
 {
-	struct q6apm_scm_region *scm_region = &pdata->scm_regions[substream->stream];
 	struct qcom_scm_vmperm hlos = {
 		.vmid = QCOM_SCM_VMID_HLOS,
 		.perm = QCOM_SCM_PERM_RW,
 	};
-	struct device *dev = component->dev;
-	int ret;
-
-	if (!pdata->use_scm_assign || !scm_region->assigned)
-		return 0;
-
-	ret = qcom_scm_assign_mem(scm_region->dma_addr, scm_region->size,
-				  &scm_region->src_perms, &hlos, 1);
-	if (!ret) {
-		scm_region->assigned = false;
-		scm_region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
-	} else {
-		dev_err(dev, "Failed to unassign DMA buffer %pa from VMIDs: %d\n",
-			&scm_region->dma_addr, ret);
-	}
-
-	return ret;
-}
-
-static int q6apm_dai_assign_one_region(struct q6apm_scm_region *region,
-				       struct q6apm_dai_data *pdata)
-{
-	struct qcom_scm_vmperm *dst_vmids;
-	int dst_count = 0;
-	int ret, i;
-
-	if (region->assigned)
-		return 0;
-
-	dst_vmids = kcalloc(pdata->num_vmids + 1, sizeof(*dst_vmids),
-			    GFP_KERNEL);
-	if (!dst_vmids)
-		return -ENOMEM;
-
-	/* Always keep HLOS RW so CPU can continue carveout access. */
-	dst_vmids[dst_count].vmid = QCOM_SCM_VMID_HLOS;
-	dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
-	dst_count++;
-
-	for (i = 0; i < pdata->num_vmids; i++) {
-		if (WARN_ON_ONCE(pdata->vmids[i] == QCOM_SCM_VMID_HLOS))
-			continue;
-		dst_vmids[dst_count].vmid = pdata->vmids[i];
-		dst_vmids[dst_count].perm = QCOM_SCM_PERM_RW;
-		dst_count++;
-	}
-
-	if (dst_count == 1) {
-		/* Nothing to assign beyond HLOS access. */
-		kfree(dst_vmids);
-		return 0;
-	}
-
-	ret = qcom_scm_assign_mem(region->dma_addr, region->size,
-				  &region->src_perms, dst_vmids, dst_count);
-	kfree(dst_vmids);
-	if (!ret)
-		region->assigned = true;
-	return ret;
-}
-
-static int q6apm_dai_assign_carveout(struct q6apm_dai_data *pdata)
-{
-	int i, ret;
-
-	if (!pdata->use_scm_assign || !pdata->num_carveouts)
-		return 0;
-
-	for (i = 0; i < pdata->num_carveouts; i++) {
-		ret = q6apm_dai_assign_one_region(&pdata->carveout_regions[i],
-						  pdata);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
-static void q6apm_dai_unassign_one_region(struct snd_soc_component *component,
-					  struct q6apm_scm_region *region)
-{
-	struct device *dev = component->dev;
-	struct qcom_scm_vmperm hlos = {
-		.vmid = QCOM_SCM_VMID_HLOS,
-		.perm = QCOM_SCM_PERM_RW,
-	};
-	int ret;
-
-	if (!region->assigned)
-		return;
-
-	ret = qcom_scm_assign_mem(region->dma_addr, region->size,
-				  &region->src_perms, &hlos, 1);
-	if (!ret) {
-		region->assigned = false;
-		region->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
-	} else {
-		dev_err(dev,
-			"Failed to unassign carveout %pa from VMIDs: %d\n",
-			&region->dma_addr, ret);
-	}
-}
-
-static void q6apm_dai_unassign_carveout(struct snd_soc_component *component,
-					struct q6apm_dai_data *pdata)
-{
 	int i;
 
-	if (!pdata->use_scm_assign || !pdata->num_carveouts)
-		return;
+	mutex_lock(&pdata->scm_lock);
 
-	for (i = 0; i < pdata->num_carveouts; i++)
-		q6apm_dai_unassign_one_region(component,
-					      &pdata->carveout_regions[i]);
+	for (i = 0; i < pdata->num_scm_regions; i++) {
+		if (pdata->scm_regions[i].addr != addr ||
+		    !pdata->scm_regions[i].assigned)
+			continue;
+
+		if (qcom_scm_assign_mem(addr, pdata->scm_regions[i].size,
+					&pdata->scm_regions[i].src_perms,
+					&hlos, 1)) {
+			dev_err(pdata->dev, "SCM unassign %pa failed\n", &addr);
+			mutex_unlock(&pdata->scm_lock);
+			return;
+		}
+
+		pdata->scm_regions[i].assigned = false;
+		pdata->num_scm_regions--;
+		pdata->scm_regions[i] = pdata->scm_regions[pdata->num_scm_regions];
+		mutex_unlock(&pdata->scm_lock);
+		return;
+	}
+
+	mutex_unlock(&pdata->scm_lock);
+}
+
+static void q6apm_dai_scm_cleanup(void *data)
+{
+	struct q6apm_dai_data *pdata = data;
+	int i;
+
+	for (i = pdata->num_scm_regions - 1; i >= 0; i--) {
+		if (pdata->scm_regions[i].assigned)
+			q6apm_dai_scm_unassign(pdata,
+					       pdata->scm_regions[i].addr);
+	}
+}
+
+static void q6apm_dai_reserved_mem_release(void *data)
+{
+	of_reserved_mem_device_release(data);
 }
 
 static const struct snd_pcm_hardware q6apm_dai_hardware_capture = {
@@ -589,10 +491,11 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		size_t buf_max = pdata->has_reserved_mem ? pdata->reserved_buf_size :
+							   BUFFER_BYTES_MAX;
+
 		ret = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-						   BUFFER_BYTES_MIN,
-						   pdata->has_reserved_mem ?
-						   pdata->reserved_buf_size : BUFFER_BYTES_MAX);
+						   BUFFER_BYTES_MIN, buf_max);
 		if (ret < 0) {
 			dev_err(dev, "constraint for buffer bytes min max ret = %d\n", ret);
 			goto err;
@@ -613,8 +516,8 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 	}
 
 	runtime->private_data = prtd;
-	runtime->dma_bytes = pdata->has_reserved_mem ?
-			pdata->reserved_buf_size : BUFFER_BYTES_MAX;
+	runtime->dma_bytes = pdata->has_reserved_mem ? pdata->reserved_buf_size :
+						       BUFFER_BYTES_MAX;
 	if (pdata->sid < 0)
 		prtd->phys = substream->dma_buffer.addr;
 	else
@@ -687,14 +590,12 @@ static int q6apm_dai_hw_params(struct snd_soc_component *component,
 	return 0;
 }
 
-static void q6apm_dai_memory_unmap(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream);
-
 static int q6apm_dai_memory_map(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream, int graph_id)
 {
 	struct q6apm_dai_data *pdata;
 	struct device *dev = component->dev;
+	size_t buf_max;
 	phys_addr_t phys;
 	int ret;
 
@@ -704,14 +605,15 @@ static int q6apm_dai_memory_map(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
+	buf_max = pdata->has_reserved_mem ? pdata->reserved_buf_size :
+					    BUFFER_BYTES_MAX;
+
 	if (pdata->sid < 0)
 		phys = substream->dma_buffer.addr;
 	else
 		phys = substream->dma_buffer.addr | (pdata->sid << 32);
 
-	ret = q6apm_map_memory_fixed_region(dev, graph_id, phys,
-					    pdata->has_reserved_mem ?
-					    pdata->reserved_buf_size : BUFFER_BYTES_MAX);
+	ret = q6apm_map_memory_fixed_region(dev, graph_id, phys, buf_max);
 	if (ret < 0)
 		dev_err(dev, "Audio Start: Buffer Allocation failed rc = %d\n", ret);
 
@@ -721,65 +623,68 @@ static int q6apm_dai_memory_map(struct snd_soc_component *component,
 static int q6apm_dai_pcm_new(struct snd_soc_component *component, struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
-	struct q6apm_dai_data *pdata = snd_soc_component_get_drvdata(component);
+	struct q6apm_dai_data *pdata;
 	struct snd_pcm *pcm = rtd->pcm;
-	int size = BUFFER_BYTES_MAX;
+	int size = BUFFER_BYTES_MAX + PAGE_SIZE;
 	int graph_id, ret;
 	struct snd_pcm_substream *substream;
 
+	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata)
 		return -EINVAL;
 
+	if (pdata->has_reserved_mem)
+		size = pdata->reserved_buf_size + PAGE_SIZE;
+
 	graph_id = cpu_dai->driver->id;
 
-	/*
-	 * When a reserved DMA pool is attached (memory-region in DT), allocate
-	 * PCM buffers from it so the DSP accesses the carveout address directly.
-	 * Fall back to the standard fixed system-RAM buffer on other platforms.
-	 */
-	if (pdata->has_reserved_mem)
-		ret = snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
-						   component->dev,
-						   pdata->reserved_buf_size);
-	else
-		ret = snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
-						   component->dev, size);
+	ret = snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, component->dev, size);
 	if (ret)
 		return ret;
 
 	/* Note: DSP backend dais are uni-directional ONLY(either playback or capture) */
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-		ret = q6apm_dai_memory_map(component, substream, graph_id);
-		if (ret)
-			return ret;
-		if (pdata->use_scm_assign) {
-			ret = q6apm_dai_assign_memory(substream, pdata);
+		if (pdata->use_scm_assign && !pdata->has_reserved_mem) {
+			ret = q6apm_dai_scm_assign(pdata,
+						   substream->dma_buffer.addr,
+						   ALIGN(size, PAGE_SIZE));
 			if (ret) {
-				q6apm_dai_memory_unmap(component, substream);
+				dev_err(component->dev,
+					"SCM assign buffer failed: %d\n", ret);
 				return ret;
 			}
+		}
+
+		ret = q6apm_dai_memory_map(component, substream, graph_id);
+		if (ret) {
+			if (pdata->use_scm_assign && !pdata->has_reserved_mem)
+				q6apm_dai_scm_unassign(pdata,
+						       substream->dma_buffer.addr);
+			return ret;
 		}
 	}
 
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
-		ret = q6apm_dai_memory_map(component, substream, graph_id);
-		if (ret)
-			return ret;
-		if (pdata->use_scm_assign) {
-			ret = q6apm_dai_assign_memory(substream, pdata);
+		if (pdata->use_scm_assign && !pdata->has_reserved_mem) {
+			ret = q6apm_dai_scm_assign(pdata,
+						   substream->dma_buffer.addr,
+						   ALIGN(size, PAGE_SIZE));
 			if (ret) {
-				q6apm_dai_memory_unmap(component, substream);
+				dev_err(component->dev,
+					"SCM assign buffer failed: %d\n", ret);
 				return ret;
 			}
 		}
-	}
 
-	if (pdata->use_scm_assign && pdata->num_carveouts) {
-		ret = q6apm_dai_assign_carveout(pdata);
-		if (ret)
+		ret = q6apm_dai_memory_map(component, substream, graph_id);
+		if (ret) {
+			if (pdata->use_scm_assign && !pdata->has_reserved_mem)
+				q6apm_dai_scm_unassign(pdata,
+						       substream->dma_buffer.addr);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -806,27 +711,25 @@ static void q6apm_dai_memory_unmap(struct snd_soc_component *component,
 
 static void q6apm_dai_pcm_free(struct snd_soc_component *component, struct snd_pcm *pcm)
 {
-	struct q6apm_dai_data *pdata = snd_soc_component_get_drvdata(component);
+	struct q6apm_dai_data *pdata;
 	struct snd_pcm_substream *substream;
 
-	if (!pdata)
-		return;
-
-	if (pdata->use_scm_assign && pdata->num_carveouts)
-		q6apm_dai_unassign_carveout(component, pdata);
+	pdata = snd_soc_component_get_drvdata(component);
 
 	substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 	if (substream) {
-		if (pdata->use_scm_assign)
-			q6apm_dai_unassign_memory(component, substream, pdata);
 		q6apm_dai_memory_unmap(component, substream);
+		if (pdata && pdata->use_scm_assign && !pdata->has_reserved_mem)
+			q6apm_dai_scm_unassign(pdata,
+					       substream->dma_buffer.addr);
 	}
 
 	substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	if (substream) {
-		if (pdata->use_scm_assign)
-			q6apm_dai_unassign_memory(component, substream, pdata);
 		q6apm_dai_memory_unmap(component, substream);
+		if (pdata && pdata->use_scm_assign && !pdata->has_reserved_mem)
+			q6apm_dai_scm_unassign(pdata,
+					       substream->dma_buffer.addr);
 	}
 }
 
@@ -866,6 +769,17 @@ static int q6apm_dai_compr_open(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
+	if (pdata->use_scm_assign && !pdata->has_reserved_mem) {
+		ret = q6apm_dai_scm_assign(pdata, prtd->dma_buffer.addr,
+					   ALIGN(size, PAGE_SIZE));
+		if (ret) {
+			dev_err(dev, "SCM assign compr buffer failed: %d\n",
+				ret);
+			snd_dma_free_pages(&prtd->dma_buffer);
+			return ret;
+		}
+	}
+
 	if (pdata->sid < 0)
 		prtd->phys = prtd->dma_buffer.addr;
 	else
@@ -883,11 +797,16 @@ static int q6apm_dai_compr_free(struct snd_soc_component *component,
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6apm_dai_rtd *prtd = runtime->private_data;
+	struct q6apm_dai_data *pdata;
+
+	pdata = snd_soc_component_get_drvdata(component);
 
 	q6apm_graph_stop(prtd->graph);
 	q6apm_free_fragments(prtd->graph, SNDRV_PCM_STREAM_PLAYBACK);
 	q6apm_unmap_memory_fixed_region(component->dev, prtd->graph->id);
 	q6apm_graph_close(prtd->graph);
+	if (pdata && pdata->use_scm_assign && !pdata->has_reserved_mem)
+		q6apm_dai_scm_unassign(pdata, prtd->dma_buffer.addr);
 	snd_dma_free_pages(&prtd->dma_buffer);
 	prtd->graph = NULL;
 	kfree(prtd);
@@ -1211,14 +1130,17 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
+	struct q6apm *apm = dev_get_drvdata(dev->parent);
 	struct q6apm_dai_data *pdata;
 	struct of_phandle_args args;
-	int vmids;
 	int rc;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
+
+	pdata->dev = dev;
+	mutex_init(&pdata->scm_lock);
 
 	rc = of_parse_phandle_with_fixed_args(node, "iommus", 1, 0, &args);
 	if (rc < 0)
@@ -1226,131 +1148,108 @@ static int q6apm_dai_probe(struct platform_device *pdev)
 	else
 		pdata->sid = args.args[0] & SID_MASK_DEFAULT;
 
-	vmids = of_property_count_u32_elems(node, "qcom,vmid");
-	if (vmids == -EINVAL) {
-		pdata->num_vmids = 0;
-		pdata->use_scm_assign = false;
-	} else if (vmids < 0) {
-		return vmids;
-	} else if (vmids == 0) {
-		dev_err(dev, "qcom,vmid must contain at least one VMID\n");
-		return -EINVAL;
-	} else if (vmids > Q6APM_MAX_VMIDS) {
-		dev_err(dev, "qcom,vmid: %d VMIDs exceeds maximum of %d\n",
-			vmids, Q6APM_MAX_VMIDS);
-		return -EINVAL;
-	}
+	if (apm && apm->gdev &&
+	    apm->gdev->domain_id == GPR_DOMAIN_ID_MODEM &&
+	    pdata->sid < 0) {
+		if (!qcom_scm_is_available())
+			return -EPROBE_DEFER;
 
-	if (vmids > 0) {
-		int i;
+		pdata->use_scm_assign = true;
 
-		rc = of_property_read_u32_array(node, "qcom,vmid",
-						pdata->vmids, vmids);
+		rc = devm_add_action_or_reset(dev, q6apm_dai_scm_cleanup,
+					      pdata);
 		if (rc)
 			return rc;
-		for (i = 0; i < vmids; i++) {
-			if (pdata->vmids[i] == QCOM_SCM_VMID_HLOS) {
-				dev_err(dev, "qcom,vmid must not include HLOS VMID (%u)\n",
-					QCOM_SCM_VMID_HLOS);
-				return -EINVAL;
-			}
-			if (pdata->vmids[i] > Q6APM_SCM_MAX_VMID) {
-				dev_err(dev, "qcom,vmid[%d]=%u exceeds SCM max VMID %u\n",
-					i, pdata->vmids[i], Q6APM_SCM_MAX_VMID);
-				return -EINVAL;
-			}
-		}
-		pdata->num_vmids = vmids;
-		pdata->use_scm_assign = true;
-	}
-
-	/*
-	 * Attach the data-path reserved memory region (index 1 in
-	 * memory-region, e.g. audio_mdsp_carveout_mem on shikra) as a DMA
-	 * pool so that snd_pcm_set_managed_buffer_all() allocates PCM
-	 * buffers from the carveout instead of system RAM. The size is read
-	 * from the DT node and capped at BUFFER_BYTES_MAX.
-	 * Index 0 is the control-path carveout (SCM-assigned separately).
-	 * Platforms without memory-region are completely unaffected.
-	 */
-	if (of_property_present(node, "memory-region")) {
-		struct device_node *rmem_node;
-		struct reserved_mem *rmem = NULL;
-
-		/* index 1 = data path (PCM DMA buffer pool) */
-		rmem_node = of_parse_phandle(node, "memory-region", 1);
-		if (rmem_node) {
-			rmem = of_reserved_mem_lookup(rmem_node);
-			of_node_put(rmem_node);
-		}
-
-		if (rmem) {
-			rc = of_reserved_mem_device_init_by_idx(dev, node, 1);
-			if (rc) {
-				dev_err(dev,
-					"failed to attach reserved memory pool: %d\n",
-					rc);
-				return rc;
-			}
-			rc = devm_add_action_or_reset(dev,
-						      (void (*)(void *))
-						      of_reserved_mem_device_release,
-						      dev);
-			if (rc)
-				return rc;
-			pdata->reserved_buf_size = min_t(size_t, rmem->size / 4,
-							 BUFFER_BYTES_MAX);
-			pdata->has_reserved_mem = true;
-		} else {
-			dev_warn(dev,
-				 "memory-region index 1 not found, using system RAM\n");
-		}
 	}
 
 	if (pdata->use_scm_assign) {
-		struct device_node *mem_node;
-		int idx = 0;
+		int mem_count;
 
-		while ((mem_node = of_parse_phandle(node, "memory-region",
-						    idx++))) {
+		mem_count = of_count_phandle_with_args(node, "memory-region",
+						       NULL);
+		if (mem_count >= 1) {
+			struct device_node *mem_node;
 			struct reserved_mem *rmem;
-			struct q6apm_scm_region *r;
 
-			/*
-			 * Only index 0 (control-path carveout) is
-			 * SCM-assigned via carveout_regions[]. Index 1+
-			 * are data-path DMA pools handled per-substream
-			 * by q6apm_dai_assign_memory() in pcm_new().
-			 * Including them here causes a double-assignment
-			 * of the same physical region which TZ rejects
-			 * with -EINVAL.
-			 */
-			if (idx > 1) {
-				of_node_put(mem_node);
-				break;
-			}
-
-			if (pdata->num_carveouts >= Q6APM_MAX_CARVEOUTS) {
-				dev_warn(dev,
-					 "memory-region: too many entries, ignoring rest\n");
-				of_node_put(mem_node);
-				break;
-			}
-
+			mem_node = of_parse_phandle(node, "memory-region", 0);
 			rmem = of_reserved_mem_lookup(mem_node);
 			of_node_put(mem_node);
-			if (!rmem)
-				continue;
+			if (!rmem) {
+				dev_err(dev,
+					"memory-region[0]: lookup failed\n");
+				return -ENODEV;
+			}
 
-			r = &pdata->carveout_regions[pdata->num_carveouts++];
-			r->dma_addr  = rmem->base;
-			r->size      = ALIGN(rmem->size, PAGE_SIZE);
-			r->src_perms = BIT_ULL(QCOM_SCM_VMID_HLOS);
+			rc = q6apm_dai_scm_assign(pdata, rmem->base,
+						  ALIGN(rmem->size, PAGE_SIZE));
+			if (rc) {
+				dev_err(dev,
+					"SCM assign memory-region[0] failed: %d\n",
+					rc);
+				return rc;
+			}
+		}
+
+		if (mem_count >= 2) {
+			struct device_node *mem_node;
+			struct reserved_mem *rmem;
+			size_t per_stream;
+
+			mem_node = of_parse_phandle(node, "memory-region", 1);
+			rmem = of_reserved_mem_lookup(mem_node);
+			of_node_put(mem_node);
+			if (!rmem) {
+				dev_err(dev,
+					"memory-region[1]: lookup failed\n");
+				return -ENODEV;
+			}
+
+			per_stream = rmem->size / Q6APM_POOL_MAX_STREAMS;
+			if (per_stream <= PAGE_SIZE) {
+				dev_err(dev,
+					"reserved-memory pool too small: %pa bytes\n",
+					&rmem->size);
+				return -EINVAL;
+			}
+
+			/*
+			 * Assign the whole pool to the consumer VMIDs once here,
+			 * instead of per-stream in pcm_new()/compr_open(). Each
+			 * qcom_scm_assign_mem() call consumes an entry in a small
+			 * fixed-size TZ memory-protection table shared platform-wide;
+			 * assigning per-stream-slice (up to Q6APM_POOL_MAX_STREAMS
+			 * times) exhausts that table and hangs the SMC call.
+			 */
+			rc = q6apm_dai_scm_assign(pdata, rmem->base,
+						  ALIGN(rmem->size, PAGE_SIZE));
+			if (rc) {
+				dev_err(dev,
+					"SCM assign memory-region[1] failed: %d\n",
+					rc);
+				return rc;
+			}
+
+			rc = of_reserved_mem_device_init_by_idx(dev, node, 1);
+			if (rc) {
+				dev_err(dev,
+					"reserved-memory pool init failed: %d\n",
+					rc);
+				return rc;
+			}
+
+			rc = devm_add_action_or_reset(dev,
+						      q6apm_dai_reserved_mem_release,
+						      dev);
+			if (rc)
+				return rc;
+
+			pdata->reserved_buf_size =
+				min_t(size_t,
+				      per_stream - PAGE_SIZE,
+				      BUFFER_BYTES_MAX);
+			pdata->has_reserved_mem = true;
 		}
 	}
-
-	if (pdata->use_scm_assign && !qcom_scm_is_available())
-		return -EPROBE_DEFER;
 
 	dev_set_drvdata(dev, pdata);
 
