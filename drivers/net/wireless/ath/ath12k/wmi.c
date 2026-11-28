@@ -2475,6 +2475,10 @@ int ath12k_wmi_send_peer_assoc_cmd(struct ath12k *ar,
 	ml_params->logical_link_idx = cpu_to_le32(arg->ml.logical_link_idx);
 	ml_params->ml_peer_id = cpu_to_le32(arg->ml.ml_peer_id);
 	ml_params->ieee_link_id = cpu_to_le32(arg->ml.ieee_link_id);
+	ml_params->max_num_simultaneous_links =
+		cpu_to_le32(arg->ml.max_num_simultaneous_links);
+	ml_params->recommended_max_num_simultaneous_links =
+		cpu_to_le32(arg->ml.recommended_max_num_simultaneous_links);
 
 	eml_cap = arg->ml.eml_cap;
 	if (u16_get_bits(eml_cap, IEEE80211_EML_CAP_EMLSR_SUPP)) {
@@ -5295,6 +5299,74 @@ static void ath12k_wmi_eht_caps_parse(struct ath12k_pdev *pdev, u32 band,
 	cap_band->eht_cap_info_internal = le32_to_cpu(cap_info_internal);
 }
 
+static u8 ath12k_wmi_get_max_simul_links_by_num_radios(struct ath12k_base *ab)
+{
+	struct ath12k_hw_group *ag = ath12k_ab_to_ag(ab);
+	u8 max_simul_links = 0;
+	int i;
+
+	/*
+	 * On infrastructure-focused chipsets, firmware may report max
+	 * simultaneous links independent of active radio combination.
+	 * Derive the encoded value from the number of available radios.
+	 */
+	if (ag->mlo_capable) {
+		for (i = 0; i < ag->num_devices; i++) {
+			struct ath12k_base *partner_ab = ath12k_ag_to_ab(ag, i);
+
+			if (!partner_ab)
+				continue;
+
+			max_simul_links += partner_ab->qmi.num_radios;
+		}
+	} else {
+		max_simul_links = ab->num_radios;
+	}
+
+	if (!max_simul_links)
+		return 0;
+
+	return min_t(u8, max_simul_links - 1,
+		     FIELD_MAX(IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS));
+}
+
+static u8 ath12k_wmi_get_max_simul_links_from_fw(struct ath12k_base *ab, u32 mld_cap)
+{
+	struct ath12k_hw_group *ag = ath12k_ab_to_ag(ab);
+	u8 max_simul_links;
+
+	max_simul_links = u32_get_bits(mld_cap,
+				       IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS);
+	if (max_simul_links)
+		return max_simul_links - 1;
+
+	if (ag->mlo_capable)
+		ath12k_warn(ab,
+			    "firmware reported invalid max simul links value 0 in mld_cap 0x%x\n",
+			    mld_cap);
+	return 0;
+}
+
+static u32
+ath12k_wmi_get_spec_encoded_mld_cap(struct ath12k_base *ab,
+				    const struct ath12k_wmi_caps_ext_params *caps)
+{
+	u32 mld_cap = le32_to_cpu(caps->mld_capability);
+	u8 max_simul_links;
+
+	/*
+	 * Firmware reports Max Number Of Simultaneous Links as raw N while
+	 * IEEE 802.11be MLD Capabilities and Operations encodes it as N-1.
+	 */
+	if (ab->hw_params->mlo_max_simul_links_by_num_radios)
+		max_simul_links = ath12k_wmi_get_max_simul_links_by_num_radios(ab);
+	else
+		max_simul_links = ath12k_wmi_get_max_simul_links_from_fw(ab, mld_cap);
+
+	return u32_replace_bits(mld_cap, max_simul_links,
+				IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS);
+}
+
 static int
 ath12k_wmi_tlv_mac_phy_caps_ext_parse(struct ath12k_base *ab,
 				      const struct ath12k_wmi_caps_ext_params *caps,
@@ -5346,7 +5418,7 @@ ath12k_wmi_tlv_mac_phy_caps_ext_parse(struct ath12k_base *ab,
 	}
 
 	pdev->cap.eml_cap = le32_to_cpu(caps->eml_capability);
-	pdev->cap.mld_cap = le32_to_cpu(caps->mld_capability);
+	pdev->cap.mld_cap = ath12k_wmi_get_spec_encoded_mld_cap(ab, caps);
 
 	return 0;
 }

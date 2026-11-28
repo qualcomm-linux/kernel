@@ -3541,13 +3541,17 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 static void ath12k_peer_assoc_h_mlo(struct ath12k_link_sta *arsta,
 				    struct ath12k_wmi_peer_assoc_arg *arg)
 {
+	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arsta->arvif->ahvif);
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(arsta->ahsta);
+	const struct wiphy_iftype_ext_capab *iftype_ext_capa;
 	struct peer_assoc_mlo_params *ml = &arg->ml;
 	struct ath12k_sta *ahsta = arsta->ahsta;
 	struct ath12k_link_sta *arsta_p;
 	struct ath12k_link_vif *arvif;
 	struct ath12k_hw *ah = arsta->arvif->ar->ah;
 	unsigned long links;
+	u8 rec_max_links;
+	u8 max_links;
 	u8 link_id;
 	int i;
 
@@ -3585,6 +3589,31 @@ static void ath12k_peer_assoc_h_mlo(struct ath12k_link_sta *arsta,
 	ml->ieee_link_id = arsta->link_id;
 	ml->num_partner_links = 0;
 	ml->eml_cap = sta->eml_cap;
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		iftype_ext_capa = cfg80211_get_iftype_ext_capa(ah->hw->wiphy,
+							       vif->type);
+		/*
+		 * MLD Capabilities and Operations uses N-1 encoding
+		 * (IEEE 802.11be Table 9-417n); firmware peer assoc uses raw N.
+		 */
+		max_links = u16_get_bits(iftype_ext_capa->mld_capa_and_ops,
+					 IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS) + 1;
+		rec_max_links =
+		    u16_get_bits(sta->ext_mld_capa_ops,
+				 IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_RECO_MAX_LINKS_MASK);
+		/*
+		 * Figure 9-1074t / Table 9-417o define Recommended Max
+		 * Simultaneous Links as raw count L (0 no recommendation,
+		 * 1 reserved).
+		 */
+		if (rec_max_links <= 1 || rec_max_links > max_links)
+			rec_max_links = max_links;
+
+		ml->max_num_simultaneous_links = max_links;
+		ml->recommended_max_num_simultaneous_links = rec_max_links;
+	}
+
 	links = ahsta->links_map;
 
 	rcu_read_lock();
@@ -15132,7 +15161,8 @@ static const u8 ath12k_if_types_ext_capa_ap[] = {
 	[10] = WLAN_EXT_CAPA11_EMA_SUPPORT,
 };
 
-static struct wiphy_iftype_ext_capab ath12k_iftypes_ext_capa[] = {
+static const struct wiphy_iftype_ext_capab
+ath12k_iftypes_ext_capa_template[ATH12K_WIPHY_IFTYPE_EXT_CAPA_MAX] = {
 	{
 		.extended_capabilities = ath12k_if_types_ext_capa,
 		.extended_capabilities_mask = ath12k_if_types_ext_capa,
@@ -15373,12 +15403,25 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 
 	wiphy->features |= NL80211_FEATURE_TX_POWER_INSERTION;
 
-	/* Copy over MLO related capabilities received from
-	 * WMI_SERVICE_READY_EXT2_EVENT if single_chip_mlo_supp is set.
+	memcpy(ah->iftypes_ext_capa, ath12k_iftypes_ext_capa_template,
+	       sizeof(ah->iftypes_ext_capa));
+
+	/*
+	 * Copy over MLO related capabilities received from
+	 * WMI_SERVICE_READY_EXT2_EVENT if mlo_capable is set.
 	 */
 	if (ab->ag->mlo_capable) {
-		ath12k_iftypes_ext_capa[2].eml_capabilities = cap->eml_cap;
-		ath12k_iftypes_ext_capa[2].mld_capa_and_ops = cap->mld_cap;
+		for (i = 0; i < ARRAY_SIZE(ah->iftypes_ext_capa); i++) {
+			enum nl80211_iftype iftype = ah->iftypes_ext_capa[i].iftype;
+
+			if (iftype != NL80211_IFTYPE_STATION &&
+			    iftype != NL80211_IFTYPE_AP)
+				continue;
+
+			ah->iftypes_ext_capa[i].eml_capabilities = cap->eml_cap;
+			ah->iftypes_ext_capa[i].mld_capa_and_ops = cap->mld_cap;
+		}
+
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
 
 		ieee80211_hw_set(hw, MLO_MCAST_MULTI_LINK_TX);
@@ -15405,8 +15448,8 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	wiphy->cipher_suites = cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
-	wiphy->iftype_ext_capab = ath12k_iftypes_ext_capa;
-	wiphy->num_iftype_ext_capab = ARRAY_SIZE(ath12k_iftypes_ext_capa);
+	wiphy->iftype_ext_capab = ah->iftypes_ext_capa;
+	wiphy->num_iftype_ext_capab = ARRAY_SIZE(ah->iftypes_ext_capa);
 
 	wiphy->mbssid_max_interfaces = mbssid_max_interfaces;
 	wiphy->ema_max_profile_periodicity = TARGET_EMA_MAX_PROFILE_PERIOD;
