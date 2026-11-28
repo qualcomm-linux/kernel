@@ -49,6 +49,9 @@
  */
 #define FASTRPC_MAX_STATIC_HANDLE (20)
 #define FASTRPC_CTXID_MASK GENMASK(15, 8)
+/* Sequence number occupies bits 63:16 of the ctxid / message context */
+#define FASTRPC_CTXID_SEQ_SHIFT	16
+#define FASTRPC_CTXID_SEQ_MASK	GENMASK_ULL(63, 16)
 
 /*
  * Newer DSP firmware implements a PD (Protection Domain) notification
@@ -129,6 +132,7 @@
 #define SENSORS_PD	(2)
 
 #define miscdev_to_fdevice(d) container_of(d, struct fastrpc_device, miscdev)
+
 /* Poll response number from remote processor for call completion */
 #define FASTRPC_POLL_RESPONSE (0xdecaf)
 
@@ -317,9 +321,11 @@ struct fastrpc_channel_ctx {
 	struct fastrpc_buf *remote_heap;
 	bool secure;
 	bool unsigned_support;
+	bool poll_mode_supported;
+	/* Per-channel sequence counter; incremented on every context allocation */
+	atomic_t ctx_seq;
 	/* set when remoteproc has an IOMMU; use iommu_map instead of hyp_assign */
 	bool has_iommu;
-	bool poll_mode_supported;
 	u64 dma_mask;
 	/*
 	 * Set once fastrpc_rpmsg_remove() starts tearing the channel down.
@@ -771,7 +777,9 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 		spin_unlock_irqrestore(&cctx->lock, flags);
 		goto err_idr;
 	}
-	ctx->ctxid = FIELD_PREP(FASTRPC_CTXID_MASK, ret);
+	ctx->ctxid = FIELD_PREP(FASTRPC_CTXID_MASK, ret) |
+		     FIELD_PREP(FASTRPC_CTXID_SEQ_MASK,
+				(u64)atomic_inc_return(&cctx->ctx_seq));
 	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	kref_init(&ctx->refcount);
@@ -1519,8 +1527,8 @@ wait:
 	 */
 	if (handle > FASTRPC_MAX_STATIC_HANDLE && fl->pd == USER_PD && fl->poll_mode)
 		ctx->is_polled = true;
-	err = fastrpc_wait_for_completion(ctx, kernel);
 
+	err = fastrpc_wait_for_completion(ctx, kernel);
 	if (err)
 		goto bail;
 
@@ -2443,11 +2451,11 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int cmd,
 	case FASTRPC_IOCTL_MEM_MAP:
 		err = fastrpc_req_mem_map(fl, argp);
 		break;
-	case FASTRPC_IOCTL_SET_OPTION:
-		err = fastrpc_set_option(fl, argp);
-		break;
 	case FASTRPC_IOCTL_MEM_UNMAP:
 		err = fastrpc_req_mem_unmap(fl, argp);
+		break;
+	case FASTRPC_IOCTL_SET_OPTION:
+		err = fastrpc_set_option(fl, argp);
 		break;
 	case FASTRPC_IOCTL_GET_DSP_INFO:
 		err = fastrpc_get_dsp_info(fl, argp);
@@ -2611,21 +2619,6 @@ static int fastrpc_get_domain_id(const char *domain)
 	return -EINVAL;
 }
 
-/*
- * Exception list for older platforms that use default_soc_data but whose
- * DSP firmware supports FastRPC polling mode.
- *
- * NOTE: This list is intentionally closed.
- * Do NOT add new platforms here. New SoCs must advertise polling mode
- * support via their soc_data.
- */
-
-static const char *const fastrpc_poll_supported_machines[] = {
-	"qcom,milos",	 "qcom,qcs8300",  "qcom,sa8775p", "qcom,sar2130p",
-	"qcom,sm8450",	 "qcom,sm8550",	  "qcom,sm8650",  "qcom,sm8750",
-	"qcom,x1e80100", "qcom,x1p42100", NULL,
-};
-
 static int fastrpc_remote_heap_map(struct device *rdev,
 				   struct device_node *rproc_node,
 				   struct fastrpc_buf *heap)
@@ -2697,6 +2690,29 @@ static void fastrpc_notify_users(struct fastrpc_user *user)
 	}
 	spin_unlock(&user->lock);
 }
+
+/*
+ * Exception list for older platforms that use default_soc_data but whose
+ * DSP firmware supports FastRPC polling mode.
+ *
+ * NOTE: This list is intentionally closed.
+ * Do NOT add new platforms here. New SoCs must advertise polling mode
+ * support via their soc_data.
+ */
+
+static const struct of_device_id fastrpc_poll_supported_machines[] __maybe_unused = {
+	{ .compatible = "qcom,milos" },
+	{ .compatible = "qcom,qcs8300" },
+	{ .compatible = "qcom,sa8775p" },
+	{ .compatible = "qcom,sar2130p" },
+	{ .compatible = "qcom,sm8450" },
+	{ .compatible = "qcom,sm8550" },
+	{ .compatible = "qcom,sm8650" },
+	{ .compatible = "qcom,sm8750" },
+	{ .compatible = "qcom,x1e80100" },
+	{ .compatible = "qcom,x1p42100" },
+	{},
+};
 
 static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 {
@@ -2796,11 +2812,10 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	secure_dsp = !(of_property_read_bool(rdev->of_node, "qcom,non-secure-domain"));
 	data->secure = secure_dsp;
-
-	data->poll_mode_supported =
-		of_machine_compatible_match(fastrpc_poll_supported_machines);
+	data->poll_mode_supported = of_machine_get_match(fastrpc_poll_supported_machines);
 
 	kref_init(&data->refcount);
+	atomic_set(&data->ctx_seq, 0);
 
 	rdev->dma_mask = &data->dma_mask;
 	dma_set_mask_and_coherent(rdev, DMA_BIT_MASK(32));
@@ -2986,6 +3001,23 @@ static int fastrpc_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 	if (!ctx) {
 		dev_err(&rpdev->dev, "No context ID matches response\n");
 		return -ENOENT;
+	}
+
+	/*
+	 * Validate the sequence number embedded in the upper bits of the
+	 * context ID.  Under high concurrency the IDR slot can be recycled
+	 * for a new request before a late (or duplicate) glink COMPLETE
+	 * response for the previous request arrives.  Without this check the
+	 * driver would call complete() on the wrong context, waking a thread
+	 * whose buffers are still being accessed by the DSP.
+	 */
+	if (FIELD_GET(FASTRPC_CTXID_SEQ_MASK, rsp->ctx) !=
+	    FIELD_GET(FASTRPC_CTXID_SEQ_MASK, ctx->ctxid)) {
+		dev_dbg(&rpdev->dev,
+			"Stale glink response ctx 0x%llx (expected seq 0x%llx), dropping\n",
+			rsp->ctx,
+			FIELD_GET(FASTRPC_CTXID_SEQ_MASK, ctx->ctxid));
+		return 0;
 	}
 
 	ctx->retval = rsp->retval;
