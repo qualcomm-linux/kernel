@@ -298,6 +298,7 @@ config QCOM_ICC_BWMON
 config QCOM_INLINE_CRYPTO_ENGINE
 	tristate
 	select QCOM_SCM
+	select QCOM_ICE_TEE
 
 config QCOM_PBS
 	tristate "PBS trigger support for Qualcomm Technologies, Inc. PMICS"

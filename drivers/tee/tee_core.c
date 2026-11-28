@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/overflow.h>
 #include <linux/slab.h>
 #include <linux/tee_core.h>
@@ -1185,6 +1186,26 @@ int tee_device_register(struct tee_device *teedev)
 }
 EXPORT_SYMBOL_GPL(tee_device_register);
 
+static void plat_tee_free(void *data)
+{
+	struct platform_device *plat_dev = data;
+
+	platform_device_unregister(plat_dev);
+}
+
+int tee_platform_device_register(struct tee_device *teedev, const char *teename)
+{
+	struct platform_device *plat_dev;
+
+	plat_dev = platform_device_register_data(&teedev->dev, teename,
+						 PLATFORM_DEVID_NONE, NULL, 0);
+	if (IS_ERR(plat_dev))
+		return PTR_ERR(plat_dev);
+
+	devm_add_action_or_reset(&teedev->dev, plat_tee_free, plat_dev);
+	return 0;
+}
+
 void tee_device_put(struct tee_device *teedev)
 {
 	mutex_lock(&teedev->mutex);
@@ -1398,18 +1419,86 @@ static int tee_client_device_uevent(const struct device *dev,
 	return add_uevent_var(env, "MODALIAS=tee:%pUb", dev_id);
 }
 
+static int tee_client_device_probe(struct device *dev)
+{
+	struct tee_client_device *tcdev = to_tee_client_device(dev);
+	struct tee_client_driver *drv = to_tee_client_driver(dev->driver);
+
+	if (drv->probe)
+		return drv->probe(tcdev);
+	else
+		return 0;
+}
+
+static void tee_client_device_remove(struct device *dev)
+{
+	struct tee_client_device *tcdev = to_tee_client_device(dev);
+	struct tee_client_driver *drv = to_tee_client_driver(dev->driver);
+
+	if (drv->remove)
+		drv->remove(tcdev);
+}
+
+static void tee_client_device_shutdown(struct device *dev)
+{
+	struct tee_client_device *tcdev = to_tee_client_device(dev);
+	struct tee_client_driver *drv = to_tee_client_driver(dev->driver);
+
+	if (dev->driver && drv->shutdown)
+		drv->shutdown(tcdev);
+}
+
 const struct bus_type tee_bus_type = {
 	.name		= "tee",
 	.match		= tee_client_device_match,
 	.uevent		= tee_client_device_uevent,
+	.probe		= tee_client_device_probe,
+	.remove		= tee_client_device_remove,
+	.shutdown	= tee_client_device_shutdown,
 };
 EXPORT_SYMBOL_GPL(tee_bus_type);
+
+static int tee_client_device_probe_legacy(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+	struct device_driver *driver = dev->driver;
+
+	return driver->probe(dev);
+}
+
+static void tee_client_device_remove_legacy(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+	struct device_driver *driver = dev->driver;
+
+	driver->remove(dev);
+}
+
+static void tee_client_device_shutdown_legacy(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+	struct device_driver *driver = dev->driver;
+
+	driver->shutdown(dev);
+}
 
 int __tee_client_driver_register(struct tee_client_driver *tee_driver,
 				 struct module *owner)
 {
 	tee_driver->driver.owner = owner;
 	tee_driver->driver.bus = &tee_bus_type;
+
+	/*
+	 * Drivers that have callbacks set for tee_driver->driver need updating
+	 * to use the callbacks in tee_driver instead. driver_register() warns
+	 * about that, so no need to warn here, too.
+	 */
+	if (!tee_driver->probe && tee_driver->driver.probe)
+		tee_driver->probe = tee_client_device_probe_legacy;
+	if (!tee_driver->remove && tee_driver->driver.remove)
+		tee_driver->remove = tee_client_device_remove_legacy;
+	if (!tee_driver->shutdown && tee_driver->driver.probe)
+		tee_driver->shutdown = tee_client_device_shutdown_legacy;
 
 	return driver_register(&tee_driver->driver);
 }
