@@ -73,6 +73,9 @@ struct dentry;
  * @fw_debug: firmware debug log mask
  * @hw_response_timeout: hardware response timeout
  * @lock: a lock for this structure
+ * @lock: a lock for this strucure
+ * @powered: VPU is powered on, protected by @lock
+ * @wdt_irq_disabled: IRQ was disabled by the handler on a watchdog interrupt
  * @response_packet: a pointer to response packet from fw to driver
  * @header_id: id of packet header
  * @packet_id: id of packet
@@ -129,6 +132,8 @@ struct iris_core {
 	u32					fw_debug;
 	u32					hw_response_timeout;
 	struct mutex				lock; /* lock for core related operations */
+	bool					powered;
+	bool					wdt_irq_disabled;
 	u8					*response_packet;
 	u32					header_id;
 	u32					packet_id;

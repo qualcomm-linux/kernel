@@ -125,13 +125,6 @@ unlock:
 	return ret;
 }
 
-irqreturn_t iris_hfi_isr(int irq, void *data)
-{
-	disable_irq_nosync(irq);
-
-	return IRQ_WAKE_THREAD;
-}
-
 irqreturn_t iris_hfi_isr_handler(int irq, void *data)
 {
 	struct iris_core *core = data;
@@ -140,15 +133,22 @@ irqreturn_t iris_hfi_isr_handler(int irq, void *data)
 		return IRQ_NONE;
 
 	mutex_lock(&core->lock);
+	if (!core->powered) {
+		mutex_unlock(&core->lock);
+		goto exit;
+	}
+
 	pm_runtime_mark_last_busy(core->dev);
 	iris_vpu_clear_interrupt(core);
+	if (iris_vpu_watchdog(core, core->intr_status)) {
+		disable_irq_nosync(irq);
+		core->wdt_irq_disabled = true;
+	}
 	mutex_unlock(&core->lock);
 
 	core->hfi_sys_ops->sys_hfi_response_handler(core);
 
-	if (!iris_vpu_watchdog(core, core->intr_status))
-		enable_irq(irq);
-
+exit:
 	return IRQ_HANDLED;
 }
 
