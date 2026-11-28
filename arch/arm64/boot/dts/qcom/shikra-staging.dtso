@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Shikra staging overlay for DPDK RGMII register access.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&ethernet0 {
+        reg = <0x0 0x05d00000 0x0 0x10000>,
+              <0x0 0x05d16000 0x0 0x1000>;
+};
+
+&ethernet1 {
+        reg = <0x0 0x05d20000 0x0 0x10000>,
+              <0x0 0x05d36000 0x0 0x1000>;
+};
